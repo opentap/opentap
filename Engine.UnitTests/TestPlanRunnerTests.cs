@@ -51,6 +51,16 @@ namespace OpenTap.Engine.UnitTests
             proc.WaitForEnd();
             Assert.AreEqual(0, proc.TapProcess.ExitCode);
         }
+        
+        
+        [Test]
+        public void TestUnbrowsableCliActionsHidden()
+        {
+            var proc = TapProcessContainer.StartFromArgs("package check-updates -h");
+            proc.WaitForEnd();
+            // The --startup option is unbrowsable and should not show up in the help text
+            StringAssert.DoesNotContain("--startup", proc.ConsoleOutput);
+        }
 
         [Test]
         public void TestProcessContainer()

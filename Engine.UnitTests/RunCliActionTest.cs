@@ -10,22 +10,23 @@ namespace OpenTap.Engine.UnitTests
     public class RunCliActionTest
     {
         const string planFile = "list-external-parameters.TapPlan";
+
         [Test]
         public void ListExternalParameters()
         {
-var runcli = new RunCliAction
+            var runcli = new RunCliAction
             {
-                ListExternal = true, 
+                ListExternal = true,
                 TestPlanPath = planFile,
                 NonInteractive = true
             };
-            
+
             var plan = new TestPlan();
             var step = new ProcessStep()
             {
                 LogHeader = null, // test that the log header is a null string.
                 Application = "tap.exe" // test that application is a non-null string.
-            }; 
+            };
             plan.ChildTestSteps.Add(step);
             var stepType = TypeData.GetTypeData(step);
             stepType.GetMember(nameof(step.LogHeader)).Parameterize(plan, step, "log-header");

@@ -6,6 +6,7 @@
 using OpenTap.Package;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -92,7 +93,7 @@ namespace OpenTap.Cli
                 }
 
                 var arg = ap.AllOptions.Add(attr.Name, attr.ShortName?.FirstOrDefault() ?? '\0', needsArg, description);
-                arg.IsVisible = attr.Visible;
+                arg.IsVisible = attr.Visible && (prop.GetAttribute<BrowsableAttribute>()?.Browsable ?? true);
                 argToProp.Add(arg.LongName, prop);
             }
 
