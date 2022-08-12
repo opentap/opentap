@@ -111,7 +111,7 @@ namespace OpenTap.Package
 
     internal class PackageVersionSerializerPlugin : TapSerializerPlugin
     {
-        public override double Order { get { return 5; } }
+        public override double Order => 5;
 
         public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {
@@ -135,6 +135,23 @@ namespace OpenTap.Package
         public override bool Serialize(XElement node, object obj, ITypeData expectedType)
         {
             if (expectedType.IsA(typeof(PackageVersion)) == false)
+                return false;
+
+            // We want to disable either if:
+            // 1: we are serializing a single PackageVersion
+            // 2: we are serializing a single collection of PackageVersions
+            // In any other case, we don't want to disable dependencies
+            bool shouldDisableDependencyWriter()
+            {
+                if (node.Parent == null)
+                    return true;
+                if (node.Parent.Name.LocalName == "ArrayOfPackageVersion" ||
+                    node.Parent.Name.LocalName == "ListOfPackageVersion")
+                    return node.Parent.Parent == null;
+                return false;
+            }
+
+            if (shouldDisableDependencyWriter() == false)
                 return false;
 
             // ask the TestPlanPackageDependency serializer (the one that writes the 

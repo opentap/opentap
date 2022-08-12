@@ -28,6 +28,16 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual("Y", xdoc.Root.Element("Y").Attribute("Metadata").Value);
         }
 
+
+        public class PackageVersionTestStep : TestStep
+        {
+            public PackageVersion[] PackageVersion { get; set; }
+            public override void Run()
+            {
+                
+            }
+        }
+
         [Test]
         public void TestPackageDependencySerializer()
         {
@@ -35,15 +45,23 @@ namespace OpenTap.Engine.UnitTests
             {
                 ChildTestSteps = { new DelayStep() }
             };
+            var packageVersion = new PackageVersion("pkg", SemanticVersion.Parse("1.0.0"), "Linux",
+                CpuArchitecture.AnyCPU, DateTime.Now,
+                new List<string>()
+                {
+                    "Lic1",
+                    "Lic2"
+                });
 
-            var ser = new TapSerializer();
             { // verify that a serialized plan has package dependencies
+                var ser = new TapSerializer();
                 var str = ser.SerializeToString(plan);   
                 CollectionAssert.IsEmpty(ser.Errors);
                 var elem = XElement.Parse(str);
                 Assert.AreEqual(1, elem.Elements("Package.Dependencies").Count());
             }
             { // verify that a serialized collection of plans has package dependencies
+                var ser = new TapSerializer();
                 var plans = new TestPlan[]
                 {
                     plan,
@@ -54,16 +72,20 @@ namespace OpenTap.Engine.UnitTests
                 var elem = XElement.Parse(str);
                 Assert.AreEqual(1, elem.Elements("Package.Dependencies").Count());            
             }
+            { // verify that a serialized package version does not have package dependencies
+                var ser = new TapSerializer();
+                var str = ser.SerializeToString(packageVersion);
+                CollectionAssert.IsEmpty(ser.Errors);
+                var elem = XElement.Parse(str);
+                Assert.AreEqual(0, elem.Elements("Package.Dependencies").Count());
+
+                var deserialized = ser.DeserializeFromString(str);
+                Assert.AreEqual(packageVersion, deserialized);
+                CollectionAssert.AreEqual(packageVersion.Licenses, ((deserialized as PackageVersion)!).Licenses);
+            }
             { // verify that a serialized list of package versions does not have package dependencies
-                var versions = new PackageVersion[]
-                {
-                    new PackageVersion("pkg", SemanticVersion.Parse("1.0.0"), "Linux", CpuArchitecture.AnyCPU, DateTime.Now, 
-                        new List<string>()
-                        {
-                            "Lic1",
-                            "Lic2"
-                        })
-                };
+                var ser = new TapSerializer();
+                var versions = new PackageVersion[] { packageVersion };
                 var str = ser.SerializeToString(versions);
                 CollectionAssert.IsEmpty(ser.Errors);
                 var elem = XElement.Parse(str);
@@ -77,7 +99,26 @@ namespace OpenTap.Engine.UnitTests
                     CollectionAssert.AreEqual(versions[0].Licenses, versions2[0].Licenses);
                 }
                 else
+                {
                     Assert.Fail($"Failed to deserialize serialized version array.");
+                }
+            }
+            { // Verify that a test plan still has package dependencies when it contains a PackageVersion property
+                var ser = new TapSerializer();
+                var plan2 = new TestPlan()
+                {
+                    ChildTestSteps =
+                    {
+                        new PackageVersionTestStep()
+                        {
+                            PackageVersion = new[] { packageVersion }
+                        }
+                    }
+                };
+                var str = ser.SerializeToString(plan2);   
+                CollectionAssert.IsEmpty(ser.Errors);
+                var elem = XElement.Parse(str);
+                Assert.AreEqual(1, elem.Elements("Package.Dependencies").Count());
             }
         }
     }
