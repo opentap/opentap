@@ -35,6 +35,23 @@ namespace OpenTap.Engine.UnitTests
                 
             }
         }
+
+        [Test]
+        public void TestPackageVersionLicenseSerializer()
+        {
+            var packageVersion = new PackageVersion("pkg", SemanticVersion.Parse("1.0.0"), "Linux", CpuArchitecture.AnyCPU, DateTime.Now, 
+                new List<string>()
+                {
+                    "License 1",
+                    "License 2"
+                });
+            var ser = new TapSerializer();
+            var str = ser.SerializeToString(packageVersion);
+            var des = ser.DeserializeFromString(str);
+            
+            Assert.AreEqual(packageVersion, des);
+            CollectionAssert.AreEqual(packageVersion.Licenses, ((des as PackageVersion)!).Licenses);
+        }
         
         [Test]
         public void TestPackageDependencySerializer()
