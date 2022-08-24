@@ -86,9 +86,24 @@ namespace OpenTap.Package
                             }
                         }
 
+                        // add the dependency
                         if (!packages.Any(x => x.Name == dep.Name))
                         {
-                            packages.Add(dep);
+                            // if the package dependency is also an already installed package we need to also take it into consideration when 
+                            // resolving, but only as a compatible match.
+                            var fixedPkg = image.FixedPackages.FirstOrDefault(x => x.Name == dep.Name);
+                            if (fixedPkg != null)
+                            {    
+                                var pkg2 = new PackageSpecifier(fixedPkg.Name,
+                                    fixedPkg.Version.WithMatchBehavior(VersionMatchBehavior.Compatible));
+                                packages.Add(pkg2);
+                                // since we re-run after this, the code will rerun with the specific dependency.
+                            }
+                            else
+                            {
+                                packages.Add(dep);
+                            }
+
                             modified = true;
                         }
                     }
@@ -118,16 +133,17 @@ namespace OpenTap.Package
                         graph.CouldSatisfy(pkg.Name, new VersionSpecifier(x, VersionMatchBehavior.Exact), others, image.FixedPackages))
                     .ToArray();
                 allVersions[i] = newVersions;
-                if (newVersions.Length == 1 && pkg.Version.MatchBehavior != VersionMatchBehavior.Exact)
+                if (newVersions.Length == 1 && !pkg.Version.IsExact)
                 {
                     packages[i] = new PackageSpecifier(pkg.Name,
+                        // newVersions[0] will always be exact.
                         new VersionSpecifier(newVersions[0], VersionMatchBehavior.Exact));
                     retry = true;
                 }
             }
 
             if (retry)
-                return ResolveImage(new ImageSpecifier(packages.ToList()), graph);
+                return ResolveImage(new ImageSpecifier(packages.ToList()){FixedPackages = image.FixedPackages}, graph);
             
             // 5. ok now we have X * Y * Z * ... = K possible solutions all satisfying the constraints.
             // Lets sort all the versions based on version specifiers, then fix  the version and try each combination (brute force)

@@ -240,10 +240,13 @@ namespace OpenTap.Package
 
                 foreach (var p in duplicatePlugins.GroupBy(p => p.Name))
                 {
-                    if(duplicateLogWarningsEmitted.Add(p.Key))
-                        log.Warning(
-                        $"Duplicate {p.Key} packages detected. Consider removing some of the duplicate package definitions:\n" +
-                        $"{string.Join("\n", p.Append(plugins[p.Key]).Select(x => " - " + ((InstalledPackageDefSource)x.PackageSource).PackageDefFilePath))}");
+                    lock (warningsLock)
+                    {
+                        if (duplicateLogWarningsEmitted.Add(p.Key))
+                            log.Warning(
+                                $"Duplicate {p.Key} packages detected. Consider removing some of the duplicate package definitions:\n" +
+                                $"{string.Join("\n", p.Append(plugins[p.Key]).Select(x => " - " + ((InstalledPackageDefSource) x.PackageSource).PackageDefFilePath))}");
+                    }
                 }
 
                 invalidate = false;
@@ -252,6 +255,8 @@ namespace OpenTap.Package
 
             return packageCache;
         }
+
+        private static object warningsLock = new object();
 
 
         /// <summary>

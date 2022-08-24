@@ -93,12 +93,11 @@ namespace OpenTap.Package
             var os = Installation.Current.OS;
             var arch = Installation.Current.Architecture;
             
-            var cache = new PackageDependencyCache(os, arch);
-            
+            var cache = new PackageDependencyCache(os, arch, Repositories);
             cache.LoadFromRepositories();
             cache.AddPackages(InstalledPackages);
             
-            var resolver = new ImageResolver(cancellationToken);
+            var resolver = new ImageResolver(cancellationToken);        
             var image = resolver.ResolveImage(this, cache.Graph);
             if (image == null)
             {

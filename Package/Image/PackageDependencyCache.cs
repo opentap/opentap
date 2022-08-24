@@ -10,7 +10,7 @@ namespace OpenTap.Package
         readonly CpuArchitecture deploymentInstallationArchitecture;
         readonly PackageDependencyGraph graph = new PackageDependencyGraph();
         public PackageDependencyGraph Graph => graph;
-        public List<string> Repositories { get; } = new List<string>();
+        public List<string> Repositories { get; }
         static readonly  TraceSource log = Log.CreateSource("Package Query");
 
         public PackageDependencyCache(string os, CpuArchitecture deploymentInstallationArchitecture, IEnumerable<string> repositories = null)

@@ -428,6 +428,10 @@ namespace OpenTap.Package
         /// </summary>
         internal IComparer<SemanticVersion> SortPartial => new PartialComparer(this);
 
+        ///<summary> A version is exact if the match behavior is exact and all version fields are specified. </summary>
+        internal bool IsExact => MatchBehavior == VersionMatchBehavior.Exact && Major.HasValue && Minor.HasValue &&
+                               Patch.HasValue;
+
         internal int SortOrder(SemanticVersion a, SemanticVersion b)
         {
             if (Major.HasValue)
@@ -524,6 +528,9 @@ namespace OpenTap.Package
             semver = default;
             return false;
         }
+
+        internal VersionSpecifier WithMatchBehavior(VersionMatchBehavior matchBehavior) => new VersionSpecifier(Major, Minor, Patch, PreRelease, BuildMetadata, matchBehavior);
+        
     }
 
     /// <summary>
