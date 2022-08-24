@@ -103,8 +103,11 @@ namespace OpenTap.Package
             {
                 throw new Exception($"OpenTAP packages could not be resolved");
             }
-            
-            ImageIdentifier image2 = new ImageIdentifier(image.Packages.Select(x => cache.GetPackageDef(x)).ToArray(), repositories.Select(s => s.Url));
+
+            var packages = image.Packages.Select(x => cache.GetPackageDef(x)).ToArray();
+            if (packages.Any(x => x == null))
+                throw new InvalidOperationException("Unable to lookup resolved package");
+            ImageIdentifier image2 = new ImageIdentifier(packages, repositories.Select(s => s.Url));
 
             return image2;
         }

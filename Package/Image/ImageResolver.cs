@@ -139,6 +139,16 @@ namespace OpenTap.Package
                         // newVersions[0] will always be exact.
                         new VersionSpecifier(newVersions[0], VersionMatchBehavior.Exact));
                     retry = true;
+                }else if (newVersions.Length == 1)
+                {
+                    if (pkg.Version.PreRelease != newVersions[0].PreRelease ||
+                        pkg.Version.BuildMetadata != newVersions[0].BuildMetadata)
+                    { 
+                        // in this case update the version for the package specifier, but we dont need to do everything again.
+                        // we are just being a bit more concrete about which package is selected.
+                        packages[i] = new PackageSpecifier(pkg.Name,
+                            new VersionSpecifier(newVersions[0], VersionMatchBehavior.Exact));
+                    }
                 }
             }
 
