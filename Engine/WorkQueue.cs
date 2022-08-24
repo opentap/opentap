@@ -210,7 +210,10 @@ namespace OpenTap
         {
             if (workItems.TryDequeue(out var inv))
             {
+                // when taking an item from the workqueue the countdown and the semaphore must be decremented
                 Interlocked.Decrement(ref countdown);
+                if (!addSemaphore.Wait(0))
+                    throw new InvalidOperationException("Unable to decrement semaphore when dequeuing work item.");
                 if (inv is IWrappedInvokable wrap)
                     return wrap.InnerInvokable;
                 return inv;
