@@ -115,7 +115,7 @@ namespace OpenTap.Package
                 var versions = allVersions[i];
                 var others = packages.Except(x => x == pkg).ToArray();
                 var newVersions = versions.Where(x =>
-                        graph.CouldSatisfy(pkg.Name, new VersionSpecifier(x, VersionMatchBehavior.Exact), others))
+                        graph.CouldSatisfy(pkg.Name, new VersionSpecifier(x, VersionMatchBehavior.Exact), others, image.FixedPackages))
                     .ToArray();
                 allVersions[i] = newVersions;
                 if (newVersions.Length == 1 && pkg.Version.MatchBehavior != VersionMatchBehavior.Exact)

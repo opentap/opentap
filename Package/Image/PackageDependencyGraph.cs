@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
@@ -201,7 +202,7 @@ namespace OpenTap.Package
             }
         }
 
-        public bool CouldSatisfy(string pkgName, VersionSpecifier version, PackageSpecifier[] others)
+        public bool CouldSatisfy(string pkgName, VersionSpecifier version, PackageSpecifier[] others, PackageSpecifier[] fixedPackages)
         {
             // we only do this if version can actually be interpreted as a semantic version.
             // if version is ^ or incomplete we just assume that it 'could' satisfy the others.
@@ -220,8 +221,14 @@ namespace OpenTap.Package
                     if (ps.Version.IsSatisfiedBy(o.Version) == false && o.Version.IsSatisfiedBy(ps.Version) == false)
                         return false;
                     
+                    var o2 = fixedPackages.FirstOrDefault(x => x.Name == ps.Name);
+                    if (o2 == null)
+                        continue;
+                    if (ps.Version.IsSatisfiedBy(o.Version) == false && o2.Version.IsSatisfiedBy(ps.Version) == false)
+                        return false;
+                    
                     // todo protect from circular dependencies here.
-                    if (!CouldSatisfy(ps.Name, depVersion, others))
+                    if (!CouldSatisfy(ps.Name, depVersion, others, Array.Empty<PackageSpecifier>()))
                         return false;
                 }
 
