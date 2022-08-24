@@ -65,15 +65,30 @@ namespace OpenTap.Package
                 if (repo is HttpPackageRepository http)
                 {
                     return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture).Result;
-                }
-
-                if (repo is FilePackageRepository fpkg)
+                } else if (repo is FilePackageRepository fpkg)
                 {
                     var graph = new PackageDependencyGraph();
                     var packages = fpkg.GetAllPackages(TapThread.Current.AbortToken);
                     graph.LoadFromPackageDefs(packages);
                     return graph;
                 }
+                else
+                {
+                    var graph = new PackageDependencyGraph();
+                    var names = repo.GetPackageNames();
+                    List<PackageDef> packages = new List<PackageDef>();
+                    foreach (var name in names)
+                    {
+                        foreach (var version in repo.GetPackageVersions(name))
+                        {
+                            var pkgs = repo.GetPackages(new PackageSpecifier(version.Name, version.Version.AsExactSpecifier(), version.Architecture, version.OS), TapThread.Current.AbortToken);
+                            packages.AddRange(pkgs);
+                        }
+                    }
+                    graph.LoadFromPackageDefs(packages);
+                    return graph;
+                }
+                
             }
             finally
             {
