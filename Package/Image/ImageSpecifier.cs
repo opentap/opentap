@@ -22,6 +22,9 @@ namespace OpenTap.Package
         /// Desired packages in the installation
         /// </summary>
         public List<PackageSpecifier> Packages { get; set; } = new List<PackageSpecifier>();
+
+        /// <summary> Installed specifiers. </summary>
+        internal PackageSpecifier[] FixedPackages { get; set; } = Array.Empty<PackageSpecifier>();
         
         public ImmutableArray<PackageDef> InstalledPackages { get; set; } = ImmutableArray<PackageDef>.Empty;
 
@@ -61,15 +64,12 @@ namespace OpenTap.Package
                 toInstall.Add(package);
             }
 
-            foreach (var pkg in installed)
-            {
-                toInstall.Add(new PackageSpecifier(pkg.Name, pkg.Version.AsCompatibleSpecifier()));
-            }
-
             return new ImageSpecifier
             {
                 Packages = toInstall,
-                InstalledPackages = installed.ToImmutableArray()
+                InstalledPackages = installed.ToImmutableArray(),
+                FixedPackages = installed.Where(x => toInstall.Any(y => y.Name == x.Name) == false)
+                    .Select(x => new PackageSpecifier(x.Name, x.Version.AsExactSpecifier(), x.Architecture, x.OS)).ToArray()
             };
         }
 
@@ -120,6 +120,7 @@ namespace OpenTap.Package
         public static ImageIdentifier MergeAndResolve(IEnumerable<ImageSpecifier> images, CancellationToken cancellationToken)
         {
             var img = new ImageSpecifier(images.SelectMany(x =>x.Packages).Distinct().ToList());
+            img.Repositories = images.SelectMany(x => x.Repositories).Distinct().ToList();
             return img.Resolve(cancellationToken);
         }
 

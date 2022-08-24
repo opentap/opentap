@@ -13,7 +13,7 @@ namespace OpenTap.Package
     internal class ImageInstallAction : IsolatedPackageAction
     {
         /// <summary>
-        /// Path to Image file containing XML or JSON formatted Image specification, or just the string itself.
+        /// Path to Image file containing XML or JSON formatted Image specification, or just the string itself, e.g "REST-API,TUI:beta".
         /// </summary>
         [UnnamedCommandLineArgument("image")]
         public string ImagePath { get; set; }

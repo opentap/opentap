@@ -125,11 +125,6 @@ namespace OpenTap.Package
             var img = ImageSpecifier.FromAddedPackages(installation, packages);
             img.Repositories = repositories.Select(x => x.Url).ToList();
             var result = img.Resolve(TapThread.Current.AbortToken);
-            if (result == null)
-            {
-                throw new Exception("Unable to resolve package combination.");
-            }
-
             
             if (test)
             {
