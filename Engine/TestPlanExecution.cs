@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -430,11 +429,21 @@ namespace OpenTap
             return Execute(ResultSettings.Current, null);
         }
 
-        /// <summary> </summary>
-        /// <returns></returns>
+        /// <summary>Executes the test plan asynchronously </summary>
+        /// <returns>A task returning the test plan run.</returns>
         public Task<TestPlanRun> ExecuteAsync()
         {
             return ExecuteAsync(ResultSettings.Current, null,null, TapThread.Current.AbortToken);
+        }
+        
+        /// <summary>
+        /// Executes the test plan asynchronously.
+        /// </summary>
+        /// <param name="abortToken">This abort token can be used to abort the operation.</param>
+        /// <returns>A task returning the test plan run.</returns>
+        public Task<TestPlanRun> ExecuteAsync(CancellationToken abortToken)
+        {
+            return ExecuteAsync(ResultSettings.Current, null,null, abortToken);
         }
         
         readonly TestPlanRunSummaryListener summaryListener = new TestPlanRunSummaryListener();

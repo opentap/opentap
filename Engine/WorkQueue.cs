@@ -67,9 +67,9 @@ namespace OpenTap
         //this should always be either 1(thread was started) or 0(thread is not started yet)
         int threadCount = 0;
 
-        const int semaphoreMaxCount = 1024 * 1024;
+        internal static int semaphoreMaxCount = 1024 * 1024;
         // the addSemaphore counts the current number of things in the tasklist.
-        readonly SemaphoreSlim addSemaphore = new SemaphoreSlim(0,semaphoreMaxCount); 
+        readonly SemaphoreSlim addSemaphore = new SemaphoreSlim(0, semaphoreMaxCount); 
 
         int countdown = 0;
         
