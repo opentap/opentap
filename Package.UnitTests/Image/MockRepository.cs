@@ -40,7 +40,9 @@ namespace OpenTap.Image.Tests
         {
             return new ImageSpecifier()
             {
-                Repositories = new List<string>() { Instance.Url }
+                Repositories = new List<string>() { Instance.Url },
+                OS = "Windows",
+                Architecture = CpuArchitecture.x64
             };
         }
 

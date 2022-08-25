@@ -80,7 +80,7 @@ namespace OpenTap.Image.Tests
         static PackageSpecifier[] str2packages(string csv)
         {
            return csv.Split(new char[]{';'}, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split(','))
-                .Select(x => new PackageSpecifier(x[0].Trim(), x.Length == 1 ? VersionSpecifier.Any : VersionSpecifier.Parse(x[1].Trim())))
+                .Select(x => new PackageSpecifier(x[0].Trim(), x.Length == 1 ? VersionSpecifier.AnyRelease : VersionSpecifier.Parse(x[1].Trim())))
                 .ToArray();
         }
         
@@ -109,8 +109,8 @@ namespace OpenTap.Image.Tests
                                                                         "Keysight Licensing, 1.1.1+7a2a1fe3;OpenTAP, 9.17.4;OSIntegration, 1.4.2+15f32a31;" +
                                                                         "Results Viewer CE, 9.17.4+5e508f08;SDK, 9.17.4+ea67c63a;SQLite and PostgreSQL, 9.4.2+3009aace;" +
                                                                         "Visual Studio SDK CE, 1.2.6+ef0ad804;WPF Controls, 9.17.4+5e508f08");
-            yield return ("OpenTAP, 9.17.4; REST-API, any", "Keysight Floating Licensing, 1.4.1+e5816333;Keysight Licensing, 1.0.0+8a228623;" +
-                                                            "OpenTAP, 9.17.4;REST-API, 2.7.0+2d67ea81");
+            yield return ("OpenTAP, 9.17.4; REST-API, any", "Keysight Licensing, 1.1.0+fc48665d;" +
+                                                            "OpenTAP, 9.17.4;REST-API, 2.8.0-beta.19+b95ad922");
             yield return ("OpenTAP, 9.17; OSIntegration, ^1", "OpenTAP, 9.17.4;OSIntegration, 1.4.2+15f32a31");
             yield return ("OpenTAP, 9.18.4; TUI, beta", "OpenTAP, 9.18.4;TUI, 0.1.0-beta.145+6c192a43");
             yield return ("OpenTAP, 9.18; TUI, beta", "OpenTAP, 9.18.4;TUI, 0.1.0-beta.145+6c192a43");
@@ -160,10 +160,10 @@ namespace OpenTap.Image.Tests
             var r = resolver2.ResolveImage(img, graph);
 
             if (result == null)
-                Assert.IsNull(r);
+                Assert.IsFalse(r.Success);
             else
             {
-                Assert.IsNotNull(r);
+                Assert.IsTrue(r.Success);
                 foreach (var pkg in str2packages(result))
                 {
                     Assert.IsTrue(r.Packages.Any(x => x.Name == pkg.Name && x.Version.Equals(pkg.Version)));

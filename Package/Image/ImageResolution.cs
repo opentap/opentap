@@ -11,5 +11,9 @@ namespace OpenTap.Package
         }
         public readonly PackageSpecifier[] Packages;
         public readonly long Iterations;
+
+        public virtual bool Success => true;
+
+        public override string ToString() => string.Format("[ImageResolution: {0}", string.Join(", ", Packages.Select(x => $"{x.Name} {x.Version}")));
     }
 }

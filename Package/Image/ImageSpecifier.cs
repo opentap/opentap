@@ -41,7 +41,7 @@ namespace OpenTap.Package
             
         }
 
-        public static ImageSpecifier FromAddedPackages(Installation installation, IEnumerable<PackageSpecifier> newPackages)
+        public static ImageSpecifier FromAddedPackages(Installation installation, IEnumerable<PackageSpecifier> newPackages, bool keepInstalled = false)
         {
             var toInstall = new List<PackageSpecifier>();
             var installed = installation.GetPackages().ToList();
@@ -64,12 +64,20 @@ namespace OpenTap.Package
                 toInstall.Add(package);
             }
 
+            var fixedPackages = installed.Where(x => toInstall.Any(y => y.Name == x.Name) == false)
+                .Select(x => new PackageSpecifier(x.Name, x.Version.AsCompatibleSpecifier(), x.Architecture, x.OS))
+                .ToArray();
+
+            if (keepInstalled)
+            {
+                toInstall.AddRange(fixedPackages);
+            }
+
             return new ImageSpecifier
             {
                 Packages = toInstall,
                 InstalledPackages = installed.ToImmutableArray(),
-                FixedPackages = installed.Where(x => toInstall.Any(y => y.Name == x.Name) == false)
-                    .Select(x => new PackageSpecifier(x.Name, x.Version.AsExactSpecifier(), x.Architecture, x.OS)).ToArray()
+                FixedPackages = fixedPackages
             };
         }
 
@@ -81,6 +89,9 @@ namespace OpenTap.Package
         public List<string> Repositories { get; set; } =
             new List<string>() { new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri };
 
+        public string OS { get; set; } = Installation.Current.OS;
+        public CpuArchitecture Architecture { get; set; } = Installation.Current.Architecture;
+
         /// <summary>
         /// Resolve the desired packages from the specified repositories. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
         /// </summary>
@@ -90,18 +101,15 @@ namespace OpenTap.Package
         {
             List<IPackageRepository> repositories = Repositories.Distinct().Select(PackageRepositoryHelpers.DetermineRepositoryType).GroupBy(p => p.Url).Select(g => g.First()).ToList();
 
-            var os = Installation.Current.OS;
-            var arch = Installation.Current.Architecture;
-            
-            var cache = new PackageDependencyCache(os, arch, Repositories);
+            var cache = new PackageDependencyCache(OS, Architecture, Repositories);
             cache.LoadFromRepositories();
             cache.AddPackages(InstalledPackages);
             
             var resolver = new ImageResolver(cancellationToken);        
             var image = resolver.ResolveImage(this, cache.Graph);
-            if (image == null)
+            if (image.Success == false)
             {
-                throw new Exception($"OpenTAP packages could not be resolved");
+                throw new ImageResolveException(image);
             }
 
             var packages = image.Packages.Select(x => cache.GetPackageDef(x)).ToArray();
@@ -121,6 +129,7 @@ namespace OpenTap.Package
         /// <exception cref="ImageResolveException">The exception thrown if the image could not be resolved</exception>
         public static ImageIdentifier MergeAndResolve(IEnumerable<ImageSpecifier> images, CancellationToken cancellationToken)
         {
+            
             var img = new ImageSpecifier(images.SelectMany(x =>x.Packages).Distinct().ToList());
             img.Repositories = images.SelectMany(x => x.Repositories).Distinct().ToList();
             return img.Resolve(cancellationToken);
@@ -137,18 +146,16 @@ namespace OpenTap.Package
         /// <exception cref="ImageResolveException">In case of resolve errors, this method will throw ImageResolveExceptions.</exception>
         public Installation MergeAndDeploy(Installation deploymentInstallation, CancellationToken cancellationToken)
         {
-            var installedSpecifiers = deploymentInstallation.GetPackages()
-                .Select(x => new PackageSpecifier(x.Name, x.Version.AsCompatibleSpecifier()));
-
-            var imageSpecifier2 = new ImageSpecifier(Packages.Concat(installedSpecifiers).ToList(), Name)
-            {
-                InstalledPackages = deploymentInstallation.GetPackages().ToImmutableArray()
-            };
+            var imageSpecifier2 = FromAddedPackages(deploymentInstallation, Packages, keepInstalled: true);
+            imageSpecifier2.Name = Name;
+            imageSpecifier2.Repositories.Clear();
+            imageSpecifier2.Repositories.AddRange(Repositories);
+            imageSpecifier2.OS = OS;
+            imageSpecifier2.Architecture = Architecture;
+            
+            
             var image = imageSpecifier2.Resolve(cancellationToken);
             
-            if (image == null)
-                throw new Exception($"Packages could not be resolved");
-
             image.Deploy(deploymentInstallation.Directory, cancellationToken);
             return new Installation(deploymentInstallation.Directory);
         }
@@ -173,11 +180,16 @@ namespace OpenTap.Package
         {
             DotGraph = dotGraph;
         }
+        internal ImageResolveException(ImageResolution result) : base("Failed to resolve packages.")
+        {
+            this.Result = result;
+        }
+
+        internal ImageResolution Result;
 
         /// <summary>
         /// Dependency graph specified in Dot notation
         /// </summary>
         public string DotGraph { get; private set; }
-
     }
 }

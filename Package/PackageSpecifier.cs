@@ -71,6 +71,12 @@ namespace OpenTap.Package
         public static readonly VersionSpecifier Any = new VersionSpecifier(null, null, null, null, null, VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease);
 
         /// <summary>
+        /// The VersionSpecifier that will match any version. VersionSpecifier.Any.IsCompatible always returns true.
+        /// </summary>
+        public static readonly VersionSpecifier AnyRelease = new VersionSpecifier(null, null, null, null, null, VersionMatchBehavior.Compatible);
+
+        
+        /// <summary>
         /// Major version. When not null, <see cref="SemanticVersion.IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Major version different from this.
         /// </summary>
         public readonly int? Major;
@@ -271,6 +277,8 @@ namespace OpenTap.Package
         {
             if (ReferenceEquals(this, VersionSpecifier.Any))
                 return true; // this is just a small performance shortcut. The below logic would have given the same result.
+            if (ReferenceEquals(this, VersionSpecifier.AnyRelease))
+                return actualVersion.PreRelease == null; // this is just a small performance shortcut. The below logic would have given the same result.
 
             if (MatchBehavior == VersionMatchBehavior.Exact)
                 return MatchExact(actualVersion);
@@ -416,9 +424,12 @@ namespace OpenTap.Package
                     var m = a.Patch.CompareTo(b.Patch);
                     if (m != 0) return m;
                 }
-                // pre-release sorting is skipped for now.
+                
+                if (a.PreRelease == b.PreRelease) return 0;
+                if (a.PreRelease == null && b.PreRelease != null) return 1;
+                if (a.PreRelease != null && b.PreRelease == null) return -1;
 
-                return 0;
+                return ComparePreRelease(a.PreRelease, b.PreRelease);
             }
         }
 

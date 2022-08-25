@@ -158,8 +158,7 @@ namespace OpenTap.Package
                     {
                         if (packageSpecifier.Version == VersionSpecifier.Any)
                         {
-                            if (semv.PreRelease == null)
-                                yield return semv;
+                            yield return semv;
                         }else if (packageSpecifier.Version.IsCompatible(semv))
                             yield return semv;
                         

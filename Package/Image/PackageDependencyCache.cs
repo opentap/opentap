@@ -1,6 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 
 namespace OpenTap.Package
 {
@@ -40,8 +42,20 @@ namespace OpenTap.Package
             
             var repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToArray();
             graphs.Clear();
-            foreach (var r in repositories.AsParallel().Select(repo => (graph: GetGraph(repo), repo: repo)))
+            foreach (var r in repositories.AsParallel().Select(repo =>
+                     {
+                         try
+                         {
+                             return (graph: GetGraph(repo), repo: repo);
+                         }
+                         catch (Exception e)
+                         {
+                             return (graph: null, repo: repo);
+                         }
+                     }))
             {
+                if (r.graph == null)
+                    continue; // error while querying repo.
                 graphs.Add(r.graph);
                 repos[r.graph] = r.repo;
                 graph.Absorb(r.graph);   
@@ -64,12 +78,14 @@ namespace OpenTap.Package
             {
                 if (repo is HttpPackageRepository http)
                 {
-                    return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture).Result;
+                  return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture)
+                          .Result;
+                    
                 } else if (repo is FilePackageRepository fpkg)
                 {
                     var graph = new PackageDependencyGraph();
                     var packages = fpkg.GetAllPackages(TapThread.Current.AbortToken);
-                    graph.LoadFromPackageDefs(packages);
+                    graph.LoadFromPackageDefs(packages.Where(x => x.IsPlatformCompatible(deploymentInstallationArchitecture, os)));
                     return graph;
                 }
                 else
@@ -85,7 +101,7 @@ namespace OpenTap.Package
                             packages.AddRange(pkgs);
                         }
                     }
-                    graph.LoadFromPackageDefs(packages);
+                    graph.LoadFromPackageDefs(packages.Where(x => x.IsPlatformCompatible(deploymentInstallationArchitecture, os)));
                     return graph;
                 }
                 

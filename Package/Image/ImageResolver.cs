@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 
@@ -37,14 +39,25 @@ namespace OpenTap.Package
                     if (pkg2.Name == pkg1.Name)
                     {
                         if (!pkg2.Version.IsSatisfiedBy(pkg1.Version) && !pkg1.Version.IsSatisfiedBy(pkg2.Version))
-                            return null;
+                            return new FailedImageResolution(new []{pkg1, pkg2}, Iterations);
 
-                        if (pkg2.Version.IsSatisfiedBy(pkg1.Version))
+                        if (!pkg1.Version.IsSatisfiedBy(pkg2.Version))
+                        {
+                            packages[i] = pkg1;
+                            packages.RemoveAt(j);
+                            goto retry;
+                        }
+                        else if(!pkg2.Version.IsSatisfiedBy(pkg1.Version)) // pkg1 is satisfied by pkg2
                         {
                             packages[i] = pkg2;
                             packages.RemoveAt(j);
                             goto retry;
                         }
+                        else
+                        {
+                            
+                        }
+                        
                     }
                 }
             }
@@ -73,11 +86,11 @@ namespace OpenTap.Package
                                     !dep.Version.IsSatisfiedBy(pkg2.Version))
                                 {
                                     // this dependency is unresolvable
-                                    return null;
+                                    return new FailedImageResolution(Array.Empty<PackageSpecifier>(), Iterations);
                                 }
 
                                 // this dependency is more specific than the existing.
-                                if (pkg2.Version != dep.Version && pkg2.Version.IsSuperSetOf(dep.Version) && pkg2.Version.MatchBehavior != VersionMatchBehavior.Exact)
+                                if (pkg2.Version != dep.Version && (pkg2.Version.IsSuperSetOf(dep.Version) || !dep.Version.IsSatisfiedBy(pkg2.Version)) && pkg2.Version.MatchBehavior != VersionMatchBehavior.Exact)
                                 {
                                     packages[j] = dep;
                                     modified = true;
@@ -164,8 +177,20 @@ namespace OpenTap.Package
                 k *= allVersions[i].LongLength;
             }
 
-            if (k == 0) 
-                return null; // no possible solutions,
+            if (k == 0)
+            {
+                List<PackageSpecifier> ResolveProblems = new List<PackageSpecifier>();
+                for (int i = 0; i < allVersions.Count; i++)
+                {
+                    if (allVersions[i].Length == 0)
+                    {
+                        ResolveProblems.Add(packages[i]);
+                    }
+                }
+                
+                return new FailedImageResolution(ResolveProblems, Iterations); // no possible solutions,
+            }
+
             if (k == 1)
             {
                 bool allExact = allVersions.All(x => x.Length  == 1);
@@ -235,14 +260,30 @@ namespace OpenTap.Package
 
                         // recursive to see if this specifier has a result.
                         var result = this.ResolveImage(newSpecifier, graph);
-                        if (result != null)
+                        if (result.Success)
                             return result;
                     }
                 }
             }
             
             // this probably never happens as we already returned null, when K was 0.
-            return null;
+            return new FailedImageResolution(Array.Empty<PackageSpecifier>(), Iterations);
+        }
+    }
+
+    class FailedImageResolution : ImageResolution
+    {
+        private IReadOnlyList<PackageSpecifier> resolveProblems;
+        public FailedImageResolution(IReadOnlyList<PackageSpecifier> resolveProblems, long iterations) : base(Array.Empty<PackageSpecifier>(), iterations)
+        {
+            this.resolveProblems = resolveProblems;
+        }
+
+        public override bool Success => false;
+
+        public override string ToString()
+        {
+            return "Unable to resolve packages: " + string.Join(", ", resolveProblems.Select(x => $"{x.Name} {x.Version}"));
         }
     }
 }
