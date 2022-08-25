@@ -144,10 +144,11 @@ namespace OpenTap.Package
                     if (pkg.Version.PreRelease != newVersions[0].PreRelease ||
                         pkg.Version.BuildMetadata != newVersions[0].BuildMetadata)
                     { 
-                        // in this case update the version for the package specifier, but we dont need to do everything again.
-                        // we are just being a bit more concrete about which package is selected.
+                        // in this case update the version for the package specifier
+                        // the exact dependencies has changed, so we need to do another round of resolution.
                         packages[i] = new PackageSpecifier(pkg.Name,
                             new VersionSpecifier(newVersions[0], VersionMatchBehavior.Exact));
+                        retry = true;
                     }
                 }
             }
