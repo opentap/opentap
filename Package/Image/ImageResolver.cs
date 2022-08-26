@@ -187,6 +187,11 @@ namespace OpenTap.Package
                         ResolveProblems.Add(packages[i]);
                     }
                 }
+
+                if (packages.Count == 0) 
+                    // special case when no packages are specified.
+                    // this is an uncommon trivial corner case.
+                    return new ImageResolution(Array.Empty<PackageSpecifier>(), Iterations);
                 
                 return new FailedImageResolution(ResolveProblems, Iterations); // no possible solutions,
             }

@@ -101,7 +101,10 @@ namespace OpenTap.Package
                             packages.AddRange(pkgs);
                         }
                     }
-                    graph.LoadFromPackageDefs(packages.Where(x => x.IsPlatformCompatible(deploymentInstallationArchitecture, os)));
+
+                    var compatiblePackages = packages
+                        .Where(x => x.IsPlatformCompatible(deploymentInstallationArchitecture, os)).ToArray();
+                    graph.LoadFromPackageDefs(compatiblePackages);
                     return graph;
                 }
                 
