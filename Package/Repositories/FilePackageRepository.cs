@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -21,6 +22,7 @@ namespace OpenTap.Package
     /// </summary>
     public class FilePackageRepository : IPackageRepository, IPackageDownloadProgress
     {
+        internal static ConcurrentBag<string> additionalFiles = new ConcurrentBag<string>();
         
         
 #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
@@ -419,6 +421,7 @@ namespace OpenTap.Package
                     log.Debug($"Access to path {dir.FullName} denied. Ignoring.");
                 }
             }
+            result.AddRange(additionalFiles);
 
             return result;
         }
@@ -614,5 +617,11 @@ namespace OpenTap.Package
         
         /// <summary>  Creates a display friendly string of this. </summary>
         public override string ToString() =>  $"[FilePackageRepository: file://{Url}]";
+
+        public static void AddAdditionalFile(string filePath)
+        {
+            if(additionalFiles.Contains(filePath) == false)
+                additionalFiles.Add(filePath);
+        }
     }
 }

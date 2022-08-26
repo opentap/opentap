@@ -863,6 +863,8 @@ namespace OpenTap.Package
                 return BitConverter.ToString(bytes).Replace("-", "");
             }
         }
+
+        internal PackageSpecifier GetSpecifier() => new PackageSpecifier(Name, Version.AsExactSpecifier(), Architecture, OS);
     }
 
     // helper class to ignore namespaces when de-serializing

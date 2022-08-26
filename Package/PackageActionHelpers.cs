@@ -112,8 +112,16 @@ namespace OpenTap.Package
                                     continue;
                                 }
                             }
-                            throw new Exception("TapPackages file contains multiple variants of the same package. Unable to autoselect a suitable one.");
+                            throw new Exception("TapPackages file contains multiple variants of the same package. Unable to auto-select a suitable one.");
                         }
+                    }
+                    else if (Path.GetExtension(packageName)
+                             .Equals(".Tappackage", StringComparison.InvariantCultureIgnoreCase))
+                    {
+                        var pkg = PackageDef.FromPackage(packageName);
+                        packages.Add(pkg.GetSpecifier());
+                        
+                        FilePackageRepository.AddAdditionalFile(Path.GetFullPath(packageName));
                     }
                     else if (string.IsNullOrWhiteSpace(packageName) == false)
                     {
