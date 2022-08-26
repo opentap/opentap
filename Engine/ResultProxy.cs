@@ -592,10 +592,12 @@ namespace OpenTap
                 {
                     if (!ResultTableOptimizer.CanMerge(p.table, table))
                         break;
+                    p = (PublishResultTableInvokable)workQueue.Dequeue();
+                    if (p == null) break;
                     if (mergeTables == null)
                         mergeTables = new List<ResultTable>();
                     mergeTables.Add(p.table);
-                    workQueue.Dequeue();
+                    
                 }
 
                 if (mergeTables != null)
