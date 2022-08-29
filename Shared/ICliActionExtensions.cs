@@ -93,7 +93,10 @@ namespace OpenTap.Cli
                 }
 
                 var arg = ap.AllOptions.Add(attr.Name, attr.ShortName?.FirstOrDefault() ?? '\0', needsArg, description);
+                // attr.Visible has been obsoleted but is still considered for backward compatibility.
+#pragma warning disable CS0618
                 arg.IsVisible = attr.Visible && (prop.GetAttribute<BrowsableAttribute>()?.Browsable ?? true);
+#pragma warning restore CS0618
                 argToProp.Add(arg.LongName, prop);
             }
 

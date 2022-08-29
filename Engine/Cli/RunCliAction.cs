@@ -5,6 +5,7 @@
 using OpenTap.Package;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -35,7 +36,8 @@ namespace OpenTap.Cli
         /// <summary>
         /// Additional directories to be searched for plugins. This option may be used multiple times, e.g., --search dir1 --search dir2.
         /// </summary>
-        [CommandLineArgument("search", Description = "Additional directories to be searched for plugins.\nThis option may be used multiple times, e.g., --search dir1 --search dir2.", Visible = false)]
+        [CommandLineArgument("search", Description = "Additional directories to be searched for plugins.\nThis option may be used multiple times, e.g., --search dir1 --search dir2.")]
+        [Browsable(false)]
         public string[] Search { get; set; } = new string[0];
 
         /// <summary>
