@@ -451,12 +451,14 @@ namespace OpenTap.Package.UnitTests
             dep0Def.Name = "UninstallPackage";
             dep0Def.Version = SemanticVersion.Parse("0.1");
             dep0Def.AddFile("UninstallText.txt");
+            dep0Def.OS = OperatingSystem.Current.Name;
             string dep0File = DummyPackageGenerator.GeneratePackage(dep0Def);
 
             var dep1Def = new PackageDef();
             dep1Def.Name = "UninstallPackage";
             dep1Def.Version = SemanticVersion.Parse("0.2");
             dep1Def.AddFile("SubDir/UninstallText.txt");
+            dep1Def.OS = OperatingSystem.Current.Name;
             Directory.CreateDirectory("SubDir");
             string dep1File = DummyPackageGenerator.GeneratePackage(dep1Def);
 
@@ -547,9 +549,9 @@ namespace OpenTap.Package.UnitTests
             try
             {
                 int exitCode;
-                string output = RunPackageCli("install Dummy2 -y", out exitCode);
-                //Assert.AreNotEqual(0, exitCode, "Unexpected exit code");
-                StringAssert.Contains("'Missing' with a version compatible with 1.0", output);
+                string output = RunPackageCli("install Dummy2", out exitCode);
+                Assert.AreNotEqual(0, exitCode, "Unexpected exit code");
+                StringAssert.Contains("Failed to resolve package", output);
             }
             finally
             {
@@ -587,25 +589,26 @@ namespace OpenTap.Package.UnitTests
             var package = new PackageDef();
             package.Name = "NoDowngradeTest";
             package.Version = SemanticVersion.Parse("1.0.1");
+            package.OS = OperatingSystem.Current.Name;
             var newPath = DummyPackageGenerator.GeneratePackage(package);
 
             package.Version = SemanticVersion.Parse("1.0.0");
             var oldPath = DummyPackageGenerator.GeneratePackage(package);
 
             // Install new version
-            var output = RunPackageCli($"install {newPath}", out int exitCode);
+            var output = RunPackageCli($"install {newPath} --force", out int exitCode);
             Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("installed"), "NoDowngradeTest package was not installed.");
             var installedVersion = installation.GetPackages()?.FirstOrDefault(p => p.Name == "NoDowngradeTest")?.Version;
             Assert.IsTrue(installedVersion == SemanticVersion.Parse("1.0.1"), $"NoDowngradeTest installed the wrong version: '{installedVersion}'.");
             
             // Install older version with --no-downgrade option. This should not install the old version.
-            output = RunPackageCli($"install --no-downgrade {oldPath}", out exitCode);
-            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("already installed"), "NoDowngradeTest package was not installed.");
+            output = RunPackageCli($"install --no-downgrade {oldPath}  --force", out exitCode);
+            Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("no package(s) were upgraded"), "NoDowngradeTest package was not installed.");
             installedVersion = installation.GetPackages()?.FirstOrDefault(p => p.Name == "NoDowngradeTest")?.Version;
             Assert.IsTrue(installedVersion == SemanticVersion.Parse("1.0.1"), $"NoDowngradeTest failed to skip the install: '{installedVersion}'.");
             
             // Install older version without --no-downgrade option. This should install the old version.
-            output = RunPackageCli($"install {oldPath}", out exitCode);
+            output = RunPackageCli($"install {oldPath} --force", out exitCode);
             Assert.IsTrue(exitCode == 0 && output.ToLower().Contains("installed"), "NoDowngradeTest package was not installed.");
             installedVersion = installation.GetPackages()?.FirstOrDefault(p => p.Name == "NoDowngradeTest")?.Version;
             Assert.IsTrue(installedVersion == SemanticVersion.Parse("1.0.0"), $"NoDowngradeTest failed to install the old version: '{installedVersion}'.");

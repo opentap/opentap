@@ -36,30 +36,32 @@ namespace OpenTap.Package
             public DepResponse Response { get; set; } = DepResponse.Add;
         }
 
-        private static int OrderArchitecture(CpuArchitecture architecture)
+        static List<PackageDef> TriviallyResolvePackage(IEnumerable<PackageSpecifier> packages,
+            ICollection<IPackageRepository> repositories)
         {
-            if (architecture == ArchitectureHelper.GuessBaseArchitecture)
-                return 0;
-            switch (architecture)
+            List<PackageDef> forcePackages = new List<PackageDef>();
+            foreach (var pkgSpec in packages)
             {
-                case CpuArchitecture.Unspecified:
-                    return 10;
-                case CpuArchitecture.AnyCPU:
-                    return 1;
-                case CpuArchitecture.x86:
-                    return 3;
-                case CpuArchitecture.x64:
-                    return 2;
-                case CpuArchitecture.arm:
-                    return 5;
-                case CpuArchitecture.arm64:
-                    return 4;
-                default:
-                    return 10;
-            }
-        }
+                PackageDef pkgDef = null;
+                foreach (var repo in repositories)
+                {
+                    pkgDef = repo.GetPackages(pkgSpec).FirstOrDefault();
+                    if (pkgDef != null) break;
+                }
 
-        static bool test = false;
+                if (pkgDef == null)
+                {
+                    throw new Exception($"Could not find package exactly matching {pkgSpec} (--force specified).");
+                }
+
+                forcePackages.Add(pkgDef);
+
+            }
+            return forcePackages;
+            
+        }
+        
+        
         internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories,
             bool force, bool includeDependencies, bool ignoreDependencies, bool askToIncludeDependencies, bool noDowngrade)
         {
@@ -130,70 +132,40 @@ namespace OpenTap.Package
                 }
             }
 
+            if (force)
+            {
+                // when --force is specified, exact package specifiers has to be used.
+                // there is no need to resolve the image in this case.
+                var packagesToInstall = TriviallyResolvePackage(packages, repositories);
+                
+                if (noDowngrade)
+                {
+                    packagesToInstall = packagesToInstall.Where(x =>
+                    {
+                        var installed = installation.FindPackage(x.Name);
+                        if (installed != null && installed.Version.CompareTo(x.Version) > 0)
+                            return false;
+                        return true;
+                    }).ToList();
+                }
+
+                return packagesToInstall;
+
+            }
+
+            if (noDowngrade)
+            {
+                // if --no-downgrade is specified, none of the already installed packages are allowed to get downgraded
+                // hence they can be added as extra constraints for the dependency resolver.
+                var existingSpec = installation.GetPackages().Select(pkg =>
+                    new PackageSpecifier(pkg.Name, pkg.Version.AsCompatibleSpecifier(), pkg.Architecture, pkg.OS));
+                packages = packages.Concat(existingSpec).ToList();
+            }
+
             var img = ImageSpecifier.FromAddedPackages(installation, packages);
             img.Repositories = repositories.Select(x => x.Url).ToList();
             var result = img.Resolve(TapThread.Current.AbortToken);
             
-            if (test)
-            {
-                foreach (var packageSpecifier in packages)
-                {
-                    var installedPackages = installation.GetPackages();
-                    Stopwatch timer = Stopwatch.StartNew();
-
-                    if (File.Exists(packageSpecifier.Name))
-                    {
-                        // sometimes the 'package specifier' name is just a file name with a .TapPackage extension. I am not sure when this could possibly happen though.
-
-                        var package = PackageDef.FromPackage(packageSpecifier.Name);
-
-                        if (noDowngrade)
-                        {
-                            var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
-                            if (installedPackage != null && installedPackage.Version.CompareTo(package.Version) >= 0)
-                            {
-                                log.Info(
-                                    $"The same or a newer version of package '{package.Name}' in already installed.");
-                                continue;
-                            }
-                        }
-
-                        gatheredPackages.Add(package);
-                        log.Debug(timer, "Found package {0} locally.", packageSpecifier.Name);
-                    }
-                    else
-                    {
-                        // assumption: packages ending with .TapPackage are files, not on external repos.
-                        // so if this is the case and the file does not exist, throw an exception.
-                        if (string.Compare(Path.GetExtension(packageSpecifier.Name), ".TapPackage",
-                                StringComparison.InvariantCultureIgnoreCase) == 0)
-                            throw new FileNotFoundException($"Unable to find the file {packageSpecifier.Name}");
-
-                        PackageDef package = DependencyResolver.GetPackageDefFromRepo(repositories, packageSpecifier,
-                            new List<PackageDef>());
-
-                        if (noDowngrade)
-                        {
-                            var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
-                            if (installedPackage != null && installedPackage.Version.CompareTo(package.Version) >= 0)
-                            {
-                                log.Info(
-                                    $"The same or a newer version of package '{package.Name}' in already installed.");
-                                continue;
-                            }
-                        }
-
-                        if (PackageCacheHelper.PackageIsFromCache(package))
-                            log.Debug(timer, "Found package {0} version {1} in local cache", package.Name,
-                                package.Version);
-                        else
-                            log.Debug(timer, "Found package {0} version {1}", package.Name, package.Version);
-
-                        gatheredPackages.Add(package);
-                    }
-                }
-            }
-
             if (gatheredPackages.All(p => p.IsBundle()))
             {
                 // If we are just installing bundles, we can assume that dependencies should also be installed

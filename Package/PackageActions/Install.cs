@@ -166,8 +166,9 @@ namespace OpenTap.Package
                         var selectedPlatformCompatible =  pkg.IsPlatformCompatible(Architecture,OS);
                         var message =
                             $"Selected package {pkg.Name} for {pkg.OS}, {pkg.Architecture} is incompatible with the host platform {targetInstallation.OS}, {targetInstallation.Architecture}.";
-                        if (selectedPlatformCompatible)
-                            log.Warning(message);
+                        if (selectedPlatformCompatible || Force)
+                            // --OS [arg] was used or --force is specified. Try to install it anyway. 
+                            log.Warning(message); 
                         else
                         {
                             log.Error(message);
