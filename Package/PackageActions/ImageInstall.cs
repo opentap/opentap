@@ -64,10 +64,9 @@ namespace OpenTap.Package
                     imageString = File.ReadAllText(imageString);
                 imageSpecifier = ImageSpecifier.FromString(imageString);
             }
-            if (imageSpecifier.Repositories == null || imageSpecifier.Repositories.Count == 0)
-            {
-                imageSpecifier.Repositories = Repositories.ToList();
-            }
+            
+            imageSpecifier.Repositories = Repositories.ToList();
+            
 
             try
             {

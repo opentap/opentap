@@ -65,6 +65,7 @@ namespace OpenTap.Package
         internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories,
             bool force, bool includeDependencies, bool ignoreDependencies, bool askToIncludeDependencies, bool noDowngrade)
         {
+            List<PackageDef> directlyReferencesPackages = new List<PackageDef>();
             List<PackageDef> gatheredPackages = new List<PackageDef>();
 
             List<PackageSpecifier> packages = new List<PackageSpecifier>();
@@ -121,6 +122,7 @@ namespace OpenTap.Package
                              .Equals(".Tappackage", StringComparison.InvariantCultureIgnoreCase))
                     {
                         var pkg = PackageDef.FromPackage(packageName);
+                        directlyReferencesPackages.Add(pkg);
                         packages.Add(pkg.GetSpecifier());
                         
                         FilePackageRepository.AddAdditionalFile(Path.GetFullPath(packageName));
@@ -146,8 +148,12 @@ namespace OpenTap.Package
                         if (installed != null && installed.Version.CompareTo(x.Version) > 0)
                             return false;
                         return true;
-                    }).ToList();
+                    }).Select(x => directlyReferencesPackages.FirstOrDefault(y => y.Name == x.Name && y.Version == x.Version) ?? x)
+                        .ToList();
                 }
+                // make sure to use the TapPackage if one was directly referenced
+                packagesToInstall = packagesToInstall.Select(x => directlyReferencesPackages.FirstOrDefault(y => y.Name == x.Name && y.Version == x.Version) ?? x)
+                    .ToList();
 
                 return packagesToInstall;
 
@@ -172,12 +178,9 @@ namespace OpenTap.Package
                 includeDependencies = true;
             }
 
-            if (force || ignoreDependencies)
+            if (ignoreDependencies)
             {
-                if (force)
-                    log.Info($"Ignoring potential dependencies (--force option specified).");
-                else
-                    log.Debug($"Ignoring potential dependencies (--no-dependencies option specified).");
+                log.Debug($"Ignoring potential dependencies (--no-dependencies option specified).");
                 return gatheredPackages.ToList();
             }
             // missing dependencies are those which are not installed
@@ -239,6 +242,10 @@ namespace OpenTap.Package
                 }
             }
 
+            // make sure to use the TapPackage if one was directly referenced
+            gatheredPackages = gatheredPackages
+                .Select(x => directlyReferencesPackages.FirstOrDefault(y => y.Name == x.Name && y.Version == x.Version) ?? x)
+                .ToList();
             return gatheredPackages.ToList();
         }
 

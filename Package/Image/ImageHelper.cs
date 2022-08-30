@@ -44,10 +44,10 @@ namespace OpenTap.Package
             {
                 var pkgInfo = pkg.Trim().Split(':').Select(x => x.Trim()).ToArray();
                 string pkgName = pkgInfo.FirstOrDefault();
-                string pkgVersion = pkgInfo.Skip(1).FirstOrDefault() ?? "any";
+                string pkgVersion = pkgInfo.Skip(1).FirstOrDefault();
                 if (pkgInfo.Skip(2).Any())
                     return null;
-                list.Add(new PackageSpecifier(pkgName, VersionSpecifier.Parse(pkgVersion)));
+                list.Add(new PackageSpecifier(pkgName, string.IsNullOrWhiteSpace(pkgVersion) ? VersionSpecifier.AnyRelease : VersionSpecifier.Parse(pkgVersion)));
             }
 
             if (list.Count == 0) return null;

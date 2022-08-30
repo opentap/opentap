@@ -616,7 +616,7 @@ namespace OpenTap.Package
         #endregion
         
         /// <summary>  Creates a display friendly string of this. </summary>
-        public override string ToString() =>  $"[FilePackageRepository: file://{Url}]";
+        public override string ToString() =>  $"[FilePackageRepository: {Url}]";
 
         public static void AddAdditionalFile(string filePath)
         {
