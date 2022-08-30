@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Text.RegularExpressions;
 using OpenTap.Cli;
@@ -54,7 +55,8 @@ namespace OpenTap.Package
         /// <summary>
         /// Obsolete, use Install property instead.
         /// </summary>
-        [CommandLineArgument("fake-install", Visible = false, Description = "Install the created package. It will not overwrite files \nalready in the target installation (e.g. debug binaries).")]
+        [CommandLineArgument("fake-install", Description = "Install the created package. It will not overwrite files \nalready in the target installation (e.g. debug binaries).")]
+        [Browsable(false)]
         public bool FakeInstall { get; set; } = false;
 
         /// <summary>
