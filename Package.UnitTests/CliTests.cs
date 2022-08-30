@@ -264,6 +264,7 @@ namespace OpenTap.Package.UnitTests
             depDef.Name = "Pkg1";
             depDef.Version = SemanticVersion.Parse("1.0");
             depDef.AddFile("Dependency.txt");
+            depDef.OS = OperatingSystem.Current.Name;
             string dep0File = DummyPackageGenerator.GeneratePackage(depDef);
             
             string tempFn = Path.Combine(Path.GetTempPath(), Path.GetFileName(dep0File));
@@ -296,6 +297,7 @@ namespace OpenTap.Package.UnitTests
             var depDef = new PackageDef();
             depDef.Name = "Pkg1";
             depDef.Version = SemanticVersion.Parse("1.0");
+            depDef.OS = OperatingSystem.Current.Name;
             depDef.AddFile("Dependency.txt");
             string dep0File = DummyPackageGenerator.GeneratePackage(depDef);
 

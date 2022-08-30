@@ -89,6 +89,8 @@ namespace OpenTap.Package
         public List<string> Repositories { get; set; } =
             new List<string>() { new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri };
 
+        internal List<PackageDef> AdditionalPackages { get; set; } = new List<PackageDef>();
+        
         public string OS { get; set; } = Installation.Current.OS;
         public CpuArchitecture Architecture { get; set; } = Installation.Current.Architecture;
 
@@ -104,6 +106,7 @@ namespace OpenTap.Package
             var cache = new PackageDependencyCache(OS, Architecture, Repositories);
             cache.LoadFromRepositories();
             cache.AddPackages(InstalledPackages);
+            cache.AddPackages(AdditionalPackages);
             
             var resolver = new ImageResolver(cancellationToken);        
             var image = resolver.ResolveImage(this, cache.Graph);

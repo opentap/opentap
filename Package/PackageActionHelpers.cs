@@ -37,8 +37,9 @@ namespace OpenTap.Package
         }
 
         static List<PackageDef> TriviallyResolvePackage(IEnumerable<PackageSpecifier> packages,
-            ICollection<IPackageRepository> repositories)
+            ICollection<IPackageRepository> repositories, ICollection<PackageDef> directlyReferencedPackages)
         {
+            directlyReferencedPackages = directlyReferencedPackages ?? new List<PackageDef>();
             List<PackageDef> forcePackages = new List<PackageDef>();
             foreach (var pkgSpec in packages)
             {
@@ -48,6 +49,12 @@ namespace OpenTap.Package
                     pkgDef = repo.GetPackages(pkgSpec).FirstOrDefault();
                     if (pkgDef != null) break;
                 }
+
+                if (pkgDef == null)
+                {
+                    pkgDef = directlyReferencedPackages.FirstOrDefault(x => x.Name == pkgSpec.Name && pkgSpec.Version.IsCompatible(x.Version));
+                }
+                
 
                 if (pkgDef == null)
                 {
@@ -126,7 +133,7 @@ namespace OpenTap.Package
                         directlyReferencesPackages.Add(pkg);
                         packages.Add(pkg.GetSpecifier());
                         
-                        FilePackageRepository.AddAdditionalFile(Path.GetFullPath(packageName));
+                        //FilePackageRepository.AddAdditionalFile(Path.GetFullPath(packageName));
                     }
                     else if (string.IsNullOrWhiteSpace(packageName) == false)
                     {
@@ -139,7 +146,7 @@ namespace OpenTap.Package
             {
                 // when --force is specified, exact package specifiers has to be used.
                 // there is no need to resolve the image in this case.
-                var packagesToInstall = TriviallyResolvePackage(packages, repositories);
+                var packagesToInstall = TriviallyResolvePackage(packages, repositories, directlyReferencesPackages);
                 
                 if (noDowngrade)
                 {
@@ -171,6 +178,7 @@ namespace OpenTap.Package
 
             var img = ImageSpecifier.FromAddedPackages(installation, packages);
             img.Repositories = repositories.Select(x => x.Url).ToList();
+            img.AdditionalPackages.AddRange(directlyReferencesPackages);
             var result = img.Resolve(TapThread.Current.AbortToken);
             
             if (gatheredPackages.All(p => p.IsBundle()))

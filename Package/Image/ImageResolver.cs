@@ -102,21 +102,7 @@ namespace OpenTap.Package
                         // add the dependency
                         if (!packages.Any(x => x.Name == dep.Name))
                         {
-                            // if the package dependency is also an already installed package we need to also take it into consideration when 
-                            // resolving, but only as a compatible match.
-                            var fixedPkg = image.FixedPackages.FirstOrDefault(x => x.Name == dep.Name);
-                            if (fixedPkg != null)
-                            {    
-                                var pkg2 = new PackageSpecifier(fixedPkg.Name,
-                                    fixedPkg.Version.WithMatchBehavior(VersionMatchBehavior.Compatible));
-                                packages.Add(pkg2);
-                                // since we re-run after this, the code will rerun with the specific dependency.
-                            }
-                            else
-                            {
-                                packages.Add(dep);
-                            }
-
+                            packages.Add(dep);
                             modified = true;
                         }
                     }
