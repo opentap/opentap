@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
@@ -213,7 +214,7 @@ namespace OpenTap
         public static event EventHandler<TypeDataCacheInvalidatedEventArgs> TypeCacheInvalidated;
 
         static readonly TraceSource log = Log.CreateSource("PluginManager");
-        static readonly List<ITypeDataSearcher> searchers = new List<ITypeDataSearcher>();
+        static ImmutableArray<ITypeDataSearcher> searchers = ImmutableArray<ITypeDataSearcher>.Empty;
 
         static readonly ConcurrentDictionary<ITypeData, ITypeData[]> derivedTypesCache =
             new ConcurrentDictionary<ITypeData, ITypeData[]>();
@@ -537,7 +538,7 @@ namespace OpenTap
                 var searcherTypes = FromType(typeof(ITypeDataSearcher)).DerivedTypes
                     .Where(x => x.CanCreateInstance)
                     .ToArray();
-                if (searchers.Count != searcherTypes.Length)
+                if (searchers.Length != searcherTypes.Length)
                 {
                     var existing = searchers.Select(GetTypeData).ToHashSet();
                     foreach (var searcherType in searcherTypes)
@@ -554,7 +555,7 @@ namespace OpenTap
                                     cacheInvalidated.CacheInvalidated += CacheInvalidatedOnCacheInvalidated;
 
                                 searchTasks.Add(TapThread.StartAwaitable(searcher.Search));
-                                searchers.Add(searcher);
+                                searchers = searchers.Add(searcher);
                             }
                             else error = true;
                         }
@@ -577,7 +578,7 @@ namespace OpenTap
                     Log.CreateSource("TypeData").Debug(ex);
                 }
 
-                searchers.Sort(PluginOrderAttribute.Comparer);
+                searchers = searchers.Sort(PluginOrderAttribute.Comparer);
                 var derivedTypes = new List<ITypeData>();
                 foreach (var searcher in searchers)
                 {
@@ -664,7 +665,7 @@ namespace OpenTap
                 // make sure that ITypeDataSearchers with cache invalidation are demantled.
                 foreach (var searcher in searchers.OfType<ITypeDataSearcherCacheInvalidated>())
                     searcher.CacheInvalidated -= CacheInvalidatedOnCacheInvalidated;
-                searchers.Clear();
+                searchers = searchers.Clear();
                 MemberData.InvalidateCache();
                 typeToTypeDataCache = new ConditionalWeakTable<Type, TypeData>();
                 ChangeID = PluginManager.ChangeID;
