@@ -426,7 +426,7 @@ namespace OpenTap.Package
                         {
                             try
                             {
-                                FileSystemHelper.EnsureDirectory(path);
+                                FileSystemHelper.EnsureDirectoryOf(path);
                                 if (OperatingSystem.Current == OperatingSystem.Windows)
                                 {
                                     // on windows, hidden files cannot be overwritten.

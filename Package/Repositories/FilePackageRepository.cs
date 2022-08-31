@@ -22,8 +22,6 @@ namespace OpenTap.Package
     /// </summary>
     public class FilePackageRepository : IPackageRepository, IPackageDownloadProgress
     {
-        internal static ConcurrentBag<string> additionalFiles = new ConcurrentBag<string>();
-        
         
 #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
         private static TraceSource log = Log.CreateSource("FilePackageRepository");
@@ -421,8 +419,7 @@ namespace OpenTap.Package
                     log.Debug($"Access to path {dir.FullName} denied. Ignoring.");
                 }
             }
-            result.AddRange(additionalFiles);
-
+            
             return result;
         }
         private PackageDef[] loadPackagesFromFile(IEnumerable<FileInfo> allFiles)
@@ -617,11 +614,5 @@ namespace OpenTap.Package
         
         /// <summary>  Creates a display friendly string of this. </summary>
         public override string ToString() =>  $"[FilePackageRepository: {Url}]";
-
-        public static void AddAdditionalFile(string filePath)
-        {
-            if(additionalFiles.Contains(filePath) == false)
-                additionalFiles.Add(filePath);
-        }
     }
 }

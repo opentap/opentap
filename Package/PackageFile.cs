@@ -614,7 +614,7 @@ namespace OpenTap.Package
                 {
                     foreach (var part in zip.Entries)
                     {
-                        FileSystemHelper.EnsureDirectory(part.FullName);
+                        FileSystemHelper.EnsureDirectoryOf(part.FullName);
                         var instream = part.Open();
                         using (var outstream = File.Create(part.FullName))
                         {

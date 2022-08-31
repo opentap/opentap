@@ -56,7 +56,6 @@ namespace OpenTap.Package.UnitTests
         [TestCase("file:///Packages/", "file:///{Drive}Packages", "Windows")]
         [TestCase("file:///Packages", "file:///Packages", "Linux")]
         [TestCase("file:///Packages/", "file:///Packages", "Linux")]
-        [TestCase("/Temp/MyFile2.txt", "file:///Temp", "Linux")]
         [TestCase("C:/Packages", "file:///C:/Packages", "Windows")]
         [TestCase("C:/Packages/", "file:///C:/Packages", "Windows")]
         [TestCase("/Packages", "file:///Packages", "Linux")]
@@ -69,26 +68,14 @@ namespace OpenTap.Package.UnitTests
             if (!os.Contains(OperatingSystem.Current.ToString()))
                 return;
 
-            try
-            {
-                expectedUrl = expectedUrl.Replace("{CurrentDirectory}", Directory.GetCurrentDirectory().Replace('\\', '/'));
-                expectedUrl = expectedUrl.Replace("{Drive}", new DriveInfo(Directory.GetCurrentDirectory()).Name).Replace('\\', '/');
-                if (input.Contains("MyFile")) { 
-                    Directory.CreateDirectory(input);
-                    File.Create(input).Dispose();
-                }
-                FilePackageRepository repository = new FilePackageRepository(input);
-                Assert.AreEqual(expectedUrl, repository.Url);
-            }
-            finally
-            {
-                if (input.Contains("MyFile"))
-                {
-                    if (File.Exists(input))
-                        File.Delete(input);
-                }
+            // on linux current directory start with a /, but expected url already contains the extra '/'. e.g file:///.
+            var cd = Directory.GetCurrentDirectory().TrimStart('/');
+            expectedUrl = expectedUrl.Replace("{CurrentDirectory}", cd.Replace('\\', '/'));
+            expectedUrl = expectedUrl.Replace("{Drive}", new DriveInfo(Directory.GetCurrentDirectory()).Name)
+                .Replace('\\', '/');
 
-            }
+            FilePackageRepository repository = new FilePackageRepository(input);
+            Assert.AreEqual(expectedUrl, repository.Url);
         }
 
         [Test]

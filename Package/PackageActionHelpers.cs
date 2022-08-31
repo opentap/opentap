@@ -73,7 +73,7 @@ namespace OpenTap.Package
             bool force, bool includeDependencies, bool ignoreDependencies, bool askToIncludeDependencies, bool noDowngrade)
         {
             List<PackageDef> directlyReferencesPackages = new List<PackageDef>();
-            List<PackageDef> gatheredPackages = new List<PackageDef>();
+            
 
             List<PackageSpecifier> packages = new List<PackageSpecifier>();
             if (pkgRefs != null)
@@ -99,7 +99,9 @@ namespace OpenTap.Package
                             var selected = grp.ToList();
                             if (selected.Count == 1)
                             {
-                                gatheredPackages.Add(selected.First());
+                                var pkg = selected.First();
+                                directlyReferencesPackages.Add(pkg);
+                                packages.Add(pkg.GetSpecifier());
                                 continue;
                             }
                             if (!string.IsNullOrEmpty(OS))
@@ -107,7 +109,9 @@ namespace OpenTap.Package
                                 selected = selected.Where(p => p.OS.ToLower().Split(',').Any(OS.ToLower().Contains)).ToList();
                                 if (selected.Count == 1)
                                 {
-                                    gatheredPackages.Add(selected.First());
+                                    var pkg = selected.First();
+                                    directlyReferencesPackages.Add(pkg);
+                                    packages.Add(pkg.GetSpecifier());
                                     log.Debug("TapPackages file contains packages for several operating systems. Picking only the one for {0}.", OS);
                                     continue;
                                 }
@@ -117,7 +121,9 @@ namespace OpenTap.Package
                                 selected = selected.Where(p => ArchitectureHelper.CompatibleWith(arch, p.Architecture)).ToList();
                                 if (selected.Count == 1)
                                 {
-                                    gatheredPackages.Add(selected.First());
+                                    var pkg = selected.First();
+                                    directlyReferencesPackages.Add(pkg);
+                                    packages.Add(pkg.GetSpecifier());
                                     log.Debug("TapPackages file contains packages for several CPU architectures. Picking only the one for {0}.", arch);
                                     continue;
                                 }
@@ -132,8 +138,6 @@ namespace OpenTap.Package
                         var pkg = PackageDef.FromPackage(packageName);
                         directlyReferencesPackages.Add(pkg);
                         packages.Add(pkg.GetSpecifier());
-                        
-                        //FilePackageRepository.AddAdditionalFile(Path.GetFullPath(packageName));
                     }
                     else if (string.IsNullOrWhiteSpace(packageName) == false)
                     {
@@ -180,77 +184,34 @@ namespace OpenTap.Package
             img.Repositories = repositories.Select(x => x.Url).ToList();
             img.AdditionalPackages.AddRange(directlyReferencesPackages);
             var result = img.Resolve(TapThread.Current.AbortToken);
-            
-            if (gatheredPackages.All(p => p.IsBundle()))
-            {
-                // If we are just installing bundles, we can assume that dependencies should also be installed
-                includeDependencies = true;
-            }
 
-            if (ignoreDependencies)
-            {
-                log.Debug($"Ignoring potential dependencies (--no-dependencies option specified).");
-                return gatheredPackages.ToList();
-            }
             // missing dependencies are those which are not installed
 
-            List<PackageDef> actualMissingDependencies = new List<PackageDef>();
+            List<PackageDef> installedAsDependencies = new List<PackageDef>();
+            List<PackageDef> gatheredPackages = new List<PackageDef>();
             foreach (var pkg in result.Packages)
             {
-                log.Info("{0}", pkg);
                 var installed = img.InstalledPackages.FirstOrDefault(x => x.Name == pkg.Name && x.Version == pkg.Version);
-                if (installed != null) continue; // this package is provided by the installation.
-                var gathered = gatheredPackages.FirstOrDefault(x => x.Name == pkg.Name);
-                if(gathered != null)
-                    actualMissingDependencies.Add(gathered);
-                else gatheredPackages.Add(pkg);
+                if (installed != null) continue; // this package is already provided by the installation.
+                var gathered = packages.FirstOrDefault(x => x.Name == pkg.Name);
+                gatheredPackages.Add(pkg);
+                if (gathered == null)
+                    installedAsDependencies.Add(pkg);
             }
 
-            if (actualMissingDependencies.Any())
+            foreach (var additional in installedAsDependencies)
             {
-                if (includeDependencies == false)
-                {
-                    var dependencies = string.Join(", ",
-                        actualMissingDependencies.Select(d => $"{d.Name} {d.Version}"));
-                    log.Info($"Use '--dependencies' to include {dependencies}.");
+                if (img.InstalledPackages.Any(x => x.Name == additional.Name))
+                {  
+                    // This implies that the version is newer.
+                    log.Info("Updating dependency {0} {1}", additional.Name, additional.Version);    
                 }
-
-                if (includeDependencies)
+                else
                 {
-                    foreach (var package in actualMissingDependencies)
-                    {
-                        log.Debug($"Adding dependency {package.Name} {package.Version}");
-                        if (!gatheredPackages.Contains(package))
-                            gatheredPackages.Insert(0, package);
-                    }
-                }
-                else if (askToIncludeDependencies)
-                {
-                    var pkgs = new List<DepRequest>();
-
-                    foreach (var package in actualMissingDependencies)
-                    {
-                        // Handle each package at a time.
-                        DepRequest req = null;
-                        pkgs.Add(req = new DepRequest { PackageName = package.Name, message = string.Format("Add dependency {0} {1} ?", package.Name, package.Version), Response = DepResponse.Add });
-                        UserInput.Request(req, true);
-                    }
-
-                    foreach (var pkg in actualMissingDependencies)
-                    {
-                        var res = pkgs.FirstOrDefault(r => r.PackageName == pkg.Name);
-
-                        if ((res != null) && res.Response == DepResponse.Add)
-                        {
-                            if (!gatheredPackages.Contains(pkg))
-                                gatheredPackages.Insert(0, pkg);
-                        }
-                        else
-                            log.Debug("Ignoring dependent package {0} at users request.", pkg.Name);
-                    }
+                    log.Info("Adding dependency {0} {1}", additional.Name, additional.Version);
                 }
             }
-
+            
             // make sure to use the TapPackage if one was directly referenced
             gatheredPackages = gatheredPackages
                 .Select(x => directlyReferencesPackages.FirstOrDefault(y => y.Name == x.Name && y.Version == x.Version) ?? x)

@@ -41,7 +41,7 @@ namespace OpenTap.Package
             
         }
 
-        public static ImageSpecifier FromAddedPackages(Installation installation, IEnumerable<PackageSpecifier> newPackages, bool keepInstalled = false)
+        internal static ImageSpecifier FromAddedPackages(Installation installation, IEnumerable<PackageSpecifier> newPackages)
         {
             var toInstall = new List<PackageSpecifier>();
             var installed = installation.GetPackages().ToList();
@@ -68,10 +68,7 @@ namespace OpenTap.Package
                 .Select(x => new PackageSpecifier(x.Name, x.Version.AsCompatibleSpecifier(), x.Architecture, x.OS))
                 .ToArray();
 
-            if (keepInstalled)
-            {
-                toInstall.AddRange(fixedPackages);
-            }
+            toInstall.AddRange(fixedPackages);
 
             return new ImageSpecifier
             {
@@ -112,6 +109,15 @@ namespace OpenTap.Package
             var image = resolver.ResolveImage(this, cache.Graph);
             if (image.Success == false)
             {
+                var unsatisfiedDependencies = InstalledPackages.Where(x => false == x.Dependencies.All(dep =>
+                    InstalledPackages.Any(x2 =>
+                        x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())))).ToArray();
+                if (unsatisfiedDependencies.Any())
+                {
+                    throw new ImageResolveException(image,
+                        string.Format("This is probably due to the current following package dependencies being broken: {0}",
+                        string.Join(", ", unsatisfiedDependencies.Select(x => x.Name))));
+                }
                 throw new ImageResolveException(image);
             }
 
@@ -149,7 +155,7 @@ namespace OpenTap.Package
         /// <exception cref="ImageResolveException">In case of resolve errors, this method will throw ImageResolveExceptions.</exception>
         public Installation MergeAndDeploy(Installation deploymentInstallation, CancellationToken cancellationToken)
         {
-            var imageSpecifier2 = FromAddedPackages(deploymentInstallation, Packages, keepInstalled: true);
+            var imageSpecifier2 = FromAddedPackages(deploymentInstallation, Packages);
             imageSpecifier2.Name = Name;
             imageSpecifier2.Repositories.Clear();
             imageSpecifier2.Repositories.AddRange(Repositories);
@@ -184,6 +190,11 @@ namespace OpenTap.Package
             DotGraph = dotGraph;
         }
         internal ImageResolveException(ImageResolution result) : base("Failed to resolve packages.")
+        {
+            this.Result = result;
+        }
+        
+        internal ImageResolveException(ImageResolution result, string message) : base(message)
         {
             this.Result = result;
         }

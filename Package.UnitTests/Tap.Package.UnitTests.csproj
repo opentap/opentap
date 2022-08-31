@@ -35,9 +35,9 @@
     <Content Include="Packages\Test.package.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Packages\CheckDependencies_MissingDep\package.xml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
+    <EmbeddedResource Include="Packages\CheckDependencies_MissingDep\package.xml">
+      
+    </EmbeddedResource>
     <Content Include="Packages\FromXmlFile_NonDllFile\package.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -62,9 +62,7 @@
     <Content Include="Packages\test3\package.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="Packages\XSeries\package.xml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
+    <EmbeddedResource Include="Packages\XSeries\package.xml" />
     <Content Include="TapPackages\MyPlugin1.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
