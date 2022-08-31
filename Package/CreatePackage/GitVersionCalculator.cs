@@ -23,6 +23,7 @@ namespace OpenTap.Package
         private static readonly TraceSource log = Log.CreateSource("GitVersion");
         private const string configFileName = ".gitversion";
         private readonly LibGit2Sharp.Repository repo;
+        private readonly string RepoDir;
 
         private class Config
         {
@@ -172,12 +173,14 @@ namespace OpenTap.Package
         public GitVersionCalulator(string repositoryDir)
         {
             repositoryDir = Path.GetFullPath(repositoryDir);
+            RepoDir = repositoryDir;
             while (!Directory.Exists(Path.Combine(repositoryDir, ".git")))
             {
                 repositoryDir = Path.GetDirectoryName(repositoryDir);
                 if (repositoryDir == null)
                     throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
             }
+            RepoDir = RepoDir.Substring(repositoryDir.Length);
 
             ensureLibgit2Present();
             repo = new Repository(repositoryDir);
@@ -204,7 +207,35 @@ namespace OpenTap.Package
         
         Config readConfig(Commit c)
         {
-            Blob configBlob = c?.Tree.FirstOrDefault(t => t.Name == configFileName)?.Target as Blob;
+            var cfgFiles = SearchTree(c?.Tree, t => t.Name == configFileName).ToList();
+
+            string repositoryDir = RepoDir.TrimStart('/','\\');
+
+            static IEnumerable<TreeEntry> SearchTree(Tree t, Func<TreeEntry,bool> predicate)
+            {
+                foreach (TreeEntry te in t)
+                {
+                    if(te.Target is Tree subtree)
+                    {
+                        foreach (var match in SearchTree(subtree, predicate))
+                            yield return match;
+                    }
+                    else if(predicate(te))
+                    {
+                        yield return te;
+                    }
+                }
+            }
+            TreeEntry cfg = null;
+            while (cfg == null)
+            {
+                var dir = Path.Combine(repositoryDir ?? "", configFileName).Replace('\\','/');
+                cfg = cfgFiles.FirstOrDefault(c => c.Path == dir);
+                if (String.IsNullOrEmpty(repositoryDir))
+                    break;
+                repositoryDir = Path.GetDirectoryName(repositoryDir);
+            }
+            Blob configBlob = cfg?.Target as Blob;
             return Config.ParseConfig(configBlob?.GetContentStream());
         }
 
