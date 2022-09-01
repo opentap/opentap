@@ -264,17 +264,10 @@ namespace OpenTap.Package.UnitTests
             commitChangesToReadme(repo, "Hello", "Added readme.");
             //verifyVersion(repo, 1, 0, 0, "beta.2");
             commitChangesToGitVersionFile(repo, "2.0.0", "Added .gitversion file with version = 2.0.0 in subfolder", "test/.gitversion");
-            verifyVersion(repo, 2, 0, 0, "beta.1", dir: "test");
             verifyVersion(repo, 1, 0, 0, "beta.3");
-
-
-            //repo.CreateBranch("feature");
-            //Commands.Checkout(repo, "feature");
-            //commitChangesToGitVersionFile(repo, "1.0.0", "Added .gitversion file with version = 1.0.0");
-            //verifyVersion(repo, 1, 0, 0, "alpha.1.1", "feature");
-            //Commands.Checkout(repo, "master");
-            //repo.Merge("feature", me, noFastForward);
-            //verifyVersion(repo, 1, 0, 0, "beta.1");
+            // in the "test" folder there is now a .gitversion file specifying 2.0.0.
+            // That file was last changed one commit ago, so it becomes beta.1
+            verifyVersion(repo, 2, 0, 0, "beta.1", dir: "test");
         }
     }
 }

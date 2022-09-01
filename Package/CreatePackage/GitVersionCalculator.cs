@@ -66,17 +66,20 @@ namespace OpenTap.Package
             /// </summary>
             public int MaxBranchChars => _maxBranchChars;
 
+            public string ConfigFilePath;
+
             private Config()
             {
 
             }
 
             private static Regex configLineRegex = new Regex(@"^(?!#)(?<key>.*?)\s*=\s*(?<value>.*)", RegexOptions.Compiled);
-            public static Config ParseConfig(Stream str)
+            public static Config ParseConfig(Stream str, string configFilePath = configFileName)
             {
                 Config cfg = new Config();
                 if (str == null)
                     return cfg;
+                cfg.ConfigFilePath = configFilePath;
                 bool isBetaBranchSet = false;
                 using (var reader = new StreamReader(str, Encoding.UTF8))
                 {
@@ -204,28 +207,28 @@ namespace OpenTap.Package
             // no version was found.
             return null;
         }
-        
-        Config readConfig(Commit c)
+
+        static IEnumerable<TreeEntry> GetAllConfigFilesInTree(Tree t)
         {
-            var cfgFiles = SearchTree(c?.Tree, t => t.Name == configFileName).ToList();
-
-            string repositoryDir = RepoDir.TrimStart('/','\\');
-
-            static IEnumerable<TreeEntry> SearchTree(Tree t, Func<TreeEntry,bool> predicate)
+            foreach (TreeEntry te in t)
             {
-                foreach (TreeEntry te in t)
+                if (te.Target is Tree subtree)
                 {
-                    if(te.Target is Tree subtree)
-                    {
-                        foreach (var match in SearchTree(subtree, predicate))
-                            yield return match;
-                    }
-                    else if(predicate(te))
-                    {
-                        yield return te;
-                    }
+                    foreach (var match in GetAllConfigFilesInTree(subtree))
+                        yield return match;
+                }
+                else if (te.Name == configFileName)
+                {
+                    yield return te;
                 }
             }
+        }
+
+        Config readConfig(Commit c)
+        {
+            var cfgFiles = GetAllConfigFilesInTree(c?.Tree).ToList();
+
+            string repositoryDir = RepoDir.TrimStart('/','\\');
             TreeEntry cfg = null;
             while (cfg == null)
             {
@@ -236,7 +239,7 @@ namespace OpenTap.Package
                 repositoryDir = Path.GetDirectoryName(repositoryDir);
             }
             Blob configBlob = cfg?.Target as Blob;
-            return Config.ParseConfig(configBlob?.GetContentStream());
+            return Config.ParseConfig(configBlob?.GetContentStream(), cfg?.Path);
         }
 
         Config ParseConfig(Commit c)
@@ -316,11 +319,13 @@ namespace OpenTap.Package
         {
             if (repo.Lookup<Commit>(targetCommit.Sha) == null)
                 throw new ArgumentException($"The commit with hash {targetCommit} does not exist the in repository.");
-            if(!targetCommit.Tree.Any(t => t.Name == configFileName))
+            if(!GetAllConfigFilesInTree(targetCommit.Tree).Any())
             {
                 log.Warning("Did not find any .gitversion file.");
             }
             Config cfg = ParseConfig(targetCommit);
+            if (cfg.ConfigFilePath != configFileName)
+                log.Info("Using configuration from {0}", cfg.ConfigFilePath);
 
             Branch defaultBranch = getBetaBranch(cfg);
 
