@@ -737,8 +737,21 @@ namespace OpenTap
                     {
                         var x = merged[i];
                         var thisVal = x.Get<IObjectValueAnnotation>().Value;
-                        if (selectedValue is IEnumerable && !(selectedValue is string))
-                            return selectedValue;
+                        if (thisVal == selectedValue) return selectedValue;
+                        if (selectedValue is IEnumerable ie1 && !(selectedValue is string))
+                        {
+                            // if the two lists has the same content it is fine to just return one of them.
+                            // upon writing the two values will be cloned back.
+                            // if they are not the same, null should be returned to signal this.
+                            if (thisVal is IEnumerable ie2)
+                            {
+                                if (ie2.Cast<object>().SequenceEqual(ie1.Cast<object>()))
+                                    return selectedValue;
+                            }
+
+                            return null;
+                        }
+
                         if (Equals(selectedValue, thisVal) == false)
                             return null;
                     }
@@ -1871,6 +1884,7 @@ namespace OpenTap
 
                     objValue.Value = lst;
                 }
+
                 if (lst is IList lst2)
                 {
                     if (lst2.IsReadOnly)
@@ -1943,6 +1957,7 @@ namespace OpenTap
                         {
                             lst2.RemoveAt(lst2.Count - 1);
                         }
+
                     }
                     else
                     {
@@ -1962,8 +1977,9 @@ namespace OpenTap
                                         throw new Exception($"Cannot add elements to collection because it is not writable.");
                                         
                                     lst2 = Array.CreateInstance(typedata.ElementType.Type, nElements);
+                                    lst = lst2;
                                     objValue.Value = lst2;
-                                    
+
                                 }
                                 else
                                 {
@@ -1993,6 +2009,12 @@ namespace OpenTap
                         }
                     }
                 }
+                
+                                        
+                // Some IObjectValue annotations works best if they are notified of a modification this way.
+                // for example MergedValueAnnotation.
+                objValue.Value = lst;
+                
                 isWriting = true;
                 try
                 {
