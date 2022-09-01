@@ -23,6 +23,7 @@ namespace OpenTap.Package
         private static readonly TraceSource log = Log.CreateSource("GitVersion");
         private const string configFileName = ".gitversion";
         private readonly LibGit2Sharp.Repository repo;
+        private readonly string RepoDir;
 
         private class Config
         {
@@ -65,17 +66,20 @@ namespace OpenTap.Package
             /// </summary>
             public int MaxBranchChars => _maxBranchChars;
 
+            public string ConfigFilePath;
+
             private Config()
             {
 
             }
 
             private static Regex configLineRegex = new Regex(@"^(?!#)(?<key>.*?)\s*=\s*(?<value>.*)", RegexOptions.Compiled);
-            public static Config ParseConfig(Stream str)
+            public static Config ParseConfig(Stream str, string configFilePath = configFileName)
             {
                 Config cfg = new Config();
                 if (str == null)
                     return cfg;
+                cfg.ConfigFilePath = configFilePath;
                 bool isBetaBranchSet = false;
                 using (var reader = new StreamReader(str, Encoding.UTF8))
                 {
@@ -172,12 +176,14 @@ namespace OpenTap.Package
         public GitVersionCalulator(string repositoryDir)
         {
             repositoryDir = Path.GetFullPath(repositoryDir);
+            RepoDir = repositoryDir;
             while (!Directory.Exists(Path.Combine(repositoryDir, ".git")))
             {
                 repositoryDir = Path.GetDirectoryName(repositoryDir);
                 if (repositoryDir == null)
                     throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
             }
+            RepoDir = RepoDir.Substring(repositoryDir.Length);
 
             ensureLibgit2Present();
             repo = new Repository(repositoryDir);
@@ -201,11 +207,39 @@ namespace OpenTap.Package
             // no version was found.
             return null;
         }
-        
+
+        static IEnumerable<TreeEntry> GetAllConfigFilesInTree(Tree t)
+        {
+            foreach (TreeEntry te in t)
+            {
+                if (te.Target is Tree subtree)
+                {
+                    foreach (var match in GetAllConfigFilesInTree(subtree))
+                        yield return match;
+                }
+                else if (te.Name == configFileName)
+                {
+                    yield return te;
+                }
+            }
+        }
+
         Config readConfig(Commit c)
         {
-            Blob configBlob = c?.Tree.FirstOrDefault(t => t.Name == configFileName)?.Target as Blob;
-            return Config.ParseConfig(configBlob?.GetContentStream());
+            var cfgFiles = GetAllConfigFilesInTree(c?.Tree).ToList();
+
+            string repositoryDir = RepoDir.TrimStart('/','\\');
+            TreeEntry cfg = null;
+            while (cfg == null)
+            {
+                var dir = Path.Combine(repositoryDir ?? "", configFileName).Replace('\\','/');
+                cfg = cfgFiles.FirstOrDefault(c => c.Path == dir);
+                if (String.IsNullOrEmpty(repositoryDir))
+                    break;
+                repositoryDir = Path.GetDirectoryName(repositoryDir);
+            }
+            Blob configBlob = cfg?.Target as Blob;
+            return Config.ParseConfig(configBlob?.GetContentStream(), cfg?.Path);
         }
 
         Config ParseConfig(Commit c)
@@ -285,11 +319,13 @@ namespace OpenTap.Package
         {
             if (repo.Lookup<Commit>(targetCommit.Sha) == null)
                 throw new ArgumentException($"The commit with hash {targetCommit} does not exist the in repository.");
-            if(!targetCommit.Tree.Any(t => t.Name == configFileName))
+            if(!GetAllConfigFilesInTree(targetCommit.Tree).Any())
             {
                 log.Warning("Did not find any .gitversion file.");
             }
             Config cfg = ParseConfig(targetCommit);
+            if (cfg.ConfigFilePath != configFileName)
+                log.Info("Using configuration from {0}", cfg.ConfigFilePath);
 
             Branch defaultBranch = getBetaBranch(cfg);
 
