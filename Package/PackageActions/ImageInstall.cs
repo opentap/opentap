@@ -50,12 +50,6 @@ namespace OpenTap.Package
             if (Force)
                 log.Warning($"Using --force does not force an image installation");
 
-            if (Repositories == null)
-                Repositories = PackageManagerSettings.Current.Repositories
-                    .Where(x => x.IsEnabled)
-                    .Select(x => x.Url)
-                    .ToArray();
-
             ImageSpecifier imageSpecifier = new ImageSpecifier();
             if (ImagePath != null)
             {
@@ -64,9 +58,18 @@ namespace OpenTap.Package
                     imageString = File.ReadAllText(imageString);
                 imageSpecifier = ImageSpecifier.FromString(imageString);
             }
-            
-            imageSpecifier.Repositories = Repositories.ToList();
-            
+
+            if (!imageSpecifier.Repositories.Any())
+            {
+                if (Repositories.Any())
+                    imageSpecifier.Repositories.AddRange(Repositories);
+                else
+                    imageSpecifier.Repositories.AddRange(PackageManagerSettings.Current.Repositories
+                        .Where(x => x.IsEnabled)
+                        .Select(x => x.Url)
+                        .ToArray());
+            }
+
 
             try
             {
