@@ -1978,7 +1978,6 @@ namespace OpenTap
                                         
                                     lst2 = Array.CreateInstance(typedata.ElementType.Type, nElements);
                                     lst = lst2;
-                                    objValue.Value = lst2;
 
                                 }
                                 else
