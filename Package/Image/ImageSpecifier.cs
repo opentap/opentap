@@ -189,7 +189,7 @@ namespace OpenTap.Package
         {
             DotGraph = dotGraph;
         }
-        internal ImageResolveException(ImageResolution result) : base("Failed to resolve packages.")
+        internal ImageResolveException(ImageResolution result) : base(result.ToString())
         {
             this.Result = result;
         }

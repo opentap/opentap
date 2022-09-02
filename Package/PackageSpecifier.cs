@@ -141,6 +141,13 @@ namespace OpenTap.Package
                     ver = VersionSpecifier.Any;
                     return true;
                 }
+
+                if (string.IsNullOrEmpty(version))
+                {
+                    ver = AnyRelease;
+                    return true;
+                }
+
                 var m = parser.Match(version);
                 if (m.Success)
                 {
@@ -186,6 +193,8 @@ namespace OpenTap.Package
         {
             if (this == VersionSpecifier.Any)
                 return "Any";
+            if (this == VersionSpecifier.AnyRelease)
+                return "Any Release";
 
             var formatter = versionFormatter.Value;
             formatter.Clear();

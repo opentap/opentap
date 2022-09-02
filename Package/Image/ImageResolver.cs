@@ -204,7 +204,7 @@ namespace OpenTap.Package
                     versions.Sort();
                     // any version -> take the newest first.
                     versions.Reverse();
-                }else if(pkg.Version.MatchBehavior == VersionMatchBehavior.Exact)
+                }else if(pkg.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Exact))
                 {
                     //exact may be more than one version, even though the match behavior is 'exact'.
                     // for example OpenTAP '9.17' is exact, but many versions matches that.
@@ -213,7 +213,7 @@ namespace OpenTap.Package
                     versions.Sort(pkg.Version.SortOrder);
                     versions.Reverse();
                 }
-                else if (pkg.Version.MatchBehavior == VersionMatchBehavior.Compatible)
+                else if (pkg.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
                 {
                     // In this case we want the closest possible version. So we use an ascending sorting.
                     
@@ -274,7 +274,7 @@ namespace OpenTap.Package
 
         public override string ToString()
         {
-            return "Unable to resolve packages: " + string.Join(", ", resolveProblems.Select(x => $"{x.Name} {x.Version}"));
+            return "Unable to resolve packages: " + string.Join(", ", resolveProblems.Select(x => $"{x.Name} ({x.Version})"));
         }
     }
 }
