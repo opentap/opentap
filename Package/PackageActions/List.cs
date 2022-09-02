@@ -72,11 +72,10 @@ namespace OpenTap.Package
 
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
-
+            
             HashSet<PackageDef> installed = new Installation(Target).GetPackages().ToHashSet();
             if (checkOs)
-                installed = installed.Where(p => p.OS.Split(',').Any(o => o.Equals(OS, StringComparison.OrdinalIgnoreCase))).ToHashSet();
-
+                installed = installed.Where(pkg => pkg.IsOsCompatible(OS)).ToHashSet();
 
             VersionSpecifier versionSpec = VersionSpecifier.Parse("^");
             if (!String.IsNullOrWhiteSpace(Version))
