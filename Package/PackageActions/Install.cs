@@ -99,6 +99,11 @@ namespace OpenTap.Package
         {
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
+            if (IgnoreDependencies && InstallDependencies)
+            {
+                log.Error($"'--dependencies' and '--no-dependencies' are mutually exclusive.");
+                return (int)ExitCodes.ArgumentError;
+            }
             var targetInstallation = new Installation(Target);
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
@@ -190,7 +195,8 @@ namespace OpenTap.Package
                     log.Warning("Overwriting files. (--{0} option specified).", Overwrite ? "overwrite" : "force");
 
                 RaiseProgressUpdate(10, "Gathering dependencies.");
-                bool checkDependencies = (!IgnoreDependencies && !Force) || CheckOnly;
+                // If 'askToInstallDependencies' is true, then the user already manually decided for each missing dependency.
+                bool checkDependencies = askToInstallDependencies == false && ((!IgnoreDependencies && !Force) || CheckOnly);
                 var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall,
                     IgnoreDependencies ? LogEventType.Information : checkDependencies ? LogEventType.Error : LogEventType.Warning);
                 if (checkDependencies)
