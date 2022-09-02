@@ -12,15 +12,9 @@ using System.Linq;
 
 namespace OpenTap.Package
 {
-    internal static class PackageActionHelpers
+    static class PackageActionHelpers
     {
-        readonly static TraceSource log = OpenTap.Log.CreateSource("PackageAction");
-
-        private enum DepResponse
-        {
-            Add,
-            Ignore
-        }
+        readonly static TraceSource log = Log.CreateSource("PackageAction");
 
         static List<PackageDef> TriviallyResolvePackage(IEnumerable<PackageSpecifier> packages,
             ICollection<IPackageRepository> repositories, ICollection<PackageDef> directlyReferencedPackages)
