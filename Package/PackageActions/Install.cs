@@ -139,11 +139,11 @@ namespace OpenTap.Package
 
                 // Get package information
                 bool askToInstallDependencies = !NonInteractive;
-                if (IgnoreDependencies || Force)
+                if (Force)
                     askToInstallDependencies = false;
                 List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                     targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
-                    InstallDependencies, IgnoreDependencies, askToInstallDependencies, NoDowngrade);
+                    InstallDependencies, Force, askToInstallDependencies, NoDowngrade);
 
                 if (packagesToInstall?.Any() != true)
                 {
@@ -193,9 +193,9 @@ namespace OpenTap.Package
                     log.Warning("Overwriting files. (--{0} option specified).", Overwrite ? "overwrite" : "force");
 
                 RaiseProgressUpdate(10, "Gathering dependencies.");
-                bool checkDependencies = (!IgnoreDependencies && !Force) || CheckOnly;
+                bool checkDependencies = !Force || CheckOnly;
                 var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall,
-                    IgnoreDependencies ? LogEventType.Information :
+                    Force ? LogEventType.Information :
                     checkDependencies ? LogEventType.Error : LogEventType.Warning);
                 if (checkDependencies)
                 {

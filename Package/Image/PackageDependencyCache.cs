@@ -48,7 +48,7 @@ namespace OpenTap.Package
                          {
                              return (graph: GetGraph(repo), repo: repo);
                          }
-                         catch (Exception e)
+                         catch (Exception)
                          {
                              return (graph: null, repo: repo);
                          }
@@ -113,8 +113,6 @@ namespace OpenTap.Package
             {
                 log.Debug(sw, "Read packages from {0}", repo);
             }
-
-            return null;
         }
 
         public PackageDef GetPackageDef(PackageSpecifier packageSpecifier)

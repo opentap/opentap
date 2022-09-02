@@ -9,7 +9,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace OpenTap.Package
 {
@@ -21,19 +20,6 @@ namespace OpenTap.Package
         {
             Add,
             Ignore
-        }
-
-        [System.Reflection.Obfuscation(Exclude = true)]
-        private class DepRequest
-        {
-            [Browsable(true)]
-            [Layout(LayoutMode.FullRow)]
-            public string Message => message;
-            internal string message;
-            internal string PackageName { get; set; }
-            [Submit]
-            [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
-            public DepResponse Response { get; set; } = DepResponse.Add;
         }
 
         static List<PackageDef> TriviallyResolvePackage(IEnumerable<PackageSpecifier> packages,

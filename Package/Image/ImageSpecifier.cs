@@ -26,6 +26,7 @@ namespace OpenTap.Package
         /// <summary> Installed specifiers. </summary>
         internal PackageSpecifier[] FixedPackages { get; set; } = Array.Empty<PackageSpecifier>();
         
+        /// <summary> The installed packages. </summary>
         public ImmutableArray<PackageDef> InstalledPackages { get; set; } = ImmutableArray<PackageDef>.Empty;
 
         /// <summary> Creates a new instance. </summary>
@@ -88,7 +89,10 @@ namespace OpenTap.Package
 
         internal List<PackageDef> AdditionalPackages { get; set; } = new List<PackageDef>();
         
+        /// <summary> The OS this image specifier targets. </summary>
         public string OS { get; set; } = Installation.Current.OS;
+        
+        /// <summary> The CPU architecture that this image specifier targets. </summary>
         public CpuArchitecture Architecture { get; set; } = Installation.Current.Architecture;
 
         /// <summary>
