@@ -1,5 +1,7 @@
 ﻿using NUnit.Framework;
 using System;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -36,6 +38,28 @@ namespace OpenTap.UnitTests
             // PropertyInfo.SetValue(xx, null) does not throw an exception for value types.
             // https://docs.microsoft.com/de-de/dotnet/api/system.reflection.propertyinfo.setvalue
             Assert.DoesNotThrow(() => memberData.SetValue(obj, null));
+        }
+
+        
+        [Test]
+        public void ValueTypeCanCreateInstanceTest()
+        {
+            var types = new[]
+            {
+                typeof(int),
+                typeof(double),
+                typeof(DateTime),
+                typeof(TimeSpan),
+                typeof(KeyValuePair<string, string>),
+            };
+            
+            foreach (var type in types)
+            {
+                var td = TypeData.FromType(type);
+                Assert.AreEqual(type.IsValueType, td.IsValueType);
+                Assert.IsTrue(td.CanCreateInstance, $"Expected type {type.FullName} to be constructable.");
+                Assert.AreEqual(Activator.CreateInstance(type), td.CreateInstance());
+            }
         }
 
         [Test]

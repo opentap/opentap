@@ -507,6 +507,29 @@ namespace OpenTap
                 return tp;
             return null; // This is not a type that we care about (not defined in any of the files the searcher is given)
         }
+        
+        private bool isValueType(TypeDefinition typeDef)
+        {
+            var name = CurrentReader.GetString(typeDef.Name);
+            if (name == nameof(ValueType)) return true;
+
+            var baseType = typeDef.BaseType;
+            switch (baseType.Kind)
+            {
+                case HandleKind.TypeReference:
+                    var tr = (TypeReferenceHandle)baseType;
+                    var r = CurrentReader.GetTypeReference(tr);
+                    return CurrentReader.GetString(r.Name) == nameof(ValueType);
+                    break;
+                case HandleKind.TypeDefinition:
+                    var td = (TypeDefinitionHandle)baseType;
+                    var d = CurrentReader.GetTypeDefinition(td);
+                    return isValueType(d);
+                    break;
+                default:
+                    return false;
+            }
+        }
 
         private TypeData PluginFromTypeDefRecursive(TypeDefinitionHandle handle)
         {
@@ -655,6 +678,15 @@ namespace OpenTap
                 if (typeAttributes.HasFlag(TypeAttributes.Interface) || typeAttributes.HasFlag(TypeAttributes.Abstract))
                 {
                     plugin.CanCreateInstance = false;
+                }
+                else if (isValueType(typeDef))
+                {
+                    // It is not possible to instantiate types if they have unresolved generic parameters.
+                    // Since we are currently reflecing an unloaded assembly, it is impossible for generic parameters
+                    // to be resolved. If there are generic parameters, this typedata must therefore be unconstroctable.
+                    // Once the type is actually loaded, whether an instance can be created for resolved instances
+                    // of this type will be computed differently in the TypeData implementation.
+                    plugin.CanCreateInstance = typeDef.GetGenericParameters().Count == 0;
                 }
                 else
                 {
