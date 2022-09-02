@@ -209,7 +209,8 @@ namespace OpenTap.Package
             log.Debug("Resolving dependencies.");
             var resolver = new DependencyResolver(installation, gatheredPackages, repositories);
 
-            var actualMissingDependencies = resolver.MissingDependencies.Where(s => !gatheredPackages.Any(p => s.Name == p.Name));
+            var actualMissingDependencies = resolver.MissingDependencies
+                .Where(s => gatheredPackages.All(p => s.Name != p.Name)).ToArray();
 
             if (resolver.UnknownDependencies.Any())
             {
@@ -243,9 +244,14 @@ namespace OpenTap.Package
 
                     foreach (var package in actualMissingDependencies)
                     {
-                        // Handle each package at a time.
-                        DepRequest req = null;
-                        pkgs.Add(req = new DepRequest { PackageName = package.Name, message = string.Format("Add dependency {0} {1} ?", package.Name, package.Version), Response = DepResponse.Add });
+                        // Handle one dependency at a time.
+                        var req = new DepRequest
+                        {
+                            PackageName = package.Name,
+                            message = $"Add dependency '{package.Name} version {package.Version}'?",
+                            Response = DepResponse.Add
+                        };
+                        pkgs.Add(req);
                         UserInput.Request(req, true);
                     }
 
