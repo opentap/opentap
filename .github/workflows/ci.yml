@@ -500,17 +500,20 @@ jobs:
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.S3_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET }}
+      - name: Install Sign Package
+        working-directory: bin\linux-x64\ 
+        run: ../Release/tap package install -f "../../Sign.TapPackage"
       - name: Package
+        working-directory: bin\linux-x64\ 
         run: |
-          $env:Platform = "Linux,MacOS"
-          $env:Architecture = "x64"
-          pushd bin\linux-x64\ 
           ../Release/tap package install -f "../../Sign.TapPackage"
           echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
           cp .\runtimes\win-x64\native\git2-b7bad55.dll .
           ..\Release\tap package create -v -c ../../package.xml -o Packages/OpenTAP.Linux.TapPackage
           cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.Linux.TapPackage
         env: 
+          Platform: Linux,MacOS
+          Architecture: x64
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
