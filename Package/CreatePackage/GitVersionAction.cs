@@ -77,7 +77,6 @@ namespace OpenTap.Package
                     return (int)ExitCodes.ArgumentError;
                 }
             }
-            RepoPath = repositoryDir;
 
             if (FieldCount < 1 || FieldCount > 5)
             {
