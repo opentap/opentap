@@ -25,7 +25,6 @@ namespace OpenTap.Package
             '\t', '\n', '\v', '\f', '\r', '\u000e', '\u000f', '\u0010', '\u0011', '\u0012', '\u0013', '\u0014', '\u0015', '\u0016', '\u0017', '\u0018', 
             '\u0019', '\u001a', '\u001b', '\u001c', '\u001d', '\u001e', '\u001f', ':', '*', '?', '\\'};
 
-        private static readonly char[] DiscouragedPackageNameChars = { '/' };
         
         /// <summary>
         /// The default file extension for OpenTAP packages.
@@ -116,11 +115,8 @@ namespace OpenTap.Package
                         return (int)PackageExitCodes.InvalidPackageName;
                     }
 
-                    HashSet<char> warned = new HashSet<char>();
-                    foreach (var ch in pkg.Name.Where(c => DiscouragedPackageNameChars.Contains(c)))
+                    foreach (var ch in pkg.Name.Distinct())
                     {
-                        if (warned.Add(ch))
-                        {
                             switch (ch)
                             {
                                 case '/':
@@ -129,10 +125,8 @@ namespace OpenTap.Package
                                                 $"and might lead to problems in the future.");
                                     break;
                                 default:
-                                    log.Warning($"Use of the character '{ch}' in a package name is discouraged.");
                                     break;
                             }
-                        }
                     }
 
                     // Check for invalid package metadata
