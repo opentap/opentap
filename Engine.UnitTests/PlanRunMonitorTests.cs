@@ -68,20 +68,41 @@ namespace OpenTap.Engine.UnitTests
                 base.Open();
             }
         }
+
+        public class UnopenedResultListener : ResultListener
+        {
+            public bool WasOpened { get; set; } = false;
+            public override void Open()
+            {
+                WasOpened = true;
+                base.Open();
+            }
+        }
         [Test]
         public void TestNoResourcesOpenedOnRunMonitorThrow([Values(true, false)] bool throwOnEnter)
         {
             var plan = new TestPlan();
             var ins = new UnopenedInstrument();
+            var res = new UnopenedResultListener();
             plan.ChildTestSteps.Add(new AnnotationTest.InstrumentStep() { Instrument = ins });
-            using (Session.Create(SessionOptions.OverlayComponentSettings))
+
+            var resourceManagers = TypeData.GetDerivedTypes<IResourceManager>().Select(td => td.CreateInstance())
+                .Cast<IResourceManager>().ToArray();
+
+            foreach (var rm in resourceManagers)
             {
-                InstrumentSettings.Current.Add(ins);
-                TestTestPlanRunMonitor.Current.IsEnabled = true;
-                TestTestPlanRunMonitor.Current.ThrowOnEnter = throwOnEnter;
-                var executed = plan.Execute();
-                Assert.AreEqual(throwOnEnter, executed.FailedToStart);
-                Assert.AreNotEqual(throwOnEnter, ins.WasOpened);
+                using (Session.Create(SessionOptions.OverlayComponentSettings))
+                {
+                    EngineSettings.Current.ResourceManagerType = rm;
+                    InstrumentSettings.Current.Add(ins);
+                    ResultSettings.Current.Add(res);
+                    TestTestPlanRunMonitor.Current.IsEnabled = true;
+                    TestTestPlanRunMonitor.Current.ThrowOnEnter = throwOnEnter;
+                    var executed = plan.Execute();
+                    Assert.AreEqual(throwOnEnter, executed.FailedToStart);
+                    Assert.AreNotEqual(throwOnEnter, ins.WasOpened);
+                    Assert.AreNotEqual(throwOnEnter, res.WasOpened);
+                }
             }
         }
 
