@@ -3,8 +3,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using OpenTap.Cli;
 using System.Threading;
@@ -22,6 +24,8 @@ namespace OpenTap.Package
         private static readonly char[] IllegalPackageNameChars = {'"', '<', '>', '|', '\0', '\u0001', '\u0002', '\u0003', '\u0004', '\u0005', '\u0006', '\a', '\b', 
             '\t', '\n', '\v', '\f', '\r', '\u000e', '\u000f', '\u0010', '\u0011', '\u0012', '\u0013', '\u0014', '\u0015', '\u0016', '\u0017', '\u0018', 
             '\u0019', '\u001a', '\u001b', '\u001c', '\u001d', '\u001e', '\u001f', ':', '*', '?', '\\'};
+
+        private static readonly char[] DiscouragedPackageNameChars = { '/' };
         
         /// <summary>
         /// The default file extension for OpenTAP packages.
@@ -111,7 +115,26 @@ namespace OpenTap.Package
                         log.Error("Package name cannot contain invalid file path characters: '{0}'.", pkg.Name[illegalCharacter]);
                         return (int)PackageExitCodes.InvalidPackageName;
                     }
-                    
+
+                    HashSet<char> warned = new HashSet<char>();
+                    foreach (var ch in pkg.Name.Where(c => DiscouragedPackageNameChars.Contains(c)))
+                    {
+                        if (warned.Add(ch))
+                        {
+                            switch (ch)
+                            {
+                                case '/':
+                                    log.Warning($"Use of the character '/' in a package name is discouraged. " +
+                                                $"This will never be supported by the package repository, " +
+                                                $"and might lead to problems in the future.");
+                                    break;
+                                default:
+                                    log.Warning($"Use of the character '{ch}' in a package name is discouraged.");
+                                    break;
+                            }
+                        }
+                    }
+
                     // Check for invalid package metadata
                     const string validMetadataPattern = "^[_a-zA-Z][_a-zA-Z0-9]*";
                     var validMetadataRegex = new Regex(validMetadataPattern);
