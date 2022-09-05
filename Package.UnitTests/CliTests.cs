@@ -528,7 +528,7 @@ namespace OpenTap.Package.UnitTests
         {
             int exitCode;
             // TODO: we need the --version part below because the release version of License Injector does not yet support OpenTAP 9.x, when it does, we can remove it again.
-            string output = RunPackageCli("install \"Demonstration\" -r http://packages.opentap.io -f", out exitCode);
+            string output = RunPackageCli("install \"Demonstration\" -r http://packages.opentap.io", out exitCode);
             Assert.AreEqual(0, exitCode, "Unexpected exit code: " + output);
             Assert.IsTrue(output.Contains("Installed Demonstration"));
             output = RunPackageCli("uninstall \"Demonstration\" -f", out exitCode);
@@ -650,7 +650,7 @@ namespace OpenTap.Package.UnitTests
 
         private static string RunPackageCliWrapped(string args, out int exitCode, string workingDir, string fileName = null)
         {
-            if (fileName == null) fileName = Path.GetFileName(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), "tap"));
+            if (fileName == null) fileName = Path.GetFullPath(Path.GetFileName(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), "tap")));
             var p = new Process();
             p.StartInfo = new ProcessStartInfo
             {
