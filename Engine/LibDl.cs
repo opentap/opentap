@@ -2,27 +2,23 @@ using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 
+/// <summary>
+///  This class uses and resolves libdl, which dependning on the OS comes in a libdl.so or libdl.so.2 flavor.
+/// </summary>
 static class LibDl
 {
-    static IntPtr load(string name) => libdl.dlopen(name, rtld_now);
-    static void close(IntPtr ptr) => libdl.dlclose(ptr);
+    static IntPtr load(string name) => libDl.dlopen(name, rtld_now);
+    static void close(IntPtr ptr) => libDl.dlclose(ptr);
 
+    /// <summary> Gets most recent load error. </summary>
     public static string GetError()
     {
-        var error = libdl.dlerror();
+        var error = libDl.dlerror();
         if (IntPtr.Zero == error) return null;
         return Marshal.PtrToStringAuto(error);
-
     }
     
-    static void checkError()
-    {
-        var error = libdl.dlerror();
-        if (error != IntPtr.Zero)
-            throw new Exception("Unable to load python: " + error.ToString());
-    }
-
-    static void clearError() => libdl.dlerror();
+    static void clearError() => libDl.dlerror();
 
     const int rtld_now = 2;
 
@@ -34,18 +30,19 @@ static class LibDl
         IntPtr dlsym(IntPtr handle, string symbol);
     }
 
+    /// <summary>
+    /// libc5 (shipped with Ubuntu 20.04 and older) and older contains this libdl version, but it is not shipped with libc6
+    /// </summary>
     class libdl1 : ILibDL
     {
-        [DllImport("libdl.so")]
+        private const string libName = "libdl.so";
+        [DllImport(libName)]
         static extern IntPtr dlopen(string fileName, int flags);
-
-        [DllImport("libdl.so")]
+        [DllImport(libName)]
         static extern int dlclose(IntPtr handle);
-
-        [DllImport("libdl.so")]
+        [DllImport(libName)]
         static extern IntPtr dlerror();
-        
-        [DllImport("libdl.so.2")]
+        [DllImport(libName)]
         static extern IntPtr dlsym(IntPtr handle, string symbol);
 
 
@@ -53,56 +50,52 @@ static class LibDl
         int ILibDL.dlclose(IntPtr handle) => dlclose(handle);
         IntPtr ILibDL.dlerror() => dlerror();
         IntPtr ILibDL.dlsym(IntPtr handle, string symbol) => dlsym(handle, symbol);
-
     }
 
+    /// <summary>
+    /// libc6 (shipped with Ubuntu 22.04) only ships libdl.so.2. This seems to be the only way to resolve it.
+    /// Trying "libdl" or just "dl" also does not seem to resolve to libdl.so.2. 
+    /// </summary>
     class libdl2 : ILibDL
     {
-        [DllImport("libdl.so.2")]
+        private const string libName = "libdl.so.2";
+        [DllImport(libName)]
         static extern IntPtr dlopen(string fileName, int flags);
-        
-        [DllImport("libdl.so.2")]
+        [DllImport(libName)]
         static extern int dlclose(IntPtr handle);
-
-        [DllImport("libdl.so.2")]
+        [DllImport(libName)]
         static extern IntPtr dlerror();
-        
-        [DllImport("libdl.so.2")]
+        [DllImport(libName)]
         static extern IntPtr dlsym(IntPtr handle, string symbol);
-        
         
         IntPtr ILibDL.dlopen(string fileName, int flags) => dlopen(fileName, flags);
         int ILibDL.dlclose(IntPtr handle) => dlclose(handle);
         IntPtr ILibDL.dlerror() => dlerror();
-
         IntPtr ILibDL.dlsym(IntPtr handle, string symbol) => dlsym(handle, symbol);
     }
-
-    static readonly ILibDL libdl;
+    
+    static readonly ILibDL libDl;
 
     static LibDl()
     {
         try
         {
-            libdl = new libdl2();
+            libDl = new libdl2();
             // call dlerror to ensure library is resolved
-            libdl.dlerror();
+            libDl.dlerror();
         }
         catch (DllNotFoundException)
         {
-            libdl = new libdl1();
+            libDl = new libdl1();
         }
     }
 
-    public static IntPtr Sym(IntPtr lib, string name) => libdl.dlsym(lib, name);
+    public static IntPtr Sym(IntPtr lib, string name) => libDl.dlsym(lib, name);
 
     public static IntPtr Load(string name)
     {
         clearError();
-        IntPtr p = load(name);
-        if (p == IntPtr.Zero)
-            return IntPtr.Zero;
-        return p;
+        return load(name);
     }
 
     public static void Unload(IntPtr lib)
