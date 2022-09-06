@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Diagnostics;
+using System.IO.Compression;
 using Tap.Shared;
 using System.Xml.Serialization;
 using OpenTap.Cli;
@@ -594,6 +595,9 @@ namespace OpenTap.Package
                 
                 log.Info("Creating OpenTAP package.");
                 pkg.Compress(str, pkg.Files);
+                if (!VerifyArchiveIntegrity(str))
+                    throw new ExitCodeException((int)PackageExitCodes.InvalidPackageArchive,
+                        "Failed to verify the integrity of the created package.");
             }
             finally
             {
@@ -673,10 +677,62 @@ namespace OpenTap.Package
             log.Info(timer,"Updated assembly version info using Mono method.");
         }
 
+        public static bool VerifyArchiveIntegrity(Stream s)
+        {
+            log.Info($"Verifying archive integrity.");
+
+            // Rewind the stream
+            s.Seek(0, SeekOrigin.Begin);
+            {   // Verify that we can read the package definition
+                var f = Path.GetTempFileName();
+                using (var fs = new FileStream(f, FileMode.Create))
+                    s.CopyTo(fs);
+                try
+                {
+                    PackageDef.FromPackage(f);
+                }
+                catch (Exception ex)
+                {
+                    log.Error($"Error parsing package archive.");
+                    log.Info(ex.Message);
+                    return false;
+                }
+                finally
+                {
+                    File.Delete(f);
+                }
+            }
+
+            // Rewind the stream again
+            s.Seek(0, SeekOrigin.Begin);
+            {   // Verify that we can extract the archive without errors
+                using var ms = new MemoryStream();
+                using var zip = new ZipArchive(s, ZipArchiveMode.Read, true);
+                foreach (var part in zip.Entries)
+                {
+                    ms.Seek(0, SeekOrigin.Begin);
+                    try
+                    {
+                        // Read the stream to the end to verify it can be extracted
+                        part.Open().CopyTo(ms);
+                    }
+                    catch (InvalidDataException)
+                    {
+                        log.Error($"Archive entry '{part.FullName}' is corrupted. " +
+                                  $"Please retry the package creation. " +
+                                  $"If the error persists, consider creating an issue.");
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
         /// <summary>
         /// Compresses the files to a zip package.
         /// </summary>
-        static private void Compress(this PackageDef pkg, FileStream outStream, IEnumerable<PackageFile> inputPaths)
+        private static void Compress(this PackageDef pkg, FileStream outStream, IEnumerable<PackageFile> inputPaths)
         {
             using (var zip = new System.IO.Compression.ZipArchive(outStream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
             {
