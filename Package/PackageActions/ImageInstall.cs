@@ -59,15 +59,15 @@ namespace OpenTap.Package
                 imageSpecifier = ImageSpecifier.FromString(imageString);
             }
 
-            if (!imageSpecifier.Repositories.Any())
+            if (imageSpecifier.Repositories == null)
             {
-                if (Repositories.Any())
-                    imageSpecifier.Repositories.AddRange(Repositories);
+                if (Repositories?.Any() == true)
+                    imageSpecifier.Repositories = Repositories.ToList();
                 else
-                    imageSpecifier.Repositories.AddRange(PackageManagerSettings.Current.Repositories
+                    imageSpecifier.Repositories = PackageManagerSettings.Current.Repositories
                         .Where(x => x.IsEnabled)
                         .Select(x => x.Url)
-                        .ToArray());
+                        .ToList();
             }
 
 

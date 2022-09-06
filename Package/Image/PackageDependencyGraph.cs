@@ -33,6 +33,12 @@ namespace OpenTap.Package
         // Dependencies for a given version 
         readonly Dictionary<(int packageNameId, int packageVersion), (int packageNameId, int versionSpecifierId)[]> dependencies = new Dictionary<(int, int), (int, int)[]>();
 
+        /// <summary>
+        /// Callback for when additional packages are needed. For example if only release packages of one specific
+        /// package name has been defined, this can be called to extend with e.g beta packages.
+        /// </summary>
+        public Action<string, string> UpdatePrerelease;
+
         int GetNameId(string name)
         {
             if (!name2Id.TryGetValue(name, out var id))
@@ -78,18 +84,18 @@ namespace OpenTap.Package
             return id;
         }
 
-        private PackageDef[] packages = null;
         public void LoadFromPackageDefs(IEnumerable<PackageDef> packages)
         {
-            this.packages = packages.ToArray();
-            foreach (var elem in this.packages)
+            int addPackages = 0;
+            foreach (var elem in packages.ToArray())
             {
                 var name = elem.Name;
                 var version = elem.Version ?? new SemanticVersion(0, 1, 0 , null, null);
                 
                 var id = GetNameId(name);
                 var thisVersions = versions[id];
-                thisVersions.Add(GetVersionId(version));
+                if (thisVersions.Add(GetVersionId(version)))
+                    addPackages += 1;
                 if(elem.Dependencies.Count > 0)
                 {
                     var deps = new (int id, int y)[ elem.Dependencies.Count];
@@ -113,6 +119,7 @@ namespace OpenTap.Package
         {
             var packages = json.RootElement.GetProperty("packages");
 
+            int addPackages = 0;
             foreach (var elem in packages.EnumerateArray())
             {
                 var name = elem.GetProperty("name").GetString();
@@ -124,6 +131,7 @@ namespace OpenTap.Package
                 var thisVersions = versions[id];
                 if (!thisVersions.Add(GetVersionId(version)))
                     continue; // package already added.
+                addPackages += 1;
                 if(elem.TryGetProperty("dependencies", out var obj))
                 {
                     var l = obj.GetArrayLength();
@@ -147,8 +155,22 @@ namespace OpenTap.Package
             }
         }
 
+        // tracks currently fetched pre-releases. This is an optimization to avoid having to 
+        // pull absolutely all packages from the repository.
+        readonly Dictionary<string, string> currentPreReleases = new Dictionary<string, string>();
         public IEnumerable<SemanticVersion> PackagesSatisfying(PackageSpecifier packageSpecifier)
         {
+            if (!string.IsNullOrWhiteSpace(packageSpecifier.Version.PreRelease))
+            {
+                var newPreRelease = packageSpecifier.Version.PreRelease.Split('.')[0];
+                if (!currentPreReleases.TryGetValue(packageSpecifier.Name, out var currentPrerelease) || newPreRelease.CompareTo(currentPrerelease) > 0 )
+                {
+                    currentPreReleases[packageSpecifier.Name] = newPreRelease;
+                    // update the package dependency graph.
+                    if (UpdatePrerelease != null)
+                        UpdatePrerelease(packageSpecifier.Name, newPreRelease);
+                }
+            }
             if (name2Id.TryGetValue(packageSpecifier.Name, out var Id))
             {
                 var thisVersions = versions[Id];

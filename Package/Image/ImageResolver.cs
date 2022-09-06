@@ -19,7 +19,7 @@ namespace OpenTap.Package
         }
            
 
-        public long Iterations;
+        long Iterations;
 
         public ImageResolution ResolveImage(ImageSpecifier image, PackageDependencyGraph graph)
         {

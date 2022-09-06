@@ -83,9 +83,9 @@ namespace OpenTap.Package
         /// <summary>
         /// OpenTAP repositories to fetch the desired packages from
         /// These should be well formed URIs and will be interpreted relative to the BaseAddress set in AuthenticationSettings.
+        /// May be null if unspecified.
         /// </summary>
-        public List<string> Repositories { get; set; } =
-            new List<string>() { new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri };
+        public List<string> Repositories { get; set; }
 
         internal List<PackageDef> AdditionalPackages { get; set; } = new List<PackageDef>();
         
@@ -161,8 +161,8 @@ namespace OpenTap.Package
         {
             var imageSpecifier2 = FromAddedPackages(deploymentInstallation, Packages);
             imageSpecifier2.Name = Name;
-            imageSpecifier2.Repositories.Clear();
-            imageSpecifier2.Repositories.AddRange(Repositories);
+            if(imageSpecifier2.Repositories == null)
+                imageSpecifier2.Repositories = Repositories;
             imageSpecifier2.OS = OS;
             imageSpecifier2.Architecture = Architecture;
             

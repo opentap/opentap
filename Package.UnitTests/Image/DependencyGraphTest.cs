@@ -48,7 +48,7 @@ namespace OpenTap.Image.Tests
         [Test]
         public void TestQueryGraph()
         {
-            var graph = PackageDependencyQuery.QueryGraph("https://packages.opentap.io", "Windows", CpuArchitecture.x64).Result;
+            var graph = PackageDependencyQuery.QueryGraph("https://packages.opentap.io", "Windows", CpuArchitecture.x64, "").Result;
         }
 
         [Test]
@@ -60,7 +60,7 @@ namespace OpenTap.Image.Tests
             {
                 if (repo is HttpPackageRepository http)
                 {
-                    var graph = PackageDependencyQuery.QueryGraph(http.Url, "Windows", CpuArchitecture.x64).Result;
+                    var graph = PackageDependencyQuery.QueryGraph(http.Url, "Windows", CpuArchitecture.x64,"").Result;
                     graph0.Absorb(graph);
                 }
 
@@ -74,6 +74,15 @@ namespace OpenTap.Image.Tests
                 }
             }
         }
+
+        [Test]
+        public void TestQueries()
+        {
+            var graph1 = PackageDependencyQuery.QueryGraph("https://packages.opentap.keysight.com", "Windows", CpuArchitecture.x64, "").Result;
+            var graph2 = PackageDependencyQuery.QueryGraph("https://packages.opentap.keysight.com", "Windows", CpuArchitecture.x64, "beta").Result;
+            var graph3 = PackageDependencyQuery.QueryGraph("https://packages.opentap.keysight.com", "Windows", CpuArchitecture.x64, "alpha").Result;
+        }
+        
         
         public List<string> Repositories => new List<string> { PackageCacheHelper.PackageCacheDirectory, "https://packages.opentap.io" };
 

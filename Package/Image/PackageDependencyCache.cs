@@ -17,6 +17,7 @@ namespace OpenTap.Package
 
         public PackageDependencyCache(string os, CpuArchitecture deploymentInstallationArchitecture, IEnumerable<string> repositories = null)
         {
+            graph.UpdatePrerelease = UpdatePrerelease;
             this.os = os;
             this.deploymentInstallationArchitecture = deploymentInstallationArchitecture;
             if (repositories == null)
@@ -31,6 +32,20 @@ namespace OpenTap.Package
             else
             {
                 Repositories = repositories.ToList();
+            }
+        }
+
+        private void UpdatePrerelease(string name, string version)
+        {
+            foreach (var graph in graphs)
+            {
+                if (repos[graph] is HttpPackageRepository http)
+                {
+                    var graph2 =
+                        PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, version, name).Result;
+                    graph.Absorb(graph2);
+                    Graph.Absorb(graph2);
+                }
             }
         }
 
@@ -78,7 +93,7 @@ namespace OpenTap.Package
             {
                 if (repo is HttpPackageRepository http)
                 {
-                  return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture)
+                  return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, "")
                           .Result;
                     
                 } else if (repo is FilePackageRepository fpkg)

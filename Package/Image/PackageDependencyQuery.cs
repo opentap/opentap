@@ -13,12 +13,15 @@ namespace OpenTap.Package
     /// </summary>
     static class PackageDependencyQuery
     {
-        static string GraphQueryPackages(string os, CpuArchitecture arch) => 
+        static string GraphQueryPackages(string os, CpuArchitecture arch, string version, string name) =>
             @"query Query { 
-                packages(version: ""any"", type:""tappackage"", os:""__OS__"", architecture:""__ARCH__"") {
+                packages(version: ""__VERSION__"", type:""tappackage"", os:""__OS__"", architecture:""__ARCH__"" __NAME_QUERY__) {
                   name version dependencies { 
                    name version
-        }}}".Replace("__OS__", os).Replace("__ARCH__", arch.ToString());
+        }}}".Replace("__OS__", os)
+                .Replace("__ARCH__", arch.ToString())
+                .Replace("__VERSION__", version)
+                .Replace("__NAME_QUERY__", name == null ? "" : $"name: \"{name}\"");
         static HttpClient GetHttpClient()
         {
             var httpClient = AuthenticationSettings.Current.GetClient(null, true);
@@ -26,15 +29,25 @@ namespace OpenTap.Package
                 PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
             return httpClient;
         }
+        /// <summary>
+        /// Queries the repository for a package dependency graph. If neither version nor name is specified, it will query
+        /// for all release versions of all packages. 
+        /// </summary>
+        /// <param name="repoUrl"></param>
+        /// <param name="os"></param>
+        /// <param name="deploymentInstallationArchitecture"></param>
+        /// <param name="preRelease">If specified, it expands the versions to include that preRelease. E.g alpha (everything), beta(releases, RCs and betas), rc (releases and RCs). </param>
+        /// <param name="name">If specified, limits the query to only packages of that name.</param>
+        /// <returns></returns>
         public static async Task<PackageDependencyGraph> QueryGraph(string repoUrl, string os,
-            CpuArchitecture deploymentInstallationArchitecture)
+            CpuArchitecture deploymentInstallationArchitecture, string preRelease = "", string name = null)
         {
             JsonDocument json;
             using (var client = GetHttpClient())
             {
                 // query the package dependency graph as GZip compressed JSON code.
                 
-                var qs = GraphQueryPackages(os, deploymentInstallationArchitecture);
+                var qs = GraphQueryPackages(os, deploymentInstallationArchitecture, preRelease, name);
                 HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, repoUrl + "/3.1/Query");
                 request.Content = new StringContent(qs, Encoding.UTF8);
                 request.Headers.Add("Accept", "application/json");
