@@ -45,6 +45,7 @@ namespace OpenTap.Package
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
+            // OS was explicitly specified. This is interpreted as: Show only packages compatible with that OS. 
             bool checkOs = OS != null;
             if (OS == null)
             {
