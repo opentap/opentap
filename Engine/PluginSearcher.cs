@@ -508,26 +508,33 @@ namespace OpenTap
             return null; // This is not a type that we care about (not defined in any of the files the searcher is given)
         }
         
-        private bool isValueType(TypeDefinition typeDef)
+        private bool IsValueType(TypeDefinition typeDef)
         {
-            var name = CurrentReader.GetString(typeDef.Name);
-            if (name == nameof(ValueType)) return true;
-
-            var baseType = typeDef.BaseType;
-            switch (baseType.Kind)
+            try
             {
-                case HandleKind.TypeReference:
-                    var tr = (TypeReferenceHandle)baseType;
-                    var r = CurrentReader.GetTypeReference(tr);
-                    return CurrentReader.GetString(r.Name) == nameof(ValueType);
-                    break;
-                case HandleKind.TypeDefinition:
-                    var td = (TypeDefinitionHandle)baseType;
-                    var d = CurrentReader.GetTypeDefinition(td);
-                    return isValueType(d);
-                    break;
-                default:
-                    return false;
+                var name = CurrentReader.GetString(typeDef.Name);
+                if (name == nameof(ValueType)) return true;
+
+                var baseType = typeDef.BaseType;
+                switch (baseType.Kind)
+                {
+                    case HandleKind.TypeReference:
+                        var tr = (TypeReferenceHandle)baseType;
+                        var r = CurrentReader.GetTypeReference(tr);
+                        return CurrentReader.GetString(r.Name) == nameof(ValueType);
+                    case HandleKind.TypeDefinition:
+                        var td = (TypeDefinitionHandle)baseType;
+                        var d = CurrentReader.GetTypeDefinition(td);
+                        return IsValueType(d);
+                    default:
+                        return false;
+                }
+            }
+            catch
+            {
+                // This should be rare, and if the reader can't resolve some base type we can't do anything about it.
+                // Just assume it isn't a valuetype and move on.
+                return false;
             }
         }
 
@@ -679,7 +686,7 @@ namespace OpenTap
                 {
                     plugin.CanCreateInstance = false;
                 }
-                else if (isValueType(typeDef))
+                else if (IsValueType(typeDef))
                 {
                     // It is not possible to instantiate types if they have unresolved generic parameters.
                     // Since we are currently reflecing an unloaded assembly, it is impossible for generic parameters
