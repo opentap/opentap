@@ -117,10 +117,10 @@ namespace OpenTap.EngineUnitTestUtils
                 Assert.IsTrue(WarningMessage.Any(x => x.Contains(warning)), "Expected warning '{0}' should be present", warning);
         }
         
-        public void ExpectErrors(params string[] expectedWarnings)
+        public void ExpectErrors(params string[] expectedErrors)
         {
-            foreach (var warning in expectedWarnings)
-                Assert.IsTrue(ErrorMessage.Any(x => x.Contains(warning)), "Expected error '{0}' should be present", warning);
+            foreach (var error in expectedErrors)
+                Assert.IsTrue(ErrorMessage.Any(x => x.Contains(error)), "Expected error '{0}' should be present", error);
         }
     }
 }
