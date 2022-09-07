@@ -508,14 +508,16 @@ namespace OpenTap
             return null; // This is not a type that we care about (not defined in any of the files the searcher is given)
         }
 
+        private static string valueTypeName = typeof(ValueType).FullName;
         private static readonly Dictionary<string, bool> ValueTypeMap = new Dictionary<string, bool>(); 
         private bool IsValueType(TypeDefinition typeDef, string typeName = null)
         {
+            
             bool helper(string s)
             {
                 try
                 {
-                    if (s == typeof(ValueType).FullName) return true;
+                    if (s == valueTypeName) return true;
 
                     var baseType = typeDef.BaseType;
                     switch (baseType.Kind)
@@ -526,6 +528,7 @@ namespace OpenTap
                             return CurrentReader.GetString(r.Name) == "ValueType";
                         case HandleKind.TypeDefinition:
                             var td = (TypeDefinitionHandle)baseType;
+                            if (td.IsNil) return false;
                             var d = CurrentReader.GetTypeDefinition(td);
                             return IsValueType(d);
                         default:
@@ -588,7 +591,7 @@ namespace OpenTap
             }
 
             var typeName = GetTypeName(typeDef);
-
+            if (typeName == null) return null;
             if (AllTypes.TryGetValue(typeName, out var existingPlugin))
             {
                 if (existingPlugin.Assembly.Name == CurrentAsm.Name)
