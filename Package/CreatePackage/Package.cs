@@ -595,6 +595,9 @@ namespace OpenTap.Package
                 
                 log.Info("Creating OpenTAP package.");
                 pkg.Compress(str, pkg.Files);
+                
+                // The filestream is opened with the 'DeleteOnClose' flag. If we throw here,
+                // the file pointed to by the stream will be deleted.
                 if (!VerifyArchiveIntegrity(str))
                     throw new ExitCodeException((int)PackageExitCodes.InvalidPackageArchive,
                         "Failed to verify the integrity of the created package.");
@@ -677,39 +680,33 @@ namespace OpenTap.Package
             log.Info(timer,"Updated assembly version info using Mono method.");
         }
 
-        public static bool VerifyArchiveIntegrity(Stream s)
+        private static bool VerifyArchiveIntegrity(FileStream fs)
         {
-            log.Info($"Verifying archive integrity.");
+            log.Debug($"Verifying package integrity.");
+            // Ensure the stream is fully written to the disk
+            fs.Flush();
 
-            // Rewind the stream
-            s.Seek(0, SeekOrigin.Begin);
             {   // Verify that we can read the package definition
-                var f = Path.GetTempFileName();
-                using (var fs = new FileStream(f, FileMode.Create))
-                    s.CopyTo(fs);
                 try
                 {
-                    PackageDef.FromPackage(f);
+                    PackageDef.FromPackage(fs.Name);
                 }
                 catch (Exception ex)
                 {
-                    log.Error($"Error parsing package archive.");
+                    log.Error($"Error verifying package integrity.");
                     log.Info(ex.Message);
                     return false;
                 }
-                finally
-                {
-                    File.Delete(f);
-                }
             }
 
-            // Rewind the stream again
-            s.Seek(0, SeekOrigin.Begin);
+            // Rewind the stream
+            fs.Seek(0, SeekOrigin.Begin);
             {   // Verify that we can extract the archive without errors
                 using var ms = new MemoryStream();
-                using var zip = new ZipArchive(s, ZipArchiveMode.Read, true);
+                using var zip = new ZipArchive(fs, ZipArchiveMode.Read, true);
                 foreach (var part in zip.Entries)
                 {
+                    // Rewind the stream to overwrite the previous file on each iteration
                     ms.Seek(0, SeekOrigin.Begin);
                     try
                     {
@@ -718,7 +715,8 @@ namespace OpenTap.Package
                     }
                     catch (InvalidDataException)
                     {
-                        log.Error($"Archive entry '{part.FullName}' is corrupted. " +
+                        log.Error($"Error verifying package integrity. " +
+                                  $"Archive entry '{part.FullName}' is corrupted. " +
                                   $"Please retry the package creation. " +
                                   $"If the error persists, consider creating an issue.");
                         return false;
