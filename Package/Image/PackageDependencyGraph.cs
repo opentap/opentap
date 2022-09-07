@@ -39,6 +39,9 @@ namespace OpenTap.Package
         /// </summary>
         public Action<string, string> UpdatePrerelease;
 
+        /// <summary> The total number of packages contained in this graph. </summary>
+        public int Count => versions.Sum(x => x.Value.Count);
+
         int GetNameId(string name)
         {
             if (!name2Id.TryGetValue(name, out var id))

@@ -1,3 +1,5 @@
+using System;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Net.Http;
@@ -29,6 +31,9 @@ namespace OpenTap.Package
                 PluginManager.GetOpenTapAssembly().SemanticVersion.ToString());
             return httpClient;
         }
+
+        static readonly TraceSource log = Log.CreateSource("GraphQL");
+        
         /// <summary>
         /// Queries the repository for a package dependency graph. If neither version nor name is specified, it will query
         /// for all release versions of all packages. 
@@ -42,12 +47,13 @@ namespace OpenTap.Package
         public static async Task<PackageDependencyGraph> QueryGraph(string repoUrl, string os,
             CpuArchitecture deploymentInstallationArchitecture, string preRelease = "", string name = null)
         {
+            var sw = Stopwatch.StartNew();
+            var qs = GraphQueryPackages(os, deploymentInstallationArchitecture, preRelease, name);
             JsonDocument json;
             using (var client = GetHttpClient())
             {
                 // query the package dependency graph as GZip compressed JSON code.
                 
-                var qs = GraphQueryPackages(os, deploymentInstallationArchitecture, preRelease, name);
                 HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, repoUrl + "/3.1/Query");
                 request.Content = new StringContent(qs, Encoding.UTF8);
                 request.Headers.Add("Accept", "application/json");
@@ -62,10 +68,13 @@ namespace OpenTap.Package
                     stream = new GZipStream(stream, CompressionMode.Decompress);
                 
                 json = await JsonDocument.ParseAsync(stream);
+                if (response.IsSuccessStatusCode == false)
+                    throw new Exception(json.ToString());
             }
 
             var graph = new PackageDependencyGraph();
             graph.LoadFromJson(json);
+            log.Debug(sw, "{1} -> found {0} packages.", graph.Count, qs);
             return graph;
         }
 

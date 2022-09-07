@@ -75,15 +75,6 @@ namespace OpenTap.Image.Tests
             }
         }
 
-        [Test]
-        public void TestQueries()
-        {
-            var graph1 = PackageDependencyQuery.QueryGraph("https://packages.opentap.keysight.com", "Windows", CpuArchitecture.x64, "").Result;
-            var graph2 = PackageDependencyQuery.QueryGraph("https://packages.opentap.keysight.com", "Windows", CpuArchitecture.x64, "beta").Result;
-            var graph3 = PackageDependencyQuery.QueryGraph("https://packages.opentap.keysight.com", "Windows", CpuArchitecture.x64, "alpha").Result;
-        }
-        
-        
         public List<string> Repositories => new List<string> { PackageCacheHelper.PackageCacheDirectory, "https://packages.opentap.io" };
 
         static PackageSpecifier[] str2packages(string csv)

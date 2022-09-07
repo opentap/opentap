@@ -88,23 +88,28 @@ namespace OpenTap.Package
         
         PackageDependencyGraph GetGraph(IPackageRepository repo)
         {
-            var sw = Stopwatch.StartNew();
-            try
-            {
+            
                 if (repo is HttpPackageRepository http)
                 {
                   return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, "")
-                          .Result;
-                    
-                } else if (repo is FilePackageRepository fpkg)
+                          .Result;  
+                } 
+                
+                if (repo is FilePackageRepository fpkg)
                 {
+                    var sw = Stopwatch.StartNew();
                     var graph = new PackageDependencyGraph();
                     var packages = fpkg.GetAllPackages(TapThread.Current.AbortToken);
                     graph.LoadFromPackageDefs(packages.Where(x => x.IsPlatformCompatible(deploymentInstallationArchitecture, os)));
+                    
+                    log.Debug(sw, "Read {1} packages from {0}", repo, packages.Length);
+                    
                     return graph;
                 }
-                else
+                
                 {
+                    // This occurs during unit testing when mock repositories are used.
+                    var sw = Stopwatch.StartNew();
                     var graph = new PackageDependencyGraph();
                     var names = repo.GetPackageNames();
                     List<PackageDef> packages = new List<PackageDef>();
@@ -120,14 +125,10 @@ namespace OpenTap.Package
                     var compatiblePackages = packages
                         .Where(x => x.IsPlatformCompatible(deploymentInstallationArchitecture, os)).ToArray();
                     graph.LoadFromPackageDefs(compatiblePackages);
+                    
+                    log.Debug(sw, "Read {1} packages from {0}", repo, packages.Count);
                     return graph;
                 }
-                
-            }
-            finally
-            {
-                log.Debug(sw, "Read packages from {0}", repo);
-            }
         }
 
         public PackageDef GetPackageDef(PackageSpecifier packageSpecifier)
