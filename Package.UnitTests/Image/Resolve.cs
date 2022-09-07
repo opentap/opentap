@@ -238,7 +238,7 @@ namespace OpenTap.Image.Tests
                 else
                     StringAssert.StartsWith(resultingVersion, image.Packages.First(p => p.Name == packageName).Version.ToString());
             }
-            catch (AggregateException ex)
+            catch (AggregateException)
             {
                 if (resultingVersion is null || resultingVersion == "error")
                     return; //Assert.AreEqual(1, ex.InnerExceptions.Count());
@@ -263,7 +263,7 @@ namespace OpenTap.Image.Tests
                 var image = imageSpecifier.Resolve(CancellationToken.None);
                  Assert.IsTrue(image.Packages.All(p => p.Architecture == CpuArchitecture.AnyCPU || p.Architecture == resultingArch), $"Package archs was {String.Join(", ", image.Packages.Select(p => p.Architecture))}");
             }
-            catch (AggregateException ex)
+            catch (AggregateException)
             {
                 
             }
@@ -289,10 +289,12 @@ namespace OpenTap.Image.Tests
                 StringAssert.StartsWith(resultingVersion1, image.Packages.First(p => p.Name == package1).Version.ToString());
                 StringAssert.StartsWith(resultingVersion2, image.Packages.First(p => p.Name == package2).Version.ToString());
             }
-            catch (AggregateException ex)
+            catch (AggregateException)
             {
                 if (resultingVersion1 is null || resultingVersion1 == "error")
-                    ; //Assert.AreEqual(1, ex.InnerExceptions.Count());
+                {
+                    // this is ok.
+                }
                 else
                     throw;
             }
