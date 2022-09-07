@@ -30,13 +30,13 @@ namespace OpenTap.Package
         [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
         public bool NonInteractive { get; set; } = false;
         
-        [CommandLineArgument("OS", Description = "Never prompt for user input.")]
+        [CommandLineArgument("OS", Description = "Specify which operative system to resolve packages for.")]
         public string Os { get; set; }
 
-        [CommandLineArgument("Architecture", Description = "Never prompt for user input.")]
+        [CommandLineArgument("Architecture", Description = "Specify which architecture to resolve packages for.")]
         public CpuArchitecture Architecture { get; set; } = CpuArchitecture.Unspecified;
         
-        [CommandLineArgument("dry-run", Description = "Only print the result.")]
+        [CommandLineArgument("dry-run", Description = "Only print the result, don't install the packages.")]
         public bool DryRun { get; set; }
 
         [CommandLineArgument("repository", ShortName = "r", Description = "Repositories to use for resolving the image.")]
@@ -69,6 +69,11 @@ namespace OpenTap.Package
                         .Select(x => x.Url)
                         .ToList();
             }
+
+            if (!string.IsNullOrWhiteSpace(Os))
+                imageSpecifier.OS = Os;
+            if (Architecture!= CpuArchitecture.Unspecified)
+                imageSpecifier.Architecture = Architecture;
 
 
             try

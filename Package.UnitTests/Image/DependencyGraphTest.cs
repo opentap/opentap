@@ -117,6 +117,12 @@ namespace OpenTap.Image.Tests
             yield return ("OpenTAP; TUI, beta", "OpenTAP, 9.18.4;TUI, 0.1.0-beta.145+6c192a43");
             yield return ("OpenTAP; REST-API; CSV", "CSV, 9.11.0+98498e58;Keysight Licensing, 1.1.1+7a2a1fe3;OpenTAP, 9.18.4+7dec4717;REST-API, 2.9.1+e5319b91");
             yield return ("TEST-A", "TEST-A, 1.0.0; TEST-B,1.0.0;TEST-C,1.0.0");
+            // requesting a bet, but the newest is actually a release. The release versions should then be resolved.
+            yield return ("Developer's System, beta", "CSV, 9.11.0+98498e58;Developer's System, 9.17.2-beta.12+a3f06537;" +
+                                                      "Editor, 9.17.2-beta.12+a3f06537;Keysight Licensing, 1.1.0-rc.3+fc48665d;" +
+                                                      "OpenTAP, 9.17.4-rc.1+3ffb292e;OSIntegration, 1.4.2+15f32a31;Results Viewer, 9.17.2-beta.12+a3f06537;" +
+                                                      "SDK, 9.17.4-rc.1+3ffb292e;SQLite and PostgreSQL, 9.4.2+3009aace;" +
+                                                      "Timing Analyzer, 9.17.2-beta.12+a3f06537;Visual Studio SDK, 1.2.5+08b71a6e;WPF Controls, 9.17.2-beta.12+a3f06537");
 
         }}
 
@@ -158,6 +164,7 @@ namespace OpenTap.Image.Tests
             var resolver2 = new ImageResolver(TapThread.Current.AbortToken);
             var img = image(spec);
             var r = resolver2.ResolveImage(img, graph);
+            var pkgstr = string.Join(";", r.Packages.Select(x => $"{x.Name}, {x.Version}"));
 
             if (result == null)
                 Assert.IsFalse(r.Success);
@@ -169,16 +176,6 @@ namespace OpenTap.Image.Tests
                     Assert.IsTrue(r.Packages.Any(x => x.Name == pkg.Name && x.Version.Equals(pkg.Version)));
                 }
             }
-        }
-
-        [Test]
-        public void VersionSorting()
-        {
-            string sortKey = "beta";
-            string sortValues = "1.0.0, 1.1.0,1.1.1, 1.1.0-beta.1, 1.1.0-beta.2, 1.1.0-beta.3, 2.0.0, 2.0.0-beta.4";
-            var lst = sortValues.Split(',').Select(x => SemanticVersion.Parse(x.Trim())).ToList();
-            var key = VersionSpecifier.Parse(sortKey);
-            lst.Sort(key.SortOrder);
         }
     }
 }

@@ -209,15 +209,11 @@ namespace OpenTap.Package
                     // for example OpenTAP '9.17' is exact, but many versions matches that.
                     // We are interested in the newest in this case, so order newest -> oldest within the span.
                     versions.Sort();
-                    versions.Sort(pkg.Version.SortOrder);
                     versions.Reverse();
                 }
                 else if (pkg.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible))
                 {
                     // In this case we want the closest possible version. So we use an ascending sorting.
-                    
-                    // List.Sort is not stable, so we have to use OrderBy, which is guaranteed to be.
-                    
                     // 'SortPartial' is used for sorting within an incomplete version e.g '^9.17'
                     // ^9.17 -> We want the newest 9.17 version, but if we cannot get a 9.17.* a  newer will suffice. 
                     versions = versions.OrderBy(x => x, pkg.Version.SortPartial).ToList();

@@ -410,7 +410,7 @@ namespace OpenTap.Package
 
             return ComparePreRelease(PreRelease, other.PreRelease);
         }
-
+        
         class PartialComparer : IComparer<SemanticVersion>
         {
             readonly VersionSpecifier pkg;
@@ -451,36 +451,6 @@ namespace OpenTap.Package
         ///<summary> A version is exact if the match behavior is exact and all version fields are specified. </summary>
         internal bool IsExact => MatchBehavior == VersionMatchBehavior.Exact && Major.HasValue && Minor.HasValue &&
                                Patch.HasValue;
-
-        internal int SortOrder(SemanticVersion a, SemanticVersion b)
-        {
-            if (Major.HasValue)
-            {
-                var m = a.Major.CompareTo(b.Major);
-                if (m != 0) return m;
-            }
-            if (Minor.HasValue)
-            {
-                var m = a.Minor.CompareTo(b.Minor);
-                if (m != 0) return m;
-            }
-            if (Patch.HasValue)
-            {
-                var m = a.Patch.CompareTo(b.Patch);
-                if (m != 0) return m;
-            }
-
-            if (a.PreRelease == b.PreRelease) return 0;
-            if (a.PreRelease == null && b.PreRelease != null)
-            {
-                return 1;
-            }
-            if (a.PreRelease != null && b.PreRelease == null)
-            {
-                return -1;
-            }
-            return ComparePreRelease(a.PreRelease, b.PreRelease);
-        }
 
         private static int ComparePreRelease(string p1, string p2)
         {
