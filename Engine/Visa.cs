@@ -77,14 +77,6 @@ internal static class Visa
     [DllImport("kernel32.dll")]
     static extern IntPtr GetProcAddress(IntPtr hModule, string procname);
 
-    [DllImport("libdl.so")]
-    static extern IntPtr dlopen(string filename, int flags);
-
-    [DllImport("libdl.so")]
-    static extern IntPtr dlsym(IntPtr handle, string symbol);
-
-    const int RTLD_NOW = 2; // for dlopen's flags 
-
     static T GetSymbol<T>(IntPtr s)
     {
         return Marshal.GetDelegateForFunctionPointer<T>(s);
@@ -107,10 +99,9 @@ internal static class Visa
             LoadLib = () =>
             {
                 string[] paths = {"./libvisa32.so", "./libvisa.so", "libvisa32.so", "libvisa.so", "libiovisa.so", "./libiovisa.so"};
-                return paths.Select(x => dlopen(x, flags: RTLD_NOW))
-                    .FirstOrDefault(x => x != IntPtr.Zero);
+                return paths.Select(LibDl.Load) .FirstOrDefault(x => x != IntPtr.Zero);
             };
-            LoadSym = (lib_handle, name, ord) => dlsym(lib_handle, name);
+            LoadSym = (lib_handle, name, ord) => LibDl.Sym(lib_handle, name);
         }
 
         var lib = LoadLib();
