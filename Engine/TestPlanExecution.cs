@@ -762,20 +762,16 @@ namespace OpenTap
         private void OpenInternal(TestPlanRun run, bool isOpen, List<ITestStep> steps)
         {
             monitors = TestPlanRunMonitors.GetCurrent();
-            try
-            {
-                // Enter monitors
-                foreach (var item in monitors)
-                    item.EnterTestPlanRun(run);
-            }
-            finally   // We need to make sure OpenAllAsync is always called (even when CheckResources throws an exception). 
-            {         // Otherwise we risk that e.g. ResourceManager.WaitUntilAllResourcesOpened() will hang forever.
-                run.ResourceManager.EnabledSteps = steps;
-                run.ResourceManager.StaticResources = run.ResultListeners.ToArray();
-                run.ResultListenersSealed = true;
-                if (!isOpen)
-                    run.ResourceManager.BeginStep(run, this, TestPlanExecutionStage.Open, TapThread.Current.AbortToken);
-            }
+
+            // Enter monitors
+            foreach (var item in monitors)
+                item.EnterTestPlanRun(run);
+            
+            run.ResourceManager.EnabledSteps = steps;
+            run.ResourceManager.StaticResources = run.ResultListeners.ToArray();
+            run.ResultListenersSealed = true;
+            if (!isOpen)
+                run.ResourceManager.BeginStep(run, this, TestPlanExecutionStage.Open, TapThread.Current.AbortToken);
         }
 
         /// <summary>

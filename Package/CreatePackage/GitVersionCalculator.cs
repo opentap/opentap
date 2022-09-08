@@ -325,7 +325,7 @@ namespace OpenTap.Package
             }
             Config cfg = ParseConfig(targetCommit);
             if (cfg.ConfigFilePath != configFileName)
-                log.Info("Using configuration from {0}", cfg.ConfigFilePath);
+                log.Debug("Using configuration from {0}", cfg.ConfigFilePath);
 
             Branch defaultBranch = getBetaBranch(cfg);
 
