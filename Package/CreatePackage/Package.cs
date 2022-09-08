@@ -683,7 +683,7 @@ namespace OpenTap.Package
         private static bool VerifyArchiveIntegrity(FileStream fs)
         {
             var sw = Stopwatch.StartNew();
-            log.Debug(sw, $"Verifying package integrity...");
+            log.Debug($"Verifying package integrity...");
             // Ensure the stream is fully written to the disk
             fs.Flush();
 
