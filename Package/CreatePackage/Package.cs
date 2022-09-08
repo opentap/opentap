@@ -682,7 +682,8 @@ namespace OpenTap.Package
 
         private static bool VerifyArchiveIntegrity(FileStream fs)
         {
-            log.Debug($"Verifying package integrity.");
+            var sw = Stopwatch.StartNew();
+            log.Debug(sw, $"Verifying package integrity...");
             // Ensure the stream is fully written to the disk
             fs.Flush();
 
@@ -699,19 +700,19 @@ namespace OpenTap.Package
                 }
             }
 
+            log.Debug(sw, "Verified metadata integrity.");
+
             // Rewind the stream
             fs.Seek(0, SeekOrigin.Begin);
             {   // Verify that we can extract the archive without errors
-                using var ms = new MemoryStream();
                 using var zip = new ZipArchive(fs, ZipArchiveMode.Read, true);
                 foreach (var part in zip.Entries)
                 {
                     // Rewind the stream to overwrite the previous file on each iteration
-                    ms.Seek(0, SeekOrigin.Begin);
                     try
                     {
                         // Read the stream to the end to verify it can be extracted
-                        part.Open().CopyTo(ms);
+                        part.Open().CopyTo(Stream.Null);
                     }
                     catch (InvalidDataException)
                     {
@@ -724,6 +725,7 @@ namespace OpenTap.Package
                 }
             }
 
+            log.Debug(sw, $"Verified archive integrity.");
             return true;
         }
 
