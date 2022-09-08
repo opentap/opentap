@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Xml.Linq;
 using NUnit.Framework;
 using OpenTap.Package;
@@ -128,5 +129,62 @@ namespace OpenTap.Engine.UnitTests
                 Assert.AreEqual(1, elem.Elements("Package.Dependencies").Count());
             }
         }
+
+        public interface IPSU : IInstrument
+        {
+            
+        }
+
+        public class InstrA : Instrument, IPSU
+        {
+            
+        }
+        public class InstrB : Instrument, IPSU
+        {
+            
+        }
+
+        public class StepA : TestStep
+        {
+            public IPSU Instr { get; set; }
+            public List<IPSU> Instrs { get; set; } = new List<IPSU>();
+            
+            public override void Run() { }
+        }
+
+        [Test]
+        public void TestSerializingResourceReferences()
+        {
+            using (Session.Create())
+            {
+                InstrumentSettings.Current.Clear();
+                var instr = new InstrA {Name = "AABBCC"};
+                var instr2 = new InstrB {Name = "AABBCC"};
+                var instr3 = new InstrB();
+                var instr4 = new InstrB();
+                InstrumentSettings.Current.Add(instr);
+                var step = new StepA()
+                {
+                    Instr = instr
+                };
+                step.Instrs.Add(instr);
+                var plan = new TestPlan();
+                plan.ChildTestSteps.Add(step);
+
+                var x = plan.SerializeToString();
+                InstrumentSettings.Current.Remove(instr);
+                InstrumentSettings.Current.Add(instr3);
+                InstrumentSettings.Current.Add(instr2);
+                InstrumentSettings.Current.Add(instr4);
+                var serializer = new TapSerializer();
+                var plan2 = (TestPlan)serializer.DeserializeFromString(x);
+                var step2 = (StepA)plan2.ChildTestSteps[0];
+                Assert.AreEqual(instr2, step2.Instr);
+                Assert.AreEqual(instr2, step2.Instrs[0]);
+                var msg = serializer.XmlMessages.FirstOrDefault();
+                StringAssert.Contains("Selected resource 'AABBCC' of type InstrB instead of declared type InstrA.", msg.ToString());
+            }
+        }
+        
     }
 }
