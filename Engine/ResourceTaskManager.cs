@@ -400,8 +400,8 @@ namespace OpenTap
                     if (untouched.Contains(res.Resource))
                     {
                         if(res.Depender != null)
-                            throw new Exception($"Deleted resource '{res.Resource}' being used by {res.Depender.DeclaringType}.");
-                        throw new Exception($"Deleted resource '{res.Resource}' is in used.");
+                            throw new Exception($"Deleted resource '{res.Resource}' is in use by {res.Depender.DeclaringType}.");
+                        throw new Exception($"Deleted resource '{res.Resource}' is in use.");
                     }
                 }
             }
