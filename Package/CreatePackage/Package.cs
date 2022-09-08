@@ -694,7 +694,7 @@ namespace OpenTap.Package
                 catch (Exception ex)
                 {
                     log.Error($"Error verifying package integrity.");
-                    log.Info(ex.Message);
+                    log.Debug(ex);
                     return false;
                 }
             }

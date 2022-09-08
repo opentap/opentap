@@ -660,7 +660,7 @@ namespace OpenTap.Package
         /// </summary>
         public static PackageDef FromXml(string path)
         {
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read);
+            using var stream = File.OpenRead(path);
             return FromXml(stream);
         }
         
