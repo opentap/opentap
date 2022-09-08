@@ -318,13 +318,6 @@ namespace OpenTap.Image.Tests
             StringAssert.StartsWith("9.1", image.Packages.First(p => p.Name == "Demonstration").Version.ToString());
         }
 
-
-        [Test]
-        public void TreeWithMissing()
-        {
-
-        }
-
         [Test]
         public void TrimOperatingSystemEntries()
         {
@@ -335,18 +328,6 @@ namespace OpenTap.Image.Tests
             Assert.IsTrue(packageIdentifier.IsPlatformCompatible(CpuArchitecture.x64, "windows"));
             Assert.IsTrue(packageIdentifier.IsPlatformCompatible(CpuArchitecture.x86, "Linux, windows"));
             Assert.IsTrue(packageIdentifier.IsPlatformCompatible(CpuArchitecture.x64, "linux, Windows"));
-        }
-
-        [Test]
-        public void TestUnknownDependencies()
-        {
-
-        }
-
-        [TestCase("OpenTAP", "^9.10.0", "MyDemoTestPlan", "1.0.0", 3, "OpenTAP:9.12.1", "MyDemoTestPlan:1.0.0", "Demonstration:9.0.2")]
-        public void TestDependencies(string packageName, string firstVersion, string secondPackageName, string secondVersion, int dependenciesCount, params string[] resolved)
-        {
-
         }
     }
 
