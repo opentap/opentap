@@ -53,9 +53,7 @@ namespace OpenTap.Package
                             packages.RemoveAt(j);
                             goto retry;
                         }
-                        // pkg1 == pkg2.
-                        packages.RemoveAt(j);
-                        
+                        // pkg1 might still be different from pkg2 if one is exact and another one isn't.
                     }
                 }
             }

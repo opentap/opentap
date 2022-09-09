@@ -20,19 +20,8 @@ namespace OpenTap.Package
             graph.UpdatePrerelease = UpdatePrerelease;
             this.os = os;
             this.deploymentInstallationArchitecture = deploymentInstallationArchitecture;
-            if (repositories == null)
-            {
-                var urls0 = new List<string> {PackageCacheHelper.PackageCacheDirectory};
-                var urls = PackageManagerSettings.Current.Repositories.Where(x => x.IsEnabled).Select(x => x.Url)
-                    .ToList();
-
-                urls0.AddRange(urls);
-                Repositories = urls0;
-            }
-            else
-            {
-                Repositories = repositories.ToList();
-            }
+            var urls = PackageManagerSettings.Current.GetEnabledRepositories(repositories).Select(x => x.Url).ToList();
+            Repositories = urls;
         }
 
         private void UpdatePrerelease(string name, string version)
