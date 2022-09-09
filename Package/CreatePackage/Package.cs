@@ -703,6 +703,7 @@ namespace OpenTap.Package
             log.Debug(sw, "Verified metadata integrity.");
 
             // Rewind the stream
+            var files = new HashSet<string>();
             fs.Seek(0, SeekOrigin.Begin);
             {   // Verify that we can extract the archive without errors
                 using var zip = new ZipArchive(fs, ZipArchiveMode.Read, true);
@@ -711,6 +712,14 @@ namespace OpenTap.Package
                     // Rewind the stream to overwrite the previous file on each iteration
                     try
                     {
+                        if (!files.Add(part.FullName))
+                        {
+                            log.Error($"Error verifying archive integrity. " + 
+                                      $"Archive contains a duplicate entry '{part.FullName}'." +
+                                      $"Please retry the package creation. " +
+                                      $"If the error persists, consider creating an issue.");
+                            return false;
+                        }
                         // Read the stream to the end to verify it can be extracted
                         part.Open().CopyTo(Stream.Null);
                     }
