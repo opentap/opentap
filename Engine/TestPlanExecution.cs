@@ -640,11 +640,13 @@ namespace OpenTap
                 }
                 else if (e is System.ComponentModel.LicenseException)
                 {
+                    execStage.Exception = e;
                     Log.Error(e.Message);
                     execStage.UpgradeVerdict(Verdict.Error);
                 }
                 else
                 {
+                    execStage.Exception = e;
                     Log.Warning("TestPlan aborted.");
                     Log.Error(e.Message);
                     Log.Debug(e);
