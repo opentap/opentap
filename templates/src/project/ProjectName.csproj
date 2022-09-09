@@ -21,7 +21,7 @@
     <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
   </ItemGroup>
 	<PropertyGroup>
-        <OpenTapVersion>9.17.4</OpenTapVersion>
+        <OpenTapVersion>9.18.5</OpenTapVersion>
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
         <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
