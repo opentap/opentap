@@ -55,7 +55,8 @@ namespace OpenTap.Package
         public bool CheckOnly { get; set; }
 
         [Obsolete("Interactive is the default. Use --non-interactive to disable.")]
-        [CommandLineArgument("interactive", Description = "More user responsive.",Visible = false)]
+        [CommandLineArgument("interactive", Description = "More user responsive.")]
+        [Browsable(false)]
         public bool Interactive { get; set; }
 
         /// <summary>

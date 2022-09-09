@@ -455,7 +455,16 @@ namespace OpenTap.Package
                             {
                                 throw;
                             }
-                            catch
+                            catch (IOException ex) when (ex.Message.Contains("There is not enough space on the disk"))
+                            {
+                                log.Error(ex.Message);
+                                var req = new AbortOrRetryRequest("Not Enough Disk Space", $"File '{part.FullName}' requires {Utils.BytesToReadable(part.Length)} of free space. " +
+                                                                  $"Please free some space to continue.") {Response = AbortOrRetryResponse.Abort};
+                                UserInput.Request(req, true);
+                                if (req.Response == AbortOrRetryResponse.Abort)
+                                    throw new OperationCanceledException("Installation aborted due to missing disk space.");
+                            }
+                            catch (Exception ex)
                             {
                                 if (Path.GetFileNameWithoutExtension(path) == "tap")
                                     break; // this is ok tap.exe (or just tap on linux) is not designed to be overwritten
@@ -464,6 +473,7 @@ namespace OpenTap.Package
                                     throw;
                                 Retries++;
                                 log.Warning("Unable to unpack file {0}. Retry {1} of {2}.", path, Retries, MaxRetries);
+                                log.Debug(ex);
                                 Thread.Sleep(200);
                             }
                         }
