@@ -44,7 +44,6 @@ namespace OpenTap.Package
             var imageString = File.ReadAllText(ImagePath);
             var imageSpecifier = ImageSpecifier.FromString(imageString);
 
-
             try
             {
                 if (Merge)

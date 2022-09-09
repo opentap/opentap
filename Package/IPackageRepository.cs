@@ -6,12 +6,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using Newtonsoft.Json.Linq;
+using OpenTap.Authentication;
 
 namespace OpenTap.Package
 {
@@ -24,7 +23,7 @@ namespace OpenTap.Package
         /// The url of the repository.
         /// </summary>
         string Url { get; }
-        
+
         /// <summary>
         /// Downloads a package from this repository to a file.
         /// </summary>
@@ -78,13 +77,13 @@ namespace OpenTap.Package
         /// <summary>
         /// Initializes a new instance of a PackageVersion.
         /// </summary>
-        public PackageVersion(string name, SemanticVersion version, string os, CpuArchitecture architechture, DateTime date, List<string> licenses) : base(name,version,architechture,os)
+        public PackageVersion(string name, SemanticVersion version, string os, CpuArchitecture architechture, DateTime date, List<string> licenses) : base(name, version, architechture, os)
         {
             this.Date = date;
             this.Licenses = licenses;
         }
-        
-        internal PackageVersion() 
+
+        internal PackageVersion()
         {
 
         }
@@ -105,86 +104,6 @@ namespace OpenTap.Package
         public bool Equals(PackageVersion other)
         {
             return (this as PackageIdentifier).Equals(other);
-        }
-    }
-
-    internal class PackageVersionSerializerPlugin : TapSerializerPlugin
-    {
-        public override double Order { get { return 5; } }
-
-        public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
-        {
-            if (t.IsA(typeof(PackageVersion[])))
-            {
-                var list = new List<PackageVersion>();
-                foreach (var element in node.Elements())
-                    list.Add(DeserializePackageVersion(element));
-
-                setter(list.ToArray());
-                return true;
-            }
-            if (t.IsA(typeof(PackageVersion)))
-            {
-                setter(DeserializePackageVersion(node));
-                return true;
-            }
-            return false;
-        }
-
-        public override bool Serialize(XElement node, object obj, ITypeData expectedType)
-        {
-            return false;
-        }
-
-        PackageVersion DeserializePackageVersion(XElement node)
-        {
-            var version = new PackageVersion();
-            var elements = node.Elements().ToList();
-            var attributes = node.Attributes().ToList();
-            foreach (var element in elements)
-            {
-                if (element.IsEmpty) continue;
-                setProp(element.Name.LocalName, element.Value);
-            }
-            foreach (var attribute in attributes)
-            {
-                setProp(attribute.Name.LocalName, attribute.Value);
-            }
-
-            return version;
-
-            void setProp(string propertyName, string value)
-            {
-                if (propertyName == "CPU") // CPU was removed in OpenTAP 9.0. This is to support packages created by TAP 8x
-                    propertyName = "Architecture";
-
-                var prop = typeof(PackageVersion).GetProperty(propertyName);
-                if (prop == null) return;
-                if (prop.PropertyType.IsEnum)
-                    prop.SetValue(version, Enum.Parse(prop.PropertyType, value));
-                else if (prop.PropertyType.HasInterface<IList<string>>())
-                {
-                    var list = new List<string>();
-                    list.Add(value);
-                    prop.SetValue(version, list);
-                }
-                else if (prop.PropertyType == typeof(SemanticVersion))
-                {
-                    if (SemanticVersion.TryParse(value, out var semver))
-                        prop.SetValue(version, semver);
-                    else
-                        Log.Warning($"Cannot parse version '{value}' of package '{version.Name ?? "Unknown"}'.");
-                }
-                else if (prop.PropertyType == typeof(DateTime))
-                {
-                    if (DateTime.TryParse(value, out var date))
-                        prop.SetValue(version, date);
-                }
-                else
-                {
-                    prop.SetValue(version, value);
-                }
-            }
         }
     }
 
@@ -314,23 +233,48 @@ namespace OpenTap.Package
             return list;
         }
 
+        /// <summary>
+        /// Returns FilePackageRepository if either of the following is true:
+        /// - Url is explicitly defined with file:/// 
+        /// - The url is relative and directory exists
+        /// - Starts with classic windows absolute path like 'C:/'
+        /// - Starts with '\\'
+        /// Otherwise returns HttpPackageRepository
+        /// </summary>
+        /// <param name="url">url to be determined to be file path or http path</param>
+        /// <returns>Determined repository type</returns>
         internal static IPackageRepository DetermineRepositoryType(string url)
         {
-            if(registeredRepositories.TryGetValue(url, out var repo))
+            if (registeredRepositories.TryGetValue(url, out var repo))
                 return repo;
-            if(url.Contains("http://") || url.Contains("https://"))
-                return new HttpPackageRepository(url); // avoid throwing exceptions if it looks a lot like a URL.
-            if (Uri.IsWellFormedUriString(url, UriKind.Relative) && Directory.Exists(url))
-                return new FilePackageRepository(url);
-            if (File.Exists(url))
-                return new FilePackageRepository(Path.GetDirectoryName(url));
-            if (Regex.IsMatch(url ?? "", @"^([A-Z|a-z]:)?(\\|/)"))
-                return new FilePackageRepository(url);
+            if (Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out Uri uri))
+            {
+                if(uri.IsAbsoluteUri)
+                {
+                    switch(uri.Scheme)
+                    {
+                        case "http":
+                        case "https":
+                            return new HttpPackageRepository(url);
+                        case "file":
+                            return new FilePackageRepository(uri.AbsolutePath);
+                        default:
+                            throw new NotSupportedException($"Scheme {uri.Scheme} is not supported as a package repository ({url}).");
+                    }
+                }
+                else
+                {
+                    if (AuthenticationSettings.Current.BaseAddress != null)
+                        return DetermineRepositoryType(new Uri(new Uri(AuthenticationSettings.Current.BaseAddress), url).AbsoluteUri);
+                    else
+                        return new FilePackageRepository(Path.GetFullPath(url)); // GetFullPath throws ArgumentException if url contains illigal path chars
+                }
+            }
             else
-                return new HttpPackageRepository(url);
+                throw new NotSupportedException($"Unable to determine repository type of '{url}'. Try specifying a scheme using 'http://' or 'file:///'.");
         }
 
-        static Dictionary<string,IPackageRepository> registeredRepositories = new Dictionary<string,IPackageRepository>();
+        static Dictionary<string, IPackageRepository> registeredRepositories = new Dictionary<string, IPackageRepository>();
 
         internal static void RegisterRepository(IPackageRepository repo)
         {

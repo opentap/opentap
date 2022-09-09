@@ -245,8 +245,9 @@ namespace OpenTap.Plugins.BasicSteps
             var originalValues = sets.Select(set => set.GetValue(this)).ToArray();
 
             var rowType = SweepValues.Select(TypeData.GetTypeData).FirstOrDefault();
-            foreach (var Value in SweepValues)
+            for (int i = 0; i < SweepValues.Count; i++)
             {
+                SweepRow Value = SweepValues[i];
                 if (Value.Enabled == false) continue;
                 var AdditionalParams = new ResultParameters();
 
@@ -273,10 +274,7 @@ namespace OpenTap.Plugins.BasicSteps
                     }
                     catch (TargetInvocationException ex)
                     {
-                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name,
-                            ex.InnerException?.Message, valueString);
-                        Log.Debug(ex.InnerException);
-                        UpgradeVerdict(Verdict.Error);
+                        throw new ArgumentException($"Unable to set '{set.GetDisplayAttribute()}' to '{valueString}' on row {i}: {ex.InnerException.Message}", ex.InnerException);
                     }
                 }
 
@@ -286,7 +284,7 @@ namespace OpenTap.Plugins.BasicSteps
 
                 Log.Info("Running child steps with {0}", Value.GetIterationString());
 
-                var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
+                var runs = RunChildSteps(AdditionalParams, BreakLoopRequested, throwOnBreak: false).ToArray();
                 if (BreakLoopRequested.IsCancellationRequested) break;
                 runs.ForEach(r => r.WaitForCompletion());
                 if (runs.LastOrDefault()?.BreakConditionsSatisfied() == true)

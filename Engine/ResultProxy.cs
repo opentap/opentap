@@ -113,7 +113,7 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// A vector containing a number of results with matching names, column name, and types. 
+    /// A result table containing rows of results with matching names, column name, and types. 
     /// </summary>
     [Serializable]
     public class ResultTable : IResultTable
@@ -133,7 +133,7 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Indicates how many rows of results this vector contains.
+        /// Indicates how many rows of results this table contains.
         /// </summary>
         public int Rows { get; private set; }
 
@@ -162,7 +162,7 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Creates an empty vector.
+        /// Creates an empty results table.
         /// </summary>
         public ResultTable()
         {
@@ -172,10 +172,10 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Creates a new vector.
+        /// Creates a new result table.
         /// </summary>
-        /// <param name="name">The name of the result vector.</param>
-        /// <param name="resultColumns">The columns of the vector.</param>
+        /// <param name="name">The name of the result table.</param>
+        /// <param name="resultColumns">The columns of the table.</param>
         public ResultTable(string name, ResultColumn[] resultColumns)
         {
             if (name == null) throw new ArgumentNullException(nameof(name));
@@ -592,10 +592,12 @@ namespace OpenTap
                 {
                     if (!ResultTableOptimizer.CanMerge(p.table, table))
                         break;
+                    p = (PublishResultTableInvokable)workQueue.Dequeue();
+                    if (p == null) break;
                     if (mergeTables == null)
                         mergeTables = new List<ResultTable>();
                     mergeTables.Add(p.table);
-                    workQueue.Dequeue();
+                    
                 }
 
                 if (mergeTables != null)

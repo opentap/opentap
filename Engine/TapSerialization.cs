@@ -205,11 +205,11 @@ namespace OpenTap
                 return Deserialize(fileStream, flush, type, file);
         }
 
-        List<ITapSerializerPlugin> serializers = new List<ITapSerializerPlugin>();
+        ITapSerializerPlugin[] serializers = Array.Empty<ITapSerializerPlugin>();
         readonly Stack<object> activeSerializers = new Stack<object>(32);
         
         /// <summary> Get all the serializers loaded by this TapSerializer. </summary>
-        public ITapSerializerPlugin[] GetSerializers() => serializers.OfType<ITapSerializerPlugin>().ToArray();
+        public ITapSerializerPlugin[] GetSerializers() => serializers.ToArray();
         /// <summary>
         /// The stack of serializers. Changes during serialization depending on the order of serializers used.
         /// </summary>
@@ -234,8 +234,7 @@ namespace OpenTap
         /// <param name="_serializers"></param>
         public void AddSerializers(IEnumerable<ITapSerializerPlugin> _serializers)
         {
-            serializers.AddRange(_serializers);
-            serializers.Sort((x, y) => -x.Order.CompareTo(y.Order));
+            serializers = serializers.Concat(_serializers).OrderByDescending(x => x.Order).ToArray();
         }
 
         static System.Threading.ThreadLocal<TapSerializer> currentSerializer = new System.Threading.ThreadLocal<TapSerializer>();
@@ -331,9 +330,7 @@ namespace OpenTap
                 }
                 else
                 {
-                    var message = string.Format("Unable to locate type '{0}'. Are you missing a plugin?", typeattribute.Value);
-                    log.Warning(element, message);
-                    PushError(element, message);
+                    PushError(element, $"Unable to locate type '{typeattribute.Value}'. Are you missing a plugin?");
                     if (t == null)
                         return false;
                 }

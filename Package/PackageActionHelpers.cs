@@ -333,11 +333,21 @@ namespace OpenTap.Package
                     }
                     else
                     {
-                        string source = (pkg.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl;
-                        if (source == null && pkg.PackageSource is FilePackageDefSource fileSource)
-                            source = fileSource.PackageFilePath;
-
-                        IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(source);
+                        IPackageRepository rm = null;
+                        switch (pkg.PackageSource)
+                        {
+                            case HttpRepositoryPackageDefSource repoSource:
+                                rm = new HttpPackageRepository(repoSource.RepositoryUrl);
+                                break;
+                            case FileRepositoryPackageDefSource repoSource:
+                                rm = new FilePackageRepository(repoSource.RepositoryUrl);
+                                break;
+                            case IFilePackageDefSource fileSource:
+                                rm = new FilePackageRepository(System.IO.Path.GetDirectoryName(fileSource.PackageFilePath));
+                                break;
+                            default:
+                                throw new Exception($"Unable to determine repositoy type for package source {pkg.PackageSource.GetType()}.");
+                        }
                         if (rm is IPackageDownloadProgress r)
                         {
                             r.OnProgressUpdate = innerProgress;
@@ -349,7 +359,7 @@ namespace OpenTap.Package
                         }
                         else
                         {
-                            log.Debug("Downloading '{0}' version '{1}' from '{2}'", pkg.Name, pkg.Version, source);
+                            log.Debug("Downloading '{0}' version '{1}' from '{2}'", pkg.Name, pkg.Version, rm.Url);
                             rm.DownloadPackage(pkg, filename);
                             log.Info(timer, "Downloaded '{0}' to '{1}'.", pkg.Name, Path.GetFullPath(filename));
                             PackageCacheHelper.CachePackage(filename);

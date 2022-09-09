@@ -218,6 +218,47 @@ namespace OpenTap.UnitTests
                 }
             }
         }
+
+        class SlowResultListener : ResultListener
+        {
+            public override void OnResultPublished(Guid stepRunId, ResultTable result)
+            {
+                base.OnResultPublished(stepRunId, result);
+                TapThread.Sleep(100);
+            }
+        }
+        
+        [Test]
+        public void TestResultsOptimizeBug()
+        {
+            // An issue in the code caused the semaphores to be released but never waited
+            // this was because work items are popped from the WorkQueue when optimized result tables
+            // are being created.
+            // When we hit the max semaphore count (normally around 1M work items) this causes an infinite delay.
+            
+            using (Session.Create(SessionOptions.OverlayComponentSettings))
+            {
+                // set the max semaphore count so we dont have to create 1M results, but just around 30.
+                var prevSemCount = WorkQueue.semaphoreMaxCount;
+                WorkQueue.semaphoreMaxCount = 20;
+                try
+                {
+                    ResultSettings.Current.Add(new SlowResultListener());
+                    var plan = new TestPlan();
+                    var step = new SimpleResultTestMany {Count = 1000};
+                    plan.Steps.Add(step);
+
+                    var token = CancellationTokenSource.CreateLinkedTokenSource(TapThread.Current.AbortToken);
+                    // cancel the run after 60 seconds.
+                    token.CancelAfter(TimeSpan.FromSeconds(60));
+                    Assert.AreEqual(Verdict.NotSet, plan.ExecuteAsync(token.Token).Result.Verdict);
+                }
+                finally
+                {
+                    WorkQueue.semaphoreMaxCount = prevSemCount;
+                }
+            }
+        }
         
     }
 }

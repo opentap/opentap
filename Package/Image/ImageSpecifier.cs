@@ -23,9 +23,10 @@ namespace OpenTap.Package
 
         /// <summary>
         /// OpenTAP repositories to fetch the desired packages from
+        /// These should be well formed URIs and will be interpreted relative to the BaseAddress set in AuthenticationSettings.
         /// </summary>
         public List<string> Repositories { get; set; } =
-            new List<string>() { PackageCacheHelper.PackageCacheDirectory };
+            new List<string>() { new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri };
 
         /// <summary>
         /// Resolve the desired packages from the specified repositories. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
@@ -34,8 +35,8 @@ namespace OpenTap.Package
         /// <exception cref="ImageResolveException">The exception thrown if the image could not be resolved</exception>
         public ImageIdentifier Resolve(CancellationToken cancellationToken)
         {
-            List<IPackageRepository> repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToList();
-
+            List<IPackageRepository> repositories = Repositories.Distinct().Select(PackageRepositoryHelpers.DetermineRepositoryType).GroupBy(p => p.Url).Select(g => g.First()).ToList();
+            
             DependencyResolver resolver = new DependencyResolver(Packages, repositories, cancellationToken);
 
 
