@@ -27,7 +27,7 @@ namespace OpenTap.Package
         internal PackageSpecifier[] FixedPackages { get; set; } = Array.Empty<PackageSpecifier>();
         
         /// <summary> The installed packages. </summary>
-        public ImmutableArray<PackageDef> InstalledPackages { get; set; } = ImmutableArray<PackageDef>.Empty;
+        internal ImmutableArray<PackageDef> InstalledPackages { get; set; } = ImmutableArray<PackageDef>.Empty;
 
         /// <summary> Creates a new instance. </summary>
         public ImageSpecifier(List<PackageSpecifier> packages, string name = "")
@@ -50,10 +50,7 @@ namespace OpenTap.Package
             {
                 var ext = installed.FirstOrDefault(x => x.Name == package.Name);
                 if (ext != null)
-                {
                     installed.Remove(ext);
-                    // warn about downgrade.
-                }
 
                 if (File.Exists(package.Name))
                 {

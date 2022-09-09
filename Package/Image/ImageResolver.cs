@@ -42,26 +42,25 @@ namespace OpenTap.Package
 
                         if (!pkg1.Version.IsSatisfiedBy(pkg2.Version))
                         {
-                            packages[i] = pkg1;
+                            // select pkg1 instead of pkg2
                             packages.RemoveAt(j);
                             goto retry;
                         }
-                        else if(!pkg2.Version.IsSatisfiedBy(pkg1.Version)) // pkg1 is satisfied by pkg2
+                        if(!pkg2.Version.IsSatisfiedBy(pkg1.Version)) // pkg1 is satisfied by pkg2
                         {
+                            // select pkg2 instead of pkg1
                             packages[i] = pkg2;
                             packages.RemoveAt(j);
                             goto retry;
                         }
-                        else
-                        {
-                            
-                        }
+                        // pkg1 == pkg2.
+                        packages.RemoveAt(j);
                         
                     }
                 }
             }
 
-            //2. expand dependecies for exact package specifiers
+            //2. expand dependencies for exact package specifiers
             bool modified = true;
             while (modified)
             {
@@ -85,7 +84,7 @@ namespace OpenTap.Package
                                     !dep.Version.IsSatisfiedBy(pkg2.Version))
                                 {
                                     // this dependency is unresolvable
-                                    return new FailedImageResolution(Array.Empty<PackageSpecifier>(), Iterations);
+                                    return new FailedImageResolution(new[]{pkg2, dep}, Iterations);
                                 }
 
                                 // this dependency is more specific than the existing.

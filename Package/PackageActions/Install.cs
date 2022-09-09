@@ -273,7 +273,7 @@ namespace OpenTap.Package
             {
                 log.Error("Could not resolve one or more packages.");
                 log.Info("{0}", ex.Message);
-                return (int) ExitCodes.NetworkError;
+                return (int) ExitCodes.ArgumentError;
             }
             catch (Exception e)
             {
