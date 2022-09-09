@@ -191,7 +191,8 @@ namespace OpenTap.Package
 
                 RaiseProgressUpdate(10, "Gathering dependencies.");
                 bool checkDependencies = (!IgnoreDependencies && !Force) || CheckOnly;
-                var issue = DependencyChecker.CheckDependencies(installationPackages.Where(p => p.IsSystemWide() == false), packagesToInstall,
+                var installedToCheck = installationPackages.Where(p => p.IsSystemWide() == false); // don't use system-wide to check, as that would prevent installing older stuff, if a system-wide package depends on newer versions.
+                var issue = DependencyChecker.CheckDependencies(installedToCheck, packagesToInstall,
                     IgnoreDependencies ? LogEventType.Information : checkDependencies ? LogEventType.Error : LogEventType.Warning);
                 if (checkDependencies)
                 {
