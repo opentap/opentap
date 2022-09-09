@@ -45,6 +45,8 @@ namespace OpenTap.Package
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
+            // OS was explicitly specified. This is interpreted as: Show only packages compatible with that OS. 
+            bool checkOs = OS != null;
             if (OS == null)
             {
                 switch (Environment.OSVersion.Platform)
@@ -71,9 +73,10 @@ namespace OpenTap.Package
 
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
-
+            
             HashSet<PackageDef> installed = new Installation(Target).GetPackages().ToHashSet();
-
+            if (checkOs)
+                installed = installed.Where(pkg => pkg.IsOsCompatible(OS)).ToHashSet();
 
             VersionSpecifier versionSpec = VersionSpecifier.Parse("^");
             if (!String.IsNullOrWhiteSpace(Version))

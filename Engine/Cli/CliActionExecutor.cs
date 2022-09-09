@@ -271,13 +271,18 @@ namespace OpenTap.Cli
 
                     return TypeData.FromType(typeof(CliActionExecutor)).Assembly.SemanticVersion.ToString(); // OpenTAP is not installed. lets just return this. 
                 }
+                string tapCommand = OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap";
 
-                Console.WriteLine("OpenTAP Command Line Interface ({0})", getVersion());
-                Console.WriteLine("Usage: tap <command> [<subcommand(s)>] [<args>]\n");
+                if (args.Length != 0)
+                {
+                    log.Error($"\"{tapCommand} {string.Join(" ", args)}\" is not a recognized command.");
+                }
+                log.Info("OpenTAP Command Line Interface ({0})", getVersion());
+                log.Info($"Usage: \"{tapCommand} <command> [<subcommand(s)>] [<args>]\"\n");
 
                 if (selectedcmd == null)
                 {
-                    Console.WriteLine("Valid commands are:");
+                    log.Info("Valid commands are:");
                     foreach (var cmd in actionTree.SubCommands)
                     {
                         print_command(cmd, 0, actionTree.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
@@ -285,12 +290,11 @@ namespace OpenTap.Cli
                 }
                 else
                 {
-                    Console.Write("Valid subcommands of ");
+                    log.Info($"Valid subcommands of");
                     print_command(selectedcmd, 0, actionTree.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
                 }
 
-                Console.WriteLine($"\nRun \"{(OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap")} " +
-                                   "<command> [<subcommand>] -h\" to get additional help for a specific command.\n");
+                log.Info($"\nRun \"{tapCommand} <command> [<subcommand(s)>] -h\" to get additional help for a specific command.\n");
 
                 if (args.Length == 0 || args.Any(s => s.ToLower() == "--help" || s.ToLower() == "-h"))
                     return (int)ExitCodes.Success;
