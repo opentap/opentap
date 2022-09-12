@@ -46,5 +46,10 @@ namespace OpenTap.Package
         /// </summary>
         [Display("Package Uninstall Error", "Error occurred while uninstalling package")]
         PackageUninstallError = 36,
+        /// <summary>
+        /// Error occurred while creating package
+        /// </summary>
+        [Display("Invalid Archive Error", "Error occurred while creating package")]
+        InvalidPackageArchive = 37,
     }
 }

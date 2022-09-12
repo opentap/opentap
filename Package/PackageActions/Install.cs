@@ -193,10 +193,13 @@ namespace OpenTap.Package
                     log.Warning("Overwriting files. (--{0} option specified).", Overwrite ? "overwrite" : "force");
 
                 RaiseProgressUpdate(10, "Gathering dependencies.");
+
                 bool checkDependencies = !Force || CheckOnly;
-                var issue = DependencyChecker.CheckDependencies(installationPackages, packagesToInstall,
+                var installedToCheck = installationPackages.Where(p => p.IsSystemWide() == false); // don't use system-wide to check, as that would prevent installing older stuff, if a system-wide package depends on newer versions.
+                var issue = DependencyChecker.CheckDependencies(installedToCheck, packagesToInstall,
                     Force ? LogEventType.Information :
                     checkDependencies ? LogEventType.Error : LogEventType.Warning);
+
                 if (checkDependencies)
                 {
                     if (issue == DependencyChecker.Issue.BrokenPackages)

@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Diagnostics;
+using System.IO.Compression;
 using Tap.Shared;
 using System.Xml.Serialization;
 using OpenTap.Cli;
@@ -594,6 +595,12 @@ namespace OpenTap.Package
                 
                 log.Info("Creating OpenTAP package.");
                 pkg.Compress(str, pkg.Files);
+                
+                // The filestream is opened with the 'DeleteOnClose' flag. If we throw here,
+                // the file pointed to by the stream will be deleted.
+                if (!VerifyArchiveIntegrity(str))
+                    throw new ExitCodeException((int)PackageExitCodes.InvalidPackageArchive,
+                        "Failed to verify the integrity of the created package.");
             }
             finally
             {
@@ -673,10 +680,68 @@ namespace OpenTap.Package
             log.Info(timer,"Updated assembly version info using Mono method.");
         }
 
+        private static bool VerifyArchiveIntegrity(FileStream fs)
+        {
+            var sw = Stopwatch.StartNew();
+            log.Debug($"Verifying package integrity...");
+            // Ensure the stream is fully written to the disk
+            fs.Flush();
+
+            {   // Verify that we can read the package definition
+                try
+                {
+                    PackageDef.FromPackage(fs.Name);
+                }
+                catch (Exception ex)
+                {
+                    log.Error($"Error verifying package integrity.");
+                    log.Debug(ex);
+                    return false;
+                }
+            }
+
+            log.Debug(sw, "Verified metadata integrity.");
+
+            // Rewind the stream
+            var files = new HashSet<string>();
+            fs.Seek(0, SeekOrigin.Begin);
+            // Verify that we can extract the archive without errors
+            using (var zip = new ZipArchive(fs, ZipArchiveMode.Read, true))
+            {
+                foreach (var part in zip.Entries)
+                {
+                    try
+                    {
+                        if (!files.Add(part.FullName))
+                        {
+                            log.Error($"Error verifying archive integrity. " + 
+                                      $"Archive contains a duplicate entry '{part.FullName}'." +
+                                      $"Please retry the package creation. " +
+                                      $"If the error persists, consider creating an issue.");
+                            return false;
+                        }
+                        // Read the stream to the end to verify it can be extracted
+                        part.Open().CopyTo(Stream.Null);
+                    }
+                    catch (InvalidDataException)
+                    {
+                        log.Error($"Error verifying package integrity. " +
+                                  $"Archive entry '{part.FullName}' is corrupted. " +
+                                  $"Please retry the package creation. " +
+                                  $"If the error persists, consider creating an issue.");
+                        return false;
+                    }
+                }
+            }
+
+            log.Debug(sw, $"Verified archive integrity.");
+            return true;
+        }
+
         /// <summary>
         /// Compresses the files to a zip package.
         /// </summary>
-        static private void Compress(this PackageDef pkg, FileStream outStream, IEnumerable<PackageFile> inputPaths)
+        private static void Compress(this PackageDef pkg, FileStream outStream, IEnumerable<PackageFile> inputPaths)
         {
             using (var zip = new System.IO.Compression.ZipArchive(outStream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
             {

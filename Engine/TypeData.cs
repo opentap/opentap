@@ -175,7 +175,8 @@ namespace OpenTap
                 if (Load() is Type t)
                 {
                     type = t;
-                    canCreateInstance = type.IsAbstract == false && type.IsInterface == false &&
+                    canCreateInstance = type.IsValueType ||
+                                        type.IsAbstract == false && type.IsInterface == false &&
                                         type.ContainsGenericParameters == false &&
                                         type.GetConstructor(Array.Empty<Type>()) != null;
                     return canCreateInstance.Value;

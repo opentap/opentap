@@ -216,7 +216,7 @@ namespace OpenTap.Cli
             // e.g when deploying an image with "tap image install ..."
             bool noIsolation = args.Contains("--no-isolation");
 
-            if (OperatingSystem.Current == OperatingSystem.Windows && (installCommand || uninstallCommand || packageManagerCommand) && !noIsolation)
+            if ((installCommand || uninstallCommand || packageManagerCommand) && !noIsolation)
             {
                 goIsolated();
             }

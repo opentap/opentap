@@ -194,7 +194,7 @@ namespace OpenTap.Package.UnitTests
             {
                 DummyPackageGenerator.InstallDummyPackage("DepName", new GitVersionCalulator(Directory.GetCurrentDirectory()).GetVersion().ToString() );
                 PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
-                using (var file = File.Create(outputFilename))
+                using (var file = CreateStream(outputFilename))
                     pkg.CreatePackage(file);
                 Assert.AreNotSame("$(GitVersion)", pkg.Dependencies.First().Version.ToString());
                 VersionSpecifier versionSpecifier = new VersionSpecifier(pkg.Version, VersionMatchBehavior.Exact);
@@ -218,7 +218,7 @@ namespace OpenTap.Package.UnitTests
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
             try
             {
-                using(var file = File.Create(outputFilename))
+                using(var file = CreateStream(outputFilename))
                     pkg.CreatePackage(file);
                 Assert.IsTrue(File.Exists(outputFilename));
             }
@@ -228,6 +228,9 @@ namespace OpenTap.Package.UnitTests
                     File.Delete(outputFilename);
             }
         }
+
+        private static FileStream CreateStream(string outputFilename) => new FileStream(outputFilename, FileMode.Create,
+            FileAccess.ReadWrite, FileShare.ReadWrite, 4096);
 
         [Test]
         public void CreatePackage_NoBinFiles()
@@ -239,7 +242,7 @@ namespace OpenTap.Package.UnitTests
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
             try
             {
-                using(var file = File.Create(outputFilename))
+                using(var file = CreateStream(outputFilename))
                     pkg.CreatePackage(file);
                 Assert.IsTrue(File.Exists(outputFilename));
             }
@@ -717,7 +720,7 @@ namespace OpenTap.Package.UnitTests
                 var pkg = PackageDefExt.FromInputXml(pkgName, installDir);
                 CollectionAssert.IsNotEmpty(pkg.Dependencies,"Package has no dependencies.");
                 //Assert.AreEqual("OpenTAP", pkg.Dependencies.First().Name);
-                using(var file = File.Create("BasicSteps.TapPackage"))
+                using(var file = CreateStream("BasicSteps.TapPackage"))
                     pkg.CreatePackage(file);
 
                 List<IPackageRepository> repositories = new List<IPackageRepository>() { new FilePackageRepository(installDir) };
