@@ -257,7 +257,7 @@ namespace OpenTap.Package
                         case "https":
                             return new HttpPackageRepository(url);
                         case "file":
-                            return new FilePackageRepository(uri.AbsolutePath);
+                            return new FilePackageRepository(url);
                         default:
                             throw new NotSupportedException($"Scheme {uri.Scheme} is not supported as a package repository ({url}).");
                     }
