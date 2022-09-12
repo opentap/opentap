@@ -59,7 +59,8 @@ namespace OpenTap.Package
                 imageSpecifier = ImageSpecifier.FromString(imageString);
             }
 
-            if (imageSpecifier.Repositories == null)
+            // image specifies any repositories?
+            if(imageSpecifier.Repositories?.Any() != true)
             {
                 if (Repositories?.Any() == true)
                     imageSpecifier.Repositories = Repositories.ToList();
@@ -68,6 +69,11 @@ namespace OpenTap.Package
                         .Where(x => x.IsEnabled)
                         .Select(x => x.Url)
                         .ToList();
+            }
+            else
+            {
+                if (Repositories?.Any() == true)
+                    imageSpecifier.Repositories = Repositories.ToList();
             }
 
             if (!string.IsNullOrWhiteSpace(Os))

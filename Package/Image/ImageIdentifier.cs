@@ -126,7 +126,7 @@ namespace OpenTap.Package
             if (Cached)
                 return;
             foreach (var package in Packages)
-                Download(package);
+                Download(package, TapThread.Current.AbortToken);
         }
 
         private static void Deploy(Installation currentInstallation, List<PackageDef> dependencies, CancellationToken cancellationToken)
@@ -186,7 +186,7 @@ namespace OpenTap.Package
                 if (CachedLocation(package) is string cachedLocation)
                     log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
                 else
-                    Download(package);
+                    Download(package, cancellationToken);
                     
                 paths.Add(CachedLocation(package));
             }
@@ -244,7 +244,7 @@ namespace OpenTap.Package
             return toInstall;
         }
 
-        private static void Download(PackageDef package)
+        private static void Download(PackageDef package, CancellationToken token)
         {
             if (CachedLocation(package) is string cachedLocation)
             {
@@ -263,7 +263,7 @@ namespace OpenTap.Package
             {
                 IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(repoSource.RepositoryUrl);
                 log.Info($"Downloading {package.Name} version {package.Version} from {rm.Url}");
-                rm.DownloadPackage(package, filename, CancellationToken.None);
+                rm.DownloadPackage(package, filename, token);
             }
         }
 
