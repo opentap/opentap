@@ -47,7 +47,19 @@ namespace OpenTap.Plugins
                 t.DescendsTo(typeof(Connection)) && ComponentSettingsList.HasContainer(t))
             {
                 var content = elem.Value.Trim();
-
+                
+                // If there is no type matching the exact requested type.
+                // try looking one up that matches the property type.
+                // propertyType is an attempty to calculate the current target type.
+                // it might be null if it cannot be determined.
+                var propertyType = (Serializer.SerializerStack.Skip(1).FirstOrDefault() as ObjectSerializer)
+                    ?.CurrentMember?.TypeDescriptor?.AsTypeData()?.Type;
+                if (propertyType == null)
+                {
+                    propertyType = (Serializer.SerializerStack.Skip(1).FirstOrDefault() as CollectionSerializer)
+                        ?.CurrentElementType;
+                }
+                
                 Serializer.DeferLoad(() =>
                 {
                     // we need to load this asynchronously to avoid recursively 
@@ -66,8 +78,14 @@ namespace OpenTap.Plugins
                             return res.Name;
                         return "";
                     }
-
-                    var obj = fetchObject(t, (o, i) => getName(o).Trim() == content, src);
+                    
+                    // The following are the priorities for resource resolution.
+                    // 1. matching name and exact type.
+                    // 2. matching name and compatible type. (info message emitted)
+                    // 3. matching type. (errors emitted)
+                    // 4. defaulting to (errors emitted) compatible type.
+                    
+                    var obj = fetchObject(t, propertyType ?? t, o => getName(o).Trim() == content, src);
                     if (obj != null)
                     {
                         var name = getName(obj);
@@ -79,6 +97,10 @@ namespace OpenTap.Plugins
                                 msg =
                                     $"Missing '{content}' used by '{elem.Parent.Element("Name").Value}.{elem.Name}. Using '{name}' instead.'";
                             Serializer.PushError(elem, msg);
+                        }else if (obj.GetType().DescendsTo(t) == false)
+                        {
+                            Serializer.PushMessage(elem,
+                                $"Selected resource '{getName(obj)}' of type {obj.GetType().GetDisplayAttribute().GetFullName()} instead of declared type {t.GetDisplayAttribute().GetFullName()}.");
                         }
 
                         setter(obj);
@@ -99,7 +121,7 @@ namespace OpenTap.Plugins
             return false;
         }
 
-        object fetchObject(Type t, Func<object, int, bool> test, string src)
+        object fetchObject(Type exactType, Type compatibleType, Func<object, bool> test, string src)
         {
             IList objects = null;
             if(src != null)
@@ -112,13 +134,40 @@ namespace OpenTap.Plugins
             }
 
             if(objects == null)
-                objects = ComponentSettingsList.GetContainer(t);
+                objects = ComponentSettingsList.GetContainer(exactType);
 
-            var exact = objects.Cast<object>().Where(test).Where(o => o.GetType().DescendsTo(t)).FirstOrDefault();
-            if (exact != null)
-                return exact;
+            object exactMatch = null;
+            object compatibleMatch = null;
+            object exactTypeMatch = null;
+            
+            foreach (var obj in objects)
+            {
+                if (obj == null) continue;
+                bool matchName = test(obj);
+                bool matchType = obj.GetType().DescendsTo(exactType); 
+                if (matchName)
+                {
+                    if (matchType)
+                    {
+                        exactMatch = obj;
+                        return exactMatch;
+                    }
+                    if (exactType != compatibleType && obj.GetType().DescendsTo(compatibleType))
+                    {
+                        compatibleMatch = obj;
+                    }
+                }
+                else
+                {
+                    if (matchType)
+                    {
+                        exactTypeMatch = obj;
+                    }
+                }
+            }
 
-            return objects.Cast<object>().FirstOrDefault(x => x.GetType().DescendsTo(t));
+            return exactMatch ?? compatibleMatch ?? exactTypeMatch;
+
         }
 
         HashSet<object> checkRentry = new HashSet<object>();

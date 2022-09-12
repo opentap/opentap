@@ -213,7 +213,7 @@ namespace OpenTap.Cli
             uninstallCommand = args.Contains("uninstall");
             packageManagerCommand = args.Contains("packagemanager");
 
-            if (OperatingSystem.Current == OperatingSystem.Windows && (installCommand || uninstallCommand || packageManagerCommand))
+            if (installCommand || uninstallCommand || packageManagerCommand)
             {
                 goIsolated();
             }
