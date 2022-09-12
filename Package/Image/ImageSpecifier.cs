@@ -115,8 +115,14 @@ namespace OpenTap.Package
                 if (unsatisfiedDependencies.Any())
                 {
                     throw new ImageResolveException(image,
-                        string.Format("This is probably due to the current following package dependencies being broken: {0}",
-                        string.Join(", ", unsatisfiedDependencies.Select(x => x.Name))));
+                        string.Format("Unable to resolve the selected packages. This is probably due to: {0}.",
+                        string.Join(" and ", unsatisfiedDependencies.Select(x =>
+                        {
+                            var missingDeps = x.Dependencies.Where(dep => !InstalledPackages.Any(x2 =>
+                                x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())));
+                            string missingMsg = string.Join(" and ", missingDeps.Select(x2 => $"{x2.Name}:{x2.Version}"));
+                            return $"{x.Name} missing {missingMsg}";
+                        }))));
                 }
                 throw new ImageResolveException(image);
             }

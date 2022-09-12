@@ -266,7 +266,7 @@ namespace OpenTap.Package
 
         public override string ToString()
         {
-            return "Unable to resolve packages: " + string.Join(", ", resolveProblems.Select(x => $"{x.Name} ({x.Version})"));
+            return "Unable to resolve packages: " + string.Join(", ", resolveProblems.Select(x => $"{x.Name}: {x.Version}"));
         }
     }
 }
