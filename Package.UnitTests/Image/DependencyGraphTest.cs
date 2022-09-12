@@ -4,24 +4,9 @@ using OpenTap.Package;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 
 namespace OpenTap.Image.Tests
 {
-    public class DependencyGraphTest
-    {
-        [TestCase("OpenTAP", "9.10.0", "Demonstration", "9.2.0", "error", "error")]
-        [TestCase("OpenTAP", "9.10.0", "ExactDependency", "1.0.0", "error", "error")]
-        [TestCase("OpenTAP", "9.13.1", "ExactDependency", "1.0.0", "9.13.1", "1.0.0")]
-        [TestCase("OpenTAP", "9.13", "ExactDependency", "1.0.0", "9.13.1", "1.0.0")]
-        [TestCase("Cyclic", "1.0.0", "Cyclic2", "1.0.0", "1.0.0", "1.0.0")]
-        [TestCase("OpenTAP", "9.13", "ExactDependency", "^1.0.0", "9.13.1", "1.0.0")]
-        [TestCase("OpenTAP", "^9.10.0", "Demonstration", "^9.0.6", "9.12.0", "9.1.0")]
-        public void ResolveDependencies(string package1, string package1version, string package2, string package2version, string resultingVersion1, string resultingVersion2)
-        {
-        }
-    }
-
     public class DependencyResolverGraphTest
     {
 

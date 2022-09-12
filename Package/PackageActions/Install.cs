@@ -30,7 +30,7 @@ namespace OpenTap.Package
 
         [CommandLineArgument("overwrite", Description = "Overwrite files that already exist without asking. This is implied when using --force.")]
         public bool Overwrite { get; set; }
-
+        
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
@@ -205,7 +205,7 @@ namespace OpenTap.Package
                     if (issue == DependencyChecker.Issue.BrokenPackages)
                     {
                         log.Info("To fix the package conflict uninstall or update the conflicted packages.");
-                        log.Info("To install packages despite the conflicts, use the --no-dependencies option.");
+                        log.Info("To install packages despite the conflicts, use the --force option. Note that this can break the installation.");
                         return (int) PackageExitCodes.PackageDependencyError;
                     }
 

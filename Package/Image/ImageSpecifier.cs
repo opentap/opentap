@@ -145,6 +145,23 @@ namespace OpenTap.Package
         }
 
         /// <summary>
+        /// Like Resolve, but includes the current installation as a base. In this case, packages can be upgraded and downgraded,
+        /// but not removed if they do not exist in the image specification.
+        /// </summary>
+        internal ImageIdentifier MergeAndResolve(Installation deploymentInstallation, CancellationToken cancellationToken)
+        {
+            var imageSpecifier2 = FromAddedPackages(deploymentInstallation, Packages);
+            imageSpecifier2.Name = Name;
+            if (imageSpecifier2.Repositories?.Any() != true)
+                imageSpecifier2.Repositories = Repositories;
+            imageSpecifier2.OS = OS;
+            imageSpecifier2.Architecture = Architecture;
+
+            var image = imageSpecifier2.Resolve(cancellationToken);
+            return image;
+        }
+
+        /// <summary>
         /// Resolve specified packages in the ImageSpecifier with respect to the target installation.
         /// Specified packages will take precedence over already installed packages
         /// Already installed packages, which are not specified in the imagespecifier, will remain installed.
@@ -155,16 +172,7 @@ namespace OpenTap.Package
         /// <exception cref="ImageResolveException">In case of resolve errors, this method will throw ImageResolveExceptions.</exception>
         public Installation MergeAndDeploy(Installation deploymentInstallation, CancellationToken cancellationToken)
         {
-            var imageSpecifier2 = FromAddedPackages(deploymentInstallation, Packages);
-            imageSpecifier2.Name = Name;
-            if(imageSpecifier2.Repositories?.Any() != true)
-                imageSpecifier2.Repositories = Repositories;
-            imageSpecifier2.OS = OS;
-            imageSpecifier2.Architecture = Architecture;
-            
-            
-            var image = imageSpecifier2.Resolve(cancellationToken);
-            
+            var image = MergeAndResolve(deploymentInstallation, cancellationToken);
             image.Deploy(deploymentInstallation.Directory, cancellationToken);
             return new Installation(deploymentInstallation.Directory);
         }

@@ -30,10 +30,10 @@ namespace OpenTap.Package
         [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
         public bool NonInteractive { get; set; } = false;
         
-        [CommandLineArgument("OS", Description = "Specify which operative system to resolve packages for.")]
+        [CommandLineArgument("os", Description = "Specify which operative system to resolve packages for.")]
         public string Os { get; set; }
 
-        [CommandLineArgument("Architecture", Description = "Specify which architecture to resolve packages for.")]
+        [CommandLineArgument("architecture", Description = "Specify which architecture to resolve packages for.")]
         public CpuArchitecture Architecture { get; set; } = CpuArchitecture.Unspecified;
         
         [CommandLineArgument("dry-run", Description = "Only print the result, don't install the packages.")]
@@ -84,33 +84,37 @@ namespace OpenTap.Package
 
             try
             {
+                ImageIdentifier image;
+                var sw = Stopwatch.StartNew();
                 if (Merge)
                 {
                     var deploymentInstallation = new Installation(Target);
-                    Installation newInstallation = imageSpecifier.MergeAndDeploy(deploymentInstallation, cancellationToken);
+                    image = imageSpecifier.MergeAndResolve(deploymentInstallation, cancellationToken);
                 }
                 else
-                {       
-                    var sw = Stopwatch.StartNew();
-                    var r= imageSpecifier.Resolve(TapThread.Current.AbortToken);
-
-                    if (r == null)
-                    {
-                        log.Error(sw, "Unable to resolve image");
-                        return 1;
-                    }
-                    log.Debug(sw, "Resolution done");
-                    if (DryRun)
-                    {
-                        log.Info("Resolved packages:");
-                        foreach (var pkg in r.Packages)
-                        {
-                            log.Info("   {0}:    {1}", pkg.Name, pkg.Version);
-                        }
-                        return 0;
-                    }
-                    r.Deploy(Target, cancellationToken);
+                {
+                    image = imageSpecifier.Resolve(TapThread.Current.AbortToken);
                 }
+
+                if (image == null)
+                {
+                    log.Error(sw, "Unable to resolve image");
+                    return 1;
+                }
+
+                log.Debug(sw, "Resolution done");
+                if (DryRun)
+                {
+                    log.Info("Resolved packages:");
+                    foreach (var pkg in image.Packages)
+                    {
+                        log.Info("   {0}:    {1}", pkg.Name, pkg.Version);
+                    }
+
+                    return 0;
+                }
+
+                image.Deploy(Target, cancellationToken);
                 return 0;
             }
             catch (AggregateException e)
