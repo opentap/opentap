@@ -40,7 +40,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Get the installation of the currently running tap process
         /// </summary>
-        public static Installation Current => _current ?? (_current = new Installation(ExecutorClient.ExeDir));
+        public static Installation Current => _current ??= new Installation(ExecutorClient.ExeDir);
 
         /// <summary> Target installation architecture. This could be anything as 32-bit is supported on 64bit systems.</summary>
         internal CpuArchitecture Architecture => GetOpenTapPackage()?.Architecture ?? ArchitectureHelper.GuessBaseArchitecture;
