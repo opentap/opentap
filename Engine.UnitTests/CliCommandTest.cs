@@ -78,10 +78,13 @@ namespace OpenTap.UnitTests
         // aliased by --help
         [CommandLineArgument("h")] public int[] h { get; set; } = Array.Empty<int>();
         [CommandLineArgument("i")] public int[] i { get; set; } = Array.Empty<int>();
+
+        [CommandLineArgument("verdict")] public Verdict[] Verdict { get; set; } = Array.Empty<Verdict>();
         
         public int Execute(CancellationToken cancellationToken)
         {
             Console.WriteLine("{0} {1} {2} {3} {4} {5} [{6}]", a, b, c, d, e, f, string.Join(" ", i));
+            Console.WriteLine("Verdicts: {0} ", string.Join(" ", Verdict));
             return 0;
         }
     }

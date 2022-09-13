@@ -3,8 +3,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -19,11 +22,12 @@ namespace OpenTap.Package
     /// </summary>
     public class FilePackageRepository : IPackageRepository, IPackageDownloadProgress
     {
+        
 #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
         private static TraceSource log = Log.CreateSource("FilePackageRepository");
         internal const string TapPluginCache = ".PackageCache";
-        private static object cacheLock = new object();
-        private static object loadLock = new object();
+        static readonly object cacheLock = new object();
+        static readonly object loadLock = new object();
 
         private List<string> allFiles = new List<string>();
         private PackageDef[] allPackages;
@@ -89,7 +93,13 @@ namespace OpenTap.Package
                 cancellationToken.ThrowIfCancellationRequested();
                 allPackages = GetAllPackages(allFiles).ToArray();
 
-                var caches = PackageManagerSettings.Current.Repositories.Select(p => GetCache(p.Url).CacheFileName)
+                // the following code tries to delete unused cache files
+                // It loops through all files and checks if they are a .PackageCache file
+                // if they are and they are not used by any current repository, delete it.
+
+                var caches = PackageManagerSettings.Current.Repositories.Select(x => x.Url)
+                    .Append(PackageCacheHelper.PackageCacheDirectory)
+                    .Select(p => GetCache(p).CacheFileName)
                     .ToHashSet();
                 foreach (var file in allFiles)
                 {
@@ -281,6 +291,13 @@ namespace OpenTap.Package
                 .Distinct()
                 .ToArray();
         }
+
+        public PackageDef[] GetAllPackages(CancellationToken cancellationToken)
+        {
+            LoadPath(cancellationToken);
+            return allPackages;
+        }
+        
         public PackageDef[] GetPackages(PackageSpecifier pid, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             LoadPath(cancellationToken);
@@ -361,26 +378,22 @@ namespace OpenTap.Package
         #region file system
         private void CreatePackageCache(IEnumerable<PackageDef> packages, FileRepositoryCache cache)
         {
-            // Serialize all packages
-            string xmlText;
-            using (Stream stream = new MemoryStream())
-            {
-                PackageDef.SaveManyTo(stream, packages);
-                stream.Position = 0;
-                xmlText = new StreamReader(stream).ReadToEnd();
-            }
-
             string currentDir = FileSystemHelper.GetCurrentInstallationDirectory();
             // Delete existing cache
             List<string> caches = Directory.GetFiles(currentDir, $"{TapPluginCache}.{cache.Hash}*").ToList();
             caches.ForEach(File.Delete);
-
-            // Save cache
+            
             string fullPath = Path.Combine(currentDir, cache.CacheFileName);
-            if (File.Exists(fullPath))
-                File.SetAttributes(fullPath, FileAttributes.Normal);
-            File.WriteAllText(fullPath, xmlText);
-            File.SetAttributes(fullPath, FileAttributes.Hidden);
+
+
+            // Serialize all packages and Save cache
+            using(var f = File.OpenWrite(fullPath))
+            {
+                using (var gz = new GZipStream(f, CompressionLevel.Optimal, leaveOpen: true))
+                {
+                    PackageDef.SaveManyTo(gz, packages);
+                }
+            }
         }
         private List<string> GetAllFiles(string path, CancellationToken cancellationToken)
         {
@@ -406,7 +419,7 @@ namespace OpenTap.Package
                     log.Debug($"Access to path {dir.FullName} denied. Ignoring.");
                 }
             }
-
+            
             return result;
         }
         private PackageDef[] loadPackagesFromFile(IEnumerable<FileInfo> allFiles)
@@ -487,6 +500,8 @@ namespace OpenTap.Package
             // Find TapPackages in repo
             var allFileInfos = allFiles.Select(f => new FileInfo(f)).Where(f => f.Extension.ToLower() == ".tapplugin" || f.Extension.ToLower() == ".tappackage" || f.Extension.ToLower() == ".tappackages").ToList();
 
+            cache.CachePackageCount = allFileInfos.Count;
+            
             List<PackageDef> allPackages = null;
             lock (cacheLock)
             {
@@ -496,10 +511,13 @@ namespace OpenTap.Package
                     {
                         if (allFileInfos.Count == cache.CachePackageCount)
                         {
+                            var sw = Stopwatch.StartNew();
                             // Load cache
                             using (var str = File.OpenRead(cache.CacheFileName))
-                                allPackages = PackageDef.ManyFromXml(str).ToList();
-
+                                allPackages = PackageDef.ManyFromXml(new GZipStream(str, CompressionMode.Decompress)).ToList();
+    
+                            log.Debug(sw, "Loading cache: {0}", cache.CacheFileName);
+                            
                             // Check if any files has been replaced
                             if (allPackages.Any(p => !allFiles.Any(f =>
                             {
@@ -523,11 +541,14 @@ namespace OpenTap.Package
                 if (allPackages == null)
                 {
                     // Get all packages
+                    var sw = Stopwatch.StartNew();
                     allPackages = loadPackagesFromFile(allFileInfos).ToList();
                     cache.CachePackageCount = allFileInfos.Count;
+                    
 
                     // Create cache
                     CreatePackageCache(allPackages, cache);
+                    log.Debug(sw, "Rebuilding cache: {0}", cache.CacheFileName);
                 }
             }
 
@@ -590,13 +611,8 @@ namespace OpenTap.Package
             return new FileRepositoryCache() {Hash = hash};
         }
         #endregion
-    }
-
-    class FileRepositoryCache
-    {
-        public int CachePackageCount { get; set; }
-        public string Hash { get; set; }
-
-        public string CacheFileName => $"{FilePackageRepository.TapPluginCache}.{Hash}.{CachePackageCount}.xml";
+        
+        /// <summary>  Creates a display friendly string of this. </summary>
+        public override string ToString() =>  $"[FilePackageRepository: {Url}]";
     }
 }

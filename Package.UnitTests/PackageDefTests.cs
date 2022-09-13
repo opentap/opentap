@@ -604,52 +604,47 @@ namespace OpenTap.Package.UnitTests
             CollectionAssert.DoesNotContain(pkg.Dependencies.Select(d => d.Name), "OpenTAP");
         }
 
+        static string GetEmbeddedFile(string file)
+        {
+            var resourceName = Assembly.GetCallingAssembly().GetName().Name + "." + file.Replace("/", ".");
+            var stream = Assembly.GetCallingAssembly()
+                .GetManifestResourceStream(resourceName);
+            return new StreamReader(stream).ReadToEnd();
+        }
+        
         /// <summary>
         /// This test requires that OpenTAP is installed along with the XSeries plugin
         /// </summary>
         [Test]
         public void CheckDependencies_MissingDep()
         {
+            
+            string xSeriesPath = "Packages/XSeries/package.xml";
             string inputFilename = "Packages/CheckDependencies_MissingDep/package.xml";
+            var xml= GetEmbeddedFile(inputFilename);
+            var xSeriesXml = GetEmbeddedFile(xSeriesPath);
+            FileSystemHelper.EnsureDirectoryOf(xSeriesPath);
+            FileSystemHelper.EnsureDirectoryOf(inputFilename);
+            File.WriteAllText(xSeriesPath, xSeriesXml);
+            File.WriteAllText(inputFilename, xml);
+            try
+            {
 
-            //PackageDependencyExt.CheckDependencies(inputFilename);
-            var xseries = PackageDef.FromXml(PackageDef.GetDefaultPackageMetadataPath("XSeries"));
-            PackageDef.ValidateXml(inputFilename);
-            var missing = PackageDef.FromXml(inputFilename);
-            var tree = DependencyAnalyzer.BuildAnalyzerContext(new List<PackageDef> { xseries, missing });
-            Assert.IsTrue(tree.GetIssues(missing).Any(issue => issue.IssueType == DependencyIssueType.Missing));
+                //PackageDependencyExt.CheckDependencies(inputFilename);
+                var xseries = PackageDef.FromXml(xSeriesPath);
+                PackageDef.ValidateXml(inputFilename);
+                var missing = PackageDef.FromXml(inputFilename);
+                var tree = DependencyAnalyzer.BuildAnalyzerContext(new List<PackageDef> {xseries, missing});
+                Assert.IsTrue(tree.GetIssues(missing).Any(issue => issue.IssueType == DependencyIssueType.Missing));
+            }
+            finally
+            {
+                FileSystemHelper.DeleteDirectory(Path.GetDirectoryName(xSeriesPath));
+                FileSystemHelper.DeleteDirectory(Path.GetDirectoryName(inputFilename));
+            }
             //Assert.Fail("CheckDependencies should have thrown an exception");
         }
 
-        /// <summary>
-        /// This test requires that TAP is installed along with the XSeries and plugin
-        /// </summary>
-        [Test]
-        [Ignore("??")]
-        public void CheckDependencies_AllDepsInstalled()
-        {
-
-            var xseries = PackageDef.FromXml(PackageDef.GetDefaultPackageMetadataPath("XSeries"));
-            //var test2 = PackageDef.FromXmlFile(PackageDef.GetDefaultPackageMetadataPath("Test2"));
-            File.Copy(PackageDef.GetDefaultPackageMetadataPath("CheckDependencies_AllDepsInstalled"), "CheckDependencies_AllDepsInstalled.xml", true);
-            PackageDef.ValidateXml("CheckDependencies_AllDepsInstalled.xml");
-            var alldeps = PackageDef.FromXml("CheckDependencies_AllDepsInstalled.xml");
-            //var tree = DependencyAnalyzer.BuildAnalyzerContext(new List<PackageDef> { xseries, test2, alldeps });
-            //Assert.AreEqual(tree.BrokenPackages.Count, 1);
-            //PackageDependencyExt.CheckDependencies(inputFilename);
-        }
-
-        /// <summary>
-        /// This test requires that TAP is installed along with the XSeries and Test plugin
-        /// </summary>
-        [Test, Ignore("?")]
-        public void CheckDependencies_NonDllFile()
-        {
-            string inputFilename = "FromXmlFile_NonDllFile.xml";
-
-            PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
-            //PackageDependency.CheckDependencies(inputFilename);
-        }
 
         [Test]
         [Ignore("Temporarily Disabled")]

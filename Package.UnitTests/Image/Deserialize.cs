@@ -55,10 +55,9 @@ namespace OpenTap.Image.Tests
             Assert.True(specifier.Packages[1].Architecture == CpuArchitecture.AnyCPU);
             Assert.True(specifier.Packages[1].OS == "Windows");
 
-            Assert.True(specifier.Repositories.Count == 3);
-            Assert.True(specifier.Repositories[0] == new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri);
-            Assert.True(specifier.Repositories[1] == "https://packages.opentap.io");
-            Assert.True(specifier.Repositories[2] == "https://packages.opentap.keysight.com");
+            Assert.True(specifier.Repositories.Count == 2);
+            Assert.True(specifier.Repositories[0] == "https://packages.opentap.io");
+            Assert.True(specifier.Repositories[1] == "https://packages.opentap.keysight.com");
 
         }
 

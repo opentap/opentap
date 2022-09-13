@@ -38,6 +38,7 @@ namespace OpenTap.Image.Tests
             using var tempInstall = new TempInstall();
 
             var imageSpecifier = MockRepository.CreateSpecifier();
+            
             imageSpecifier.Packages.Add(new PackageSpecifier("REST-API", new VersionSpecifier(2, 6, 3, null, null, VersionMatchBehavior.Exact)));
             var identifier = imageSpecifier.Resolve(CancellationToken.None);
 
@@ -240,8 +241,8 @@ namespace OpenTap.Image.Tests
             }
             catch (ImageResolveException ex)
             {
-                Assert.AreEqual(1, ex.InnerExceptions.Count);
-                StringAssert.Contains("Package 'MissingPackage' could not be found in any repository.", ex.InnerException.Message);
+                var result = ex.Result.ToString();
+                StringAssert.Contains("Unable to resolve packages", result);
             }
         }
 

@@ -40,7 +40,9 @@ namespace OpenTap.Image.Tests
         {
             return new ImageSpecifier()
             {
-                Repositories = new List<string>() { Instance.Url }
+                Repositories = new List<string>() { Instance.Url },
+                OS = "Windows",
+                Architecture = CpuArchitecture.x64
             };
         }
 
@@ -184,6 +186,7 @@ namespace OpenTap.Image.Tests
         {
             ResolveCount++;
             var list = AllPackages.Where(p => p.Name == package.Name)
+                .Where(p => p.IsPlatformCompatible(package.Architecture, package.OS))
                               .GroupBy(p => p.Version)
                               .OrderByDescending(g => g.Key).ToList();
             return list.FirstOrDefault(g => package.Version.IsCompatible(g.Key))?.ToArray() ?? Array.Empty<PackageDef>();
