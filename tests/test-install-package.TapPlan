@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan">
+  <Steps>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Id="aa23442b-dc13-419d-9cf7-3e47864543fc">
+      <Application>tap</Application>
+      <Arguments>package install Demonstration</Arguments>
+      <WorkingDirectory></WorkingDirectory>
+      <EnvironmentVariables />
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <CheckExitCode>true</CheckExitCode>
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Name Metadata="Step Name">Install Demonstration</Name>
+    </TestStep>
+  </Steps>
+  <OpenTap.Description>This tests the very basic capability of being able to install a package</OpenTap.Description>
+</TestPlan>
