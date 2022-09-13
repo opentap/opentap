@@ -5,6 +5,7 @@
 using OpenTap.Cli;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -161,6 +162,10 @@ namespace OpenTap.Package
             }
 
             var img = ImageSpecifier.FromAddedPackages(installation, packages);
+            if (noDowngrade)
+            {
+                img.InstalledPackages = installation.GetPackages().ToImmutableArray();
+            }
             img.Repositories = repositories.Select(x => x.Url).ToList();
             img.AdditionalPackages.AddRange(directlyReferencesPackages);
             var result = img.Resolve(TapThread.Current.AbortToken);

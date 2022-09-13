@@ -69,7 +69,11 @@ namespace OpenTap.Package
                 
                 json = await JsonDocument.ParseAsync(stream);
                 if (response.IsSuccessStatusCode == false)
-                    throw new Exception(json.ToString());
+                {
+                    if (json.RootElement.TryGetProperty("message", out var msg))
+                        throw new Exception(msg.GetString());
+                    throw new Exception(json.RootElement.ToString());
+                }
             }
 
             var graph = new PackageDependencyGraph();
