@@ -23,7 +23,7 @@ namespace OpenTap.Package
         }}}".Replace("__OS__", os)
                 .Replace("__ARCH__", arch.ToString())
                 .Replace("__VERSION__", version)
-                .Replace("__NAME_QUERY__", name == null ? "" : $"name: \"{name}\"");
+                .Replace("__NAME_QUERY__", name == null ? "" : $", name: \"{name}\"");
         static HttpClient GetHttpClient()
         {
             var httpClient = AuthenticationSettings.Current.GetClient(null, true);
