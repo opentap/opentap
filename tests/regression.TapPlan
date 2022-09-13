@@ -4,6 +4,10 @@
     <TestStep type="OpenTap.Plugins.BasicSteps.SequenceStep" Id="d032668a-7a5e-4300-b927-a8ff0b6f91fd" OpenTap.Visibility="Visible">
       <Name Metadata="Step Name">Sequence</Name>
       <ChildTestSteps>
+        <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Id="76447d35-9a8e-4b78-b04b-bfeef98d2a83">
+          <Filepath>../../tests/test-install-package.TapPlan</Filepath>
+          <Name Metadata="Step Name">Test Plan {Referenced Plan}</Name>
+        </TestStep>
         <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Id="1e18241d-7317-4cf0-9d1e-e6b920256386">
           <Filepath>../../tests/show-tags.TapPlan</Filepath>
           <StepMapping />
@@ -103,10 +107,6 @@
         </TestStep>
         <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Id="65337d35-9a8e-4b78-b04b-bfeef98d2a83">
           <Filepath>../../tests/test-cli-load-plan-with-error.TapPlan</Filepath>
-          <Name Metadata="Step Name">Test Plan {Referenced Plan}</Name>
-        </TestStep>
-        <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Id="76447d35-9a8e-4b78-b04b-bfeef98d2a83">
-          <Filepath>../../tests/test-install-package.TapPlan</Filepath>
           <Name Metadata="Step Name">Test Plan {Referenced Plan}</Name>
         </TestStep>
       </ChildTestSteps>
