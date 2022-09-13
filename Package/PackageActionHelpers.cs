@@ -5,85 +5,56 @@
 using OpenTap.Cli;
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 
 namespace OpenTap.Package
 {
-    internal static class PackageActionHelpers
+    static class PackageActionHelpers
     {
-        readonly static TraceSource log = OpenTap.Log.CreateSource("PackageAction");
+        readonly static TraceSource log = Log.CreateSource("PackageAction");
 
-        private enum DepResponse
+        static List<PackageDef> TriviallyResolvePackage(IEnumerable<PackageSpecifier> packages,
+            ICollection<IPackageRepository> repositories, ICollection<PackageDef> directlyReferencedPackages)
         {
-            Add,
-            Ignore
-        }
-
-        [System.Reflection.Obfuscation(Exclude = true)]
-        private class DepRequest
-        {
-            [Browsable(true)]
-            [Layout(LayoutMode.FullRow)]
-            public string Message => message;
-            internal string message;
-            internal string PackageName { get; set; }
-            [Submit]
-            [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
-            public DepResponse Response { get; set; } = DepResponse.Add;
-        }
-
-        private static int OrderArchitecture(CpuArchitecture architecture)
-        {
-            if (architecture == ArchitectureHelper.GuessBaseArchitecture)
-                return 0;
-            switch (architecture)
+            directlyReferencedPackages = directlyReferencedPackages ?? new List<PackageDef>();
+            List<PackageDef> forcePackages = new List<PackageDef>();
+            foreach (var pkgSpec in packages)
             {
-                case CpuArchitecture.Unspecified:
-                    return 10;
-                case CpuArchitecture.AnyCPU:
-                    return 1;
-                case CpuArchitecture.x86:
-                    return 3;
-                case CpuArchitecture.x64:
-                    return 2;
-                case CpuArchitecture.arm:
-                    return 5;
-                case CpuArchitecture.arm64:
-                    return 4;
-                default:
-                    return 10;
+                PackageDef pkgDef = null;
+                foreach (var repo in repositories)
+                {
+                    pkgDef = repo.GetPackages(pkgSpec).FirstOrDefault();
+                    if (pkgDef != null) break;
+                }
+
+                if (pkgDef == null)
+                {
+                    pkgDef = directlyReferencedPackages.FirstOrDefault(x => x.Name == pkgSpec.Name && pkgSpec.Version.IsCompatible(x.Version));
+                }
+                
+
+                if (pkgDef == null)
+                {
+                    throw new Exception($"Could not find package exactly matching {pkgSpec} (--force specified).");
+                }
+
+                forcePackages.Add(pkgDef);
+
             }
+            return forcePackages;
+            
         }
-
-        internal static string NormalizeRepoUrl(string path)
-        {
-            if (path == null)
-                return null;
-            if (Uri.IsWellFormedUriString(path, UriKind.Relative) && Directory.Exists(path) || Regex.IsMatch(path ?? "", @"^([A-Z|a-z]:)?(\\|/)"))
-            {
-                if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
-                    return Path.GetFullPath(path)
-                               .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                               .ToUpperInvariant();
-                else
-                    return Path.GetFullPath(path)
-                               .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            }
-            else if (path.StartsWith("http"))
-                return path.ToUpperInvariant();
-            else
-                return String.Format("http://{0}", path).ToUpperInvariant();
-
-        }
-
+        
+        
         internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories,
             bool force, bool includeDependencies, bool ignoreDependencies, bool askToIncludeDependencies, bool noDowngrade)
         {
-            List<PackageDef> gatheredPackages = new List<PackageDef>();
+            List<PackageDef> directlyReferencesPackages = new List<PackageDef>();
+            
 
             List<PackageSpecifier> packages = new List<PackageSpecifier>();
             if (pkgRefs != null)
@@ -109,7 +80,9 @@ namespace OpenTap.Package
                             var selected = grp.ToList();
                             if (selected.Count == 1)
                             {
-                                gatheredPackages.Add(selected.First());
+                                var pkg = selected.First();
+                                directlyReferencesPackages.Add(pkg);
+                                packages.Add(pkg.GetSpecifier());
                                 continue;
                             }
                             if (!string.IsNullOrEmpty(OS))
@@ -117,7 +90,9 @@ namespace OpenTap.Package
                                 selected = selected.Where(p => p.OS.ToLower().Split(',').Any(OS.ToLower().Contains)).ToList();
                                 if (selected.Count == 1)
                                 {
-                                    gatheredPackages.Add(selected.First());
+                                    var pkg = selected.First();
+                                    directlyReferencesPackages.Add(pkg);
+                                    packages.Add(pkg.GetSpecifier());
                                     log.Debug("TapPackages file contains packages for several operating systems. Picking only the one for {0}.", OS);
                                     continue;
                                 }
@@ -127,13 +102,23 @@ namespace OpenTap.Package
                                 selected = selected.Where(p => ArchitectureHelper.CompatibleWith(arch, p.Architecture)).ToList();
                                 if (selected.Count == 1)
                                 {
-                                    gatheredPackages.Add(selected.First());
+                                    var pkg = selected.First();
+                                    directlyReferencesPackages.Add(pkg);
+                                    packages.Add(pkg.GetSpecifier());
                                     log.Debug("TapPackages file contains packages for several CPU architectures. Picking only the one for {0}.", arch);
                                     continue;
                                 }
                             }
-                            throw new Exception("TapPackages file contains multiple variants of the same package. Unable to autoselect a suitable one.");
+                            throw new Exception("TapPackages file contains multiple variants of the same package. Unable to auto-select a suitable one.");
                         }
+                    }
+                    else if (Path.GetExtension(packageName)
+                             .Equals(".Tappackage", StringComparison.InvariantCultureIgnoreCase) || File.Exists(packageName))
+                    {
+                        
+                        var pkg = PackageDef.FromPackage(packageName);
+                        directlyReferencesPackages.Add(pkg);
+                        packages.Add(pkg.GetSpecifier());
                     }
                     else if (string.IsNullOrWhiteSpace(packageName) == false)
                     {
@@ -142,128 +127,80 @@ namespace OpenTap.Package
                 }
             }
 
-            foreach (var packageSpecifier in packages)
+            if (force)
             {
-                var installedPackages = installation.GetPackages();
-                Stopwatch timer = Stopwatch.StartNew();
-                if (File.Exists(packageSpecifier.Name))
+                // when --force is specified, exact package specifiers has to be used.
+                // there is no need to resolve the image in this case.
+                var packagesToInstall = TriviallyResolvePackage(packages, repositories, directlyReferencesPackages);
+                
+                if (noDowngrade)
                 {
-                    var package = PackageDef.FromPackage(packageSpecifier.Name);
-
-                    if (noDowngrade)
+                    packagesToInstall = packagesToInstall.Where(x =>
                     {
-                        var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
-                        if (installedPackage != null && installedPackage.Version.CompareTo(package.Version) >= 0)
-                        {
-                            log.Info($"The same or a newer version of package '{package.Name}' in already installed.");
-                            continue;
-                        }
-                    }
+                        var installed = installation.FindPackage(x.Name);
+                        if (installed != null && installed.Version.CompareTo(x.Version) > 0)
+                            return false;
+                        return true;
+                    }).Select(x => directlyReferencesPackages.FirstOrDefault(y => y.Name == x.Name && y.Version == x.Version) ?? x)
+                        .ToList();
+                }
+                // make sure to use the TapPackage if one was directly referenced
+                packagesToInstall = packagesToInstall.Select(x => directlyReferencesPackages.FirstOrDefault(y => y.Name == x.Name && y.Version == x.Version) ?? x)
+                    .ToList();
 
-                    gatheredPackages.Add(package);
-                    log.Debug(timer, "Found package {0} locally.", packageSpecifier.Name);
+                return packagesToInstall;
+
+            }
+
+            if (noDowngrade)
+            {
+                // if --no-downgrade is specified, none of the already installed packages are allowed to get downgraded
+                // hence they can be added as extra constraints for the dependency resolver.
+                var existingSpec = installation.GetPackages().Select(pkg =>
+                    new PackageSpecifier(pkg.Name, pkg.Version.AsCompatibleSpecifier(), pkg.Architecture, pkg.OS));
+                packages = packages.Concat(existingSpec).ToList();
+            }
+
+            var img = ImageSpecifier.FromAddedPackages(installation, packages);
+            if (noDowngrade)
+            {
+                img.InstalledPackages = installation.GetPackages().ToImmutableArray();
+            }
+            img.Repositories = repositories.Select(x => x.Url).ToList();
+            img.AdditionalPackages.AddRange(directlyReferencesPackages);
+            var result = img.Resolve(TapThread.Current.AbortToken);
+
+            // missing dependencies are those which are not installed
+
+            List<PackageDef> installedAsDependencies = new List<PackageDef>();
+            List<PackageDef> gatheredPackages = new List<PackageDef>();
+            foreach (var pkg in result.Packages)
+            {
+                var installed = img.InstalledPackages.FirstOrDefault(x => x.Name == pkg.Name && x.Version == pkg.Version);
+                if (installed != null) continue; // this package is already provided by the installation.
+                var gathered = packages.FirstOrDefault(x => x.Name == pkg.Name);
+                gatheredPackages.Add(pkg);
+                if (gathered == null)
+                    installedAsDependencies.Add(pkg);
+            }
+
+            foreach (var additional in installedAsDependencies)
+            {
+                if (img.InstalledPackages.Any(x => x.Name == additional.Name))
+                {  
+                    // This implies that the version is newer.
+                    log.Info("Updating dependency {0} {1}", additional.Name, additional.Version);    
                 }
                 else
                 {
-                    // assumption: packages ending with .TapPackage are files, not on external repos.
-                    // so if this is the case and the file does not exist, throw an exception.
-                    if(string.Compare(Path.GetExtension(packageSpecifier.Name), ".TapPackage", StringComparison.InvariantCultureIgnoreCase) == 0)
-                        throw new FileNotFoundException($"Unable to find the file {packageSpecifier.Name}");
-                    
-                    PackageDef package = DependencyResolver.GetPackageDefFromRepo(repositories, packageSpecifier, new List<PackageDef>());
-
-                    if (noDowngrade)
-                    {
-                        var installedPackage = installedPackages.FirstOrDefault(p => p.Name == package.Name);
-                        if (installedPackage != null && installedPackage.Version.CompareTo(package.Version) >= 0)
-                        {
-                            log.Info($"The same or a newer version of package '{package.Name}' in already installed.");
-                            continue;
-                        }
-                    }
-
-                    if (PackageCacheHelper.PackageIsFromCache(package))
-                        log.Debug(timer, "Found package {0} version {1} in local cache", package.Name, package.Version);
-                    else
-                        log.Debug(timer, "Found package {0} version {1}", package.Name, package.Version);
-
-                    gatheredPackages.Add(package);
+                    log.Info("Adding dependency {0} {1}", additional.Name, additional.Version);
                 }
             }
-
-            if (gatheredPackages.All(p => p.IsBundle()))
-            {
-                // If we are just installing bundles, we can assume that dependencies should also be installed
-                includeDependencies = true;
-            }
-
-            if (force || ignoreDependencies)
-            {
-                if (force)
-                    log.Info($"Ignoring potential depencencies (--force option specified).");
-                else
-                    log.Debug($"Ignoring potential depencencies (--no-dependencies option specified).");
-                return gatheredPackages.ToList();
-            }
-
-            log.Debug("Resolving dependencies.");
-            var resolver = new DependencyResolver(installation, gatheredPackages, repositories);
-
-            var actualMissingDependencies = resolver.MissingDependencies.Where(s => !gatheredPackages.Any(p => s.Name == p.Name));
-
-            if (resolver.UnknownDependencies.Any())
-            {
-                foreach (var dep in resolver.UnknownDependencies)
-                    log.Error($"A package dependency named '{dep.Name}' with a version compatible with {dep.Version} could not be found in any repository.");
-
-                log.Info("To download package dependencies despite the conflicts, use the --force option.");
-                return null;
-            }
-            else if (actualMissingDependencies.Any())
-            {
-                if (includeDependencies == false)
-                {
-                    var dependencies = string.Join(", ",
-                        actualMissingDependencies.Select(d => $"{d.Name} {d.Version}"));
-                    log.Info($"Use '--dependencies' to include {dependencies}.");
-                }
-
-                if (includeDependencies)
-                {
-                    foreach (var package in actualMissingDependencies)
-                    {
-                        log.Debug($"Adding dependency {package.Name} {package.Version}");
-                        if (!gatheredPackages.Contains(package))
-                            gatheredPackages.Insert(0, package);
-                    }
-                }
-                else if (askToIncludeDependencies)
-                {
-                    var pkgs = new List<DepRequest>();
-
-                    foreach (var package in actualMissingDependencies)
-                    {
-                        // Handle each package at a time.
-                        DepRequest req = null;
-                        pkgs.Add(req = new DepRequest { PackageName = package.Name, message = string.Format("Add dependency {0} {1} ?", package.Name, package.Version), Response = DepResponse.Add });
-                        UserInput.Request(req, true);
-                    }
-
-                    foreach (var pkg in actualMissingDependencies)
-                    {
-                        var res = pkgs.FirstOrDefault(r => r.PackageName == pkg.Name);
-
-                        if ((res != null) && res.Response == DepResponse.Add)
-                        {
-                            if (!gatheredPackages.Contains(pkg))
-                                gatheredPackages.Insert(0, pkg);
-                        }
-                        else
-                            log.Debug("Ignoring dependent package {0} at users request.", pkg.Name);
-                    }
-                }
-            }
-
+            
+            // make sure to use the TapPackage if one was directly referenced
+            gatheredPackages = gatheredPackages
+                .Select(x => directlyReferencesPackages.FirstOrDefault(y => y.Name == x.Name && y.Version == x.Version) ?? x)
+                .ToList();
             return gatheredPackages.ToList();
         }
 
@@ -333,11 +270,21 @@ namespace OpenTap.Package
                     }
                     else
                     {
-                        string source = (pkg.PackageSource as IRepositoryPackageDefSource)?.RepositoryUrl;
-                        if (source == null && pkg.PackageSource is FilePackageDefSource fileSource)
-                            source = fileSource.PackageFilePath;
-
-                        IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(source);
+                        IPackageRepository rm = null;
+                        switch (pkg.PackageSource)
+                        {
+                            case HttpRepositoryPackageDefSource repoSource:
+                                rm = new HttpPackageRepository(repoSource.RepositoryUrl);
+                                break;
+                            case FileRepositoryPackageDefSource repoSource:
+                                rm = new FilePackageRepository(repoSource.RepositoryUrl);
+                                break;
+                            case IFilePackageDefSource fileSource:
+                                rm = new FilePackageRepository(System.IO.Path.GetDirectoryName(fileSource.PackageFilePath));
+                                break;
+                            default:
+                                throw new Exception($"Unable to determine repositoy type for package source {pkg.PackageSource.GetType()}.");
+                        }
                         if (rm is IPackageDownloadProgress r)
                         {
                             r.OnProgressUpdate = innerProgress;
@@ -349,7 +296,7 @@ namespace OpenTap.Package
                         }
                         else
                         {
-                            log.Debug("Downloading '{0}' version '{1}' from '{2}'", pkg.Name, pkg.Version, source);
+                            log.Debug("Downloading '{0}' version '{1}' from '{2}'", pkg.Name, pkg.Version, rm.Url);
                             rm.DownloadPackage(pkg, filename);
                             log.Info(timer, "Downloaded '{0}' to '{1}'.", pkg.Name, Path.GetFullPath(filename));
                             PackageCacheHelper.CachePackage(filename);

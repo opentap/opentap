@@ -592,7 +592,14 @@ namespace OpenTap.Plugins
             }
             catch(Exception ex)
             {
-                Serializer.PushError(element, $"Object value was not read correctly.", ex);
+                if (ex is TargetInvocationException tarEx)
+                {
+                    Serializer.PushError(element, tarEx.InnerException.Message, tarEx.InnerException);
+                }
+                else
+                {
+                    Serializer.PushError(element, $"Object value was not read correctly.", ex);
+                }
                 return false;
             }
             try
@@ -880,9 +887,10 @@ namespace OpenTap.Plugins
 
         private void SetHasDefaultValueAttribute(IMemberData subProp, object val, XElement elem2)
         {
+            
             var attr = subProp.GetAttribute<DefaultValueAttribute>();
             if (attr != null && !(subProp is IParameterMemberData))
-                elem2.SetAttributeValue(DefaultValue, attr.Value);
+                Serializer.GetSerializer<DefaultValueSerializer>().RegisterDefaultValue(elem2, attr.Value);
         }
     }
 }

@@ -40,7 +40,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Get the installation of the currently running tap process
         /// </summary>
-        public static Installation Current => _current ?? (_current = new Installation(ExecutorClient.ExeDir));
+        public static Installation Current => _current ??= new Installation(ExecutorClient.ExeDir);
 
         /// <summary> Target installation architecture. This could be anything as 32-bit is supported on 64bit systems.</summary>
         internal CpuArchitecture Architecture => GetOpenTapPackage()?.Architecture ?? ArchitectureHelper.GuessBaseArchitecture;
@@ -240,10 +240,13 @@ namespace OpenTap.Package
 
                 foreach (var p in duplicatePlugins.GroupBy(p => p.Name))
                 {
-                    if(duplicateLogWarningsEmitted.Add(p.Key))
-                        log.Warning(
-                        $"Duplicate {p.Key} packages detected. Consider removing some of the duplicate package definitions:\n" +
-                        $"{string.Join("\n", p.Append(plugins[p.Key]).Select(x => " - " + ((InstalledPackageDefSource)x.PackageSource).PackageDefFilePath))}");
+                    lock (warningsLock)
+                    {
+                        if (duplicateLogWarningsEmitted.Add(p.Key))
+                            log.Warning(
+                                $"Duplicate {p.Key} packages detected. Consider removing some of the duplicate package definitions:\n" +
+                                $"{string.Join("\n", p.Append(plugins[p.Key]).Select(x => " - " + ((InstalledPackageDefSource) x.PackageSource).PackageDefFilePath))}");
+                    }
                 }
 
                 invalidate = false;
@@ -252,6 +255,8 @@ namespace OpenTap.Package
 
             return packageCache;
         }
+
+        private static object warningsLock = new object();
 
 
         /// <summary>

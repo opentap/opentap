@@ -614,7 +614,7 @@ namespace OpenTap.Package
                 {
                     foreach (var part in zip.Entries)
                     {
-                        FileSystemHelper.EnsureDirectory(part.FullName);
+                        FileSystemHelper.EnsureDirectoryOf(part.FullName);
                         var instream = part.Open();
                         using (var outstream = File.Create(part.FullName))
                         {
@@ -660,8 +660,8 @@ namespace OpenTap.Package
         /// </summary>
         public static PackageDef FromXml(string path)
         {
-            using (var stream = File.OpenRead(path))
-                  return FromXml(stream);
+            using var stream = File.OpenRead(path);
+            return FromXml(stream);
         }
         
         /// <summary>
@@ -863,6 +863,8 @@ namespace OpenTap.Package
                 return BitConverter.ToString(bytes).Replace("-", "");
             }
         }
+
+        internal PackageSpecifier GetSpecifier() => new PackageSpecifier(Name, Version.AsExactSpecifier(), Architecture, OS);
     }
 
     // helper class to ignore namespaces when de-serializing

@@ -283,17 +283,15 @@ namespace OpenTap.Package
 
             try
             {
-                using (var fileStream = File.OpenRead(packagePath))
-                using (var zip = new ZipArchive(fileStream, ZipArchiveMode.Read))
+                using var fileStream = new FileStream(packagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var zip = new ZipArchive(fileStream, ZipArchiveMode.Read);
+                foreach (var part in zip.Entries)
                 {
-                    foreach (var part in zip.Entries)
-                    {
-                        if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
-                            continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
+                    if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
+                        continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
 
-                        string path = Uri.UnescapeDataString(part.FullName);
-                        files.Add(path);
-                    }
+                    string path = Uri.UnescapeDataString(part.FullName);
+                    files.Add(path);
                 }
             }
             catch (InvalidDataException)
@@ -426,7 +424,7 @@ namespace OpenTap.Package
                         {
                             try
                             {
-                                FileSystemHelper.EnsureDirectory(path);
+                                FileSystemHelper.EnsureDirectoryOf(path);
                                 if (OperatingSystem.Current == OperatingSystem.Windows)
                                 {
                                     // on windows, hidden files cannot be overwritten.
@@ -455,7 +453,16 @@ namespace OpenTap.Package
                             {
                                 throw;
                             }
-                            catch
+                            catch (IOException ex) when (ex.Message.Contains("There is not enough space on the disk"))
+                            {
+                                log.Error(ex.Message);
+                                var req = new AbortOrRetryRequest("Not Enough Disk Space", $"File '{part.FullName}' requires {Utils.BytesToReadable(part.Length)} of free space. " +
+                                                                  $"Please free some space to continue.") {Response = AbortOrRetryResponse.Abort};
+                                UserInput.Request(req, true);
+                                if (req.Response == AbortOrRetryResponse.Abort)
+                                    throw new OperationCanceledException("Installation aborted due to missing disk space.");
+                            }
+                            catch (Exception ex)
                             {
                                 if (Path.GetFileNameWithoutExtension(path) == "tap")
                                     break; // this is ok tap.exe (or just tap on linux) is not designed to be overwritten
@@ -464,6 +471,7 @@ namespace OpenTap.Package
                                     throw;
                                 Retries++;
                                 log.Warning("Unable to unpack file {0}. Retry {1} of {2}.", path, Retries, MaxRetries);
+                                log.Debug(ex);
                                 Thread.Sleep(200);
                             }
                         }
@@ -517,20 +525,18 @@ namespace OpenTap.Package
         {
             try
             {
-                using (var fileStream = File.OpenRead(packagePath))
-                using (var zip = new ZipArchive(fileStream, ZipArchiveMode.Read))
+                using var fileStream = new FileStream(packagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var zip = new ZipArchive(fileStream, ZipArchiveMode.Read);
+                foreach (var part in zip.Entries)
                 {
-                    foreach (var part in zip.Entries)
-                    {
-                        if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
-                            continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
+                    if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
+                        continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
 
-                        string path = Uri.UnescapeDataString(part.FullName);
-                        if (path == relativeFilePath)
-                        {
-                            part.Open().CopyTo(destination);
-                            return true;
-                        }
+                    string path = Uri.UnescapeDataString(part.FullName);
+                    if (path == relativeFilePath)
+                    {
+                        part.Open().CopyTo(destination);
+                        return true;
                     }
                 }
             }

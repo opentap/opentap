@@ -27,12 +27,22 @@ namespace OpenTap.Authentication
         /// </summary>
         public string RefreshToken { get; set; }
 
+        private string domain;
         /// <summary> 
-        /// The site this token is intended for. Used by the HttpClient 
+        /// The hostname or IP address this token is intended for. Used by the HttpClient 
         /// returned from <see cref="AuthenticationSettings.GetClient"/> to determine which TokenInfo
         /// in the <see cref="AuthenticationSettings.Tokens"/> list to use for a given request.
         /// </summary>
-        public string Domain { get; set; }
+        public string Domain 
+        { 
+            get => domain; 
+            set
+            {
+                if (Uri.IsWellFormedUriString(value, UriKind.Absolute))
+                    throw new ArgumentException("Domain should only be the host part of a URI and not a full absolute URI.");
+                domain = value;
+            }
+        }
 
         private Dictionary<string, string> _Claims;
         /// <summary>
@@ -42,7 +52,7 @@ namespace OpenTap.Authentication
         {
             get
             {
-                if(_Claims == null)
+                if (_Claims == null)
                     _Claims = GetPayload().RootElement.EnumerateObject().ToDictionary(c => c.Name, c => c.Value.ToString());
                 return _Claims;
             }

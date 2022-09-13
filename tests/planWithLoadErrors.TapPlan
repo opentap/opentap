@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan">
+  <Steps>
+    <TestStep type="OpenTap.Plugins.BasicSteps.LogStep2" Id="4f83a779-9b3e-4d87-a69a-ed0791408fa0">
+    </TestStep>
+  </Steps>
+  <Package.Dependencies>
+    <Package Name="OpenTAP" Version="^9.18.4" />
+  </Package.Dependencies>
+</TestPlan>

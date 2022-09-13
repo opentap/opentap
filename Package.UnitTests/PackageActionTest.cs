@@ -191,7 +191,8 @@ namespace OpenTap.Package.UnitTests
             {
                 Packages = new[] {packageName},
                 Repository = new[] {Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)},
-                OS = "Windows"
+                OS = "Windows",
+                Force = true
             };
 
             try
@@ -226,7 +227,8 @@ namespace OpenTap.Package.UnitTests
             var act = new PackageInstallAction
             {
                 Packages = new[] {packageName},
-                Repository = Array.Empty<string>()
+                Repository = Array.Empty<string>(),
+                Force = true
             };
             if (specifyPlatform)
                 act.OS = "Windows";
@@ -254,9 +256,10 @@ namespace OpenTap.Package.UnitTests
                 else
                 {
                     var errorlog = log.Events.FirstOrNull(x =>
-                        x.EventType == (int) LogEventType.Error &&
                         x.Message.Contains("is incompatible with the host platform"));
-                    Assert.AreNotEqual(0, exitCode);
+                    
+                    // succeeded due to 'force'.
+                    Assert.AreEqual(0, exitCode);
                     Assert.IsNotNull(errorlog);
                 }
             }

@@ -38,6 +38,7 @@ namespace OpenTap.Image.Tests
             using var tempInstall = new TempInstall();
 
             var imageSpecifier = MockRepository.CreateSpecifier();
+            
             imageSpecifier.Packages.Add(new PackageSpecifier("REST-API", new VersionSpecifier(2, 6, 3, null, null, VersionMatchBehavior.Exact)));
             var identifier = imageSpecifier.Resolve(CancellationToken.None);
 
@@ -203,15 +204,15 @@ namespace OpenTap.Image.Tests
             ""Version"": ""9.8.0-beta.5+6fce512f""
         }],
     ""Repositories"": [
-        ""packages.opentap.keysight.com"",
-        ""packages.opentap.io""
+        ""https://packages.opentap.keysight.com"",
+        ""https://packages.opentap.io""
     ]
 }";
             var openTapSpec = new PackageSpecifier("OpenTAP", VersionSpecifier.Parse("9.16.0"));
 
             { // Deploy once
                 var imageSpecifier = new ImageSpecifier();
-                imageSpecifier.Repositories.Add("packages.opentap.io");
+                imageSpecifier.Repositories.Add("https://packages.opentap.io");
                 imageSpecifier.Packages.Add(openTapSpec);
                 var res = imageSpecifier.MergeAndDeploy(tempInstall.Installation, CancellationToken.None);
                 Assert.AreEqual(1, res.GetPackages().Where(s => s.Class != "system-wide").Count());
@@ -240,8 +241,8 @@ namespace OpenTap.Image.Tests
             }
             catch (ImageResolveException ex)
             {
-                Assert.AreEqual(1, ex.InnerExceptions.Count);
-                StringAssert.Contains("Package 'MissingPackage' could not be found in any repository.", ex.InnerException.Message);
+                var result = ex.Result.ToString();
+                StringAssert.Contains("Unable to resolve packages", result);
             }
         }
 

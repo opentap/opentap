@@ -27,7 +27,7 @@ namespace OpenTap.Package
         public PackageManagerSettings()
         {
             Repositories = new List<RepositorySettingEntry>();
-            Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = ExecutorClient.ExeDir });
+            Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = new Uri(Path.GetFullPath(ExecutorClient.ExeDir)).AbsoluteUri });
             Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = "https://packages.opentap.io" });
             UseLocalPackageCache = true;
         }
@@ -83,12 +83,30 @@ namespace OpenTap.Package
         internal List<IPackageRepository> GetEnabledRepositories(IEnumerable<string> cliSpecifiedRepoUrls = null)
         {
             var repositories = new List<IPackageRepository>();
-            if (PackageManagerSettings.Current.UseLocalPackageCache)
-                repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType(PackageCacheHelper.PackageCacheDirectory));
+            if (UseLocalPackageCache)
+            {
+                var cacheUri =
+                    new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri;
+                if((cliSpecifiedRepoUrls?.Contains(cacheUri) == true) == false)
+                    repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType(cacheUri));
+            }
+
             if (cliSpecifiedRepoUrls == null)
-                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled && p.Manager != null).Select(s => s.Manager).ToList());
+                repositories.AddRange(Repositories.Where(p => p.IsEnabled && p.Manager != null).Select(s => s.Manager).ToList());
             else
-                repositories.AddRange(cliSpecifiedRepoUrls.Select(s => PackageRepositoryHelpers.DetermineRepositoryType(s)));
+            {
+                var log = Log.CreateSource("PackageAction");
+                foreach (var repo in  cliSpecifiedRepoUrls)
+                {
+                    if (Uri.IsWellFormedUriString(repo, UriKind.Relative) && !Directory.Exists(repo))
+                    {
+                        log.Info($"Package directory '{repo}' not found. Trying using HTTP scheme.");
+                        repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType("http://" + repo));
+                    }
+                    else
+                        repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType(repo));
+                }
+            }
             return repositories;
         }
     }

@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.IO;
 using System.Linq;
 using System.Threading;
 
@@ -20,7 +18,6 @@ namespace OpenTap.Package.PackageInstallHelpers
             var action = new PackageInstallAction()
             {
                 InstallDependencies = false,
-                IgnoreDependencies = true,
                 NonInteractive = true,
                 Force = Force,
                 PackageReferences = Packages.Select(p => new PackageSpecifier(p.Name,

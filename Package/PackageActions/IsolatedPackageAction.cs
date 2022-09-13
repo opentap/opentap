@@ -52,7 +52,7 @@ namespace OpenTap.Package
                     log.Error("Destination directory \"{0}\" is a file.", Target);
                     return (int)ExitCodes.ArgumentError;
                 }
-                FileSystemHelper.EnsureDirectory(Target);
+                FileSystemHelper.EnsureDirectoryOf(Target);
             }
 
             if (ExecutorClient.IsExecutorMode && NoIsolation == false) // do we support running isolated?
@@ -232,7 +232,7 @@ namespace OpenTap.Package
                     string loc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), _loc);
 
                     var newloc = Path.Combine(tempFolder, _loc);
-                    OpenTap.FileSystemHelper.EnsureDirectory(newloc);
+                    OpenTap.FileSystemHelper.EnsureDirectoryOf(newloc);
                     if (File.Exists(newloc)) continue;
                     File.Copy(loc, newloc);
                 }

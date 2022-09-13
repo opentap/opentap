@@ -829,24 +829,31 @@ namespace OpenTap
             /// <returns></returns>
             public object FromString(string stringdata, ITypeData type, object contextObject, CultureInfo culture)
             {
-
+                if (!type.DescendsTo(typeof(IInput))) return null;
+                
                 var s = stringdata.Split(':');
                 var step = contextObject as ITestStep;
                 if (step == null) return null;
                 if (s.Length != 2) return null;
-                Guid id;
-                if (!Guid.TryParse(s[0], out id))
+                    
+                if (!Guid.TryParse(s[0], out var id))
                     return null;
                 var property = s[1];
 
+                var inp = (IInput)type.CreateInstance(Array.Empty<object>());
+                if (id == Guid.Empty)
+                    return inp;
+                    
                 ITestStepParent plan = contextObject as ITestStepParent;
                 while (plan.Parent != null)
                     plan = plan.Parent;
-                var step2 = Utils.FlattenHeirarchy(plan.ChildTestSteps, x => x.ChildTestSteps).FirstOrDefault(x => x.Id == id);
+                var step2 = Utils.FlattenHeirarchy(plan.ChildTestSteps, x => x.ChildTestSteps)
+                    .FirstOrDefault(x => x.Id == id);
                 if (step2 == null) return null;
-                var inp = (IInput)type.CreateInstance(Array.Empty<object>());
                 inp.Step = step2;
-                inp.Property = TypeData.GetTypeData(step2).GetMember(property);
+                    
+                if (!string.IsNullOrWhiteSpace(property))
+                    inp.Property = TypeData.GetTypeData(step2).GetMember(property);
 
                 return inp;
             }
@@ -859,8 +866,7 @@ namespace OpenTap
             {
                 var val = value as IInput;
                 if (val == null) return null;
-                if (val.Step == null || val.Property == null) return null;
-                return string.Format("{0}:{1}", val.Step.Id, val.Property.Name);
+                return $"{val.Step?.Id ?? Guid.Empty}:{val.Property?.Name ?? ""}";
             }
         }
 

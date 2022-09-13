@@ -114,8 +114,9 @@ namespace OpenTap.Cli
     /// <summary>
     /// Helper used to execute <see cref="ICliAction"/>s.
     /// </summary>
-    public class CliActionExecutor
+    public static class CliActionExecutor
     {
+        internal static ITypeData SelectedAction = null;
         internal static readonly int LevelPadding = 3;
         private static TraceSource log = Log.CreateSource("tap");
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -197,13 +198,11 @@ namespace OpenTap.Cli
                 log.Debug(e);
             }
 
-            ITypeData selectedCommand = null;
-            
             // Find selected command
             var actionTree = new CliActionTree();
             var selectedcmd = actionTree.GetSubCommand(args);
             if (selectedcmd?.Type != null && selectedcmd?.SubCommands.Any() != true)
-                selectedCommand = selectedcmd.Type;
+                SelectedAction = selectedcmd.Type;
 
             // Run check for update
             TapThread.Start(() =>
@@ -215,7 +214,7 @@ namespace OpenTap.Cli
                     {
                         var checkUpdatesCommands = actionTree.GetSubCommand(new[] {"package", "check-updates"});
                         var checkUpdateAction = checkUpdatesCommands?.Type?.CreateInstance() as ICliAction;
-                        if (selectedCommand != checkUpdatesCommands?.Type)
+                        if (SelectedAction != checkUpdatesCommands?.Type)
                             checkUpdateAction?.PerformExecute(new[] {"--startup"});
                     }
                     catch (Exception e)
@@ -251,7 +250,7 @@ namespace OpenTap.Cli
             }
             
             // Print default info
-            if (selectedCommand == null)
+            if (SelectedAction == null)
             {
                 string getVersion()
                 {
@@ -272,13 +271,18 @@ namespace OpenTap.Cli
 
                     return TypeData.FromType(typeof(CliActionExecutor)).Assembly.SemanticVersion.ToString(); // OpenTAP is not installed. lets just return this. 
                 }
+                string tapCommand = OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap";
 
-                Console.WriteLine("OpenTAP Command Line Interface ({0})", getVersion());
-                Console.WriteLine("Usage: tap <command> [<subcommand(s)>] [<args>]\n");
+                if (args.Length != 0)
+                {
+                    log.Error($"\"{tapCommand} {string.Join(" ", args)}\" is not a recognized command.");
+                }
+                log.Info("OpenTAP Command Line Interface ({0})", getVersion());
+                log.Info($"Usage: \"{tapCommand} <command> [<subcommand(s)>] [<args>]\"\n");
 
                 if (selectedcmd == null)
                 {
-                    Console.WriteLine("Valid commands are:");
+                    log.Info("Valid commands are:");
                     foreach (var cmd in actionTree.SubCommands)
                     {
                         print_command(cmd, 0, actionTree.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
@@ -286,12 +290,11 @@ namespace OpenTap.Cli
                 }
                 else
                 {
-                    Console.Write("Valid subcommands of ");
+                    log.Info($"Valid subcommands of");
                     print_command(selectedcmd, 0, actionTree.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
                 }
 
-                Console.WriteLine($"\nRun \"{(OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap")} " +
-                                   "<command> [<subcommand>] -h\" to get additional help for a specific command.\n");
+                log.Info($"\nRun \"{tapCommand} <command> [<subcommand(s)>] -h\" to get additional help for a specific command.\n");
 
                 if (args.Length == 0 || args.Any(s => s.ToLower() == "--help" || s.ToLower() == "-h"))
                     return (int)ExitCodes.Success;
@@ -299,27 +302,27 @@ namespace OpenTap.Cli
                     return (int)ExitCodes.ArgumentParseError;
             }
 
-            if (selectedCommand != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
+            if (SelectedAction != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
                 CliUserInputInterface.Load();
             
             ICliAction packageAction = null;
             try{
-                packageAction = (ICliAction)selectedCommand.CreateInstance();
+                packageAction = (ICliAction)SelectedAction.CreateInstance();
             }catch(TargetInvocationException e1) when (e1.InnerException is System.ComponentModel.LicenseException e){
-                log.Error("Unable to load CLI Action '{0}'", selectedCommand.GetDisplayAttribute().GetFullName());
+                log.Error("Unable to load CLI Action '{0}'", SelectedAction.GetDisplayAttribute().GetFullName());
                 log.Info("{0}", e.Message);
                 return (int)ExitCodes.UnknownCliAction;
             }
 
             if (packageAction == null)
             {
-                Console.WriteLine("Error instantiating command {0}", selectedCommand.Name);
+                Console.WriteLine("Error instantiating command {0}", SelectedAction.Name);
                 return (int)ExitCodes.UnknownCliAction;
             }
 
             try
             {
-                int skip = selectedCommand.GetDisplayAttribute().Group.Length + 1; // If the selected command has a group, it takes two arguments to use the command. E.g. "package create". If not, it only takes 1 argument, E.g. "restapi".
+                int skip = SelectedAction.GetDisplayAttribute().Group.Length + 1; // If the selected command has a group, it takes two arguments to use the command. E.g. "package create". If not, it only takes 1 argument, E.g. "restapi".
                 return packageAction.Execute(args.Skip(skip).ToArray());
             }
             catch (ExitCodeException ec)
