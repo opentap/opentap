@@ -105,7 +105,7 @@ namespace OpenTap
             string pipename = pipeName = Guid.NewGuid().ToString().Replace("-", "");
             try
             {
-                return new NamedPipeServerStream(pipename, PipeDirection.In, 10, PipeTransmissionMode.Message, PipeOptions.WriteThrough);
+                return new NamedPipeServerStream(pipename, PipeDirection.In, 10);
             }
             catch (UnauthorizedAccessException)
             {
