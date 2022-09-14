@@ -160,11 +160,11 @@ namespace OpenTap.Package
             PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
         {
             var list = new List<PackageDef>();
-
+            var version = id.Version == VersionSpecifier.AnyRelease ? "" : id.Version.ToString();
             string query =
                 @"query Query {
                             packages(distinctName:true" +
-                (id != null ? $",version:\"{id.Version}\",os:\"{id.OS}\",architecture:\"{id.Architecture}\"" : "") +
+                (id != null ? $",version:\"{version}\",os:\"{id.OS}\",architecture:\"{id.Architecture}\"" : "") +
                 @") {
                             name
                             version
