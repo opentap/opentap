@@ -99,11 +99,20 @@ Build:
 > This document describes the particulars of building and publishing OpenTAP packages with GitHub actions. Read more about Github Actions [here](https://docs.github.com/en/actions)
 
 GitHub supports continuous integration using Github Actions. GitHub looks for workflow definitions in the `.github/workflows` directory.
-A repository may have many workflows with different triggers. As an example, OpenTAP has a CI/CD workflow, 
-and some book-keeping workflows for tracking which OpenTAP beta version contains a merged pull request.
+A repository may have many workflows with different triggers. As an example, OpenTAP has a CI/CD workflow which is
+triggered on pull requests, and when changes are pushed to the main branch or a release branch. It also has a 
+book-keeping workflow which is triggered whenever an issue is closed. 
 
-A workflow is defined by a yaml file, e.g. `.github/workflows/ci.yml`. Here is an example of how a GitHub Action 
-could be configured to build, test, and publish an OpenTAP plugin:
+Each step in a workflow requires a runner. GitHub provides runners for all major platforms. A current list of available runner tags
+can be found [here](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idruns-on).
+These runners come equipped with most of the compilers and build tools you want, but if they don't suit your needs, GitHub also supports self-hosted runners. 
+
+OpenTAP only uses default runners, and is tested using `windows-2022`, `ubuntu-20.04`, and `macos-11`.
+
+> This example assumes that `PUBLIC_REPO_PASS` is configured as a secret in the repository. A secret can be configured by going to `Settings > Secrets > Actions > New repository secret`
+
+A workflow is defined by a yaml file, e.g. `.github/workflows/ci.yml`. 
+Here is an example of how a GitHub Action can be configured to build, test, and publish an OpenTAP plugin:
 
 ```yaml
 # Configure the name of this CI unit. This is the name that appears in the GitHub Actions tab
@@ -196,12 +205,5 @@ jobs:
         - name: Publish
           run: tap package publish -r http://packages.opentap.io -k ${{ secrets.PUBLIC_REPO_PASS }} *.TapPackage
 ```
-
-> This example assumes that `PUBLIC_REPO_PASS` is configured as a secret in the repository. A secret can be configured by going to `Settings > Secrets > Actions > New repository secret`
-
-In this example, all of the jobs run on `ubuntu-latest`. GitHub provides runners for all major platforms. A current list of available runner tags
-can be found [here](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idruns-on).
-For OpenTAP, for instance, we run our tests on `windows-2022`, `ubuntu-20.04`, and `macos-11`.
-These runners come equipped with most of the compilers and build tools you want, but if they don't suit your needs, GitHub also supports self-hosted runners. 
 
 
