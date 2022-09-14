@@ -237,9 +237,9 @@ namespace OpenTap.Package
                 {
                     log.ErrorOnce(this, "Failed to calculate GitVersion.");
                     log.Debug(ex);
+                    
+                    version = "0.1.0-alpha+badGitVersion";
                 }
-
-                version = "0.1.0-alpha+bad_git_version";
             }
 
             // If 'GitVersion' could not be resolved, don't replace it
