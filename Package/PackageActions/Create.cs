@@ -128,6 +128,12 @@ namespace OpenTap.Package
                                     break;
                             }
                     }
+                    
+                    if(!SemanticVersion.TryParse(pkg.RawVersion, out _))
+                    {
+                        log.Error($"Unable to parse the {pkg?.RawVersion} as a proper semantic version.");
+                        return (int) PackageExitCodes.InvalidPackageDefinition;
+                    }
 
                     // Check for invalid package metadata
                     const string validMetadataPattern = "^[_a-zA-Z][_a-zA-Z0-9]*";
