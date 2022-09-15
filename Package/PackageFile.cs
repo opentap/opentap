@@ -832,7 +832,7 @@ namespace OpenTap.Package
         /// <returns>A base64 encoded SHA1 hash of relevant fields in the package definition</returns>
         public string ComputeHash()
         {
-            using (MemoryStream str = new MemoryStream())
+            using MemoryStream str = new MemoryStream();
             using (TextWriter wtr = new StreamWriter(str))
             {
                 wtr.Write(this.Name);
@@ -856,12 +856,11 @@ namespace OpenTap.Package
                     else
                         throw new Exception($"Missing hash of payload file {file.FileName} (file does not exist).");
                 }
-
-                str.Seek(0, 0);
-                HashAlgorithm algorithm = SHA1.Create();
-                var bytes = algorithm.ComputeHash(str);
-                return BitConverter.ToString(bytes).Replace("-", "");
             }
+            str.Seek(0, SeekOrigin.Begin);
+            using var algorithm = SHA1.Create();
+            var bytes = algorithm.ComputeHash(str);
+            return BitConverter.ToString(bytes).Replace("-", "");
         }
 
         internal PackageSpecifier GetSpecifier() => new PackageSpecifier(Name, Version.AsExactSpecifier(), Architecture, OS);
