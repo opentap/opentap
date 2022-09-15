@@ -163,9 +163,18 @@ namespace OpenTap.Package
         readonly Dictionary<string, string> currentPreReleases = new Dictionary<string, string>();
         public IEnumerable<SemanticVersion> PackagesSatisfying(PackageSpecifier packageSpecifier)
         {
-            if (!string.IsNullOrWhiteSpace(packageSpecifier.Version.PreRelease))
+            if (!string.IsNullOrWhiteSpace(packageSpecifier.Version.PreRelease) || packageSpecifier.Version.MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
             {
-                var newPreRelease = packageSpecifier.Version.PreRelease.Split('.')[0];
+                string newPreRelease;
+                if (packageSpecifier.Version.MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
+                {
+                    newPreRelease = "alpha";
+                }
+                else
+                {
+                    newPreRelease = packageSpecifier.Version.PreRelease.Split('.')[0];
+                }
+
                 if (!currentPreReleases.TryGetValue(packageSpecifier.Name, out var currentPrerelease) || newPreRelease.CompareTo(currentPrerelease) > 0 )
                 {
                     currentPreReleases[packageSpecifier.Name] = newPreRelease;
