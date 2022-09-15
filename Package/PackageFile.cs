@@ -315,14 +315,7 @@ namespace OpenTap.Package
                     {
                         var hash2 = ComputeHash(quick: true);
                         if (hash2 != null)
-                        {
-                            if (hash2 != loadedHash)
-                            {
-                                log.Warning("Bad hash detected.");
-                            }
-
                             loadedHash = hash2;
-                        }
                     }
                 }
                 
