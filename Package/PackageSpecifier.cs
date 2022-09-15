@@ -68,12 +68,12 @@ namespace OpenTap.Package
         /// <summary>
         /// The VersionSpecifier that will match any version. VersionSpecifier.Any.IsCompatible always returns true.
         /// </summary>
-        public static readonly VersionSpecifier Any = new VersionSpecifier(null, null, null, null, null, VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease);
+        public static readonly VersionSpecifier Any = new VersionSpecifier(null, null, null, null, null,  VersionMatchBehavior.Exact | VersionMatchBehavior.AnyPrerelease);
 
         /// <summary>
         /// The VersionSpecifier that will match any version. VersionSpecifier.Any.IsCompatible always returns true.
         /// </summary>
-        public static readonly VersionSpecifier AnyRelease = new VersionSpecifier(null, null, null, null, null, VersionMatchBehavior.Compatible);
+        public static readonly VersionSpecifier AnyRelease = new VersionSpecifier(null, null, null, null, null, VersionMatchBehavior.Exact);
 
         
         /// <summary>
