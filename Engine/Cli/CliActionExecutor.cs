@@ -114,7 +114,7 @@ namespace OpenTap.Cli
     /// <summary>
     /// Helper used to execute <see cref="ICliAction"/>s.
     /// </summary>
-    public static class CliActionExecutor
+    public class CliActionExecutor
     {
         internal static ITypeData SelectedAction = null;
         internal static readonly int LevelPadding = 3;
