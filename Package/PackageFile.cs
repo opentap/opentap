@@ -313,7 +313,7 @@ namespace OpenTap.Package
                     hashVerified = true;
                     if (loadedHash.Length == oldHashLength)
                     {
-                        var hash2 = ComputeHash(quick: true);
+                        var hash2 = ComputeHash();
                         if (hash2 != null)
                             loadedHash = hash2;
                     }
@@ -860,13 +860,7 @@ namespace OpenTap.Package
         /// This method relies on hashes of each file. If those are not already part of the definition (they are normally computed when the package is created), this method will try to compute them based on files on the disk.
         /// </summary>
         /// <returns>A base64 encoded SHA1 hash of relevant fields in the package definition</returns>
-        public string ComputeHash() => ComputeHash(false);
-        /// <summary>
-        /// Computes the hash/signature of the package based on its definition. 
-        /// This method relies on hashes of each file. If those are not already part of the definition (they are normally computed when the package is created), this method will try to compute them based on files on the disk.
-        /// </summary>
-        /// <returns>A base64 encoded SHA1 hash of relevant fields in the package definition</returns>
-        public string ComputeHash(bool quick)
+        public string ComputeHash()
         {
             using MemoryStream str = new MemoryStream();
             using (TextWriter wtr = new StreamWriter(str, Encoding.Default, 4096, true))
@@ -883,17 +877,9 @@ namespace OpenTap.Package
                     FileHashPackageAction.Hash fileHash =
                         file.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
                     if (fileHash != null)
-                    {
                         wtr.Write(fileHash.Value);
-                    }
-                    else if (quick) 
-                        return null; // dont start hashing files when in 'quick' mode.
-                    else if (File.Exists(file.FileName))
-                    {
-                        wtr.Write(Convert.ToBase64String(FileHashPackageAction.hashFile(file.FileName)));
-                    }
                     else
-                        throw new Exception($"Missing hash of payload file {file.FileName} (file does not exist).");
+                        wtr.Write(file.FileName);
                 }
             }
 
