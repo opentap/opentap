@@ -103,6 +103,7 @@ namespace OpenTap.Package
                 }
 
                 log.Debug(sw, "Resolution done");
+                log.Debug("Image hash: {0}", image.Id);
                 if (DryRun)
                 {
                     log.Info("Resolved packages:");
