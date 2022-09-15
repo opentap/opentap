@@ -833,7 +833,7 @@ namespace OpenTap.Package
         public string ComputeHash()
         {
             using MemoryStream str = new MemoryStream();
-            using (TextWriter wtr = new StreamWriter(str))
+            using (TextWriter wtr = new StreamWriter(str, Encoding.Default, 4096, true))
             {
                 wtr.Write(this.Name);
                 wtr.Write(this.Version);
