@@ -82,6 +82,9 @@ namespace OpenTap.Package
         /// </summary>
         public PackageSpecifier[] PackageReferences { get; set; }
 
+
+        private string DefaultOs;
+        
         public PackageInstallAction()
         {
             Architecture = ArchitectureHelper.GuessBaseArchitecture;
@@ -97,6 +100,8 @@ namespace OpenTap.Package
                     OS = "Windows";
                     break;
             }
+
+            DefaultOs = OS;
         }
 
         private int DoExecute(CancellationToken cancellationToken)
@@ -148,6 +153,8 @@ namespace OpenTap.Package
                     targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
                     InstallDependencies, Force, askToInstallDependencies, NoDowngrade);
 
+        
+                
                 if (SystemWideOnly)
                 {
                     // the current process is for installing system wide packages only.
@@ -172,6 +179,45 @@ namespace OpenTap.Package
                     // or return an error if the package does not match.
                     var platformCompatible =
                         pkg.IsPlatformCompatible(targetInstallation.Architecture, targetInstallation.OS);
+                    
+                    if (!Force )
+                    {
+                        // print a warning if necessary.
+                        // --os and --architecture are not really supported when --force is not enabled.
+                        // we only allow resolving to installable packages.
+                        var differentArch = ArchitectureHelper.GuessBaseArchitecture != Architecture;
+
+                        bool printedWarning = false;
+                        void maybePrintWarning()
+                        {
+                            if (printedWarning) return;
+                            printedWarning = true;
+                            log.Warning("OS or Architecture were specified without --force. Only compatible packages will be selected.");
+
+                        }
+                        foreach (var package in packagesToInstall)
+                        {
+                            if (differentArch)
+                            {
+                                if (package.Architecture != CpuArchitecture.AnyCPU && Architecture != package.Architecture)
+                                {
+                                    maybePrintWarning();
+                                    log.Warning("Selected package {2} architecture {0} instead of {1}", package.Architecture, Architecture, package.Name);
+                                }
+                            }
+
+                            if (OS != DefaultOs)
+                            {
+                                if (!package.IsOsCompatible(OS))
+                                {
+                                    maybePrintWarning();
+                                    log.Warning("Selected package {2} for {0} instead of {1}", package.Name, package.OS, OS);
+                                }
+                            }
+                        }
+                        
+                    }
+                    
                     if (!platformCompatible)
                     {
                         var selectedPlatformCompatible = pkg.IsPlatformCompatible(Architecture, OS);
