@@ -621,7 +621,7 @@ namespace OpenTap.Package
 
             if (!string.IsNullOrWhiteSpace(package.Name)) endpoint = "/GetPackage/" + Uri.EscapeDataString(package.Name);
 
-            if (!string.IsNullOrEmpty(package.Version.ToString()))
+            if (package.Version != VersionSpecifier.AnyRelease)
                 reqs.Add(string.Format("version={0}", Uri.EscapeDataString(package.Version.ToString())));
             if (!string.IsNullOrWhiteSpace(package.OS))
                 reqs.Add(string.Format("os={0}", Uri.EscapeDataString(package.OS)));

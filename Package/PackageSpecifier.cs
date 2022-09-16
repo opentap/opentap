@@ -17,8 +17,12 @@ namespace OpenTap.Package
     public class PackageSpecifier
     {
         /// <summary> Gets a readable string for this package specifier. </summary>
-        public override string ToString() => $"[{Name} ({Version})]";
-        
+        public override string ToString()
+        {
+            var versionString = Version == VersionSpecifier.AnyRelease ? "Any Release" : Version.ToString();
+            return $"[{Name} ({versionString})]";
+        }
+
         /// <summary>
         /// Search for parameters that specifies a range of packages in the OpenTAP package system. Unset parameters will be treated as 'any'.
         /// </summary>
@@ -194,7 +198,7 @@ namespace OpenTap.Package
             if (this == VersionSpecifier.Any)
                 return "Any";
             if (this == VersionSpecifier.AnyRelease)
-                return "Any Release";
+                return "";
 
             var formatter = versionFormatter.Value;
             formatter.Clear();
