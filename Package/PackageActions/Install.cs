@@ -73,12 +73,18 @@ namespace OpenTap.Package
                                                           "skip any additional install actions the package might have defined.\n" +
                                                           "This can leave the installed package unusable.")]
         public bool UnpackOnly { get; set; }
+        
+        // This is set when system wide packages are being installed.
+        public bool SystemWideOnly { get; set; }
 
         /// <summary>
         /// This is used when specifying multiple packages with different version numbers. In that case <see cref="Packages"/> can be left null.
         /// </summary>
         public PackageSpecifier[] PackageReferences { get; set; }
 
+
+        private string DefaultOs;
+        
         public PackageInstallAction()
         {
             Architecture = ArchitectureHelper.GuessBaseArchitecture;
@@ -94,6 +100,8 @@ namespace OpenTap.Package
                     OS = "Windows";
                     break;
             }
+
+            DefaultOs = OS;
         }
 
         private int DoExecute(CancellationToken cancellationToken)
@@ -145,6 +153,14 @@ namespace OpenTap.Package
                     targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
                     InstallDependencies, Force, askToInstallDependencies, NoDowngrade);
 
+        
+                
+                if (SystemWideOnly)
+                {
+                    // the current process is for installing system wide packages only.
+                    packagesToInstall = packagesToInstall.Where(x => x.IsSystemWide()).ToList();
+                }
+
                 if (packagesToInstall?.Any() != true)
                 {
                     if (NoDowngrade)
@@ -163,6 +179,45 @@ namespace OpenTap.Package
                     // or return an error if the package does not match.
                     var platformCompatible =
                         pkg.IsPlatformCompatible(targetInstallation.Architecture, targetInstallation.OS);
+                    
+                    if (!Force )
+                    {
+                        // print a warning if necessary.
+                        // --os and --architecture are not really supported when --force is not enabled.
+                        // we only allow resolving to installable packages.
+                        var differentArch = ArchitectureHelper.GuessBaseArchitecture != Architecture;
+
+                        bool printedWarning = false;
+                        void maybePrintWarning()
+                        {
+                            if (printedWarning) return;
+                            printedWarning = true;
+                            log.Warning("OS or Architecture were specified without --force. Only compatible packages will be selected.");
+
+                        }
+                        foreach (var package in packagesToInstall)
+                        {
+                            if (differentArch)
+                            {
+                                if (package.Architecture != CpuArchitecture.AnyCPU && Architecture != package.Architecture)
+                                {
+                                    maybePrintWarning();
+                                    log.Warning("Selected package {2} architecture {0} instead of {1}", package.Architecture, Architecture, package.Name);
+                                }
+                            }
+
+                            if (OS != DefaultOs)
+                            {
+                                if (!package.IsOsCompatible(OS))
+                                {
+                                    maybePrintWarning();
+                                    log.Warning("Selected package {2} for {0} instead of {1}", package.Name, package.OS, OS);
+                                }
+                            }
+                        }
+                        
+                    }
+                    
                     if (!platformCompatible)
                     {
                         var selectedPlatformCompatible = pkg.IsPlatformCompatible(Architecture, OS);
@@ -194,25 +249,36 @@ namespace OpenTap.Package
 
                 RaiseProgressUpdate(10, "Gathering dependencies.");
 
-                bool checkDependencies = !Force || CheckOnly;
-                var installedToCheck = installationPackages.Where(p => p.IsSystemWide() == false); // don't use system-wide to check, as that would prevent installing older stuff, if a system-wide package depends on newer versions.
-                var issue = DependencyChecker.CheckDependencies(installedToCheck, packagesToInstall,
-                    Force ? LogEventType.Information :
-                    checkDependencies ? LogEventType.Error : LogEventType.Warning);
-
-                if (checkDependencies)
+                if (!SystemWideOnly)
                 {
-                    if (issue == DependencyChecker.Issue.BrokenPackages)
-                    {
-                        log.Info("To fix the package conflict uninstall or update the conflicted packages.");
-                        log.Info("To install packages despite the conflicts, use the --force option. Note that this can break the installation.");
-                        return (int) PackageExitCodes.PackageDependencyError;
-                    }
+                    // Sometimes system wide packages depends on non-system wide packages.
+                    // when installing system wide packages in a sub-process we dont need to check the dependencies
+                    // because that has already been done.
+                    
+                    bool checkDependencies = !Force || CheckOnly;
+                    var installedToCheck =
+                        installationPackages.Where(p =>
+                            p.IsSystemWide() ==
+                            false); // don't use system-wide to check, as that would prevent installing older stuff, if a system-wide package depends on newer versions.
+                    var issue = DependencyChecker.CheckDependencies(installedToCheck, packagesToInstall,
+                        Force ? LogEventType.Information :
+                        checkDependencies ? LogEventType.Error : LogEventType.Warning);
 
-                    if (CheckOnly)
+                    if (checkDependencies)
                     {
-                        log.Info("Check completed with no problems detected.");
-                        return (int) ExitCodes.Success;
+                        if (issue == DependencyChecker.Issue.BrokenPackages)
+                        {
+                            log.Info("To fix the package conflict uninstall or update the conflicted packages.");
+                            log.Info(
+                                "To install packages despite the conflicts, use the --force option. Note that this can break the installation.");
+                            return (int) PackageExitCodes.PackageDependencyError;
+                        }
+
+                        if (CheckOnly)
+                        {
+                            log.Info("Check completed with no problems detected.");
+                            return (int) ExitCodes.Success;
+                        }
                     }
                 }
 
@@ -228,7 +294,8 @@ namespace OpenTap.Package
                         Packages = systemWide,
                         Repositories = repositories.Select(r => r.Url).ToArray(),
                         Target = PackageDef.SystemWideInstallationDirectory,
-                        Force = Force
+                        Force = Force,
+                        SystemWideOnly = true
                     };
 
                     var processRunner = new SubProcessHost
