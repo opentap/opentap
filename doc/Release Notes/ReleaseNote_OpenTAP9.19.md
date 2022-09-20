@@ -43,7 +43,6 @@ Bug Fixes
 - AvailableValues are overridden when parameterizing parameterizing properties [#774](https://github.com/opentap/opentap/issues/774)
 - tap sdk gitversion outputs a debug message [#789](https://github.com/opentap/opentap/issues/789)
 - ResultTableOptimizer and multiresult step timing issue [#797](https://github.com/opentap/opentap/issues/797)
-- `tap package list` object reference not set [#807](https://github.com/opentap/opentap/issues/807)
 - Behavior change with old plugins 9.19 vs 9.18 [#808](https://github.com/opentap/opentap/issues/808)
 - Running the command to install with a specific --architecture will not return a warning for incompatibility [#818](https://github.com/opentap/opentap/issues/818)
 - Incorrect package hash calculation [#820](https://github.com/opentap/opentap/issues/820)
@@ -54,7 +53,6 @@ Documentation
  ------- 
 
 - Add CI/CD documentation for Github [#494](https://github.com/opentap/opentap/issues/494)
-- Packages cannot contain '/' characters. This should be enforced and documented [#550](https://github.com/opentap/opentap/issues/550)
 - Documentation on Resource Deserialization [#771](https://github.com/opentap/opentap/issues/771)
 - Document how to use multiple giversions [#806](https://github.com/opentap/opentap/issues/806)
 

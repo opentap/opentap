@@ -14,7 +14,6 @@ Usability Improvements
 
 - Improve csproj OpenTapPackageReference error message [#112](https://github.com/opentap/opentap/issues/112)
 - If verdict step should not be allowed to bind to it's parent [#209](https://github.com/opentap/opentap/issues/209)
-- API for expanding/collapsing test steps heirachies [#332](https://github.com/opentap/opentap/issues/332)
 - tap run: no errors when specifying invalid external parameter values [#508](https://github.com/opentap/opentap/issues/508)
 - Warnings when installing a system wide package [#509](https://github.com/opentap/opentap/issues/509)
 - Package Installation status is "Gathering dependencies" while installing system-wide packages [#513](https://github.com/opentap/opentap/issues/513)
@@ -25,8 +24,6 @@ Usability Improvements
 - tap package install of file-like objects [#551](https://github.com/opentap/opentap/issues/551)
 - Package install: Confusing error message when a package dependency is not in specified repositories [#563](https://github.com/opentap/opentap/issues/563)
 - Wrong error message when canceling elevated installs [#603](https://github.com/opentap/opentap/issues/603)
-- instrument -> instrument reference bug [#613](https://github.com/opentap/opentap/issues/613)
-- PR #569 breaks test step version check [#626](https://github.com/opentap/opentap/issues/626)
 
 
 Bug Fixes 
@@ -47,7 +44,6 @@ Bug Fixes
 - tap package install cannot be stopped when running in a test plan [#555](https://github.com/opentap/opentap/issues/555)
 - AssemblyVersion test fails intermittently [#559](https://github.com/opentap/opentap/issues/559)
 - XmlAttributeAttribute does not work for dynamic IMemberData [#570](https://github.com/opentap/opentap/issues/570)
-- `tap package download` interrupted download does not resume [#592](https://github.com/opentap/opentap/issues/592)
 - tap.exe fails to launch if System.Collections.Immutable 5.0 is in a subdirectory [#599](https://github.com/opentap/opentap/issues/599)
 - instrument -> instrument reference bug [#613](https://github.com/opentap/opentap/issues/613)
 - Package install fails if ICustomTypeData inheritors throw in their constructor [#620](https://github.com/opentap/opentap/issues/620)
@@ -59,7 +55,6 @@ Bug Fixes
 Documentation 
  ------- 
 
-- Downloading OpenTAP from documentation page doesn’t work   [#284](https://github.com/opentap/opentap/issues/284)
 - Update release notes to 9.17 on opentap.io [#483](https://github.com/opentap/opentap/issues/483)
 - Updated TUI location in developer guide [#495](https://github.com/opentap/opentap/issues/495)
 - Improve documentation of external parameters [#515](https://github.com/opentap/opentap/issues/515)
