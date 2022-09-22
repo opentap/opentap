@@ -422,6 +422,13 @@ namespace OpenTap.Package
             
             public int Compare(SemanticVersion a, SemanticVersion b)
             {
+                // If pre-releases are not wanted, put them at the very last.
+                if (pkg.PreRelease == null && (a.PreRelease != null || b.PreRelease != null))
+                {
+                    if (a.PreRelease == null && b.PreRelease != null) return -1;
+                    if (a.PreRelease != null && b.PreRelease == null) return 1;
+                }
+                
                 if (pkg.Major.HasValue)
                 {
                     var m = a.Major.CompareTo(b.Major);
@@ -432,12 +439,13 @@ namespace OpenTap.Package
                     var m = a.Minor.CompareTo(b.Minor);
                     if (m != 0) return m;
                 }
+                
                 if (pkg.Patch.HasValue)
                 {
                     var m = a.Patch.CompareTo(b.Patch);
                     if (m != 0) return m;
                 }
-                
+
                 if (a.PreRelease == b.PreRelease) return 0;
                 if (a.PreRelease == null && b.PreRelease != null) return 1;
                 if (a.PreRelease != null && b.PreRelease == null) return -1;
