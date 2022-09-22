@@ -56,6 +56,46 @@ namespace OpenTap
             return false;
         }
 
+        internal static bool HasAttributeInherited<T>(this IReflectionData mem) where T : class
+        {
+            if (mem is ITypeData td)
+            {
+                while (td != null)
+                {
+                    if (td.HasAttribute<T>()) return true;
+                    td = td.BaseType;
+                }
+
+                return false;
+            }
+
+            throw new ArgumentException("Inherited attributes can only be read from type data instances.");
+        }
+        
+        internal static IEnumerable<T> GetAttributesInherited<T>(this IReflectionData mem) where T : class
+        {
+            if (mem is ITypeData td)
+            {
+                IEnumerable<T> result = null;
+                while (td != null)
+                {
+                    var r = td.Attributes?.OfType<T>();
+                    if (r?.Any() == true)
+                    {
+                        if(result != null)
+                            result = result.Concat(r);
+                        else result = r;
+                    }
+
+                    td = td.BaseType;
+                }
+
+                return result ?? Array.Empty<T>();
+            }
+
+            throw new ArgumentException("Inherited attributes can only be read from type data instances.");
+        }
+
         /// <summary>
         /// Returns true if a reflection ifno has an attribute of type T.
         /// </summary>
