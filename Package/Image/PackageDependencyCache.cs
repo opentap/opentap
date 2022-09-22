@@ -89,7 +89,9 @@ namespace OpenTap.Package
                     var sw = Stopwatch.StartNew();
                     var graph = new PackageDependencyGraph();
                     var packages = fpkg.GetAllPackages(TapThread.Current.AbortToken);
-                    graph.LoadFromPackageDefs(packages.Where(x => x.IsPlatformCompatible(deploymentInstallationArchitecture, os)));
+                    graph.LoadFromPackageDefs(packages.Where(x => x.IsPlatformCompatible(
+                        deploymentInstallationArchitecture,
+                        os)));
                     
                     log.Debug(sw, "Read {1} packages from {0}", repo, packages.Length);
                     
