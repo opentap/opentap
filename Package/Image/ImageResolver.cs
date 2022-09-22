@@ -193,6 +193,8 @@ namespace OpenTap.Package
             for (int i = 0; i < allVersions.Count; i++)
             {
                 var pkg = packages[i];
+                // skip the following if there is less than two versions.
+                if (allVersions[i].Length <= 1) continue;
                 var versions = allVersions[i].ToList();
                 
                 if (pkg.Version == VersionSpecifier.Any)
