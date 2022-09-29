@@ -543,7 +543,7 @@ jobs:
         with:
           dotnet-version: '6.0.x'
       - name: Package
-        runs: dotnet pack ./templates/
+        run: dotnet pack ./templates/
       - uses: actions/upload-artifact@v2
         with:
           name: package-templates
