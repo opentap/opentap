@@ -11,12 +11,17 @@
   },
   "sources": [
     {
+      "source": "./sln/",
+      "target": "./../"
+    },
+    {
       "source": "./",
       "target": "./",
       "exclude": [
         "**/[Bb]in/**",
         "**/[Oo]bj/**",
-        ".template.config/**/*"
+        ".template.config/**/*",
+        "./sln/**/*"
       ],
       "modifiers": [
         {
@@ -67,14 +72,25 @@
           "exclude": [ "**/TUI.*" ]
         },
         {
-          "condition": "(EditorRegex || EditorCERegex)",
+          "condition": "(EditorCERegex)",
+          "rename": {
+            "EditorCE.LaunchSettings.json": "LaunchSettings.json",
+            "EditorCE.Launch.json": "Launch.json"
+          }
+        },
+        {
+          "condition": "(!EditorCERegex)",
+          "exclude": [ "**/EditorCE.*" ]
+        },
+        {
+          "condition": "(EditorRegex)",
           "rename": {
             "Editor.LaunchSettings.json": "LaunchSettings.json",
             "Editor.Launch.json": "Launch.json"
           }
         },
         {
-          "condition": "(!EditorRegex && !EditorCERegex)",
+          "condition": "(!EditorRegex)",
           "exclude": [ "**/Editor.*" ]
         }
       ]
@@ -85,41 +101,47 @@
   "preferNameDirectory": true,
 
   "symbols": {
-    "CliAction": {
+    "TestStep": {
       "type": "parameter",
       "dataType": "bool",
-      "defaultValue": "false",
-      "description": "Include a CliAction in the project."
-    },
-    "ComponentSettings": {
-      "type": "parameter",
-      "dataType": "bool",
-      "defaultValue": "false",
-      "description": "Include a ComponentSettings in the project."
+      "defaultValue": "true",
+      "displayName": "Include TestStep",
+      "description": "Include a TestStep in the project."
     },
     "DUT": {
       "type": "parameter",
       "dataType": "bool",
       "defaultValue": "false",
+      "displayName": "Include DUT",
       "description": "Include a DUT in the project."
     },
     "Instrument": {
       "type": "parameter",
       "dataType": "bool",
       "defaultValue": "false",
+      "displayName": "Include Instrument",
       "description": "Include a Instrument in the project."
+    },
+    "ComponentSettings": {
+      "type": "parameter",
+      "dataType": "bool",
+      "defaultValue": "false",
+      "displayName": "Include ComponentSettings",
+      "description": "Include a ComponentSettings in the project."
     },
     "ResultListener": {
       "type": "parameter",
       "dataType": "bool",
       "defaultValue": "false",
+      "displayName": "Include ResultListener",
       "description": "Include a ResultListener in the project."
     },
-    "TestStep": {
+    "CliAction": {
       "type": "parameter",
       "dataType": "bool",
-      "defaultValue": "true",
-      "description": "Include a TestStep in the project."
+      "defaultValue": "false",
+      "displayName": "Include CliAction",
+      "description": "Include a CliAction in the project."
     },
     "Editor": {
       "type": "parameter",
@@ -139,7 +161,7 @@
           "description": "This is not implemented yet."
         },
         {
-          "choice": "EditorCE",
+          "choice": "Editor CE",
           "displayName": "Keysight Test Automation - Community Edition",
           "description": "This is not implemented yet."
         }
