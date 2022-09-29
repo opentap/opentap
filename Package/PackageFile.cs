@@ -292,12 +292,42 @@ namespace OpenTap.Package
         /// Holds additional metadata for a package
         /// </summary>
         public Dictionary<string, string> MetaData { get; } = new Dictionary<string, string>();
-        
+
+        string loadedHash;
+        bool hashVerified;
+        const int oldHashLength = 40;
         /// <summary>
         /// The hash of the package. This is based on hashes of each payload file as well as metadata in the package definition.
         /// </summary>
         [DefaultValue(null)]
-        public string Hash { get; set; }
+        public string Hash
+        {
+            get
+            {
+                // in OpenTAP 9.18 and earlier weak / invalid hash values were calculated.
+                // in 9.19, its fixed, but to distinguish a different length of hashes are used.
+                // the previous hash length was always 40.
+                
+                if (!hashVerified && loadedHash != null)
+                {
+                    hashVerified = true;
+                    if (loadedHash.Length == oldHashLength)
+                    {
+                        var hash2 = ComputeHash();
+                        if (hash2 != null)
+                            loadedHash = hash2;
+                    }
+                }
+                
+                return loadedHash;
+            }
+            set
+            {
+                if (loadedHash == value) return;
+                loadedHash = value;
+                hashVerified = loadedHash?.Length != oldHashLength;
+            }
+        }
 
         /// <summary>
         /// A description of this package.
@@ -614,7 +644,7 @@ namespace OpenTap.Package
                 {
                     foreach (var part in zip.Entries)
                     {
-                        FileSystemHelper.EnsureDirectory(part.FullName);
+                        FileSystemHelper.EnsureDirectoryOf(part.FullName);
                         var instream = part.Open();
                         using (var outstream = File.Create(part.FullName))
                         {
@@ -660,8 +690,8 @@ namespace OpenTap.Package
         /// </summary>
         public static PackageDef FromXml(string path)
         {
-            using (var stream = File.OpenRead(path))
-                  return FromXml(stream);
+            using var stream = File.OpenRead(path);
+            return FromXml(stream);
         }
         
         /// <summary>
@@ -832,8 +862,8 @@ namespace OpenTap.Package
         /// <returns>A base64 encoded SHA1 hash of relevant fields in the package definition</returns>
         public string ComputeHash()
         {
-            using (MemoryStream str = new MemoryStream())
-            using (TextWriter wtr = new StreamWriter(str))
+            using MemoryStream str = new MemoryStream();
+            using (TextWriter wtr = new StreamWriter(str, Encoding.Default, 4096, true))
             {
                 wtr.Write(this.Name);
                 wtr.Write(this.Version);
@@ -844,27 +874,25 @@ namespace OpenTap.Package
                 wtr.Write(string.Join("", this.Dependencies.OrderBy(d => d.Name).Select(d => d.Name + d.Version)));
                 foreach (PackageFile file in this.Files.OrderBy(f => f.FileName))
                 {
-                    FileHashPackageAction.Hash fileHash = file.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
+                    FileHashPackageAction.Hash fileHash =
+                        file.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
                     if (fileHash != null)
-                    {
                         wtr.Write(fileHash.Value);
-                    }
-                    else if (File.Exists(file.FileName))
-                    {
-                        wtr.Write(Convert.ToBase64String(FileHashPackageAction.hashFile(file.FileName)));
-                    }
                     else
-                        throw new Exception($"Missing hash of payload file {file.FileName} (file does not exist).");
+                        wtr.Write(file.FileName);
                 }
-
-                str.Seek(0, 0);
-                HashAlgorithm algorithm = SHA1.Create();
-                var bytes = algorithm.ComputeHash(str);
-                return BitConverter.ToString(bytes).Replace("-", "");
             }
+
+            str.Seek(0, SeekOrigin.Begin);
+            using var algorithm = SHA1.Create();
+            var bytes = algorithm.ComputeHash(str);
+            return Utils.Base64UrlEncode(bytes);
         }
+
+        internal PackageSpecifier GetSpecifier() => new PackageSpecifier(Name, Version.AsExactSpecifier(), Architecture, OS);
     }
 
+    
     // helper class to ignore namespaces when de-serializing
     internal class NamespaceIgnorantXmlTextReader : XmlTextReader
     {

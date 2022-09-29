@@ -459,44 +459,6 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class AllowChildTest
-    {
-        
-        private class BaseAutomationStep : TestStep
-        {
-            public override void Run()
-            {
-            }
-        }
-
-        [AllowAsChildIn(typeof(BaseAutomationStep))]
-        private class AutomationStep : BaseAutomationStep
-        {
-        }
-
-        [AllowAsChildIn(typeof(BaseAutomationStep))]
-        [AllowAnyChild]
-        private class LoopStep : BaseAutomationStep
-        {
-        }
-
-        [Test]
-        public void TestAllowChildren()
-        {
-            LoopStep step = new LoopStep();
-            step.ChildTestSteps.Add(new AutomationStep());
-        }
-
-        [Test]
-        public void TestGuid()
-        {
-            var a = new DelayStep();
-            var b = new DelayStep();
-            Assert.AreNotEqual(a.Id, b.Id);
-        }
-    }
-
-    [TestFixture]
     public class BasicTestStepTests
     {
         public class FunkyArrayStep : TestStep

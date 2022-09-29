@@ -65,16 +65,24 @@ namespace OpenTap.Package
                 return (int) PackageExitCodes.InvalidPackageName;
 
             if (!Force)
-                if (!CheckPackageAndDependencies(installedPackages, installer.PackagePaths, out var userCancelled))
+            {
+                List<PackageDef> additionalToRemove = new List<PackageDef>();
+                switch (CheckPackageAndDependencies(installedPackages, installer.PackagePaths, additionalToRemove))
                 {
-                    if (userCancelled)
-                    {
+                    case ContinueResponse.Cancel:
                         log.Info("Uninstall cancelled by user.");
                         return (int) ExitCodes.UserCancelled;
-                    }
-
-                    return (int) PackageExitCodes.PackageDependencyError;
+                    case ContinueResponse.RemoveAll:
+                        installer.PackagePaths.AddRange(additionalToRemove.Select(x =>((InstalledPackageDefSource)x.PackageSource ).PackageDefFilePath));
+                        foreach(var pkg in additionalToRemove)
+                            log.Info("Also removing {0} {1}.", pkg.Name, pkg.Version);
+                        break;
+                    case ContinueResponse.Continue:
+                        break;
+                    case ContinueResponse.Error:
+                        return (int) PackageExitCodes.PackageUninstallError;    
                 }
+            }
 
             var status = installer.RunCommand("uninstall", Force, true);
             if (status == (int) ExitCodes.GeneralException)
@@ -158,9 +166,8 @@ namespace OpenTap.Package
             return result;
         }
 
-        private bool CheckPackageAndDependencies(List<PackageDef> installed, List<string> packagePaths, out bool userCancelled)
+        private ContinueResponse CheckPackageAndDependencies(List<PackageDef> installed, List<string> packagePaths, List<PackageDef> removeAdditional)
         {
-            userCancelled = false;
             var packages = packagePaths.Select(str =>
             {
                 var pkg = PackageDef.FromXml(str);
@@ -180,7 +187,7 @@ namespace OpenTap.Package
             if (packages.Any(p => p.Files.Any(f => f.FileName.ToLower().EndsWith("OpenTap.dll"))))
             {
                 log.Error("OpenTAP cannot be uninstalled.");
-                return false;
+                return ContinueResponse.Error;
             }
 
             if (packagesWithIssues.Any())
@@ -191,24 +198,32 @@ namespace OpenTap.Package
                     string.Join(" and ", packages.Select(p => p.Name)),
                     string.Join("\n", packagesWithIssues.Select(p => p.Name + " " + p.Version)));
 
-                var req = new ContinueRequest { message = question, Response = ContinueResponse.Continue };
+                var req = new ContinueRequest { message = question, Response = ContinueResponse.Cancel };
                 UserInput.Request(req, true);
-
-                if (req.Response == ContinueResponse.Continue)
-                    return true;
-                userCancelled = true;
-                return false;
+                if (req.Response == ContinueResponse.RemoveAll)
+                {
+                    removeAdditional.AddRange(packagesWithIssues);
+                }
+                return req.Response;
             }
 
-            return true;
+            return ContinueResponse.Continue;
         }
     }
 
     [Obfuscation(Exclude = true)]
     enum ContinueResponse
     {
+        [Display("Remove all the packages")]
+        RemoveAll,
+        // This will break the installation, so lets not present this as an option to the user.
+        // --force can be used to force remove packages.
+        [Browsable(false)] 
         Continue,
-        Cancel
+        Cancel,
+        [Browsable(false)]
+        Error,
+
     }
 
     [Obfuscation(Exclude = true)]

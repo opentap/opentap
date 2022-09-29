@@ -47,9 +47,6 @@ namespace OpenTap.Authentication
                 throw new InvalidOperationException();
             }
 
-
-
-
             public AuthenticationClientHandler(string domain = null, bool withRetryPolicy = false)
             {
                 this.domain = domain;

@@ -125,6 +125,8 @@ namespace OpenTap.Package
 
                     if (Version != null) // Version is specified by user
                         versions = versions.Where(v => versionSpec.IsCompatible(v.Version)).ToList();
+                    if(checkOs)
+                        versions = versions.Where(v => v.IsOsCompatible(OS)).ToList();
 
                     if (versions.Any() == false && versionsCount > 0)
                     {
@@ -181,7 +183,7 @@ namespace OpenTap.Package
             var verLen = versions.Select(p => p.Version?.ToString().Length).Max() ?? 0;
             var arcLen = versions.Select(p => p?.Architecture.ToString().Length).Max() ?? 0;
             var osLen = versions.Select(p => p.OS?.Length).Max() ?? 0;
-            foreach (var version in versions)
+            foreach (var version in versions.OrderBy(x => x.Version))
             {
                 // string interpolate + format complex to add padding.
                 log.Info(string.Format($"{{0,-{verLen}}} - {{1,-{arcLen}}} - {{2,-{osLen}}} - {{3}}", version.Version, version.Architecture, version.OS ?? "Unknown", package != null && package.Equals(version) ? "installed" : ""));

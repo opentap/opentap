@@ -60,7 +60,7 @@ namespace OpenTap
         /// Creates a directory if it does not already exist.
         /// </summary>
         /// <param name="filePath"></param>
-        public static void EnsureDirectory(string filePath)
+        public static void EnsureDirectoryOf(string filePath)
         {
             if (!Directory.Exists(Path.GetDirectoryName(filePath)) && string.IsNullOrWhiteSpace(Path.GetDirectoryName(filePath)) == false)
             {
@@ -75,7 +75,7 @@ namespace OpenTap
         public static string CreateTempDirectory()
         {
             string path = Path.Combine(System.IO.Path.GetTempPath(), Path.GetRandomFileName());
-            EnsureDirectory(path);
+            EnsureDirectoryOf(path);
             return path;
         }
 

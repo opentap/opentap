@@ -68,7 +68,7 @@ namespace OpenTap.Package
             /// <summary> Sort packages by build date. </summary>
             Date
         }
-        
+
         /// <summary>
         /// List of servers from where new plugin packages can be discovered and downloaded.
         /// </summary>
@@ -83,23 +83,20 @@ namespace OpenTap.Package
         internal List<IPackageRepository> GetEnabledRepositories(IEnumerable<string> cliSpecifiedRepoUrls = null)
         {
             var repositories = new List<IPackageRepository>();
-            if (PackageManagerSettings.Current.UseLocalPackageCache)
-                repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType(new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri));
+            if (UseLocalPackageCache)
+            {
+                var cacheUri =
+                    new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri;
+                if ((cliSpecifiedRepoUrls?.Contains(cacheUri) == true) == false)
+                    repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType(cacheUri));
+            }
+
             if (cliSpecifiedRepoUrls == null)
-                repositories.AddRange(PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled && p.Manager != null).Select(s => s.Manager).ToList());
+                repositories.AddRange(Repositories.Where(p => p.IsEnabled && p.Manager != null).Select(s => s.Manager).ToList());
             else
             {
-                var log = Log.CreateSource("PackageAction");
-                foreach (var repo in  cliSpecifiedRepoUrls)
-                {
-                    if (Uri.IsWellFormedUriString(repo, UriKind.Relative) && !Directory.Exists(repo))
-                    {
-                        log.Info($"Package directory '{repo}' not found. Trying using HTTP scheme.");
-                        repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType("http://" + repo));
-                    }
-                    else
-                        repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType(repo));
-                }
+                foreach (var repo in cliSpecifiedRepoUrls)
+                    repositories.Add(PackageRepositoryHelpers.DetermineRepositoryType(repo));
             }
             return repositories;
         }

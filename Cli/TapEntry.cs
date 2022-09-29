@@ -84,7 +84,8 @@ namespace OpenTap.Cli
 
             string arguments = new CommandLineSplit(Environment.CommandLine).Args;
             string message = null;
-            using (ExecutorSubProcess subproc = ExecutorSubProcess.Create("tap.exe", arguments))
+            
+            using (ExecutorSubProcess subproc = ExecutorSubProcess.Create("tap", arguments))
             {
                 subproc.MessageReceived += (s, msg) =>
                 {
@@ -212,8 +213,11 @@ namespace OpenTap.Cli
             installCommand = args.Contains("install");
             uninstallCommand = args.Contains("uninstall");
             packageManagerCommand = args.Contains("packagemanager");
+            // "--no-isolation" can be useful for debugging package install related issues,
+            // e.g when deploying an image with "tap image install ..."
+            bool noIsolation = args.Contains("--no-isolation");
 
-            if (OperatingSystem.Current == OperatingSystem.Windows && (installCommand || uninstallCommand || packageManagerCommand))
+            if ((installCommand || uninstallCommand || packageManagerCommand) && !noIsolation)
             {
                 goIsolated();
             }

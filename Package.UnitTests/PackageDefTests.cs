@@ -194,7 +194,7 @@ namespace OpenTap.Package.UnitTests
             {
                 DummyPackageGenerator.InstallDummyPackage("DepName", new GitVersionCalulator(Directory.GetCurrentDirectory()).GetVersion().ToString() );
                 PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
-                using (var file = File.Create(outputFilename))
+                using (var file = CreateStream(outputFilename))
                     pkg.CreatePackage(file);
                 Assert.AreNotSame("$(GitVersion)", pkg.Dependencies.First().Version.ToString());
                 VersionSpecifier versionSpecifier = new VersionSpecifier(pkg.Version, VersionMatchBehavior.Exact);
@@ -218,7 +218,7 @@ namespace OpenTap.Package.UnitTests
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
             try
             {
-                using(var file = File.Create(outputFilename))
+                using(var file = CreateStream(outputFilename))
                     pkg.CreatePackage(file);
                 Assert.IsTrue(File.Exists(outputFilename));
             }
@@ -228,6 +228,9 @@ namespace OpenTap.Package.UnitTests
                     File.Delete(outputFilename);
             }
         }
+
+        private static FileStream CreateStream(string outputFilename) => new FileStream(outputFilename, FileMode.Create,
+            FileAccess.ReadWrite, FileShare.ReadWrite, 4096);
 
         [Test]
         public void CreatePackage_NoBinFiles()
@@ -239,7 +242,7 @@ namespace OpenTap.Package.UnitTests
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
             try
             {
-                using(var file = File.Create(outputFilename))
+                using(var file = CreateStream(outputFilename))
                     pkg.CreatePackage(file);
                 Assert.IsTrue(File.Exists(outputFilename));
             }
@@ -601,52 +604,47 @@ namespace OpenTap.Package.UnitTests
             CollectionAssert.DoesNotContain(pkg.Dependencies.Select(d => d.Name), "OpenTAP");
         }
 
+        static string GetEmbeddedFile(string file)
+        {
+            var resourceName = Assembly.GetCallingAssembly().GetName().Name + "." + file.Replace("/", ".");
+            var stream = Assembly.GetCallingAssembly()
+                .GetManifestResourceStream(resourceName);
+            return new StreamReader(stream).ReadToEnd();
+        }
+        
         /// <summary>
         /// This test requires that OpenTAP is installed along with the XSeries plugin
         /// </summary>
         [Test]
         public void CheckDependencies_MissingDep()
         {
+            
+            string xSeriesPath = "Packages/XSeries/package.xml";
             string inputFilename = "Packages/CheckDependencies_MissingDep/package.xml";
+            var xml= GetEmbeddedFile(inputFilename);
+            var xSeriesXml = GetEmbeddedFile(xSeriesPath);
+            FileSystemHelper.EnsureDirectoryOf(xSeriesPath);
+            FileSystemHelper.EnsureDirectoryOf(inputFilename);
+            File.WriteAllText(xSeriesPath, xSeriesXml);
+            File.WriteAllText(inputFilename, xml);
+            try
+            {
 
-            //PackageDependencyExt.CheckDependencies(inputFilename);
-            var xseries = PackageDef.FromXml(PackageDef.GetDefaultPackageMetadataPath("XSeries"));
-            PackageDef.ValidateXml(inputFilename);
-            var missing = PackageDef.FromXml(inputFilename);
-            var tree = DependencyAnalyzer.BuildAnalyzerContext(new List<PackageDef> { xseries, missing });
-            Assert.IsTrue(tree.GetIssues(missing).Any(issue => issue.IssueType == DependencyIssueType.Missing));
+                //PackageDependencyExt.CheckDependencies(inputFilename);
+                var xseries = PackageDef.FromXml(xSeriesPath);
+                PackageDef.ValidateXml(inputFilename);
+                var missing = PackageDef.FromXml(inputFilename);
+                var tree = DependencyAnalyzer.BuildAnalyzerContext(new List<PackageDef> {xseries, missing});
+                Assert.IsTrue(tree.GetIssues(missing).Any(issue => issue.IssueType == DependencyIssueType.Missing));
+            }
+            finally
+            {
+                FileSystemHelper.DeleteDirectory(Path.GetDirectoryName(xSeriesPath));
+                FileSystemHelper.DeleteDirectory(Path.GetDirectoryName(inputFilename));
+            }
             //Assert.Fail("CheckDependencies should have thrown an exception");
         }
 
-        /// <summary>
-        /// This test requires that TAP is installed along with the XSeries and plugin
-        /// </summary>
-        [Test]
-        [Ignore("??")]
-        public void CheckDependencies_AllDepsInstalled()
-        {
-
-            var xseries = PackageDef.FromXml(PackageDef.GetDefaultPackageMetadataPath("XSeries"));
-            //var test2 = PackageDef.FromXmlFile(PackageDef.GetDefaultPackageMetadataPath("Test2"));
-            File.Copy(PackageDef.GetDefaultPackageMetadataPath("CheckDependencies_AllDepsInstalled"), "CheckDependencies_AllDepsInstalled.xml", true);
-            PackageDef.ValidateXml("CheckDependencies_AllDepsInstalled.xml");
-            var alldeps = PackageDef.FromXml("CheckDependencies_AllDepsInstalled.xml");
-            //var tree = DependencyAnalyzer.BuildAnalyzerContext(new List<PackageDef> { xseries, test2, alldeps });
-            //Assert.AreEqual(tree.BrokenPackages.Count, 1);
-            //PackageDependencyExt.CheckDependencies(inputFilename);
-        }
-
-        /// <summary>
-        /// This test requires that TAP is installed along with the XSeries and Test plugin
-        /// </summary>
-        [Test, Ignore("?")]
-        public void CheckDependencies_NonDllFile()
-        {
-            string inputFilename = "FromXmlFile_NonDllFile.xml";
-
-            PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
-            //PackageDependency.CheckDependencies(inputFilename);
-        }
 
         [Test]
         [Ignore("Temporarily Disabled")]
@@ -722,7 +720,7 @@ namespace OpenTap.Package.UnitTests
                 var pkg = PackageDefExt.FromInputXml(pkgName, installDir);
                 CollectionAssert.IsNotEmpty(pkg.Dependencies,"Package has no dependencies.");
                 //Assert.AreEqual("OpenTAP", pkg.Dependencies.First().Name);
-                using(var file = File.Create("BasicSteps.TapPackage"))
+                using(var file = CreateStream("BasicSteps.TapPackage"))
                     pkg.CreatePackage(file);
 
                 List<IPackageRepository> repositories = new List<IPackageRepository>() { new FilePackageRepository(installDir) };

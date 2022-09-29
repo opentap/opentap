@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net462</TargetFramework>
+    <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <LangVersion>8</LangVersion>
   </PropertyGroup>

@@ -175,6 +175,8 @@ jobs:
           dotnet-version: '6.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
+      - name: Copy Debug Package 
+        run: cp ./bin/Release/OpenTap.Debug.TapPackage ./bin/Release/publish/dbg.zip
       - name: Upload binaries
         uses: actions/upload-artifact@v2
         with:
@@ -250,6 +252,8 @@ jobs:
           dotnet-version: '6.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
+      - name: Copy Debug Package 
+        run: cp ./bin/Release/OpenTap.Debug.TapPackage ./bin/Release/publish/dbg.zip
       - name: Upload binaries
         uses: actions/upload-artifact@v2
         with:
@@ -359,6 +363,7 @@ jobs:
       - name: Test
         run: |
           chmod +x bin/Release/tap
+          ./bin/Release/tap package install ./bin/Release/dbg.zip -f
           bin/Release/tap run tests/regression.TapPlan --verbose --color
 
   TestMacPlan:
@@ -379,6 +384,7 @@ jobs:
       - name: Test
         run: |
           chmod +x bin/Release/tap
+          ./bin/Release/tap package install ./bin/Release/dbg.zip -f
           bin/Release/tap run tests/regression.TapPlan --verbose --color
 
   ###############

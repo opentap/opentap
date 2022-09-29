@@ -91,11 +91,11 @@ namespace OpenTap.Package
                     log.Error("Destination directory \"{0}\" is a file.", Target);
                     return (int)ExitCodes.ArgumentError;
                 }
-                FileSystemHelper.EnsureDirectory(Target);
+                FileSystemHelper.EnsureDirectoryOf(Target);
             }
 
             var lockfile = Path.Combine(Target, ".lock");
-            FileSystemHelper.EnsureDirectory(lockfile);
+            FileSystemHelper.EnsureDirectoryOf(lockfile);
             using var fileLock = FileLock.Create(lockfile);
             bool useLocking = Unlocked == false;
             if (useLocking && !fileLock.WaitOne(0))

@@ -160,11 +160,11 @@ namespace OpenTap.Package
             PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
         {
             var list = new List<PackageDef>();
-
+            var version = id.Version == VersionSpecifier.AnyRelease ? "" : id.Version.ToString();
             string query =
                 @"query Query {
                             packages(distinctName:true" +
-                (id != null ? $",version:\"{id.Version}\",os:\"{id.OS}\",architecture:\"{id.Architecture}\"" : "") +
+                (id != null ? $",version:\"{version}\",os:\"{id.OS}\",architecture:\"{id.Architecture}\"" : "") +
                 @") {
                             name
                             version
@@ -257,7 +257,7 @@ namespace OpenTap.Package
                         case "https":
                             return new HttpPackageRepository(url);
                         case "file":
-                            return new FilePackageRepository(uri.AbsolutePath);
+                            return new FilePackageRepository(url);
                         default:
                             throw new NotSupportedException($"Scheme {uri.Scheme} is not supported as a package repository ({url}).");
                     }
