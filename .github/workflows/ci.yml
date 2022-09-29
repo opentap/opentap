@@ -533,6 +533,25 @@ jobs:
           path: |
             OpenTAP.*.Linux.TapPackage
 
+  Package-Templates:
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Package
+        runs: dotnet pack ./templates/
+      - uses: actions/upload-artifact@v2
+        with:
+          name: package-templates
+          retention-days: 14
+          path: ./bin/Release/OpenTAP.Templates.*.nupkg
+
   Package-SDK:
     runs-on: windows-2022
     needs:
