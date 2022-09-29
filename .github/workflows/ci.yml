@@ -535,6 +535,8 @@ jobs:
 
   Package-Templates:
     runs-on: windows-2022
+    needs:
+      - GetVersion
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -544,6 +546,10 @@ jobs:
         uses: actions/setup-dotnet@v1
         with:
           dotnet-version: '6.0.x'
+      - name: UpdateVersion
+        run: |
+          (Get-Content .\templates\src\project\sln\Directory.Build.Props).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+          Set-Content .\templates\src\project\sln\Directory.Build.Props $content
       - name: Package
         run: dotnet pack ./templates/
       - uses: actions/upload-artifact@v2
