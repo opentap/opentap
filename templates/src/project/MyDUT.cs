@@ -7,8 +7,8 @@ using OpenTap;
 
 namespace ProjectName
 {
-    [Display("ProjectNameDUT")]
-    public class ProjectNameDUT : Dut
+    [Display("MyDUT")]
+    public class MyDUT : Dut
     {
         #region Settings
         // ToDo: Add property here for each parameter the end user should be able to change.
@@ -17,7 +17,7 @@ namespace ProjectName
         /// <summary>
         /// Initializes a new instance of this DUT class.
         /// </summary>
-        public ProjectNameDUT()
+        public MyDUT()
         {
             // ToDo: Set default values for properties / settings.
             Name = "ProjectNameDUT";

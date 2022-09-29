@@ -7,8 +7,8 @@ using OpenTap;
 
 namespace ProjectName
 {
-    [Display("ProjectNameComponentSettings", Description: "Add a description here")]
-    public class ProjectNameComponentSettings : ComponentSettings<ProjectNameComponentSettings>
+    [Display("MyComponentSettings", Description: "Add a description here")]
+    public class MyComponentSettings : ComponentSettings<MyComponentSettings>
     {
         // TODO: Add settings here as properties, use DisplayAttribute to indicate to the GUI
         //       how the setting should be displayed.

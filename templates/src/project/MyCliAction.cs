@@ -5,8 +5,8 @@ using OpenTap.Cli;
 
 namespace ProjectName
 {
-    [Display("ProjectNameCliAction", "Description of action.", "ProjectName")]
-    public class ProjectNameCliAction : ICliAction
+    [Display("MyCliAction", "Description of action.", "ProjectName")]
+    public class MyCliAction : ICliAction
     {
         public int Execute(CancellationToken cancellationToken)
         {

@@ -7,13 +7,13 @@ using OpenTap;
 
 namespace ProjectName
 {
-    [Display("ProjectNameInstrument")]
-    public class ProjectNameInstrument : Instrument
+    [Display("MyInstrument")]
+    public class MyInstrument : Instrument
     {
         #region Settings
         // ToDo: Add property here for each parameter the end user should be able to change
         #endregion
-        public ProjectNameInstrument()
+        public MyInstrument()
         {
             Name = "ProjectNameInstrument";
             // ToDo: Set default values for properties / settings.

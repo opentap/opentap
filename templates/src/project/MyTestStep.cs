@@ -2,13 +2,13 @@ using OpenTap;
 
 namespace ProjectName
 {
-    [Display("ProjectNameTestStep")]
-    public class ProjectNameTestStep : TestStep
+    [Display("MyTestStep")]
+    public class MyTestStep : TestStep
     {
         #region Settings
         // ToDo: Add property here for each parameter the end user should be able to change
         #endregion
-        public ProjectNameTestStep()
+        public MyTestStep()
         {
             // ToDo: Set default values for properties / settings.
         }

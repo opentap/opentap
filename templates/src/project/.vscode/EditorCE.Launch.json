@@ -10,7 +10,7 @@
       "request": "launch",
       "preLaunchTask": "build",
       "program": "tap.exe",
-      "args": [ "editor", "ProjectName.TapPlan", "-c", "-v" ],
+      "args": [ "tui", "ProjectName.TapPlan", "-c", "-v" ],
       "cwd": "${workspaceFolder}/bin/debug/",
       "console": "externalTerminal",
       "stopAtEntry": false
