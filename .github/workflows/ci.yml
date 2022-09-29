@@ -544,9 +544,9 @@ jobs:
         uses: actions/setup-dotnet@v1
         with:
           dotnet-version: '6.0.x'
-      - name: UpdateVersion
+      - name: Update Version
         run: |
-          (Get-Content .\templates\src\project\sln\Directory.Build.Props).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+          $content =(Get-Content .\templates\src\project\sln\Directory.Build.Props).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Set-Content .\templates\src\project\sln\Directory.Build.Props $content
       - name: Package
         run: dotnet pack ./templates/
