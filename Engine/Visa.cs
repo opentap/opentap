@@ -7,6 +7,7 @@ using System;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using OpenTap;
 
 internal static class Visa
 {
@@ -38,10 +39,14 @@ internal static class Visa
     private delegate int viStatusDescDelegate(int vi, int status, StringBuilder desc);
     private delegate int viEnableEventDelegate(int vi, int eventType, short mechanism, int context);
     private delegate int viDisableEventDelegate(int vi, int eventType, short mechanism);
-    private delegate int viInstallHandlerDelegate(int vi, int eventType, viEventHandler handler, int UserHandle);
-    private delegate int viUninstallHandlerDelegate(int vi, int eventType, viEventHandler handler, int userHandle);
+    private delegate int viInstallHandlerDelegate(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle);
+    private delegate int viUninstallHandlerDelegate(int vi, int eventType, IVisa.viEventHandler handler, int userHandle);
+    private delegate int viInstallHandlerDelegate2(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle);
+    private delegate int viUninstallHandlerDelegate2(int vi, int eventType, IVisa.viEventHandler handler, int userHandle);
     private unsafe delegate int viReadDelegate(int vi, byte* buffer, int count, out int retCount);
     private unsafe delegate int viWriteDelegate(int vi, byte* buffer, int count, out int retCount);
+    private unsafe delegate int viReadDelegate2(int vi, ArraySegment<byte> buffer, int count, out int retCount);
+    private unsafe delegate int viWriteDelegate2(int vi, ArraySegment<byte> buffer, int count, out int retCount);
     private delegate int viReadSTBDelegate(int vi, ref short status);
     private delegate int viClearDelegate(int vi);
     private delegate int viLockDelegate(int vi, int lockType, int timeout, string requestedKey, StringBuilder accessKey);
@@ -64,8 +69,12 @@ internal static class Visa
     private static viDisableEventDelegate viDisableEventRef;
     private static viInstallHandlerDelegate viInstallHandlerRef;
     private static viUninstallHandlerDelegate viUninstallHandlerRef;
+    private static viInstallHandlerDelegate2 viInstallHandlerRef2;
+    private static viUninstallHandlerDelegate2 viUninstallHandlerRef2;
     private static viReadDelegate viReadRef;
     private static viWriteDelegate viWriteRef;
+    private static viReadDelegate2 viReadRef2;
+    private static viWriteDelegate2 viWriteRef2;
     private static viReadSTBDelegate viReadSTBRef;
     private static viClearDelegate viClearRef;
     private static viLockDelegate viLockRef;
@@ -81,61 +90,98 @@ internal static class Visa
     {
         return Marshal.GetDelegateForFunctionPointer<T>(s);
     }
-
+    private static string alternateVisa = "";
+    
     static Visa()
     {
         bool IsWin32 = OpenTap.OperatingSystem.Current == OpenTap.OperatingSystem.Windows; 
 
         Func<IntPtr> LoadLib;
         Func<IntPtr, string, int, IntPtr> LoadSym;
-
-        if (IsWin32)
+        
+        alternateVisa = ComponentSettings<VisaSettings>.GetCurrent().AlternateVisa.Trim();
+        if (alternateVisa == "")
         {
-            LoadLib = () => LoadLibrary("visa32.dll");
-            LoadSym = (lib_handle, name, ord) => GetProcAddress(lib_handle, name);
+            if (IsWin32)
+            {
+                LoadLib = () => LoadLibrary("visa32.dll");
+                LoadSym = (lib_handle, name, ord) => GetProcAddress(lib_handle, name);
+            }
+            else
+            {
+                LoadLib = () =>
+                {
+                    string[] paths = {"./libvisa32.so", "./libvisa.so", "libvisa32.so", "libvisa.so", "libiovisa.so", "./libiovisa.so"};
+                    return paths.Select(LibDl.Load) .FirstOrDefault(x => x != IntPtr.Zero);
+                };
+                LoadSym = (lib_handle, name, ord) => LibDl.Sym(lib_handle, name);
+            }
+
+            var lib = LoadLib();
+
+            viOpenDefaultRMRef = GetSymbol<viOpenDefaultRMDelegate>(LoadSym(lib, "viOpenDefaultRM", 141));
+
+            viFindRsrcRef = GetSymbol<viFindRsrcDelegate>(LoadSym(lib, "viFindRsrc", 129));
+            viFindNextRef = GetSymbol<viFindNextDelegate>(LoadSym(lib, "viFindNext", 130));
+            viParseRsrcRef = GetSymbol<viParseRsrcDelegate>(LoadSym(lib, "viParseRsrc", 146));
+            viParseRsrcExRef = GetSymbol<viParseRsrcExDelegate>(LoadSym(lib, "viParseRsrcEx", 147));
+
+            viOpenRef = GetSymbol<viOpenDelegate>(LoadSym(lib, "viOpen", 131));
+            viCloseRef = GetSymbol<viCloseDelegate>(LoadSym(lib, "viClose", 132));
+
+            viReadRef = GetSymbol<viReadDelegate>(LoadSym(lib, "viRead", 256));
+            viWriteRef = GetSymbol<viWriteDelegate>(LoadSym(lib, "viWrite", 257));
+            viReadSTBRef = GetSymbol<viReadSTBDelegate>(LoadSym(lib, "viReadSTB", 259));
+            viClearRef = GetSymbol<viClearDelegate>(LoadSym(lib, "viClear", 260));
+
+            viLockRef = GetSymbol<viLockDelegate>(LoadSym(lib, "viLock", 144));
+            viUnlockRef = GetSymbol<viUnlockDelegate>(LoadSym(lib, "viUnlock", 145));
+
+            viGetAttribute1Ref = GetSymbol<viGetAttributeDelegate1>(LoadSym(lib, "viGetAttribute", 133));
+            viGetAttribute2Ref = GetSymbol<viGetAttributeDelegate2>(LoadSym(lib, "viGetAttribute", 133));
+            viGetAttribute3Ref = GetSymbol<viGetAttributeDelegate3>(LoadSym(lib, "viGetAttribute", 133));
+            viSetAttribute1Ref = GetSymbol<viSetAttributeDelegate1>(LoadSym(lib, "viSetAttribute", 134));
+            viSetAttribute2Ref = GetSymbol<viSetAttributeDelegate2>(LoadSym(lib, "viSetAttribute", 134));
+
+            viStatusDescRef = GetSymbol<viStatusDescDelegate>(LoadSym(lib, "viStatusDesc", 142));
+
+            viEnableEventRef = GetSymbol<viEnableEventDelegate>(LoadSym(lib, "viEnableEvent", 135));
+            viDisableEventRef = GetSymbol<viDisableEventDelegate>(LoadSym(lib, "viDisableEvent", 136));
+            viInstallHandlerRef = GetSymbol<viInstallHandlerDelegate>(LoadSym(lib, "viInstallHandler", 139));
+            viUninstallHandlerRef = GetSymbol<viUninstallHandlerDelegate>(LoadSym(lib, "viUninstallHandler", 140));
         }
         else
-        {
-            LoadLib = () =>
+        {   
+            var myITypeData = TypeData.GetTypeData(alternateVisa);
+            var instance = myITypeData.CreateInstance();
+
+            viOpenDefaultRMRef = ((IVisa)instance).viOpenDefaultRM;
+            viFindRsrcRef = ((IVisa)instance).viFindRsrc;
+            viFindNextRef = ((IVisa)instance).viFindNext;
+            viParseRsrcRef = ((IVisa)instance).viParseRsrc;
+            viParseRsrcExRef = ((IVisa)instance).viParseRsrcEx;
+            viOpenRef = ((IVisa)instance).viOpen;
+            viCloseRef = ((IVisa)instance).viClose;
+            unsafe 
             {
-                string[] paths = {"./libvisa32.so", "./libvisa.so", "libvisa32.so", "libvisa.so", "libiovisa.so", "./libiovisa.so"};
-                return paths.Select(LibDl.Load) .FirstOrDefault(x => x != IntPtr.Zero);
-            };
-            LoadSym = (lib_handle, name, ord) => LibDl.Sym(lib_handle, name);
+                viReadRef2 = ((IVisa)instance).viRead;
+                viWriteRef2 = ((IVisa)instance).viWrite;
+            }
+            viReadSTBRef = ((IVisa)instance).viReadSTB;
+            viClearRef = ((IVisa)instance).viClear;
+            viLockRef = ((IVisa)instance).viLock;
+            viUnlockRef = ((IVisa)instance).viUnlock;
+            viGetAttribute1Ref = ((IVisa)instance).viGetAttributeDelegate1;
+            viGetAttribute2Ref = ((IVisa)instance).viGetAttributeDelegate2;
+            viGetAttribute3Ref = ((IVisa)instance).viGetAttributeDelegate3;
+            viSetAttribute1Ref = ((IVisa)instance).viSetAttributeDelegate1;
+            viSetAttribute2Ref = ((IVisa)instance).viSetAttributeDelegate2;
+            viStatusDescRef = ((IVisa)instance).viStatusDesc;
+            viEnableEventRef = ((IVisa)instance).viEnableEvent;
+            viDisableEventRef = ((IVisa)instance).viDisableEvent;
+            viInstallHandlerRef2 = ((IVisa)instance).viInstallHandler;
+            viUninstallHandlerRef2 = ((IVisa)instance).viUninstallHandler;
         }
-
-        var lib = LoadLib();
-
-        viOpenDefaultRMRef = GetSymbol<viOpenDefaultRMDelegate>(LoadSym(lib, "viOpenDefaultRM", 141));
-
-        viFindRsrcRef = GetSymbol<viFindRsrcDelegate>(LoadSym(lib, "viFindRsrc", 129));
-        viFindNextRef = GetSymbol<viFindNextDelegate>(LoadSym(lib, "viFindNext", 130));
-        viParseRsrcRef = GetSymbol<viParseRsrcDelegate>(LoadSym(lib, "viParseRsrc", 146));
-        viParseRsrcExRef = GetSymbol<viParseRsrcExDelegate>(LoadSym(lib, "viParseRsrcEx", 147));
-
-        viOpenRef = GetSymbol<viOpenDelegate>(LoadSym(lib, "viOpen", 131));
-        viCloseRef = GetSymbol<viCloseDelegate>(LoadSym(lib, "viClose", 132));
-
-        viReadRef = GetSymbol<viReadDelegate>(LoadSym(lib, "viRead", 256));
-        viWriteRef = GetSymbol<viWriteDelegate>(LoadSym(lib, "viWrite", 257));
-        viReadSTBRef = GetSymbol<viReadSTBDelegate>(LoadSym(lib, "viReadSTB", 259));
-        viClearRef = GetSymbol<viClearDelegate>(LoadSym(lib, "viClear", 260));
-
-        viLockRef = GetSymbol<viLockDelegate>(LoadSym(lib, "viLock", 144));
-        viUnlockRef = GetSymbol<viUnlockDelegate>(LoadSym(lib, "viUnlock", 145));
-
-        viGetAttribute1Ref = GetSymbol<viGetAttributeDelegate1>(LoadSym(lib, "viGetAttribute", 133));
-        viGetAttribute2Ref = GetSymbol<viGetAttributeDelegate2>(LoadSym(lib, "viGetAttribute", 133));
-        viGetAttribute3Ref = GetSymbol<viGetAttributeDelegate3>(LoadSym(lib, "viGetAttribute", 133));
-        viSetAttribute1Ref = GetSymbol<viSetAttributeDelegate1>(LoadSym(lib, "viSetAttribute", 134));
-        viSetAttribute2Ref = GetSymbol<viSetAttributeDelegate2>(LoadSym(lib, "viSetAttribute", 134));
-
-        viStatusDescRef = GetSymbol<viStatusDescDelegate>(LoadSym(lib, "viStatusDesc", 142));
-
-        viEnableEventRef = GetSymbol<viEnableEventDelegate>(LoadSym(lib, "viEnableEvent", 135));
-        viDisableEventRef = GetSymbol<viDisableEventDelegate>(LoadSym(lib, "viDisableEvent", 136));
-        viInstallHandlerRef = GetSymbol<viInstallHandlerDelegate>(LoadSym(lib, "viInstallHandler", 139));
-        viUninstallHandlerRef = GetSymbol<viUninstallHandlerDelegate>(LoadSym(lib, "viUninstallHandler", 140));
     }
     #endregion
 
@@ -160,27 +206,51 @@ internal static class Visa
 
     internal static int viEnableEvent(int vi, int eventType, short mechanism, int context) { return viEnableEventRef(vi, eventType, mechanism, context); }
     internal static int viDisableEvent(int vi, int eventType, short mechanism) { return viDisableEventRef(vi, eventType, mechanism); }
-    internal static int viInstallHandler(int vi, int eventType, viEventHandler handler, int UserHandle) { return viInstallHandlerRef(vi, eventType, handler, UserHandle); }
-    internal static int viUninstallHandler(int vi, int eventType, viEventHandler handler, int userHandle) { return viUninstallHandlerRef(vi, eventType, handler, userHandle); }
+    internal static int viInstallHandler(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle) 
+    { 
+        if (alternateVisa == "")
+        {
+            return viInstallHandlerRef(vi, eventType, handler, UserHandle);
+        }
+        else
+        {
+            return viInstallHandlerRef2(vi, eventType, handler, UserHandle);
+        }
+    }
+    internal static int viUninstallHandler(int vi, int eventType, IVisa.viEventHandler handler, int userHandle) { return viUninstallHandlerRef(vi, eventType, handler, userHandle); }
 
     internal unsafe static int viRead(int vi, ArraySegment<byte> buffer, int count, out int retCount)
     {
-        if (buffer.Count < count)
-            throw new ArgumentException("Amount of bytes requested is larger than the space available in buffer.");
-        
-        fixed (byte* p = &buffer.Array[buffer.Offset])
+        if (alternateVisa == "")
+        {            
+            if (buffer.Count < count)
+                throw new ArgumentException("Amount of bytes requested is larger than the space available in buffer.");
+            
+            fixed (byte* p = &buffer.Array[buffer.Offset])
+            {
+                return viReadRef(vi, p, count, out retCount);
+            }
+        }
+        else
         {
-            return viReadRef(vi, p, count, out retCount);
+            return viReadRef2(vi, buffer, count, out retCount);
         }
     }
     internal unsafe static int viWrite(int vi, ArraySegment<byte> buffer, int count, out int retCount)
     {
-        if (buffer.Count < count)
-            throw new ArgumentException("Amount of bytes requested to be written is larger than the space present in buffer.");
+        if (alternateVisa == "")
+        {                
+            if (buffer.Count < count)
+                throw new ArgumentException("Amount of bytes requested to be written is larger than the space present in buffer.");
 
-        fixed (byte* p = &buffer.Array[buffer.Offset])
+            fixed (byte* p = &buffer.Array[buffer.Offset])
+            {
+                return viWriteRef(vi, p, count, out retCount);
+            }
+        } 
+        else
         {
-            return viWriteRef(vi, p, count, out retCount);
+            return viWriteRef2(vi, buffer, count, out retCount);
         }
     }
 
@@ -746,4 +816,51 @@ internal static class Visa
     #endregion
 
     #endregion
+}
+
+namespace OpenTap 
+{
+    public interface IVisa
+    {
+        int viOpenDefaultRM(out int sesn);
+        int viFindRsrc(int sesn, string expr, out int vi, out int retCount, StringBuilder desc);
+        int viFindNext(int vi, StringBuilder desc);
+        int viParseRsrc(int sesn, string desc, ref short intfType, ref short intfNum);
+        int viParseRsrcEx(int sesn, string desc, ref short intfType, ref short intfNum, StringBuilder rsrcClass, StringBuilder expandedUnaliasedName, StringBuilder aliasIfExists);
+        int viOpen(int sesn, string viDesc, int mode, int timeout, out int vi);
+        int viClose(int vi);
+        int viGetAttributeDelegate1(int vi, int attrName, out byte attrValue);
+        int viGetAttributeDelegate2(int vi, int attrName, StringBuilder attrValue);
+        int viGetAttributeDelegate3(int vi, int attrName, out int attrValue);
+        int viSetAttributeDelegate1(int vi, int attrName, byte attrValue);
+        int viSetAttributeDelegate2(int vi, int attrName, int attrValue);
+        int viStatusDesc(int vi, int status, StringBuilder desc);
+        int viEnableEvent(int vi, int eventType, short mechanism, int context);
+        int viDisableEvent(int vi, int eventType, short mechanism);
+        int viInstallHandler(int vi, int eventType, viEventHandler handler, int UserHandle);
+        int viUninstallHandler(int vi, int eventType, viEventHandler handler, int userHandle);
+        unsafe int viRead(int vi, ArraySegment<Byte> buffer, int count, out int retCount);
+        unsafe int viWrite(int vi, ArraySegment<Byte> buffer, int count, out int retCount);
+        int viReadSTB(int vi, ref short status);
+        int viClear(int vi);
+        int viLock(int vi, int lockType, int timeout, string requestedKey, StringBuilder accessKey);
+        int viUnlock(int vi);
+        delegate int viEventHandler(int vi, int eventType, int context, int userHandle);
+    }
+    
+    //VisaSettings
+    [Display("VISA", "VISA Settings")]
+    [SettingsGroupAttribute("Bench", Profile: true)]
+    public class VisaSettings : ComponentSettings<VisaSettings>
+    {
+        // Full name of alternate VISA implementation class
+        [Display("Alternate VISA", Description: "Name of alternate VISA implementation", Groups: new[] {"Bench", "Instrument"})]
+        public String AlternateVisa { get; set; }
+
+        // Settings for VISA
+        public VisaSettings()
+        {
+            AlternateVisa = "";
+        }
+    }
 }
