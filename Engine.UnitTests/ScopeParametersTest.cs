@@ -326,6 +326,12 @@ namespace OpenTap.UnitTests
                 parameterize = icons[name].First();
                 Assert.IsFalse(parameterize.GetAll<IEnabledAnnotation>().Any(x => x.IsEnabled == false));
             }
+
+            // Now parameterize it (sweep -> sequence step).
+            icons[IconNames.ParameterizeOnParent].First().Get<IMethodAnnotation>().Invoke();
+            
+            // It should not be possible to select a parameterized property to be swept.
+            Assert.IsTrue(!sweep.AvailableParameters.Any());
         }
 
         [Test]

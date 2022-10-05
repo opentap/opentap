@@ -65,6 +65,10 @@ namespace OpenTap
             }
             return null;
         }
+
+        /// <summary> Returns true if a member is parameters </summary>
+        public static bool IsParameterized(this IMemberData member, object source) =>
+            DynamicMember.IsParameterized(member, source);
     }
 
     /// <summary>
