@@ -10,6 +10,7 @@ TestResults/
 nuget/build/payload
 node_modules/
 /public/
+.DS_Store
 
 # Temp files from git merges:
 *.orig
