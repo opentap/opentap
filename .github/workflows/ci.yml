@@ -551,7 +551,7 @@ jobs:
           Set-Content .\templates\src\project\sln\Directory.Build.Props (Get-Content .\templates\src\project\sln\Directory.Build.Props).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Get-Content .\templates\src\project\sln\Directory.Build.Props
 
-          Set-Content .\templates\Templates.csproj (Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.GitVersion}}")
+          Set-Content .\templates\Templates.csproj (Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Get-Content .\templates\Templates.csproj
       - name: Package
         run: dotnet pack ./templates/
