@@ -231,10 +231,10 @@ namespace OpenTap.Package
 
             void ReplaceVersion(string versionName, int fieldCount, ref string cachedVersion)
             {
-                if (!element.ToString().Contains(versionName))
+                if (!element.ToString().Contains("$(" + versionName + ")"))
                     return;
 
-                if (cachedVersion == null && string.IsNullOrWhiteSpace(ProjectDir))
+                if (cachedVersion == null && string.IsNullOrWhiteSpace(ProjectDir) == false)
                 {
                     try
                     {
@@ -250,7 +250,7 @@ namespace OpenTap.Package
                 }
 
                 // If 'GitVersion' could not be resolved, don't replace it
-                if (version != null)
+                if (cachedVersion != null)
                     ExpansionHelper.ReplaceToken(element, versionName, cachedVersion);
             }
         }
