@@ -224,13 +224,20 @@ namespace OpenTap.Package
 
         public void Expand(XElement element)
         {
-            if (!element.ToString().Contains("$(GitVersion)")) return;
+            bool containsGitVersion = element.ToString().Contains("$(GitVersion)");
+            bool containsLongVersion = element.ToString().Contains("$(GitLongVersion)");
+
+            if (containsGitVersion || containsLongVersion) return;
+
             if (version == null && string.IsNullOrWhiteSpace(ProjectDir) == false)
             {
                 try
                 {
                     var calc = new GitVersionCalulator(ProjectDir);
-                    version = calc.GetVersion().ToString(5);
+                    if (containsGitVersion)
+                        version = calc.GetVersion().ToString(5);
+                    else if (containsLongVersion)
+                        version = calc.GetVersion().ToString(4);
                     log.Info("Package version is {0}", version);
                 }
                 catch (Exception ex)
@@ -242,7 +249,7 @@ namespace OpenTap.Package
 
             // If 'GitVersion' could not be resolved, don't replace it
             if (version != null)
-                ExpansionHelper.ReplaceToken(element, "GitVersion", version);
+                ExpansionHelper.ReplaceToken(element, containsGitVersion ? "GitVersion" : "GitLongVersion", version);
         }
     }
 }
