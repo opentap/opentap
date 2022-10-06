@@ -596,7 +596,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: package-templates
-          path: bin\Release\Packages\SDK\
+          path: Packages\SDK\
       - name: Package
         run: |
           $env:Sign = "false"
