@@ -563,6 +563,7 @@ jobs:
       - Build-DevGuide
       - Build-ApiDoc
       - GetVersion
+      - Package-Templates
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -586,6 +587,11 @@ jobs:
         with:
           name: doc-api-chm
           path: Help/
+      - name: Download Template package
+        uses: actions/download-artifact@v2
+        with:
+          name: package-templates
+          path: ./bin/Release/Packages/SDK/
       - name: Package
         run: |
           $env:Sign = "false"
@@ -905,8 +911,14 @@ jobs:
     environment: nuget.org
     runs-on: windows-2022
     needs:
+      - Package-Templates
       - Package-NuGet
     steps:
+      - name: Download Template package
+        uses: actions/download-artifact@v2
+        with:
+          name: package-templates
+          path: .
       - name: Download nuget package
         uses: actions/download-artifact@v2
         with:
