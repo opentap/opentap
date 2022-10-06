@@ -218,38 +218,41 @@ namespace OpenTap.Package
 
         private string ProjectDir { get; }
 
+        private string longVersion = null;
+
         private string version = null;
 
         private static TraceSource log = Log.CreateSource(nameof(GitVersionExpander));
 
         public void Expand(XElement element)
         {
-            bool containsGitVersion = element.ToString().Contains("$(GitVersion)");
-            bool containsLongVersion = element.ToString().Contains("$(GitLongVersion)");
+            ReplaceVersion("GitVersion", 5, ref version);
+            ReplaceVersion("GitLongVersion", 4, ref longVersion);
 
-            if (!containsGitVersion && !containsLongVersion) return;
-
-            if (version == null && string.IsNullOrWhiteSpace(ProjectDir) == false)
+            void ReplaceVersion(string versionName, int fieldCount, ref string cachedVersion)
             {
-                try
-                {
-                    var calc = new GitVersionCalulator(ProjectDir);
-                    if (containsGitVersion)
-                        version = calc.GetVersion().ToString(5);
-                    else if (containsLongVersion)
-                        version = calc.GetVersion().ToString(4);
-                    log.Info("Package version is {0}", version);
-                }
-                catch (Exception ex)
-                {
-                    log.ErrorOnce(this, "Failed to calculate GitVersion.");
-                    log.Debug(ex);
-                }
-            }
+                if (!element.ToString().Contains(versionName))
+                    return;
 
-            // If 'GitVersion' could not be resolved, don't replace it
-            if (version != null)
-                ExpansionHelper.ReplaceToken(element, containsGitVersion ? "GitVersion" : "GitLongVersion", version);
+                if (cachedVersion == null && string.IsNullOrWhiteSpace(ProjectDir))
+                {
+                    try
+                    {
+                        var calc = new GitVersionCalulator(ProjectDir);
+                        cachedVersion = calc.GetVersion().ToString(fieldCount);
+                        log.Info("Package {1} is {0}", cachedVersion, versionName);
+                    }
+                    catch (Exception ex)
+                    {
+                        log.ErrorOnce(cachedVersion, "Failed to calculate {0}.", versionName);
+                        log.Debug(ex);
+                    }
+                }
+
+                // If 'GitVersion' could not be resolved, don't replace it
+                if (version != null)
+                    ExpansionHelper.ReplaceToken(element, versionName, cachedVersion);
+            }
         }
     }
 }
