@@ -18,7 +18,7 @@
     </File>
     <File Path="OpenTap.xml"/>
     <File Path="OpenTap.Package.xml"/>
-    <File Path="Packages/SDK/OpenTAP.Templates.$(GitVersion).Nupkg"/>
+    <File Path="Packages/SDK/OpenTAP.Templates.$(GitVersion).nupkg"/>
     <File Path="Packages/SDK/PackageSchema.xsd"/>
     <File Path="Packages/SDK/OpenTAP Developer Guide.pdf" SourcePath="Packages/SDK/Examples/OpenTAP Developer Guide.pdf"/>
     <File Path="Packages/SDK/Examples/.OpenTapIgnore"/>
@@ -57,6 +57,6 @@
     <File Path="Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/Properties/AssemblyInfo.cs"/>
   </Files>
   <PackageActionExtensions>
-    <ActionStep ExeFile="dotnet" Arguments='-i OpenTAP.Templates.$(GitVersion).Nupkg' ActionName="install"/> 
+    <ActionStep ExeFile="dotnet" Arguments='-i OpenTAP.Templates.$(GitVersion).nupkg' ActionName="install"/> 
   </PackageActionExtensions>
 </Package>
