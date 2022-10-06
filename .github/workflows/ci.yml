@@ -550,6 +550,9 @@ jobs:
         run: |
           $content =(Get-Content .\templates\src\project\sln\Directory.Build.Props).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Set-Content .\templates\src\project\sln\Directory.Build.Props $content
+
+          $content =(Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+          Set-Content .\templates\Templates.csproj $content
       - name: Package
         run: dotnet pack ./templates/
       - uses: actions/upload-artifact@v2
