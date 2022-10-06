@@ -227,7 +227,7 @@ namespace OpenTap.Package
             bool containsGitVersion = element.ToString().Contains("$(GitVersion)");
             bool containsLongVersion = element.ToString().Contains("$(GitLongVersion)");
 
-            if (containsGitVersion || containsLongVersion) return;
+            if (!containsGitVersion && !containsLongVersion) return;
 
             if (version == null && string.IsNullOrWhiteSpace(ProjectDir) == false)
             {
