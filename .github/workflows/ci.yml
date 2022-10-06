@@ -594,7 +594,7 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: package-templates
-          path: bin/Release/Packages/SDK/
+          path: bin/Release/Packages2/SDK/
       - name: Package
         run: |
           $env:Sign = "false"
@@ -614,6 +614,7 @@ jobs:
           $doc.FirstChild.RemoveChild($ele) # First Child is the Project element
           $doc.Save("$pwd/Directory.Build.props")
           cd ../../..
+          Move-Item "Packages2/SDK/OpenTap.Templates.*.nupkg" "Packages/SDK/"
           $content=(Get-Content Packages/SDK/Examples/Directory.Build.props).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Set-Content Packages/SDK/Examples/Directory.Build.props $content
           ./tap package create -v -c ../../sdk/sdk.package.xml
