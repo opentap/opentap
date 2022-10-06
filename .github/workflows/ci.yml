@@ -548,11 +548,11 @@ jobs:
           dotnet-version: '6.0.x'
       - name: Update Version
         run: |
-          $content =(Get-Content .\templates\src\project\sln\Directory.Build.Props).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
-          Set-Content .\templates\src\project\sln\Directory.Build.Props $content
+          Set-Content .\templates\src\project\sln\Directory.Build.Props (Get-Content .\templates\src\project\sln\Directory.Build.Props).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+          Get-Content .\templates\src\project\sln\Directory.Build.Props
 
-          $content =(Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
-          Set-Content .\templates\Templates.csproj $content
+          Set-Content .\templates\Templates.csproj (Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+          Get-Content .\templates\Templates.csproj
       - name: Package
         run: dotnet pack ./templates/
       - uses: actions/upload-artifact@v2
