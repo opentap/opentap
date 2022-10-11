@@ -296,6 +296,8 @@ namespace OpenTap.Package
                         canBeFile = false;
                     }
                 }
+
+                log.Warning($"Repository '{url}' is ambiguous. It will be interpreted as a {(canBeFile ? "directory" : "http repository")}. Please specify a URI scheme if this is not correct.");
                 
                 if (canBeFile) return new FilePackageRepository(Path.GetFullPath(url));
                 if (canBeUrl) return new HttpPackageRepository("http://" + url);
