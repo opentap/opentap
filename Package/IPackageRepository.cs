@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -262,16 +263,47 @@ namespace OpenTap.Package
                             throw new NotSupportedException($"Scheme {uri.Scheme} is not supported as a package repository ({url}).");
                     }
                 }
-                else
+
+                if (AuthenticationSettings.Current.BaseAddress != null)
+                    return DetermineRepositoryType(new Uri(new Uri(AuthenticationSettings.Current.BaseAddress), url).AbsoluteUri);
+                    
+                // This is a relative URI, and it's scheme cannot be determined. The best we can do is guess.
+                // If the path contains any invalid path chars, it cannot be a file repository
+                // Trailing slashes don't matter. Simplify the logic by stripping them
+                url = url.TrimEnd('/');
+                var canBeFile = Path.GetInvalidPathChars().Any(url.Contains) == false;
+                if (canBeFile)
                 {
-                    if (AuthenticationSettings.Current.BaseAddress != null)
-                        return DetermineRepositoryType(new Uri(new Uri(AuthenticationSettings.Current.BaseAddress), url).AbsoluteUri);
-                    else
-                        return new FilePackageRepository(Path.GetFullPath(url)); // GetFullPath throws ArgumentException if url contains illigal path chars
+                    try
+                    {
+                        // GetFullPath detects issues not detected by GetInvalidPathChars
+                        _ = Path.GetFullPath(url);
+                    }
+                    catch
+                    {
+                        canBeFile = false;
+                    }
                 }
+
+                var canBeUrl = Uri.IsWellFormedUriString("https://" + url, UriKind.Absolute);
+                if (canBeFile && canBeUrl)
+                {
+                    // The URI is ambiguous. Assume it is a http repository if it ends with something that looks like a top-level domain
+                    var segments = url.Split('.');
+                    var topLevel = segments.LastOrDefault();
+                    if (segments.Count() > 1 && !string.IsNullOrWhiteSpace(topLevel))
+                    {
+                        canBeFile = false;
+                    }
+                }
+
+                log.Warning($"Repository '{url}' is ambiguous. It will be interpreted as a {(canBeFile ? "directory" : "http repository")}. Please specify a URI scheme if this is not correct.");
+                
+                if (canBeFile) return new FilePackageRepository(Path.GetFullPath(url));
+                if (canBeUrl) return new HttpPackageRepository("http://" + url);
             }
-            else
-                throw new NotSupportedException($"Unable to determine repository type of '{url}'. Try specifying a scheme using 'http://' or 'file:///'.");
+
+            throw new NotSupportedException($"Unable to determine repository type of '{url}'. Try specifying a scheme using 'http://' or 'file:///'.");
         }
 
         static Dictionary<string, IPackageRepository> registeredRepositories = new Dictionary<string, IPackageRepository>();
