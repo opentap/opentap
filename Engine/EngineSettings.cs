@@ -131,6 +131,10 @@ namespace OpenTap
             get { return Environment.GetEnvironmentVariable("STARTUP_DIR"); }
             set { Environment.SetEnvironmentVariable("STARTUP_DIR", value); }
         }
+        ///<summary> Reduces some of the most occurring logging when running a test plan. </summary>
+        [Display("Reduce Logging", Group: "Optimization",
+            Description: "Reduces some of the most occurring logging when running a test plan.")]
+        public bool ReduceLogging { get; set; }
 
         /// <summary>
         /// 

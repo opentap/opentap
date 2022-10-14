@@ -278,30 +278,11 @@ namespace OpenTap
             return array;
         }
 
-        void Propagate(IResultListener rt, ResultTable result)
-        {
-            try
-            {
-                rt.OnResultPublished(stepRun.Id, result);
-            }
-            catch (Exception e)
-            {
-                log.Warning("Caught exception in result handling task.");
-                log.Debug(e);
-                planRun.RemoveFaultyResultListener(rt);
-            }
-        }
+        /// <summary> The current plan run. </summary>
+        internal readonly TestPlanRun PlanRun;
 
-
-        /// <summary>
-        /// The current plan run.
-        /// </summary>
-        readonly TestPlanRun planRun;
-
-        /// <summary>
-        /// The TestStepRun for this object.
-        /// </summary>
-        readonly TestStepRun stepRun;
+        /// <summary>  The TestStepRun for this object. </summary>
+        internal readonly TestStepRun StepRun;
 
         /// <summary>
         /// Adds an additional parameter to this TestStep run.
@@ -309,7 +290,7 @@ namespace OpenTap
         /// <param name="param">Parameter to add.</param>
         public void AddParameter(ResultParameter param)
         {
-            stepRun.Parameters.Add(param);
+            StepRun.Parameters.Add(param);
         }
 
         /// <summary>
@@ -319,8 +300,8 @@ namespace OpenTap
         /// <param name="planRun">TestPlanRun that this result proxy is proxy for.</param>
         public ResultSource(TestStepRun stepRun, TestPlanRun planRun)
         {
-            this.stepRun = stepRun;
-            this.planRun = planRun;
+            StepRun = stepRun;
+            PlanRun = planRun;
             stepRun.SetResultSource(this);
         }
 
@@ -330,7 +311,7 @@ namespace OpenTap
         /// </summary>
         public void Wait()
         {
-            planRun.WaitForResults();
+            PlanRun.WaitForResults();
         }
 
         WorkQueue deferWorker;
@@ -343,7 +324,7 @@ namespace OpenTap
         /// <param name="action"></param>
         public void Defer(Action action)
         {
-            if (TapThread.Current != stepRun.StepThread)
+            if (TapThread.Current != StepRun.StepThread)
                 throw new InvalidOperationException(
                     "Defer may only be executed from the same thread as the test step.");
             DeferNoCheck(action);
@@ -417,8 +398,7 @@ namespace OpenTap
             }
         }
 
-        Dictionary<ITypeData, Func<object, ResultTable>>
-            resultFunc = null; //new Dictionary<Type, Func<object, ResultTable>>();
+        Dictionary<ITypeData, Func<object, ResultTable>> resultFunc;
 
         readonly object resultFuncLock = new object();
 
@@ -561,7 +541,7 @@ namespace OpenTap
         /// <summary> Publishes a result table. </summary>
         public void PublishTable(ResultTable table)
         {
-            planRun.ScheduleInResultProcessingThread(new PublishResultTableInvokable(table, this));
+            PlanRun.ScheduleInResultProcessingThread(new PublishResultTableInvokable(table, this));
         }
 
         internal bool WasDeferred => deferWorker != null;
@@ -613,13 +593,13 @@ namespace OpenTap
             {
                 try
                 {
-                    a.OnResultPublished(proxy.stepRun.Id, CreateOptimizedTable(queue));
+                    a.OnResultPublished(proxy.StepRun.Id, CreateOptimizedTable(queue));
                 }
                 catch (Exception e)
                 {
                     log.Warning("Caught exception in result handling task.");
                     log.Debug(e);
-                    proxy.planRun.RemoveFaultyResultListener(a);
+                    proxy.PlanRun.RemoveFaultyResultListener(a);
                 }
             }
 

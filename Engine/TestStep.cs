@@ -145,8 +145,21 @@ namespace OpenTap
         [XmlIgnore]
         [AnnotationIgnore]
         [SettingsIgnore]
-        public ResultSource Results { get; internal set; }
+        public ResultSource Results {
+            get
+            {
+                if (results == null || results.StepRun != StepRun)
+                {
+                    if (StepRun == null) results = null;
+                    else results = new ResultSource(StepRun, PlanRun);
+                }
 
+                return results;
+            } 
+        }
+
+        ResultSource results;    
+        
         /// <summary>
         /// The enumeration of all enabled Child Steps.
         /// </summary>
@@ -260,7 +273,6 @@ namespace OpenTap
             var things = loaderLookup.GetValue(t, loadDefaultResources);
             foreach (var loader in things)
                 loader(this);
-            Results = null; // this will be set by DoRun just before calling Run()
         }
 
         static readonly ConditionalWeakTable<ITypeData, Action<object>[]> loaderLookup = new ConditionalWeakTable<ITypeData, Action<object>[]>();
@@ -939,7 +951,7 @@ namespace OpenTap
 
             var previouslyExecutingTestStep = currentlyExecutingTestStep;
             currentlyExecutingTestStep = Step;
-            var stepPath = stepRun.TestStepPath;
+            
             //Raise an event prior to starting the actual run of the TestStep. 
             Step.OfferBreak(stepRun, true);
             if (stepRun.SuggestedNextStep != null) {
@@ -962,14 +974,13 @@ namespace OpenTap
                         TapThread.Current.AbortToken);
                     try
                     {
-                        if (Step is TestStep _step)
-                            _step.Results = new ResultSource(stepRun, Step.PlanRun);
-                        TestPlan.Log.Info("{0} started.", stepRun.TestStepPath);
+                        if(!EngineSettings.Current.ReduceLogging)
+                            TestPlan.Log.Info("{0} started.", stepRun.TestStepPath);
                         stepRun.StartStepRun(); // set verdict to running, set Timestamp.
                         parentRun.ChildStarted(stepRun);
                         planRun.AddTestStepRunStart(stepRun);
                         Step.Run();
-                        stepRun.AfterRun(Step);
+                        stepRun.AfterRun(Step, planRun);
                         
                         TapThread.ThrowIfAborted();
                     }
@@ -1055,11 +1066,13 @@ namespace OpenTap
                         stepRun.CompleteStepRun(planRun, Step, time);
                         if (Step.Verdict == Verdict.NotSet)
                         {
-                            TestPlan.Log.Info(time, "{0} completed.", stepRun.TestStepPath);
+                            if(!EngineSettings.Current.ReduceLogging)
+                                TestPlan.Log.Info(time, "{0} completed.", stepRun.TestStepPath);
                         }
                         else
                         {
-                            TestPlan.Log.Info(time, "{0} completed with verdict '{1}'.", stepRun.TestStepPath, Step.Verdict);
+                            if(!EngineSettings.Current.ReduceLogging)
+                                TestPlan.Log.Info(time, "{0} completed with verdict '{1}'.", stepRun.TestStepPath, Step.Verdict);
                         }
 
                         planRun.AddTestStepRunCompleted(stepRun);
