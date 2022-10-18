@@ -574,7 +574,12 @@ namespace OpenTap.Package
             var result = ActionResult.Ok;
             var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : target;
 
-            var filesToRemain = new Installation(destination).GetPackages().Where(p => p.Name != package.Name).SelectMany(p => p.Files).Select(f => f.RelativeDestinationPath).Distinct(StringComparer.InvariantCultureIgnoreCase).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
+            var filesToRemain = new Installation(destination).GetPackages()
+                .Where(p => p.Name != package.Name)
+                .SelectMany(p => p.Files)
+                .Select(f => f.RelativeDestinationPath)
+                .Distinct(StringComparer.InvariantCultureIgnoreCase)
+                .ToHashSet(StringComparer.InvariantCultureIgnoreCase);
 
             try
             {
@@ -622,7 +627,20 @@ namespace OpenTap.Package
                 try
                 {
                     log.Debug("Deleting file '{0}'.", file.RelativeDestinationPath);
-                    File.Delete(fullPath);
+
+                    FileSystemHelper.SafeDelete(fullPath, 10, (i, ex) =>
+                    {
+                        if (ex is UnauthorizedAccessException || ex is IOException)
+                        {
+                            // File.Delete might throw either exception depending on if it is a
+                            // program _or_ a file in use.
+                            
+                            log.Warning("Unable to delete file '{0}' file might be in use. retrying ({1} of {2}) in 500ms.", file.RelativeDestinationPath, i + 1, 5);
+                            TapThread.Sleep(1000);
+                        }
+                        else throw ex;
+                    });
+                    
                 }
                 catch (Exception e)
                 {
