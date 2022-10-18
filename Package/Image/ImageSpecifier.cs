@@ -114,15 +114,17 @@ namespace OpenTap.Package
                         x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())))).ToArray();
                 if (unsatisfiedDependencies.Any())
                 {
+                    var packagesString = string.Join(",", image.Packages.Select(x => $"{x.Name}:{x.Version}"));
+                    var unsatisfiedString = string.Join(" and ", unsatisfiedDependencies.Select(x =>
+                    {
+                        var missingDeps = x.Dependencies.Where(dep => !InstalledPackages.Any(x2 =>
+                            x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())));
+                        string missingMsg = string.Join(" and ", missingDeps.Select(x2 => $"{x2.Name}:{x2.Version}"));
+                        return $"{x.Name} missing {missingMsg}";
+                    }));
                     throw new ImageResolveException(image,
-                        string.Format("Unable to resolve the selected packages. This is probably due to: {0}.",
-                        string.Join(" and ", unsatisfiedDependencies.Select(x =>
-                        {
-                            var missingDeps = x.Dependencies.Where(dep => !InstalledPackages.Any(x2 =>
-                                x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())));
-                            string missingMsg = string.Join(" and ", missingDeps.Select(x2 => $"{x2.Name}:{x2.Version}"));
-                            return $"{x.Name} missing {missingMsg}";
-                        }))));
+                        $"Unable to resolve the packages: {packagesString}. This is probably due to: {unsatisfiedString}."
+                       );
                 }
                 throw new ImageResolveException(image);
             }
@@ -192,6 +194,10 @@ namespace OpenTap.Package
         {
             return ImageHelper.GetImageFromString(value);
         }
+
+        /// <summary> Turns an image into a readable string.</summary>
+        /// <returns></returns>
+        public override string ToString() => string.Join(", ", Packages.Select(x => $"{x.Name}:{x.Version}"));
     }
 
     /// <summary>
