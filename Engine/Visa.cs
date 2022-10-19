@@ -888,7 +888,7 @@ namespace OpenTap
                 {
                     LoadLib = () =>
                     {
-                        string[] paths = {"/Library/Frameworks/VISA.framework/VISA"};
+                        string[] paths = {"./VISA", "/Library/Frameworks/VISA.framework/VISA"};
                         return paths.Select(LibDl.Load) .FirstOrDefault(x => x != IntPtr.Zero);
                     };
                     LoadSym = (lib_handle, name, ord) => LibDl.Sym(lib_handle, name);
