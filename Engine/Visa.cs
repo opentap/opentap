@@ -882,10 +882,12 @@ namespace OpenTap
                 } 
                 else if (IsMacOS)
                 {
-                    staticLog.Debug("Not attempting to load external VISA .dylib on MacOS");
-                    _loaded = false;
-                    LoadLib = () => NullPtr();
-                    return;
+                    LoadLib = () =>
+                    {
+                        string[] paths = {"/Library/Frameworks/VISA.framework/VISA"};
+                        return paths.Select(LibDl.Load) .FirstOrDefault(x => x != IntPtr.Zero);
+                    };
+                    LoadSym = (lib_handle, name, ord) => LibDl.Sym(lib_handle, name);
                 }
                 else 
                 {
