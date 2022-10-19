@@ -636,9 +636,17 @@ namespace OpenTap
         /// </summary>
         /// <param name="settingsType">The type of the component settings requested (this type must be a descendant of <see cref="ComponentSettings"/>).</param>
         /// <returns>Returns the loaded components settings. Null if it was not able to load the settings type.</returns>
-        public static ComponentSettings GetCurrent(ITypeData settingsType) =>
-            context.GetCurrent(settingsType.AsTypeData().Type);
-
+        public static ComponentSettings GetCurrent(ITypeData settingsType)
+        {
+            var td = settingsType.AsTypeData()?.Type;
+            // in some rare cases, the type can be null
+            // for example if the assembly could not be loaded(32/64bit incompatible), but it could be reflected.
+            // in this case just return null.
+            if (td == null)
+                return null;
+            return context.GetCurrent(td);
+        }
+        
         /// <summary>
         /// Gets current settings for a specified component from cache.
         /// </summary>
