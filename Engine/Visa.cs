@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -81,7 +82,7 @@ namespace OpenTap
         {
             object instance = null;
             var visaProviders = TypeData.GetDerivedTypes<IVisaProvider>();
-            
+            var instances = new SortedDictionary<double, (string, IVisa)>();
             foreach (var typeDataIVisa in visaProviders) 
             {
                 if (typeDataIVisa != null)
@@ -91,18 +92,20 @@ namespace OpenTap
                         IVisaProvider providerInstance = (IVisaProvider)typeDataIVisa.CreateInstance();
                         if (providerInstance.Visa != null)
                         {
-                            instance = providerInstance.Visa; 
+                            instances[providerInstance.Order] = (typeDataIVisa.Name, providerInstance.Visa); 
                             staticLog.Debug("Loaded IVisaProvider: {0}", typeDataIVisa.Name);
-                            break;
                         }
                     }
                     catch {}
                 }            
             }
-            if (instance == null)
+            if (instances.Count == 0)
             {
                 throw new Exception("IVisaProvider unable to load VISA");
             }
+            
+            instance = instances.Values.First().Item2;
+            staticLog.Debug("Using IVisaProvider: {0}", instances.Values.First().Item1);
 
             viOpenDefaultRMRef = ((IVisa)instance).viOpenDefaultRM;
             viFindRsrcRef = ((IVisa)instance).viFindRsrc;
