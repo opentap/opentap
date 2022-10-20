@@ -18,7 +18,7 @@ namespace OpenTap.Package
         // - Linux: /home/<USER>/.local/share/OpenTAP/PackageCache
         // - Windows: C:\Users\<USER>\AppData\Local\OpenTAP\PackageCache
         //
-        // Unless OPENTAP_PACKAGE_CACHE is set, then that path will be used instead.
+        // Unless OPENTAP_PACKAGE_CACHE_DIR is set, then that path will be used instead.
         public static string PackageCacheDirectory
         {
             get
@@ -30,7 +30,7 @@ namespace OpenTap.Package
             }
         } 
 
-        const string PackageCacheOverrideEnvironmentVariable = "OPENTAP_PACKAGE_CACHE";
+        const string PackageCacheOverrideEnvironmentVariable = "OPENTAP_PACKAGE_CACHE_DIR";
         
         readonly static TraceSource log =  Log.CreateSource("PackageCache");
 
