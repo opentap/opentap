@@ -592,11 +592,13 @@ namespace OpenTap
         public Nullable<ulong> MaxNumberOfElements { get; set; }
 
         public Memorizer(Func<ArgT, MemorizerKey> getKey = null,
-            Func<ArgT, ResultT> extractData = null)
+            Func<ArgT, ResultT> extractData = null, bool trackTime = true)
         {
             if (extractData != null)
                 getData = extractData;
             this.getKey = getKey;
+            if (!trackTime)
+                lastUse = null;
         }
 
         /// <summary>
@@ -615,6 +617,7 @@ namespace OpenTap
 
         Status checkSizeConstraints()
         {
+            if (lastUse == null) return Status.Unchanged;
             if (SoftSizeDecayTime < TimeSpan.MaxValue || MaxNumberOfElements.HasValue
                 && (ulong) memorizerTable.Count > MaxNumberOfElements.Value)
             {
@@ -680,7 +683,8 @@ namespace OpenTap
             LockObject lockObj;
             lock (memorizerTable)
             {
-                lastUse[key] = DateTime.UtcNow;
+                if(lastUse != null)
+                    lastUse[key] = DateTime.UtcNow;
                 if (!locks.TryGetValue(key, out lockObj))
                 {
                     lockObj = new LockObject();
@@ -728,7 +732,8 @@ namespace OpenTap
             {
                 if (!memorizerTable.TryGetValue(key, out o))
                     return default(ResultT);
-                lastUse[key] = DateTime.UtcNow;;
+                if(lastUse != null)
+                    lastUse[key] = DateTime.UtcNow;;
             }
             return o;
         }
@@ -739,7 +744,8 @@ namespace OpenTap
 
             lock (memorizerTable)
             {
-                lastUse[key] = DateTime.UtcNow;
+                if(lastUse != null)
+                    lastUse[key] = DateTime.UtcNow;
                 memorizerTable[key] = value;
                 checkSizeConstraints();
             }
@@ -752,7 +758,7 @@ namespace OpenTap
             lock (memorizerTable)
             {
                 memorizerTable.Remove(key);
-                lastUse.Remove(key);
+                lastUse?.Remove(key);
                 validatorData.Remove(key);
             }
         }
@@ -783,7 +789,7 @@ namespace OpenTap
                     foreach(var k in keys)
                     {
                         memorizerTable.Remove(k);
-                        lastUse.Remove(k);
+                        lastUse?.Remove(k);
                     }
                 }
             }
@@ -810,7 +816,7 @@ namespace OpenTap
             lock (memorizerTable)
             {
                 memorizerTable.Clear();
-                lastUse.Clear();
+                lastUse?.Clear();
                 validatorData.Clear();
             }
         }
@@ -818,7 +824,7 @@ namespace OpenTap
 
     internal class Memorizer<ArgT, ResultT> : Memorizer<ArgT, ResultT, ArgT>
     {
-        public Memorizer(Func<ArgT, ResultT> func) : base(extractData: func)
+        public Memorizer(Func<ArgT, ResultT> func, bool trackTime = true) : base(extractData: func, trackTime: trackTime)
         {
         }
     }

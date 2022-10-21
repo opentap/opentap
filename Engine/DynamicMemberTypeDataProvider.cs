@@ -559,13 +559,19 @@ namespace OpenTap
 
                 return dynamicMembers ?? EmptyDictionary<string, IMemberData>.Instance;
             }
-            
+
+            IMemberData[] members;
             public IEnumerable<IMemberData> GetMembers()
             {
                 var dynamicMembers = getDynamicMembers();
                 var members = BaseType.GetMembers();
                 if (dynamicMembers.Count > 0)
-                    members = members.Concat(dynamicMembers.Values);
+                {
+                    if(this.members?.Length != dynamicMembers.Count + members.Count())
+                        this.members = members.Concat(dynamicMembers.Values).ToArray();
+                    members = this.members;
+                }
+
                 return members;
             }
 

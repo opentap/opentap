@@ -9,6 +9,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Collections.Concurrent;
+using System.Collections.Immutable;
 
 namespace OpenTap
 {
@@ -145,8 +146,8 @@ namespace OpenTap
         struct EnumerableKey
         {
             readonly int key;
-            readonly object[] items;
-            public EnumerableKey(object[] items)
+            readonly ICollection<object> items;
+            public EnumerableKey(ICollection<object> items)
             {
                 this.items = items;
                 key = 3275321;
@@ -163,7 +164,7 @@ namespace OpenTap
             }
         }
         
-        static List<ResourceNode> GetResourceNodesNoCache(object[] source)
+        static List<ResourceNode> GetResourceNodesNoCache(ICollection<object> source)
         {
             var resources = new ResourceDependencyAnalyzer().GetAllResources(source, out bool analysisError);
             if (analysisError)
@@ -186,7 +187,8 @@ namespace OpenTap
         /// </summary>
         public static List<ResourceNode> GetResourceNodes(IEnumerable<object> _source)
         {
-            var source = _source.ToArray();
+            var source = ImmutableList<object>.Empty.AddRange(_source);
+            
             var cache = ResourceNodeCache.Cache.Value;
             if (cache != null)
             {
@@ -449,7 +451,8 @@ namespace OpenTap
                 case TestPlanExecutionStage.Execute:
                     if (item is TestPlan testPlan)
                     {
-                        var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
+                        var res = ImmutableList<object>.Empty.AddRange(StaticResources).AddRange(EnabledSteps);
+                        var resources = ResourceManagerUtils.GetResourceNodes(res);
 
                         // Proceed to open resources in case they have been changed or closed since last opening/executing the testplan.
                         // In case any are null, we need to do this before the resource prompt to allow a ILockManager implementation to 

@@ -100,9 +100,9 @@ namespace OpenTap
             return new ResourceDep(behavior, o, pi);
         }
 
-        ResourceDep[] getManyResources<T>(T[] steps)
+        ResourceDep[] getManyResources<T>(ICollection<T> steps)
         {
-            if (steps.Length == 0)
+            if (steps.Count == 0)
                 return Array.Empty<ResourceDep>();
 
             var result = new HashSet<ResourceDep>();
@@ -261,7 +261,7 @@ namespace OpenTap
         /// Finds all IResource properties on a list of references. The references can be any class derived from ITapPlugin, such as ITestStep or IResource.
         /// If a reference supplied in the <paramref name="references"/> list is a IResource itself it will be added to the resulting list.
         /// </summary>
-        internal List<ResourceNode> GetAllResources(object[] references, out bool errorDetected)
+        internal List<ResourceNode> GetAllResources(ICollection<object> references, out bool errorDetected)
         {
             errorDetected = false;
 
@@ -334,11 +334,13 @@ namespace OpenTap
                     if (nodeRepresentingResource != null)
                         nodeRepresentingResource.References.Add(new ResourceReference(r, prop));
                     return nodeRepresentingResource;
-                }, new HashSet<ResourceNode>());
+                }, new HashSet<ResourceNode>(), targetType: _resourceType ??= TypeData.FromType(typeof(IResource)));
             }
 
             return tree;
         }
+
+        TypeData _resourceType;
     }
 }
 

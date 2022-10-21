@@ -255,7 +255,7 @@ namespace OpenTap
         {
             StepThread = null;
             // update values in the run. 
-            ResultParameters.UpdateParams(Parameters, step);
+            ResultParameters.UpdateParams(Parameters, step, type: stepTypeData);
             
             Duration = runDuration; // Requires update after TestStepRunStart and before TestStepRunCompleted
             UpgradeVerdict(step.Verdict);
@@ -271,7 +271,7 @@ namespace OpenTap
             TestStepName = step.GetFormattedName();
             stepTypeData = TypeData.GetTypeData(step);
             TestStepTypeName = stepTypeData.AsTypeData().AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step);
+            Parameters = ResultParameters.GetParams(step, stepTypeData);
             Verdict = Verdict.NotSet;
         }
         
@@ -371,33 +371,48 @@ namespace OpenTap
 
         ManualResetEventSlim runDone = new ManualResetEventSlim(false, 0);
         ManualResetEventSlim deferDone = new ManualResetEventSlim(false, 0);
-        
+
+        bool HasResultAttributeMember(ITestStep step)
+        {
+            if (step is ITestPlanRunCache cache)
+                return cache.HasResultAttribute;
+            
+            foreach(var mem in stepTypeData.GetMembers())
+                foreach(var attr in mem.Attributes)
+                    if (attr is ResultAttribute)
+                        return true;
+            return false;
+        }
         internal void AfterRun(ITestStep step, TestPlanRun testPlanRun)
         {
-            var resultMembers = stepTypeData
-                .GetMembers()
-                .Where(member => member.HasAttribute<ResultAttribute>())
-                .ToArray();
+            if (HasResultAttributeMember(step))
+            {
+                var resultMembers = stepTypeData
+                    .GetMembers()
+                    .Where(member => member.HasAttribute<ResultAttribute>())
+                    .ToArray();
 
-            if (resultMembers.Length > 0 && ResultSource == null)
-            {
-                ResultSource = new ResultSource(this, testPlanRun);
-            }
-            void publishResults()
-            {
-                foreach (var r in resultMembers)
+                if (ResultSource == null)
                 {
-                    var value = r.GetValue(step);
-                    ((ResultSource)ResultSource).Publish(r.GetDisplayAttribute().Name, value);
-                }    
-            }
+                    ResultSource = new ResultSource(this, testPlanRun);
+                }
 
-            if (ResultSource is ResultSource)
-            {
-                if (WasDeferred)
-                    ResultSource.Defer(publishResults);
-                else
-                    publishResults();
+                void publishResults()
+                {
+                    foreach (var r in resultMembers)
+                    {
+                        var value = r.GetValue(step);
+                        ((ResultSource)ResultSource).Publish(r.GetDisplayAttribute().Name, value);
+                    }
+                }
+
+                if (ResultSource is ResultSource)
+                {
+                    if (WasDeferred)
+                        ResultSource.Defer(publishResults);
+                    else
+                        publishResults();
+                }
             }
 
             runDone.Set();

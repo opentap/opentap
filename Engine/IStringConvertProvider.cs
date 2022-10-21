@@ -53,7 +53,10 @@ namespace OpenTap
             {
                 var derivedTypes = TypeData.GetDerivedTypes<T>();
 
-                int count = derivedTypes.Count(x => x.CanCreateInstance);
+                int count = 0;
+                foreach(var x in derivedTypes)
+                    if (x.CanCreateInstance)
+                        count++;
                 
                 if (count != saveTypes.Count)
                 {

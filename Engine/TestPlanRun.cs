@@ -3,7 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -25,6 +24,7 @@ namespace OpenTap
     [DebuggerDisplay("TestPlanRun {TestPlanName}")]
     public class TestPlanRun : TestRun
     {
+        internal bool ReduceLogging = EngineSettings.Current.ReduceLogging;
         static readonly TraceSource log = Log.CreateSource("TestPlan");
         static readonly TraceSource resultLog = Log.CreateSource("Resources");
         
@@ -76,7 +76,7 @@ namespace OpenTap
         
         #region Internal Members used by the TestPlan
 
-        internal IEnumerable<IResultListener> ResultListeners => resultWorkers.Keys;
+        internal ICollection<IResultListener> ResultListeners => resultWorkers.Keys;
 
         /// <summary>
         /// Result listeners can be added just before the test plan actually starts.
@@ -332,8 +332,19 @@ namespace OpenTap
             });
         }
 
+        bool AnyIExecutionListeners()
+        {
+            foreach(var rl in ResultListeners)
+                if (rl is IExecutionListener)
+                    return true;
+            return false;
+        }
+
         internal void AddTestStepStateUpdate(Guid stepID, TestStepRun stepRun, StepState state)
         {
+            
+            if (AnyIExecutionListeners() == false)
+                return;
             var instant = Stopwatch.GetTimestamp();
 
             ScheduleInResultProcessingThread<IExecutionListener>(listener =>

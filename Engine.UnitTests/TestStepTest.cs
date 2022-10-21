@@ -390,7 +390,7 @@ namespace OpenTap.Engine.UnitTests
         {
 
             Param1 = 5;
-            var param = ResultParameters.GetParams(this);
+            var param = ResultParameters.GetParams(this, null);
             var dict = param.ToDictionary();
             Assert.IsTrue((double)dict["Param1"] == Param1);
             Assert.IsTrue(dict.ContainsKey("sub/Index"));

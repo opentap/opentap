@@ -540,7 +540,11 @@ namespace OpenTap
 
             var allSteps = Utils.FlattenHeirarchy(steps, step => step.ChildTestSteps);
             var allEnabledSteps = Utils.FlattenHeirarchy(steps.Where(x => x.Enabled), step => step.GetEnabledChildSteps());
-
+            foreach (var step in allEnabledSteps)
+            {
+                if (step is ITestPlanRunCache cache)
+                    cache.Load();
+            }
             var enabledSinks = new HashSet<IResultSink>();
             TestStepExtensions.GetObjectSettings<IResultSink, ITestStep, IResultSink>(allEnabledSteps, true, null, enabledSinks);
             if(enabledSinks.Count > 0)
@@ -674,7 +678,11 @@ namespace OpenTap
 
                 // Clean all test steps StepRun, otherwise the next test plan execution will be stuck at TestStep.DoRun at steps that does not have a cleared StepRun.
                 foreach (var step in allSteps)
+                {
                     step.StepRun = null;
+                    if (step is ITestPlanRunCache cache)
+                        cache.Clear();
+                }
 
                 executingPlanRun.LocalValue = prevExecutingPlanRun;
                 CurrentRun = prevExecutingPlanRun;

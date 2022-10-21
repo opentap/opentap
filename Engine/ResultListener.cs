@@ -546,11 +546,11 @@ namespace OpenTap
             return lst.ToArray();
         }
         
-        private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false)
+        private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false, ITypeData type = null)
         {
             if (obj == null)
                 return;
-            var type = TypeData.GetTypeData(obj);
+            type ??= TypeData.GetTypeData(obj);
             foreach (var (prop, group, name, metadata) in GetParametersMap(type))
             {
                 if (metadataOnly && metadata == null) continue;
@@ -561,11 +561,11 @@ namespace OpenTap
             }
         }
 
-        internal static void UpdateParams(ResultParameters parameters, object obj, string namePrefix = "")
+        internal static void UpdateParams(ResultParameters parameters, object obj, string namePrefix = "", ITypeData type = null)
         {
             if (obj == null)
                 return;
-            var type = TypeData.GetTypeData(obj);
+            type ??= TypeData.GetTypeData(obj);
             var p = GetParametersMap(type);
             foreach (var (prop, group, _name, metadata) in p)
             {
@@ -590,19 +590,21 @@ namespace OpenTap
 
         internal void Overwrite(string name, IConvertible value, string group, MetaDataAttribute metadata)
         {
-           Add(group, name, value, metadata);
+            if (object.Equals(Find(name, group)?.Value, value))
+                return;
+            Add(group, name, value, metadata);
         }
 
         /// <summary>
         /// Returns a <see cref="ResultParameters"/> list with one entry for every setting of the inputted 
         /// TestStep.
         /// </summary>
-        internal static ResultParameters GetParams(ITestStep step)
+        internal static ResultParameters GetParams(ITestStep step, ITypeData stepType)
         {
             if (step == null)
                 throw new ArgumentNullException(nameof(step));
             var parameters = new List<ResultParameter>(5);
-            GetPropertiesFromObject(step, parameters);
+            GetPropertiesFromObject(step, parameters, type: stepType);
             
             if (parameters.Count == 0)
                 return new ResultParameters();

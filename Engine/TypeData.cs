@@ -480,9 +480,12 @@ namespace OpenTap
         public static ITypeData GetTypeData(object obj)
         {
             if (obj == null) return NullTypeData.Instance;
+            if (obj is ITestPlanRunCache c && c.Type is { } td2)
+                return td2;
             var cache = TypeDataCache.Current;
             if (cache != null && cache.TryGetValue(obj, out var cachedValue))
                 return cachedValue;
+            
             checkCacheValidity();
             var resolver = new TypeDataProviderStack();
             var result = resolver.GetTypeData(obj);

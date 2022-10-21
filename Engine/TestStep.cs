@@ -29,7 +29,7 @@ namespace OpenTap
     [ComVisible(true)]
     [Guid("d0b06600-7bac-47fb-9251-f834e420623f")]
     public abstract class TestStep : ValidatingObject, ITestStep, IBreakConditionProvider, IDescriptionProvider, 
-        IDynamicMembersProvider, IInputOutputRelations, IParameterizedMembersCache, IDynamicMemberValue
+        IDynamicMembersProvider, IInputOutputRelations, IParameterizedMembersCache, IDynamicMemberValue, ITestPlanRunCache
     {
         #region Properties
         /// <summary>
@@ -281,8 +281,9 @@ namespace OpenTap
         {
             List<Action<object>> loaders = new List<Action<object>>();
             var props = t.GetMembers();
-            foreach (var prop in props.Where(p => p.Writable))
+            foreach (var prop in props)
             {
+                if (prop.Writable == false) continue;
                 var propType = (prop.TypeDescriptor as TypeData)?.Load();
                 if (propType == null) continue;
                 if (propType.DescendsTo(typeof(IList)) && propType.IsGenericType)
@@ -589,6 +590,23 @@ namespace OpenTap
         {
             dynamicMemberValues[member] = value;
         }
+
+        ITypeData _type;
+        bool hasResultAttribute;
+        
+        ITypeData ITestPlanRunCache.Type =>  _type;
+
+        bool ITestPlanRunCache.HasResultAttribute => hasResultAttribute;
+        void ITestPlanRunCache.Clear()
+        {
+            _type = null;
+        }
+
+         void ITestPlanRunCache.Load()
+         {
+             _type = TypeData.GetTypeData(this);
+             hasResultAttribute = _type.GetMembers().Any(x => x.HasAttribute<ResultAttribute>());
+         }
     }
 
     class DynamicMembersLookup : ConcurrentDictionary<IMemberData, object>
@@ -892,11 +910,23 @@ namespace OpenTap
             Log.CreateSource("TestStep").Debug( $"Break issued from '{run.TestStepName}' due to verdict {run.Verdict}. See Break Conditions settings.");
         }
 
+        static class StringBuilderCache
+        {
+            [ThreadStatic] static StringBuilder stringBuilder;
+
+            public static StringBuilder GetStringBuilder()
+            {
+                var sb = stringBuilder ?? (stringBuilder = new StringBuilder());
+                sb.Clear();
+                return sb;
+            }
+        }
+        
         internal static string GetStepPath(this ITestStep Step)
         {
             var name = Step.GetFormattedName();
 
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = StringBuilderCache.GetStringBuilder();
             sb.Append('"');
 
             void getParentNames(ITestStep step)
@@ -974,7 +1004,7 @@ namespace OpenTap
                         TapThread.Current.AbortToken);
                     try
                     {
-                        if(!EngineSettings.Current.ReduceLogging)
+                        if(!planRun.ReduceLogging)
                             TestPlan.Log.Info("{0} started.", stepRun.TestStepPath);
                         stepRun.StartStepRun(); // set verdict to running, set Timestamp.
                         parentRun.ChildStarted(stepRun);
@@ -1066,12 +1096,12 @@ namespace OpenTap
                         stepRun.CompleteStepRun(planRun, Step, time);
                         if (Step.Verdict == Verdict.NotSet)
                         {
-                            if(!EngineSettings.Current.ReduceLogging)
+                            if(!planRun.ReduceLogging)
                                 TestPlan.Log.Info(time, "{0} completed.", stepRun.TestStepPath);
                         }
                         else
                         {
-                            if(!EngineSettings.Current.ReduceLogging)
+                            if(!planRun.ReduceLogging)
                                 TestPlan.Log.Info(time, "{0} completed with verdict '{1}'.", stepRun.TestStepPath, Step.Verdict);
                         }
 
@@ -1155,7 +1185,7 @@ namespace OpenTap
         internal static void GetObjectSettings<T,T2,T3>(T2 item, bool onlyEnabled, Func<T, IMemberData, T3> transform, HashSet<T3> itemSet, TypeData targetType = null)
         {
             if (transform == null) transform = (t, data) => (T3)(object)t; 
-            if(targetType == null) targetType = TypeData.FromType(typeof(T));
+            if (targetType == null) targetType = TypeData.FromType(typeof(T));
             var enabledAttributes = new List<EnabledIfAttribute>();
 
             var properties = getSettingsLookup(targetType, TypeData.GetTypeData(item));
@@ -1263,12 +1293,26 @@ namespace OpenTap
         // note: this should probably be a conditional weak table to avoid leaking exotic transient ITypeData values.
         static readonly ConcurrentDictionary<ITypeData, Dictionary<string, IMemberData>> formatterLutCache 
             = new ConcurrentDictionary<ITypeData, Dictionary<string, IMemberData>>();
+
+        static bool IsSimpleName(string name)
+        {
+            foreach (var chr in name)
+            {
+                if (chr >= '{') 
+                    if(chr <= '}')
+                        if (chr != '|')
+                            return false;
+            }
+
+            return true;
+        }
         
         /// <summary> Takes the name of step and replaces {} tokens with the value of properties. </summary>
         public static string GetFormattedName(this ITestStep step)
         {
-            if(step.Name.Contains('{') == false || step.Name.Contains('}') == false)
+            if(IsSimpleName(step.Name))
                 return step.Name;
+            
             Dictionary<string, IMemberData> props;
             var type = TypeData.GetTypeData(step);
             if (formatterLutCache.TryGetValue(type, out props) == false)
@@ -1379,4 +1423,12 @@ namespace OpenTap
     /// </summary>
     internal class SettingsIgnoreAttribute : Attribute
     { }
+    
+    interface ITestPlanRunCache
+    {
+        ITypeData Type { get; }
+        bool HasResultAttribute { get; }
+        void Clear();
+        void Load();
+    }
 }

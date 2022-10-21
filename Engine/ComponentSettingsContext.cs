@@ -22,7 +22,7 @@ namespace OpenTap
 
         public ComponentSettingsContext()
         {
-            objectCache = new Memorizer<Type, ComponentSettings>(Load);
+            objectCache = new Memorizer<Type, ComponentSettings>(Load, false);
         }
 
         string settingsDirectoryRoot = Path.Combine(ExecutorClient.ExeDir, "Settings");
