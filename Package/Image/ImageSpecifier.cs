@@ -13,6 +13,8 @@ namespace OpenTap.Package
     /// </summary>
     public class ImageSpecifier
     {
+        static readonly TraceSource log = Log.CreateSource("image");
+        
         /// <summary>
         /// Optional name of the ImageSpecifier. Used for debugging purposes.
         /// </summary>
@@ -91,6 +93,7 @@ namespace OpenTap.Package
         /// <summary> The CPU architecture that this image specifier targets. </summary>
         public CpuArchitecture Architecture { get; set; } = Installation.Current.Architecture;
 
+        
         /// <summary>
         /// Resolve the desired packages from the specified repositories. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
         /// </summary>
@@ -104,8 +107,9 @@ namespace OpenTap.Package
             cache.LoadFromRepositories();
             cache.AddPackages(InstalledPackages);
             cache.AddPackages(AdditionalPackages);
+            log.Debug("Resolving image: {0}", this);
+            var resolver = new ImageResolver(cancellationToken);
             
-            var resolver = new ImageResolver(cancellationToken);        
             var image = resolver.ResolveImage(this, cache.Graph);
             if (image.Success == false)
             {
