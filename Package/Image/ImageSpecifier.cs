@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -107,7 +108,8 @@ namespace OpenTap.Package
             cache.LoadFromRepositories();
             cache.AddPackages(InstalledPackages);
             cache.AddPackages(AdditionalPackages);
-            log.Debug("Resolving image: {0}", this);
+            var sw = Stopwatch.StartNew();
+            
             var resolver = new ImageResolver(cancellationToken);
             
             var image = resolver.ResolveImage(this, cache.Graph);
@@ -132,7 +134,9 @@ namespace OpenTap.Package
                 }
                 throw new ImageResolveException(image);
             }
-
+            
+            log.Debug(sw, "Resolved image: {0}", this);
+            
             var packages = image.Packages.Select(x => cache.GetPackageDef(x)).ToArray();
             if (packages.Any(x => x == null))
                 throw new InvalidOperationException("Unable to lookup resolved package");
