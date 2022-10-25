@@ -183,6 +183,23 @@ namespace OpenTap.Package
                 bool allExact = allVersions.All(x => x.Length  == 1);
                 if (allExact)
                 {
+                    foreach (var pkg in packages)
+                    {
+                        if (!pkg.Version.TryAsExactSemanticVersion(out var semver))
+                            throw new InvalidOperationException();
+                        var deps = graph.GetDependencies(pkg.Name, semver);
+                        foreach (var dep in deps)
+                        {
+                            var satisfied = packages.Any(x => x.Name == dep.Name);
+                            if (!satisfied)
+                            {
+                                // all packages has only one specific version, but there are still unresolved dependencies.
+                                return ResolveImage(new ImageSpecifier(packages.ToList()){FixedPackages = image.FixedPackages}, graph);
+                            }
+                        }
+                    }
+                    
+                    
                     // this is the final case.
                     return new ImageResolution(packages.ToArray(), Iterations);
                 }
