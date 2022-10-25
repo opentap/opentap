@@ -102,7 +102,11 @@ namespace OpenTap.Package
         /// <exception cref="ImageResolveException">The exception thrown if the image could not be resolved</exception>
         public ImageIdentifier Resolve(CancellationToken cancellationToken)
         {
-            List<IPackageRepository> repositories = Repositories.Distinct().Select(PackageRepositoryHelpers.DetermineRepositoryType).GroupBy(p => p.Url).Select(g => g.First()).ToList();
+            List<IPackageRepository> repositories = Repositories.Distinct()
+                .Select(PackageRepositoryHelpers.DetermineRepositoryType)
+                .GroupBy(p => p.Url)
+                .Select(g => g.First())
+                .ToList();
 
             var cache = new PackageDependencyCache(OS, Architecture, Repositories);
             cache.LoadFromRepositories();
@@ -120,7 +124,6 @@ namespace OpenTap.Package
                         x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())))).ToArray();
                 if (unsatisfiedDependencies.Any())
                 {
-                    var packagesString = string.Join(",", image.Packages.Select(x => $"{x.Name}:{x.Version}"));
                     var unsatisfiedString = string.Join(" and ", unsatisfiedDependencies.Select(x =>
                     {
                         var missingDeps = x.Dependencies.Where(dep => !InstalledPackages.Any(x2 =>
@@ -129,7 +132,7 @@ namespace OpenTap.Package
                         return $"{x.Name} missing {missingMsg}";
                     }));
                     throw new ImageResolveException(image,
-                        $"Unable to resolve the packages: {packagesString}. This is probably due to: {unsatisfiedString}."
+                        $"Unable to resolve the packages: {this}. This is probably due to: {unsatisfiedString}."
                        );
                 }
                 throw new ImageResolveException(image);
