@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -13,6 +14,8 @@ namespace OpenTap.Package
     /// </summary>
     public class ImageSpecifier
     {
+        static readonly TraceSource log = Log.CreateSource("image");
+        
         /// <summary>
         /// Optional name of the ImageSpecifier. Used for debugging purposes.
         /// </summary>
@@ -91,6 +94,7 @@ namespace OpenTap.Package
         /// <summary> The CPU architecture that this image specifier targets. </summary>
         public CpuArchitecture Architecture { get; set; } = Installation.Current.Architecture;
 
+        
         /// <summary>
         /// Resolve the desired packages from the specified repositories. This will check if the packages are available, compatible and can successfully be deployed as an OpenTAP installation
         /// </summary>
@@ -98,14 +102,20 @@ namespace OpenTap.Package
         /// <exception cref="ImageResolveException">The exception thrown if the image could not be resolved</exception>
         public ImageIdentifier Resolve(CancellationToken cancellationToken)
         {
-            List<IPackageRepository> repositories = Repositories.Distinct().Select(PackageRepositoryHelpers.DetermineRepositoryType).GroupBy(p => p.Url).Select(g => g.First()).ToList();
+            List<IPackageRepository> repositories = Repositories.Distinct()
+                .Select(PackageRepositoryHelpers.DetermineRepositoryType)
+                .GroupBy(p => p.Url)
+                .Select(g => g.First())
+                .ToList();
 
             var cache = new PackageDependencyCache(OS, Architecture, Repositories);
             cache.LoadFromRepositories();
             cache.AddPackages(InstalledPackages);
             cache.AddPackages(AdditionalPackages);
+            var sw = Stopwatch.StartNew();
             
-            var resolver = new ImageResolver(cancellationToken);        
+            var resolver = new ImageResolver(cancellationToken);
+            
             var image = resolver.ResolveImage(this, cache.Graph);
             if (image.Success == false)
             {
@@ -114,19 +124,22 @@ namespace OpenTap.Package
                         x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())))).ToArray();
                 if (unsatisfiedDependencies.Any())
                 {
+                    var unsatisfiedString = string.Join(" and ", unsatisfiedDependencies.Select(x =>
+                    {
+                        var missingDeps = x.Dependencies.Where(dep => !InstalledPackages.Any(x2 =>
+                            x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())));
+                        string missingMsg = string.Join(" and ", missingDeps.Select(x2 => $"{x2.Name}:{x2.Version}"));
+                        return $"{x.Name} missing {missingMsg}";
+                    }));
                     throw new ImageResolveException(image,
-                        string.Format("Unable to resolve the selected packages. This is probably due to: {0}.",
-                        string.Join(" and ", unsatisfiedDependencies.Select(x =>
-                        {
-                            var missingDeps = x.Dependencies.Where(dep => !InstalledPackages.Any(x2 =>
-                                x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())));
-                            string missingMsg = string.Join(" and ", missingDeps.Select(x2 => $"{x2.Name}:{x2.Version}"));
-                            return $"{x.Name} missing {missingMsg}";
-                        }))));
+                        $"Unable to resolve the packages: {this}. This is probably due to: {unsatisfiedString}."
+                       );
                 }
                 throw new ImageResolveException(image);
             }
-
+            
+            log.Debug(sw, "Resolved image: {0}", this);
+            
             var packages = image.Packages.Select(x => cache.GetPackageDef(x)).ToArray();
             if (packages.Any(x => x == null))
                 throw new InvalidOperationException("Unable to lookup resolved package");
@@ -192,6 +205,10 @@ namespace OpenTap.Package
         {
             return ImageHelper.GetImageFromString(value);
         }
+
+        /// <summary> Turns an image into a readable string.</summary>
+        /// <returns></returns>
+        public override string ToString() => string.Join(", ", Packages.Select(x => $"{x.Name}:{x.Version}"));
     }
 
     /// <summary>

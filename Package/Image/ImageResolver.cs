@@ -38,7 +38,7 @@ namespace OpenTap.Package
                     if (pkg2.Name == pkg1.Name)
                     {
                         if (!pkg2.Version.IsSatisfiedBy(pkg1.Version) && !pkg1.Version.IsSatisfiedBy(pkg2.Version))
-                            return new FailedImageResolution(new []{pkg1, pkg2}, Iterations);
+                            return new FailedImageResolution(image, new []{pkg1, pkg2}, Iterations);
 
                         if (!pkg1.Version.IsSatisfiedBy(pkg2.Version))
                         {
@@ -82,7 +82,7 @@ namespace OpenTap.Package
                                     !dep.Version.IsSatisfiedBy(pkg2.Version))
                                 {
                                     // this dependency is unresolvable
-                                    return new FailedImageResolution(new[]{pkg2, dep}, Iterations);
+                                    return new FailedImageResolution(image,new[]{pkg2, dep}, Iterations);
                                 }
 
                                 // this dependency is more specific than the existing.
@@ -175,7 +175,7 @@ namespace OpenTap.Package
                     // this is an uncommon trivial corner case.
                     return new ImageResolution(Array.Empty<PackageSpecifier>(), Iterations);
                 
-                return new FailedImageResolution(ResolveProblems, Iterations); // no possible solutions,
+                return new FailedImageResolution(image,ResolveProblems, Iterations); // no possible solutions,
             }
 
             if (k == 1)
@@ -183,6 +183,29 @@ namespace OpenTap.Package
                 bool allExact = allVersions.All(x => x.Length  == 1);
                 if (allExact)
                 {
+                    {   // now double check that all packages has their dependencies included in the resolved image.
+                        // under rare circumstances this is not the case and we need to re-run the resolution
+                        // to add those dependencies.
+                        foreach (var pkg in packages)
+                        {
+                            if (!pkg.Version.TryAsExactSemanticVersion(out var semver))
+                                // this should never happen.
+                                throw new InvalidOperationException("An unexact package version was resolved.");
+                            var deps = graph.GetDependencies(pkg.Name, semver);
+                            foreach (var dep in deps)
+                            {
+                                var satisfied = packages.Any(x => x.Name == dep.Name);
+                                if (!satisfied)
+                                {
+                                    // all packages has only one specific version, but there are still unresolved dependencies.
+                                    // this will be fixed in the next iteration, when dependencies are added.
+                                    return ResolveImage(
+                                        new ImageSpecifier(packages.ToList()) { FixedPackages = image.FixedPackages },
+                                        graph);
+                                }
+                            }
+                        }
+                    }
                     // this is the final case.
                     return new ImageResolution(packages.ToArray(), Iterations);
                 }
@@ -252,15 +275,17 @@ namespace OpenTap.Package
             }
             
             // this probably never happens as we already returned null, when K was 0.
-            return new FailedImageResolution(Array.Empty<PackageSpecifier>(), Iterations);
+            return new FailedImageResolution(image, Array.Empty<PackageSpecifier>(), Iterations);
         }
     }
 
     class FailedImageResolution : ImageResolution
     {
-        private IReadOnlyList<PackageSpecifier> resolveProblems;
-        public FailedImageResolution(IReadOnlyList<PackageSpecifier> resolveProblems, long iterations) : base(Array.Empty<PackageSpecifier>(), iterations)
+        readonly IReadOnlyList<PackageSpecifier> resolveProblems;
+        readonly ImageSpecifier image;
+        public FailedImageResolution(ImageSpecifier img, IReadOnlyList<PackageSpecifier> resolveProblems, long iterations) : base(Array.Empty<PackageSpecifier>(), iterations)
         {
+            image = img;
             this.resolveProblems = resolveProblems;
         }
 
@@ -268,7 +293,7 @@ namespace OpenTap.Package
 
         public override string ToString()
         {
-            return "Unable to resolve packages: " + string.Join(", ", resolveProblems.Select(x => $"{x.Name}: {x.Version}"));
+            return $"Unable to resolve image '{image}': " + string.Join(", ", resolveProblems.Select(x => $"{x.Name}: {x.Version}")) + " was not found";
         }
     }
 }
