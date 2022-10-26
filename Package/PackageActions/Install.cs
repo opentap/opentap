@@ -383,7 +383,7 @@ namespace OpenTap.Package
                 }
 
                 log.Debug("{0}", ex.Message);
-                return (int) ExitCodes.ArgumentError;
+                return (int) ExitCodes.PackageResolutionError;
             }
             catch (Exception e)
             {
