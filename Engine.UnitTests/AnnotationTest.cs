@@ -88,6 +88,32 @@ namespace OpenTap.UnitTests
             }
 
         }
+
+        [Test]
+        public void ArrayStepNameAnnotationTest()
+        {
+            var step1 = new DelayStep() { Name = "A" };
+            var step2 = new DelayStep() { Name = "A" };
+            var step3 = new DelayStep() { Name = "A" };
+            var steps = new ITestStep[]
+            {
+                step1, step2, step3
+            };
+            
+            Assert.AreEqual(GetValue(steps), "A");
+            step2.Name = "B";
+            Assert.IsNull(GetValue(steps));
+
+            static string GetValue(ITestStep[] steps)
+            {
+                var annotations = AnnotationCollection.Annotate(steps);
+                var membersAnnotation = annotations.Get<IMembersAnnotation>();
+                var memberAnnotation = membersAnnotation.Members.First(m => m.Name == "Step Name");
+                var stepNameAnnotation = memberAnnotation.Get<IStringReadOnlyValueAnnotation>();
+                Assert.DoesNotThrow(() => _ = stepNameAnnotation.Value);
+                return stepNameAnnotation.Value;
+            }
+        }
         
 
         [Test]
