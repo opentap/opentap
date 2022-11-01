@@ -754,7 +754,6 @@ jobs:
           path: .
       - name: Package
         run: |
-          
           $path=(get-item -path "./").Fullname
           $str=[IO.File]::ReadAllText($path + "/LinuxInstall/INSTALL.sh") -replace "`r`n", "`n"
           ([IO.File]::WriteAllText($path + "/INSTALL.sh", $str))
