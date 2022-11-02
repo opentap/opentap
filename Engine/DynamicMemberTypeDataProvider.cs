@@ -581,6 +581,19 @@ namespace OpenTap
 
             public bool CanCreateInstance => BaseType.CanCreateInstance;
 
+            public override bool Equals(object obj)
+            {
+                if (obj is DynamicTestStepTypeData other)
+                    return Equals(other.target, target) && Equals(other.BaseType, BaseType);
+
+                return false;
+            }
+
+            public override int GetHashCode()
+            { 
+                // Random factors for hashing (primes to reduce the risk of collision).
+                return ((((BaseType?.GetHashCode() ?? 0) + 86533973) * 25714789 + (target?.GetHashCode() ?? 0) + 67186051) * 63349417);
+            }
         }
 
         internal class TestStepTypeData : ITypeData
