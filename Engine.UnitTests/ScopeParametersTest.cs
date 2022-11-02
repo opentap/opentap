@@ -789,14 +789,15 @@ namespace OpenTap.UnitTests
 
             Dictionary<ITypeData, int> dict = new Dictionary<ITypeData, int>();
             
-            var newMem = TypeData.GetTypeData(scope2).GetMember(nameof(scope2.Name)).Parameterize(scope2, scope, "param");
-            var tp0 = TypeData.GetTypeData(scope2);
+            var newMem = TypeData.GetTypeData(scope2).GetMember(nameof(scope2.Name)).Parameterize(scope, scope2, "param");
+            scope.Name = "Test {param}";
+            var tp0 = TypeData.GetTypeData(scope);
 
             Assert.IsNotNull(newMem);
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 5; i++)
             {
-                var tp1 = TypeData.GetTypeData(scope2);
-                Assert.AreEqual(tp1, tp0);
+                var tp1 = TypeData.GetTypeData(scope);
+                Assert.IsTrue(object.ReferenceEquals(tp1, tp0));
                 dict[tp1] = i;
             }
 

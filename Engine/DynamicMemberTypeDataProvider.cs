@@ -763,15 +763,19 @@ namespace OpenTap
 
             return subtype;
         }
+        
+        // cache Dynamic type data for each ITestStepParent (which has parameters).
+        static readonly ConditionalWeakTable<ITestStepParent, DynamicTestStepTypeData> dict2 =
+            new ConditionalWeakTable<ITestStepParent, DynamicTestStepTypeData>();
 
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
-            if (obj is ITestStepParent)
+            if (obj is ITestStepParent p)
             {
                 var subtype = stack.GetTypeData(obj);
                 var result = getStepTypeData(subtype);
                 if (TestStepTypeData.DynamicMembers.GetValue(obj) is Dictionary<string, IMemberData>)
-                    return new DynamicTestStepTypeData(result, obj);
+                    return dict2.GetValue(p, o => new DynamicTestStepTypeData(result, o));
                 return result;
             }
             return null;
