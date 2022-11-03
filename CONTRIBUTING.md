@@ -24,6 +24,6 @@ In the issue tracker, the label `Accepting Merge Requests` indicates that OpenTA
 1. Identify an existing issue you want to work on, or submit a new one
 2. Consult your peers in the community to seek consensus on the issue resolution. Having multiple sponsors for a change or enhancement makes it easier for the project maintainers to accept the contribution 
 3. Assign the issue to yourself
-4. Fork the repository
+4. [Fork](https://docs.github.com/en/get-started/quickstart/fork-a-repo) the repository
 5. Develop and test, then commit changes
 6. Submit a [pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request-from-a-fork) back to [the root of the fork network](https://github.com/opentap/opentap)

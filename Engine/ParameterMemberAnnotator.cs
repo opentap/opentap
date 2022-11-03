@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace OpenTap
@@ -55,6 +56,31 @@ namespace OpenTap
             }
         }
 
+        // Since having multiple parameter member annotations nested, creates multiple levels of parameter member annotation
+        // things can become incredibly slow when this happens. 
+        // it is much faster if we can just crush all the multiple levels of IParameterMemberData into on layer
+        // of no-IParameterMemberData.
+        // This should be safe since IParameterMemberDatas generally does not have any information connected to them
+        // that are not already present on the sub-MemberData.
+        static List<(object, IMemberData)> GetRootMembers(IParameterMemberData member)
+        {
+            List<(object, IMemberData)> nonParameters = new List<(object, IMemberData)>();
+            Stack<IParameterMemberData> workQueue = new Stack<IParameterMemberData>();
+            workQueue.Push(member);
+            while (workQueue.Count > 0)
+            {
+                var mem = workQueue.Pop();
+                foreach (var (s, m) in mem.ParameterizedMembers)
+                {
+                    if (m is IParameterMemberData p)
+                        workQueue.Push(p);
+                    else
+                        nonParameters.Add((s, m));
+                }
+            }
+
+            return nonParameters;
+        }
 
         public void Annotate(AnnotationCollection annotation)
         {
@@ -64,8 +90,9 @@ namespace OpenTap
             // if we assume that the elements are simple in nature, we can regain that performance
             // by only merging a subset of them and then just copy the values for the rest of the objects.
             bool bigList = member.ParameterizedMembers.Count() > 100;
+            var parameterizedMembers = GetRootMembers(member);
             
-            var items = member.ParameterizedMembers.Select(x => x.Item1).Take(100).ToArray();
+            var items = parameterizedMembers.Select(x => x.Item1).Take(100).ToArray();
             var cache = annotation.Get<AnnotationCache>(true);
             if (cache == null)
             {
@@ -75,7 +102,7 @@ namespace OpenTap
             var subannotation = cache?.Annotate(items) ?? AnnotationCollection.Annotate(items.Length == 1 ? items[0] : items);
             annotation.Add(new SubMember(subannotation, bigList, member));
             var subMembers = subannotation.Get<IMembersAnnotation>();
-            var firstmem = member.ParameterizedMembers.First().Item2;
+            var firstmem = parameterizedMembers.First().Item2;
             var thismember = subMembers.Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member == firstmem);
             if (thismember == null) return;
 

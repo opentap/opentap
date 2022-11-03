@@ -56,6 +56,22 @@ namespace OpenTap
             }
         }
 
+        public static void SafeDelete(string file, int retries, Action<int, Exception> onError)
+        {
+            for(int i = 0; i < retries; i++)
+            {
+                try
+                {
+                    File.Delete(file);
+                    break;
+                }
+                catch(Exception e)
+                {
+                    onError(i, e);
+                }
+            }
+        }
+
         /// <summary>
         /// Creates a directory if it does not already exist.
         /// </summary>
