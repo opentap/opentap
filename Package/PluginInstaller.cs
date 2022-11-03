@@ -629,16 +629,18 @@ namespace OpenTap.Package
                 {
                     log.Debug("Deleting file '{0}'.", file.RelativeDestinationPath);
 
-                    FileSystemHelper.SafeDelete(fullPath, 10, (i, ex) =>
+                    const int maxRetries = 10;
+                    FileSystemHelper.SafeDelete(fullPath, maxRetries, (i, ex) =>
                     {
                         if (ex is UnauthorizedAccessException || ex is IOException)
                         {
-                            if (totalDeleteRetries >= 10) throw ex;
+                            // the number of retries goes across files, to avoid an install taking several minutes.
+                            if (totalDeleteRetries >= maxRetries) throw ex;
                             totalDeleteRetries++;
                             // File.Delete might throw either exception depending on if it is a
                             // program _or_ a file in use.
                             
-                            log.Warning("Unable to delete file '{0}' file might be in use. Retrying {1} of {2} in 1 second.", file.RelativeDestinationPath, totalDeleteRetries, 5, totalDeleteRetries);
+                            log.Warning("Unable to delete file '{0}' file might be in use. Retrying {1} of {2} in 1 second.", file.RelativeDestinationPath, totalDeleteRetries, maxRetries, totalDeleteRetries);
                             TapThread.Sleep(1000);
                         }
                         else throw ex;
