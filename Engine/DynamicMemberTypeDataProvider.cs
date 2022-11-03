@@ -580,6 +580,8 @@ namespace OpenTap
             public object CreateInstance(object[] arguments) => BaseType.CreateInstance(arguments);
 
             public bool CanCreateInstance => BaseType.CanCreateInstance;
+            
+            public override string ToString() => "*" + BaseType;
 
         }
 
@@ -731,6 +733,9 @@ namespace OpenTap
             }
 
             public bool CanCreateInstance => innerType.CanCreateInstance;
+            
+            public override string ToString() => innerType.ToString();
+            
         }
 
         // memorize for reference equality.
