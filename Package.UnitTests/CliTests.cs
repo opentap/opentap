@@ -553,7 +553,7 @@ namespace OpenTap.Package.UnitTests
                 int exitCode;
                 string output = RunPackageCli("install Dummy2", out exitCode);
                 Assert.AreNotEqual(0, exitCode, "Unexpected exit code");
-                StringAssert.Contains("Unable to resolve image", output);
+                StringAssert.Contains("Could not resolve Dummy2", output);
             }
             finally
             {

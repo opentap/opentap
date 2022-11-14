@@ -132,10 +132,12 @@ namespace OpenTap.Package
                         return $"{x.Name} missing {missingMsg}";
                     }));
                     throw new ImageResolveException(image,
-                        $"Unable to resolve the packages: {this}. This is probably due to: {unsatisfiedString}."
+                        $"Unable to resolve the packages: {this}. This is probably due to: {unsatisfiedString}.",
+                        this,
+                        InstalledPackages
                        );
                 }
-                throw new ImageResolveException(image);
+                throw new ImageResolveException(image, image.ToString(), this, InstalledPackages);
             }
             
             log.Debug(sw, "Resolved image: {0}", this);
@@ -216,18 +218,29 @@ namespace OpenTap.Package
     /// </summary>
     public class ImageResolveException : AggregateException
     {
+        internal readonly ImageSpecifier Image;
+        internal ImmutableArray<PackageDef> InstalledPackages = ImmutableArray<PackageDef>.Empty;
+
         internal ImageResolveException(string dotGraph, string message, List<Exception> dependencyIssues) : base(message, dependencyIssues)
         {
             DotGraph = dotGraph;
         }
         internal ImageResolveException(ImageResolution result) : base(result.ToString())
         {
-            this.Result = result;
+            Result = result;
         }
         
         internal ImageResolveException(ImageResolution result, string message) : base(message)
         {
-            this.Result = result;
+            Result = result;
+        }
+        
+        internal ImageResolveException(ImageResolution result, string message, ImageSpecifier image,
+            ImmutableArray<PackageDef> installedPackages) : base(message)
+        {
+            Result = result;
+            Image = image;
+            InstalledPackages = installedPackages;
         }
 
         internal ImageResolution Result;
