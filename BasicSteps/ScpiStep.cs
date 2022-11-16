@@ -93,6 +93,13 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Column Names", Group: "Results", Order: 1.51, Collapsed: true, Description: "The name of the columns of the resulting groups. The titles must be separated by commas.")]
         public string DimensionTitles { get; set; }
 
+        [EnabledIf("GeneratesOutput", true)]
+        [EnabledIf("ResultRegularExpressionPattern", true)]
+        [EnabledIf(nameof(Behavior), SCPIRegexBehavior.GroupsAsDimensions)]
+        [Display("Grouping Data By Index", Group: "Results", Order: 1.51, Collapsed: true, Description: "Adding index as part of result data")]
+        public bool IsGroupingByIndex { get; set; }
+
+
         public RegexOutputStep()
         {
             RegularExpressionPattern = new Enabled<string>() { IsEnabled = false, Value = "(.*)" };
@@ -124,6 +131,7 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 var Matches = Regex.Matches(Output, ResultRegularExpressionPattern.Value);
 
+                int counter = 0;
                 foreach (Match Match in Matches)
                 {
                     if ((Match.Length <= 0) || (!Match.Success))
@@ -137,6 +145,13 @@ namespace OpenTap.Plugins.BasicSteps
                                 var titles = DimensionTitles.Split(',').ToList();
                                 var results = Match.Groups.OfType<Capture>().Skip(1).Select(x => x.Value).ToList();
 
+                                if (IsGroupingByIndex)
+                                {
+                                    titles.Add("Index");
+                                    counter++;
+                                    results.Add(counter.ToString());
+                                }
+                               
                                 if (titles.Count != results.Count)
                                 {
                                     Log.Error("Number of Column Names ({0}) does not match number of results ({1}).", titles.Count, results.Count);
@@ -210,6 +225,7 @@ namespace OpenTap.Plugins.BasicSteps
         
         public override void Run()
         {
+
             if (Action == SCPIAction.Command)
             {
                 Instrument.ScpiCommand(Query);
