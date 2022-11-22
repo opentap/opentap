@@ -811,15 +811,15 @@ jobs:
           path: .
       - run: mv OpenTAP.*.Linux.TapPackage Installer/Assets/OpenTAP.TapPackage
         name: Rename package
-      - run: tap installer create "opentap.installer.xml" -v --target-os linux
+      - run: tap installer create "opentap.installer.linux.xml" -v --target-os linux
         working-directory: Installer/Assets
         name: Build installer
-      - run: mv Installer/Assets/Installer OpenTAP
+      - run: mv Installer/Assets/Installer Installer/Assets/OpenTAP
       - uses: actions/upload-artifact@v2
         with:
           name: installer-linux
           retention-days: 14
-          path: OpenTAP
+          path: Installer/Assets/OpenTAP
 
   Publish-Installer-Linux:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/r') || github.ref == 'refs/heads/main'
