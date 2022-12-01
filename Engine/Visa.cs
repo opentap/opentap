@@ -812,6 +812,7 @@ namespace OpenTap
         IVisa IVisaProvider.Visa => _loaded ? this : null;
         #endregion
 
+        /// <summary>Event handler prototype</summary>
         public delegate int viEventHandler(int vi, int eventType, int context, int userHandle);
 
         #region Delegates
@@ -965,6 +966,9 @@ namespace OpenTap
                 this._loaded = false;
             }
         }
+        /// <summary>
+        /// Attempt to load VISA libraries from the system
+        /// </summary>
         public VisaLibraryLoader()
         {
             // load in method so that we can handle AccessViolationException
