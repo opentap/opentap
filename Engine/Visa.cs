@@ -87,7 +87,6 @@ namespace OpenTap
                 {
                     try 
                     {
-                        staticLog.Debug("Attempting to load IVisaProvider: {0}", typeDataIVisa.Name);
                         IVisaProvider providerInstance = (IVisaProvider)typeDataIVisa.CreateInstance();
                         if (providerInstance.Visa != null)
                         {
@@ -95,7 +94,10 @@ namespace OpenTap
                             staticLog.Debug("Loaded IVisaProvider: {0}", typeDataIVisa.Name);
                         }
                     }
-                    catch {}
+                    catch 
+                    {
+                        staticLog.Debug("Unable to load IVisaProvider: {0}", typeDataIVisa.Name);
+                    }
                 }            
             }
             if (instances.Count == 0)
