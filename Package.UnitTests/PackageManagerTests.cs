@@ -493,7 +493,7 @@ namespace OpenTap.Package.UnitTests
         [TestCase("", "http://packages.opentap.io", typeof(HttpPackageRepository))]  // Http scheme
         [TestCase("", "https://packages.opentap.io", typeof(HttpPackageRepository))] // Https scheme
         [TestCase("", "ftp://packages.opentap.io", typeof(NotSupportedException))]   // Unsupported scheme
-        [TestCase("", "something illigal|", typeof(ArgumentException))]              // Illigal chars
+        [TestCase("", "something illegal|", typeof(NotSupportedException))]          // Illegal chars
         [TestCase("", "C:/a", typeof(FilePackageRepository))]                        // Windows absolute path
         [TestCase("", "/a/b", typeof(FilePackageRepository))]                        // Linux absolute path
         [TestCase("", "a/b", typeof(FilePackageRepository))]                         // Relative path
@@ -502,6 +502,9 @@ namespace OpenTap.Package.UnitTests
         [TestCase("", "file:///a", typeof(FilePackageRepository))]                   // Explicit file scheme
         [TestCase("", "file:///C:/a", typeof(FilePackageRepository))]                // Explicit absolute File Path
         [TestCase("", @"\\a\b", typeof(FilePackageRepository))]                      // UNC path
+        [TestCase("", "packages.opentap.io", typeof(HttpPackageRepository))]         // No scheme, top level domain
+        [TestCase("", "my-repo.com", typeof(HttpPackageRepository))]                 // No scheme, top level domain
+        [TestCase("", ".my.file.repo.", typeof(FilePackageRepository))]              // File path with periods
         [TestCase("http://opentap.io", "http://packages.opentap.io", typeof(HttpPackageRepository))]  // Http scheme
         [TestCase("http://opentap.io", "https://packages.opentap.io", typeof(HttpPackageRepository))] // Https scheme
         [TestCase("http://opentap.io", "C:/a", typeof(FilePackageRepository))]                        // Windows absolute path
@@ -527,8 +530,7 @@ namespace OpenTap.Package.UnitTests
             {
                 if (expectedRepositoryType == ex.GetType())
                     return;
-                else
-                    throw;
+                throw;
             }
         }
 

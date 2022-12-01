@@ -56,6 +56,29 @@ namespace OpenTap
             }
         }
 
+        public static void SafeDelete(string file, int retries, Action<int, Exception> onError)
+        {
+            for(int i = 0; i < retries; i++)
+            {
+                try
+                {
+                    File.Delete(file);
+                    break;
+                }
+                catch(Exception e)
+                {
+                    if (e is DirectoryNotFoundException)
+                    {
+                        // this occurs if the directory of the file being deleted does not exist.
+                        // But if the directory is not found it also means that the file does not exist.
+                        // so we can safely assume it is deleted.
+                        break;
+                    }
+                    onError(i, e);
+                }
+            }
+        }
+
         /// <summary>
         /// Creates a directory if it does not already exist.
         /// </summary>

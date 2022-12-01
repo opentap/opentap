@@ -35,12 +35,12 @@ namespace OpenTap.Package
         /// </summary>
         public bool IsInstallationFolder => GetPackages().Any(x => x.IsSystemWide() == false);
 
-        private static Installation _current;
+        private static Installation current;
         
         /// <summary>
         /// Get the installation of the currently running tap process
         /// </summary>
-        public static Installation Current => _current ??= new Installation(ExecutorClient.ExeDir);
+        public static Installation Current => current ??= new Installation(ExecutorClient.ExeDir);
 
         /// <summary> Target installation architecture. This could be anything as 32-bit is supported on 64bit systems.</summary>
         internal CpuArchitecture Architecture => GetOpenTapPackage()?.Architecture ?? ArchitectureHelper.GuessBaseArchitecture;
@@ -69,8 +69,8 @@ namespace OpenTap.Package
             invalidate = true;
         }
 
-        private bool invalidate;
-        private ConcurrentDictionary<string, PackageDef> fileMap = new ConcurrentDictionary<string, PackageDef>();
+        bool invalidate;
+        readonly ConcurrentDictionary<string, PackageDef> fileMap = new ConcurrentDictionary<string, PackageDef>();
         
         /// <summary>
         /// Get the installed package which provides the file specified by the string.
@@ -144,10 +144,13 @@ namespace OpenTap.Package
         /// <returns></returns>
         public PackageDef FindPackageContainingType(ITypeData pluginType)
         {
-            var assembly = pluginType?.AsTypeData()?.Assembly?.Location;
-            if (string.IsNullOrWhiteSpace(assembly)) return null;
+            var source = TypeData.GetTypeDataSource(pluginType);
+            if (source == null) return null;
+            // sourceFile is normally a .DLL, but may also be other things, e.g .py-file.
+            var sourceFile = source.Location;
+            if (string.IsNullOrWhiteSpace(sourceFile)) return null;
             
-            var assemblyPath = Path.GetFullPath(assembly);
+            var assemblyPath = Path.GetFullPath(sourceFile);
             var installPath = Path.GetFullPath(ExecutorClient.ExeDir);
 
             // The assembly must be rooted in the installation

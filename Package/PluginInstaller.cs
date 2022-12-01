@@ -574,7 +574,12 @@ namespace OpenTap.Package
             var result = ActionResult.Ok;
             var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : target;
 
-            var filesToRemain = new Installation(destination).GetPackages().Where(p => p.Name != package.Name).SelectMany(p => p.Files).Select(f => f.RelativeDestinationPath).Distinct(StringComparer.InvariantCultureIgnoreCase).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
+            var filesToRemain = new Installation(destination).GetPackages()
+                .Where(p => p.Name != package.Name)
+                .SelectMany(p => p.Files)
+                .Select(f => f.RelativeDestinationPath)
+                .Distinct(StringComparer.InvariantCultureIgnoreCase)
+                .ToHashSet(StringComparer.InvariantCultureIgnoreCase);
 
             try
             {
@@ -597,6 +602,7 @@ namespace OpenTap.Package
                 result = ActionResult.Error;
             }
 
+            int totalDeleteRetries = 0;
             bool ignore(string filename) => filename.ToLower() == "tap" || filename.ToLower() == "tap.exe" || filename.ToLower() == "tap.dll";
             foreach (var file in package.Files)
             {
@@ -622,7 +628,25 @@ namespace OpenTap.Package
                 try
                 {
                     log.Debug("Deleting file '{0}'.", file.RelativeDestinationPath);
-                    File.Delete(fullPath);
+
+                    const int maxRetries = 10;
+                    FileSystemHelper.SafeDelete(fullPath, maxRetries, (i, ex) =>
+                    {
+                        if (ex is UnauthorizedAccessException || ex is IOException)
+                        {
+                            // the number of retries goes across files, to avoid an install taking several minutes.
+                            if (totalDeleteRetries >= maxRetries) throw ex;
+                            totalDeleteRetries++;
+                            // File.Delete might throw either exception depending on if it is a
+                            // program _or_ a file in use.
+                            
+                            log.Warning("Unable to delete file '{0}' file might be in use. Retrying {1} of {2} in 1 second.", file.RelativeDestinationPath, totalDeleteRetries, maxRetries, totalDeleteRetries);
+                            log.Debug("Error: {0}", ex.Message);
+                            TapThread.Sleep(1000);
+                        }
+                        else throw ex;
+                    });
+                    
                 }
                 catch (Exception e)
                 {
