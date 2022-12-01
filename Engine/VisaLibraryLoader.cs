@@ -13,7 +13,7 @@ namespace OpenTap
     /// <summary>
     /// Attempt to load VISA libraries from the system
     /// </summary>
-    public class VisaLibraryLoader : IVisa, IVisaProvider
+    internal class VisaLibraryLoader : IVisa, IVisaProvider
     {
         private bool _loaded = false;
         #region IVisaProvider
