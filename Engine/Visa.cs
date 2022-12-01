@@ -751,29 +751,53 @@ namespace OpenTap
     /// </summary>
     public interface IVisa
     {
+        /// <summary>Open default RM session</summary>
         int viOpenDefaultRM(out int sesn);
+        /// <summary>Find device</summary>
         int viFindRsrc(int sesn, string expr, out int vi, out int retCount, StringBuilder desc);
+        /// <summary>Find next device</summary>
         int viFindNext(int vi, StringBuilder desc);
+        /// <summary>Parse resource string to get interface information</summary>
         int viParseRsrc(int sesn, string desc, ref short intfType, ref short intfNum);
+        /// <summary>Parse resource string to get extended interface information</summary>
         int viParseRsrcEx(int sesn, string desc, ref short intfType, ref short intfNum, StringBuilder rsrcClass, StringBuilder expandedUnaliasedName, StringBuilder aliasIfExists);
+        /// <summary>Open session</summary>
         int viOpen(int sesn, string viDesc, int mode, int timeout, out int vi);
+        /// <summary>Close session</summary>
         int viClose(int vi);
+        /// <summary>Get attribute, returning a byte</summary>
         int viGetAttribute1(int vi, int attrName, out byte attrValue);
+        /// <summary>Get attribute, filling a pre-allocated StringBuilder buffer</summary>
         int viGetAttribute2(int vi, int attrName, StringBuilder attrValue);
+        /// <summary>Get attribute, returning an int</summary>
         int viGetAttribute3(int vi, int attrName, out int attrValue);
+        /// <summary>Set attribute, providing a byte value</summary>
         int viSetAttribute1(int vi, int attrName, byte attrValue);
+        /// <summary>Set attribute, providing an int value</summary>
         int viSetAttribute2(int vi, int attrName, int attrValue);
+        /// <summary>Get status code description</summary>
         int viStatusDesc(int vi, int status, StringBuilder desc);
+        /// <summary>Enable event</summary>
         int viEnableEvent(int vi, int eventType, short mechanism, int context);
+        /// <summary>Disable event</summary>
         int viDisableEvent(int vi, int eventType, short mechanism);
+        /// <summary>Install handler</summary>
         int viInstallHandler(int vi, int eventType, viEventHandler handler, int UserHandle);
+        /// <summary>Uninstall handler</summary>
         int viUninstallHandler(int vi, int eventType, viEventHandler handler, int userHandle);
+        /// <summary>Read data from device</summary>
         unsafe int viRead(int vi, ArraySegment<Byte> buffer, int count, out int retCount);
+        /// <summary>Write data to device</summary>
         unsafe int viWrite(int vi, ArraySegment<Byte> buffer, int count, out int retCount);
+        /// <summary>Read status byte</summary>
         int viReadSTB(int vi, ref short status);
+        /// <summary>Clear a device</summary>
         int viClear(int vi);
+        /// <summary>Lock resource</summary>
         int viLock(int vi, int lockType, int timeout, string requestedKey, StringBuilder accessKey);
+        /// <summary>Unlock resource</summary>
         int viUnlock(int vi);
+        /// <summary>Event handler prototype</summary>
         delegate int viEventHandler(int vi, int eventType, int context, int userHandle);
     }
 
@@ -948,25 +972,43 @@ namespace OpenTap
         }
         #endregion
 
+        /// <summary>Open default RM session</summary>
         public int viOpenDefaultRM(out int sesn) { return viOpenDefaultRMRef(out sesn); }
+        /// <summary>Find device</summary>
         public int viFindRsrc(int sesn, string expr, out int vi, out int retCount, StringBuilder desc) { return viFindRsrcRef(sesn, expr, out vi, out retCount, desc); }
+        /// <summary>Find next device</summary>
         public int viFindNext(int vi, StringBuilder desc) { return viFindNextRef(vi, desc); }
+        /// <summary>Parse resource string to get interface information</summary>
         public int viParseRsrc(int sesn, string desc, ref short intfType, ref short intfNum) { return viParseRsrcRef(sesn, desc, ref intfType, ref intfNum); }
+        /// <summary>Parse resource string to get extended interface information</summary>
         public int viParseRsrcEx(int sesn, string desc, ref short intfType, ref short intfNum, StringBuilder rsrcClass, StringBuilder expandedUnaliasedName, StringBuilder aliasIfExists) { return viParseRsrcExRef(sesn, desc, ref intfType, ref intfNum, rsrcClass, expandedUnaliasedName, aliasIfExists); }
+        /// <summary>Open session</summary>
         public int viOpen(int sesn, string viDesc, int mode, int timeout, out int vi) { return viOpenRef(sesn, viDesc, mode, timeout, out vi); }
+        /// <summary>Close session</summary>
         public int viClose(int vi) { return viCloseRef(vi); }
         
+        /// <summary>Get attribute, returning a byte</summary>
         public int viGetAttribute1(int vi, int attrName, out byte attrValue) { return viGetAttribute1Ref(vi, attrName, out attrValue); }
+        /// <summary>Get attribute, filling a pre-allocated StringBuilder buffer</summary>
         public int viGetAttribute2(int vi, int attrName, StringBuilder attrValue) { return viGetAttribute2Ref(vi, attrName, attrValue); }
+        /// <summary>Get attribute, returning an int</summary>
         public int viGetAttribute3(int vi, int attrName, out int attrValue) { return viGetAttribute3Ref(vi, attrName, out attrValue); }
+        /// <summary>Set attribute, providing a byte value</summary>
         public int viSetAttribute1(int vi, int attrName, byte attrValue) { return viSetAttribute1Ref(vi, attrName, attrValue); }
+        /// <summary>Set attribute, providing an int value</summary>
         public int viSetAttribute2(int vi, int attrName, int attrValue) { return viSetAttribute2Ref(vi, attrName, attrValue); }
+        /// <summary>Get status code description</summary>
         public int viStatusDesc(int vi, int status, StringBuilder desc) { return viStatusDescRef(vi, status, desc); }
 
+        /// <summary>Enable event</summary>
         public int viEnableEvent(int vi, int eventType, short mechanism, int context) { return viEnableEventRef(vi, eventType, mechanism, context); }
+        /// <summary>Disable event</summary>
         public int viDisableEvent(int vi, int eventType, short mechanism) { return viDisableEventRef(vi, eventType, mechanism); }
+        /// <summary>Install handler</summary>
         public int viInstallHandler(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle) { return viInstallHandlerRef(vi, eventType, handler, UserHandle); }
+        /// <summary>Uninstall handler</summary>
         public int viUninstallHandler(int vi, int eventType, IVisa.viEventHandler handler, int userHandle) { return viUninstallHandlerRef(vi, eventType, handler, userHandle); }
+        /// <summary>Read data from device</summary>
         public unsafe int viRead(int vi, ArraySegment<byte> buffer, int count, out int retCount)
         {
             if (buffer.Count < count)
@@ -977,6 +1019,7 @@ namespace OpenTap
                 return viReadRef(vi, p, count, out retCount);
             }
         }
+        /// <summary>Write data to device</summary>
         public unsafe int viWrite(int vi, ArraySegment<byte> buffer, int count, out int retCount)
         {
             if (buffer.Count < count)
@@ -987,9 +1030,13 @@ namespace OpenTap
                 return viWriteRef(vi, p, count, out retCount);
             }
         }
+        /// <summary>Read status byte</summary>
         public int viReadSTB(int vi, ref short status) { return viReadSTBRef(vi, ref status); }
+        /// <summary>Clear a device</summary>
         public int viClear(int vi) { return viClearRef(vi); }
+        /// <summary>Lock resource</summary>
         public int viLock(int vi, int lockType, int timeout, string requestedKey, StringBuilder accessKey) { return viLockRef(vi, lockType, timeout, requestedKey, accessKey); }
+        /// <summary>Unlock resource</summary>
         public int viUnlock(int vi) { return viUnlockRef(vi); }
     }
 }
