@@ -78,35 +78,17 @@ namespace OpenTap
         static TraceSource staticLog = OpenTap.Log.CreateSource("Visa");
         static Visa()
         {
-            object instance = null;
-            var visaProviders = TypeData.GetDerivedTypes<IVisaProvider>();
-            var instances = new SortedDictionary<double, (string, IVisa)>();
-            foreach (var typeDataIVisa in visaProviders) 
-            {
-                if (typeDataIVisa != null)
-                {
-                    try 
-                    {
-                        IVisaProvider providerInstance = (IVisaProvider)typeDataIVisa.CreateInstance();
-                        if (providerInstance.Visa != null)
-                        {
-                            instances[providerInstance.Order] = (typeDataIVisa.Name, providerInstance.Visa); 
-                            staticLog.Debug("Loaded IVisaProvider: {0}", typeDataIVisa.Name);
-                        }
-                    }
-                    catch 
-                    {
-                        staticLog.Debug("Unable to load IVisaProvider: {0}", typeDataIVisa.Name);
-                    }
-                }            
-            }
-            if (instances.Count == 0)
-            {
+            var instance = TypeData.GetDerivedTypes<IVisaProvider>()
+                .Select(type => type.CreateInstanceSafe())
+                .OfType<IVisaProvider>()
+                .ToArray() 
+                .OrderBy(provider => provider.Order)
+                .FirstOrDefault(x => x.Visa != null);
+
+            if (instance == null)
                 throw new Exception("IVisaProvider unable to load VISA");
-            }
             
-            instance = instances.Values.First().Item2;
-            staticLog.Debug("Using IVisaProvider: {0}", instances.Values.First().Item1);
+            staticLog.Debug("Using IVisaProvider: {0}", instance);
 
             viOpenDefaultRMRef = ((IVisa)instance).viOpenDefaultRM;
             viFindRsrcRef = ((IVisa)instance).viFindRsrc;
