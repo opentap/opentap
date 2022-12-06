@@ -25,13 +25,16 @@ ENV TAP_PATH="/opt/tap"
 RUN mkdir -p /root/.local/share/OpenTap
 RUN echo 11111111-1111-1111-1111-111111111111 > /root/.local/share/OpenTap/OpenTapGeneratedId
 
+RUN useradd --uid 1000 opentap
+RUN chown opentap:opentap -R /opt/tap
+USER opentap
+
 # Test TAP
 RUN tap -h
 RUN tap package list -v
 
 ################## DOTNET CORE RUNTIME #########################################
 FROM mcr.microsoft.com/dotnet/runtime:6.0-focal as production
-
 
 COPY --from=development /opt/tap /opt/tap
 
@@ -42,3 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libunwind8 curl
 
 ENV PATH="/opt/tap:${PATH}"
 ENV TAP_PATH="/opt/tap"
+
+RUN useradd --uid 1000 opentap
+RUN chown opentap:opentap -R /opt/tap
+USER opentap
