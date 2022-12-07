@@ -78,44 +78,44 @@ namespace OpenTap
         static TraceSource staticLog = OpenTap.Log.CreateSource("Visa");
         static Visa()
         {
-            var instance = TypeData.GetDerivedTypes<IVisaProvider>()
+            IVisa visa = TypeData.GetDerivedTypes<IVisaProvider>()
                 .Select(type => type.CreateInstanceSafe())
                 .OfType<IVisaProvider>()
-                .ToArray() 
+                .ToArray()
                 .OrderBy(provider => provider.Order)
-                .FirstOrDefault(x => x.Visa != null);
+                .FirstOrDefault(x => x.Visa != null)?.Visa;
 
-            if (instance == null)
+            if (visa == null)
                 throw new Exception("IVisaProvider unable to load VISA");
             
-            staticLog.Debug("Using IVisaProvider: {0}", instance);
+            staticLog.Debug("Using IVisaProvider: {0}", visa);
 
-            viOpenDefaultRMRef = ((IVisa)instance).viOpenDefaultRM;
-            viFindRsrcRef = ((IVisa)instance).viFindRsrc;
-            viFindNextRef = ((IVisa)instance).viFindNext;
-            viParseRsrcRef = ((IVisa)instance).viParseRsrc;
-            viParseRsrcExRef = ((IVisa)instance).viParseRsrcEx;
-            viOpenRef = ((IVisa)instance).viOpen;
-            viCloseRef = ((IVisa)instance).viClose;
+            viOpenDefaultRMRef = visa.viOpenDefaultRM;
+            viFindRsrcRef = visa.viFindRsrc;
+            viFindNextRef = visa.viFindNext;
+            viParseRsrcRef = visa.viParseRsrc;
+            viParseRsrcExRef = visa.viParseRsrcEx;
+            viOpenRef = visa.viOpen;
+            viCloseRef = visa.viClose;
             unsafe 
             {
-                viReadRef = ((IVisa)instance).viRead;
-                viWriteRef = ((IVisa)instance).viWrite;
+                viReadRef = visa.viRead;
+                viWriteRef = visa.viWrite;
             }
-            viReadSTBRef = ((IVisa)instance).viReadSTB;
-            viClearRef = ((IVisa)instance).viClear;
-            viLockRef = ((IVisa)instance).viLock;
-            viUnlockRef = ((IVisa)instance).viUnlock;
-            viGetAttribute1Ref = ((IVisa)instance).viGetAttribute1;
-            viGetAttribute2Ref = ((IVisa)instance).viGetAttribute2;
-            viGetAttribute3Ref = ((IVisa)instance).viGetAttribute3;
-            viSetAttribute1Ref = ((IVisa)instance).viSetAttribute1;
-            viSetAttribute2Ref = ((IVisa)instance).viSetAttribute2;
-            viStatusDescRef = ((IVisa)instance).viStatusDesc;
-            viEnableEventRef = ((IVisa)instance).viEnableEvent;
-            viDisableEventRef = ((IVisa)instance).viDisableEvent;
-            viInstallHandlerRef = ((IVisa)instance).viInstallHandler;
-            viUninstallHandlerRef = ((IVisa)instance).viUninstallHandler;
+            viReadSTBRef = visa.viReadSTB;
+            viClearRef = visa.viClear;
+            viLockRef = visa.viLock;
+            viUnlockRef = visa.viUnlock;
+            viGetAttribute1Ref = visa.viGetAttribute1;
+            viGetAttribute2Ref = visa.viGetAttribute2;
+            viGetAttribute3Ref = visa.viGetAttribute3;
+            viSetAttribute1Ref = visa.viSetAttribute1;
+            viSetAttribute2Ref = visa.viSetAttribute2;
+            viStatusDescRef = visa.viStatusDesc;
+            viEnableEventRef = visa.viEnableEvent;
+            viDisableEventRef = visa.viDisableEvent;
+            viInstallHandlerRef = visa.viInstallHandler;
+            viUninstallHandlerRef = visa.viUninstallHandler;
             
         }
         #endregion
