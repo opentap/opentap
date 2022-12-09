@@ -641,6 +641,7 @@ namespace OpenTap.Package
                             // program _or_ a file in use.
                             
                             log.Warning("Unable to delete file '{0}' file might be in use. Retrying {1} of {2} in 1 second.", file.RelativeDestinationPath, totalDeleteRetries, maxRetries, totalDeleteRetries);
+                            log.Debug("Error: {0}", ex.Message);
                             TapThread.Sleep(1000);
                         }
                         else throw ex;
