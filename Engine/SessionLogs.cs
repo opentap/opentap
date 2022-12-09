@@ -21,6 +21,13 @@ namespace OpenTap
     /// </summary>
     public static class SessionLogs
     {
+        [DllImport("Kernel32.dll", CharSet = CharSet.Unicode)]
+        static extern bool CreateHardLink(
+          string lpFileName,
+          string lpExistingFileName,
+          IntPtr lpSecurityAttributes
+        );
+
         private static readonly TraceSource log = Log.CreateSource("Session");
 
         /// <summary> The number of files kept at a time. </summary>
@@ -367,6 +374,11 @@ namespace OpenTap
                 log.Debug(sw, "Session log loaded as '{0}'.", currentLogFile);
                 recentSystemlogs.AddRecent(Path.GetFullPath(path));
             }
+
+            string latestPath = Path.Combine(dir, "Latest.txt");
+            if (File.Exists(latestPath))
+                File.Delete(latestPath);
+            CreateHardLink(latestPath, path, IntPtr.Zero);
         }
 
         static int sessionLogCount = 0;
