@@ -67,6 +67,13 @@ namespace OpenTap
                 }
                 catch(Exception e)
                 {
+                    if (e is DirectoryNotFoundException)
+                    {
+                        // this occurs if the directory of the file being deleted does not exist.
+                        // But if the directory is not found it also means that the file does not exist.
+                        // so we can safely assume it is deleted.
+                        break;
+                    }
                     onError(i, e);
                 }
             }
