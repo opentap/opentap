@@ -446,6 +446,10 @@ namespace OpenTap
     {
         class BreakConditionDynamicMember : DynamicMember
         {
+            private BreakCondition _lastNonInherit;
+            private BreakCondition _lastCondition;
+
+
             public BreakConditionDynamicMember(DynamicMember breakConditions) : base(breakConditions)
             {
                 
@@ -458,9 +462,22 @@ namespace OpenTap
 
             public override void SetValue(object owner, object value)
             {
+                if (value is BreakCondition condition && !condition.HasFlag(BreakCondition.Inherit))
+                {
+                    if (_lastCondition.HasFlag(BreakCondition.Inherit))
+                    {
+                        value = _lastNonInherit;
+                    }
+                    else
+                    {
+                        _lastNonInherit = condition;
+                    }
+                }
+                _lastCondition = (BreakCondition)value;
+
                 if (owner is IBreakConditionProvider bc)
                 {
-                    bc.BreakCondition = (BreakCondition) value;
+                    bc.BreakCondition = (BreakCondition)value;
                     return;
                 }
 
