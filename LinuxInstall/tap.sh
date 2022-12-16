@@ -41,7 +41,7 @@ if [ -w "$TapDllDir" ]; then
   # If the user cannot write to the installation, OpenTAP will not work correctly.
   # Instead, we should give a hint about how to resolve the issue.
   # use exec to replace the current process instead of starting a child process
-  exec dotnet "$TapDllPath" "$@"
+  exec dotnet "$TapDllDir/tap.dll" "$@"
 else
   TapDllGroupOwner="$(stat -c "%G" "$TapDllDir")"
   echo "User $USER does not have write access in the OpenTAP installation at '$TapDllDir'."
