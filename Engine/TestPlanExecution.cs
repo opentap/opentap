@@ -18,7 +18,7 @@ namespace OpenTap
         bool runPrePlanRunMethods(IEnumerable<ITestStep> steps, TestPlanRun planRun)
         {
             Stopwatch preTimer = Stopwatch.StartNew(); // try to avoid calling Stopwatch.StartNew too often.
-            TimeSpan elaps = preTimer.Elapsed;
+            TimeSpan elapsed = preTimer.Elapsed;
             foreach (ITestStep step in steps)
             {
                 if (step.Enabled == false)
@@ -73,8 +73,8 @@ namespace OpenTap
                     {
                         var newelaps = preTimer.Elapsed;
 
-                        Log.Debug(newelaps - elaps, "{0} PrePlanRun completed.", step.GetStepPath());
-                        elaps = newelaps;
+                        Log.Debug(newelaps - elapsed, "{0} PrePlanRun completed.", step.GetStepPath());
+                        elapsed = newelaps;
                         
                     }
                 }
