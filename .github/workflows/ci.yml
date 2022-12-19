@@ -620,15 +620,23 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        Package: [win-x64, linux-x64]
+        include:
+          - os: MacOS
+            arch: arm64
+          - os: Linux
+            arch: x64
+          - os: Linux
+            arch: arm
+          - os: Linux
+            arch: arm64
     needs:
       - Package-Win
-      - Package-Linux
+      - Package-Cross
     steps:
       - name: Download package
         uses: actions/download-artifact@v2
         with:
-          name: ${{ matrix.Package }}-package
+          name: ${{ matrix.os }}-${{ matrix.arch }}-package
           path: .
       - name: Install OpenTAP
         run: |
@@ -650,7 +658,7 @@ jobs:
     needs:
       - Build-Win
       - Package-Win
-      - Package-Linux
+      - Package-Cross
       - GetVersion
     steps:
       - name: Checkout
@@ -727,7 +735,7 @@ jobs:
   Installer-Linux:
     runs-on: windows-2022
     needs:
-      - Package-Linux
+      - Package-Cross
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -904,7 +912,7 @@ jobs:
           - target: production-hardened
             tag-suffix: "-slim-hardened"
     needs:
-      - Package-Linux
+      - Package-Cross
       - GetVersion
     steps:
       - name: Checkout
@@ -940,7 +948,7 @@ jobs:
   Package-Deb:
     runs-on: ubuntu-20.04
     needs:
-      - Package-Linux
+      - Package-Cross
     steps:
       - name: Checkout
         uses: actions/checkout@v2
