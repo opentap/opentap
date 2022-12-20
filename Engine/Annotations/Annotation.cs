@@ -2078,6 +2078,63 @@ namespace OpenTap
             readonly Type baseType;
             readonly AnnotationCollection a;
 
+            IEnumerable<object> GetAdaptors(List<object> exclude)
+            {
+                var adaptorTypes = TypeData.GetDerivedTypes<ITypeAdaptor>()
+                    .Where(x => x.DescendsTo(baseType) && x.CanCreateInstance);
+                
+                // get all the objects that could be adapted 
+                var resources = ComponentSettingsList.GetContainer(baseType).Cast<object>()
+                    // skip the objects that don't need adaptation.
+                    .Where(x => exclude.Contains(x) == false)
+                    .ToArray();
+                
+                foreach (var type in adaptorTypes)
+                {
+                    var matched = type.GetMembers()
+                        // select write members that can be assigned from an IResource.
+                        .Where(x => x.Writable && x.TypeDescriptor.DescendsTo(typeof(IResource)))
+                        .ToArray();
+                    
+                    // if not something can be assigned to all the IResource slots.
+                    if(!matched.All(x => resources.Any(res => TypeData.GetTypeData(res).DescendsTo(x.TypeDescriptor))))
+                        continue;
+
+                    // take the sets of resources which can be assigned to each member.
+                    var matchedResources = matched.Select(x => resources
+                        .Where(res => TypeData.GetTypeData(res).DescendsTo(x.TypeDescriptor))
+                        .ToArray()).ToArray();
+
+                    // Generate permutations of all resources matching each member.
+                    // for some type of adapters, this number could be very large,
+                    // but probably not in any realistic scenarios.
+                    foreach (var perm in matchedResources.Permutations())
+                    {
+                        object obj;
+                        
+                        // assume that if one member can be set the adaptor can be used.
+                        try
+                        {
+                            obj = type.CreateInstance();
+                            foreach (var m in matched.Pairwise(perm))
+                                m.Item1.SetValue(obj, m.Item2);
+                        }
+                        catch(Exception e)
+                        {
+                            // continue in case of user code errors.
+                            log.Error("Caught exception when creating adaptor: {0}", e.Message);
+                            log.Debug(e);
+                            continue;
+                        }
+
+                        yield return obj;
+                        
+                    }
+                }
+            }
+
+            static TraceSource log = Log.CreateSource("Adaptor");
+
             public IEnumerable AvailableValues 
             {
                 get
@@ -2088,8 +2145,9 @@ namespace OpenTap
                     // if the selected value is not in the list show it anyway.
                     if (cv != null && result.Contains(cv) == false)
                         result.Add(cv);
+                    result.AddRange(GetAdaptors(result));
 
-                    return result;
+                    return result.Distinct().ToArray();
                 }
             }
             

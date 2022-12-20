@@ -1691,6 +1691,7 @@ namespace OpenTap.UnitTests
             public IInstrument Instrument { get; set; }
             public override void Run()
             {
+                UpgradeVerdict(Verdict.Pass);
             }
         }
 

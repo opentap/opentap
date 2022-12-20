@@ -43,6 +43,65 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void PairWiseTest()
+        {
+            
+            var a = Enumerable.Range(0, 5);
+            var b = Enumerable.Range(1, 6);
+            var p2 = a.Pairwise(b);
+            Assert.AreEqual(5, p2.Count());
+            foreach (var pair in p2)
+            {
+                Assert.IsTrue(pair.Item1 == pair.Item2 - 1);
+            }
+        }
+
+        [Test]
+        public void PermutationsTest()
+        {
+            var source = new [] { new [] { 1, 2 }, new [] { 3, 4, 5 }, new []{6, 7} };
+            var perms = source.Permutations().ToArray();
+            var ordered = perms.OrderBy(x => x[1])
+                .ToArray()
+                .OrderBy(x => x[0])
+                .ToArray();
+            int index = 0;
+            for (int i = 0; i < source[0].Length; i++)
+            {
+                for (int j = 0; j < source[1].Length; j++)
+                {
+                    for (int k = 0; k < source[2].Length; k++)
+                    {
+                        Assert.IsTrue(source[0][i] == ordered[index][0]);
+                        Assert.IsTrue(source[1][j] == ordered[index][1]);
+                        Assert.IsTrue(source[2][k] == ordered[index][2]);
+                        index++;
+                    }
+                }
+            }
+
+            int len = 1;
+            foreach (var array in source)
+                len *= array.Length;
+            Assert.AreEqual(len, perms.Length);
+            
+            // edge case 1: An empty array yields no results.
+            var sourceEdgeCase1 = new [] { new [] { 1, 2 }, new int[] { }, new []{6, 7} };
+            var permsEdgeCase1 = sourceEdgeCase1.Permutations().ToArray();
+            Assert.AreEqual(0, permsEdgeCase1.Length);
+
+            // edge case 2: Nothing yields one empty array.
+            // This is the correct behavior, because there is exactly one valid permutation.
+            // this also makes sense if you try to calculate the number of permutations.
+            var sourceEdgeCase2 = new int[][] {}; 
+            var permsEdgeCase2 = sourceEdgeCase2.Permutations().ToArray();
+            Assert.AreEqual(1, permsEdgeCase2.Length);
+            Assert.AreEqual(0, permsEdgeCase2[0].Length);
+
+
+        }
+
+        [Test]
         public void MemoryMappedApiTest()
         {
             if(OpenTap.OperatingSystem.Current != OpenTap.OperatingSystem.Windows) 
