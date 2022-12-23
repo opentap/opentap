@@ -193,5 +193,9 @@ namespace OpenTap
         public const string OutputAssigned = Common + nameof(OutputAssigned);
         /// <summary> This is an input</summary>
         public const string Input = Common + nameof(Input);
+        /// <summary> Add a user-defined dynamic property</summary>
+        public const string AddDynamicProperty = Common + nameof(AddDynamicProperty);
+        /// <summary> Remove a user-defined dynamic property</summary>
+        public const string RemoveDynamicProperty = Common + nameof(RemoveDynamicProperty);
     }
 }

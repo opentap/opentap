@@ -455,6 +455,12 @@ namespace OpenTap.Plugins
                     ok = false;
                 }
             }
+            else if (propType.DescendsTo(typeof(ITypeData)))
+            {
+                // deserialize ITypeData
+                value = TypeData.GetTypeData(getvalueString()?.Trim());
+                ok = true;
+            }
             else
             {
                 ok = false;
@@ -749,6 +755,13 @@ namespace OpenTap.Plugins
                         elem.Value = v;
                         return true;
                     }
+                }
+
+                // serialize as ITYpeData?
+                if (obj is ITypeData td)
+                {
+                    elem.Value = td.Name; // e.g "System.String"
+                    return true;
                 }
 
                 IMemberData xmlTextProp = null;
