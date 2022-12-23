@@ -203,6 +203,128 @@ namespace OpenTap
         }
 
         bool IMenuModelState.Enabled => (source?.Length ?? 0) > 0;
+
+        static readonly TraceSource log = Log.CreateSource("Menu");
+        
+        [Display("Add Dynamic Property", 
+            "Add a dynamic property based on the currently selected one.", 
+            Order: 2.0)]
+        [Browsable(true)]
+        [IconAnnotation(IconNames.AddDynamicProperty)]
+        public void AddDynamicProperty()
+        {
+            var r = new AddDynamicPropertyRequest
+            {
+                // guess on a property name.
+                PropertyName = member.Name + "2",
+                
+                // Assume the type being the same as the selected property.
+                Type = member.TypeDescriptor
+            };
+            
+            // send the user request
+            UserInput.Request(r);
+            
+            if (r.Submit == AddDynamicPropertyRequest.OkCancel.Cancel)
+                return; // cancel
+            
+            List<object> attributes = new List<object>();
+            
+            { // process DisplayAttribute (if needed)
+                r.Group = r.Group?.Trim();
+                r.DisplayName = r.DisplayName?.Trim();
+                r.Description = r.DisplayName?.Trim();
+
+                if (!string.IsNullOrEmpty(r.Group) || !string.IsNullOrEmpty(r.DisplayName) || !string.IsNullOrEmpty(r.Description))
+                {
+                    r.Group = r.Group ?? "";
+                    if (string.IsNullOrEmpty(r.DisplayName))
+                        r.DisplayName = r.PropertyName;
+                    r.Description = r.Description ?? "";
+                    attributes.Add(new DisplayAttribute(r.DisplayName, r.Description, r.Group, Order: r.Order));
+                }
+            }
+            
+            var selectedType = r.Type;
+            if (selectedType == null)
+            {
+                log.Error("Invalid type selected: {0}", r.Type);
+                return;
+            }
+            
+            foreach (var src in source)
+            {
+                var newMem = new UserDefinedDynamicMember
+                {
+                    TypeDescriptor = r.Type,
+                    Name = r.PropertyName,
+                    Readable = true,
+                    Writable = true,
+                    DeclaringType = TypeData.FromType(typeof(TestStep)),
+                    DisplayName = r.DisplayName,
+                    Description = r.Description,
+                    Group = r.Group,
+                    Output = r.Output,
+                    Order = r.Order
+                };    
+                DynamicMember.AddDynamicMember(src, newMem);
+            }
+        }
+
+        [Display("Define the new property")]
+        class AddDynamicPropertyRequest
+        {
+            public enum OkCancel
+            {
+                OK,
+                Cancel
+            }
+            
+            [Display("Name")]
+            public string PropertyName { get; set; }
+
+            public ITypeData[] Types => new ITypeData[]
+            {
+                TypeData.FromType(typeof(string)), 
+                TypeData.FromType(typeof(int)), 
+                TypeData.FromType(typeof(double))
+            };
+            
+            [AvailableValues(nameof(Types))]
+            public ITypeData Type { get; set; }
+            
+            [Display("Output", "Selects whether to mark this as an output.", Group: "Advanced" )]
+            public bool Output { get; set; }
+            
+            [Display("Name", "Selects whether to mark this as an output.", Group: "Display" )]
+            public string DisplayName { get; set; }
+            
+            [Display("Description", "Selects whether to mark this as an output.", Group: "Display" )]
+            public string Description { get; set; }
+            
+            [Display("Group", "Selects whether to mark this as an output.", Group: "Display" )]
+            public string Group {get; set; }
+
+            [Display("Order", "Selects whether to mark this as an output.", Group: "Display")]
+            public double Order { get; set; } = -10000;
+            
+            [Submit]
+            [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+            public OkCancel Submit { get; set; }
+
+        }
+
+        public bool CanRemoveDynamicMember => member is UserDefinedDynamicMember;
+        
+        [Display("Remove Dynamic Property", "Remove user-defined dynamic property.", Order: 2.0)]
+        [Browsable(true)]
+        [IconAnnotation(IconNames.RemoveDynamicProperty)]
+        [EnabledIf(nameof(CanRemoveDynamicMember), true, HideIfDisabled = true)]
+        public void RemoveDynamicProperty()
+        {
+            foreach(var src in source)
+                DynamicMember.RemovedDynamicMember(src, member);
+        }
     }
     
     class TestStepMenuItemsModelFactory : IMenuModelFactory

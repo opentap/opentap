@@ -2484,10 +2484,7 @@ namespace OpenTap.Engine.UnitTests
 
     public class RegexStepTest : RegexOutputStep
     {
-        public override bool GeneratesOutput 
-        {
-            get { return true; }
-        }
+        public override bool GeneratesOutput => true;
 
         public override void Run()
         {
