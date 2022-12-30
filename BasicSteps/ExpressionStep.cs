@@ -122,7 +122,6 @@ namespace OpenTap.Plugins.BasicSteps
                         if (left.Type.IsNumeric() && right.Type.IsNumeric())
                         {
                             // assume left is always right
-                            left = Expr.Convert(left, typeof(double));
                             right = Expr.Convert(right, left.Type);
                         }
                     }
