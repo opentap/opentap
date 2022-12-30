@@ -378,10 +378,31 @@ namespace OpenTap
 
             void publishResults()
             {
+                var primitiveMembers = resultMembers
+                    .Where(x => x.TypeDescriptor.IsPrimitive())
+                    .ToArray();
+                // primitive members are collapsed into one row with several columns with the step
+                // name as a result name, and each (primitive) property as a column.
+                if (primitiveMembers.Length > 0)
+                {
+                    var arrays = primitiveMembers.Select(r =>
+                    {
+                        var value = r.GetValue(step);
+                        var array = Array.CreateInstance(value.GetType(), 1);
+                        array.SetValue(value, 0);
+                        return array;
+                    }).ToArray();
+                    
+                    var names = primitiveMembers.Select(r => r.GetDisplayAttribute().Name).ToList();
+                    ((ResultSource)ResultSource).PublishTable(step.StepRun.TestStepName, names, arrays);
+                }
                 foreach (var r in resultMembers)
                 {
+                    if (r.TypeDescriptor.IsPrimitive())
+                        continue;
+                    var name = r.GetDisplayAttribute().Name;
                     var value = r.GetValue(step);
-                    ((ResultSource)ResultSource).Publish(r.GetDisplayAttribute().Name, value);
+                    ((ResultSource)ResultSource).Publish(name, value);
                 }    
             }
 

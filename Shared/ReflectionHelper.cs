@@ -365,12 +365,16 @@ namespace OpenTap
             }
         }
 
-        /// <summary>
-        /// Returns true if a type is numeric.
-        /// </summary>
+        /// <summary> Returns true if a type is numeric. </summary>
         public static bool IsNumeric(this ITypeData t)
         {
             return t.AsTypeData()?.Type.IsNumeric() == true;
+        }
+        
+        /// <summary> Returns true if a type is a C# primitive. </summary>
+        public static bool IsPrimitive(this ITypeData t)
+        {
+            return t.AsTypeData()?.Type.IsPrimitive ?? false;
         }
 
         /// <summary> Creates an instance of t with no constructor arguments. </summary>
