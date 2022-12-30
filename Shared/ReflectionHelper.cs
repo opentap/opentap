@@ -1857,6 +1857,13 @@ namespace OpenTap
             Array.Resize(ref array, array.Length + appendage.Length);
             Array.Copy(appendage, 0, array, preLen, appendage.Length);
         }
+
+        public static T PopAt<T>(this IList<T> list, int index)
+        {
+            var value = list[index];
+            list.RemoveAt(index);
+            return value;
+        }
         
         public static IEnumerable<T2> TrySelect<T, T2>(this IEnumerable<T> src, Func<T, T2> f,
             Action<Exception, T> handler) => src.TrySelect<T, T2, Exception>(f, handler);

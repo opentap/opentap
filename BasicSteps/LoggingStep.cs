@@ -33,20 +33,20 @@ namespace OpenTap.Plugins.BasicSteps
 
         public override void Run()
         {
-            var msg = this.GetFormattedName(LogMessage);
+            var message = this.FormatString(LogMessage);
             switch (Severity)
             {
                 case LogSeverity.Debug:
-                    Log.Debug(msg);
+                    Log.Debug(message);
                     break;
                 case LogSeverity.Info:
-                    Log.Info(msg);
+                    Log.Info(message);
                     break;
                 case LogSeverity.Warning:
-                    Log.Warning(msg);
+                    Log.Warning(message);
                     break;
                 case LogSeverity.Error:
-                    Log.Error(msg);
+                    Log.Error(message);
                     break;
             }
         }

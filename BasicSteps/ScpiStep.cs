@@ -210,18 +210,21 @@ namespace OpenTap.Plugins.BasicSteps
         
         public override void Run()
         {
+            // get a formatted string so that dynamic properties can be inserted into the query.
+            var query = this.FormatString(Query);
+            
             if (Action == SCPIAction.Command)
             {
-                Instrument.ScpiCommand(Query);
+                Instrument.ScpiCommand(query);
             }
             else
             {
-                string Result = Instrument.ScpiQuery(Query);
+                string result = Instrument.ScpiQuery(query);
 
                 if (AddToLog)
-                    Log.Info(LogHeader + Result);
+                    Log.Info(LogHeader + result);
 
-                ProcessOutput(Result);
+                ProcessOutput(result);
             }
         }
     }

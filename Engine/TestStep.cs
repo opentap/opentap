@@ -581,7 +581,14 @@ namespace OpenTap
 
     class DynamicMembersLookup : ConcurrentDictionary<IMemberData, object>
     {
-        public DynamicMembersLookup() : base(1, 4)
+        
+        // when comparing dynamic members, they should always have unique names
+        class Comparer : IEqualityComparer<IMemberData>
+        {
+            public bool Equals(IMemberData x, IMemberData y) =>x.Name == y.Name;
+            public int GetHashCode(IMemberData obj) => obj.Name.GetHashCode();
+        }
+        public DynamicMembersLookup() : base(1, 4, new Comparer())
         {
             
         }
@@ -1250,17 +1257,22 @@ namespace OpenTap
         /// <summary> Cache for quickly getting the display names of members used to generate the formatted name. </summary>
         static readonly ConditionalWeakTable<ITypeData, Dictionary<string, IMemberData>> formatterLutCache 
             = new ConditionalWeakTable<ITypeData, Dictionary<string, IMemberData>>();
+
+        /// <summary> Formats the name of a test step based on it's declared name. </summary>
+        public static string GetFormattedName(this ITestStep step) => step.FormatString(step.Name);
         
         /// <summary> Takes the name of step and replaces {} tokens with the value of properties. </summary>
-        public static string GetFormattedName(this ITestStep step)
+        public static string FormatString(this ITestStep step, string text)
         {
-            if(step.Name.Contains('{') == false || step.Name.Contains('}') == false)
-                return step.Name;
+            // check if formatting macros are even being used.
+            if(text.Contains('{') == false || text.Contains('}') == false)
+                return text;
+            
             var type = TypeData.GetTypeData(step);
+            
+            // calculating the possible macro replacements is possibly slow, so only calculate this once.
             if (formatterLutCache.TryGetValue(type, out var props) == false)
             {
-                // GetProperties potentially slow. GetFormattedName is in test plan exec thread, so the outcome is cached.
-                
                 props = new Dictionary<string, IMemberData>();
                 foreach (var item in type.GetMembers())
                 {
@@ -1287,26 +1299,28 @@ namespace OpenTap
 
                 formatterLutCache.GetValue(type, _ => props);
             }
-            var name = step.Name;
-            if (name == null)
+            
+            if (text == null)
                 return ""; // Since we are returning the formatted name we should not return null.
             int offset = 0;
             int seek = 0;
 
             List<Replace> replaces = new List<Replace>();
-            
-            while ((seek = name.IndexOf('{', offset)) >= 0)
+            // parse the string to find possible replacement areas.
+            while ((seek = text.IndexOf('{', offset)) >= 0)
             {
-                if (seek == name.Length - 1) break;
-                if (name[seek + 1] == '{') 
+                if (seek == text.Length - 1) break;
+                
+                // support escaping { using {{
+                if (text[seek + 1] == '{') 
                 { // take inner '{' if multiple {'s.
                     offset = seek + 1;
                     continue;
                 }
 
-                int seek2 = name.IndexOf('}', offset);
+                int seek2 = text.IndexOf('}', offset);
                 if (seek2 == -1) break;
-                var prop = name.Substring(seek + 1, seek2 - seek - 1);
+                var prop = text.Substring(seek + 1, seek2 - seek - 1);
                 prop = prop.Trim().ToLower();
                 while (prop.Contains("  "))
                    prop = prop.Replace("  ", " ");
@@ -1349,7 +1363,7 @@ namespace OpenTap
                 offset = seek2 + 1;
             }
 
-            StringBuilder outName = new StringBuilder(name);
+            StringBuilder outName = new StringBuilder(text);
 
             for (int i = replaces.Count - 1; i >= 0; i--)
             {
