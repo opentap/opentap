@@ -28,6 +28,9 @@ namespace OpenTap
 
                 if (Output)
                     yield return new OutputAttribute();
+                
+                if (Result)
+                    yield return new ResultAttribute();
             }
             set{}
         }
@@ -72,5 +75,9 @@ namespace OpenTap
         /// <summary> Whether this property is an output. </summary>
         [DefaultValue(false)]
         public bool Output { get; set; }
+        
+        /// <summary> Gets or sets if the property should be marked as a result property. </summary>
+        [DefaultValue(false)]
+        public bool Result { get; set; }
     }
 }

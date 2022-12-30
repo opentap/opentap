@@ -62,14 +62,27 @@ namespace OpenTap
             public override int GetHashCode() => HashCode.Combine(Step,  Member, 7730122);
         }
 
+        static bool CanAssignOutputType(ITypeData inputType, ITypeData outputType)
+        {
+            if (Equals(inputType, outputType))
+                return true;
+            var tdi = outputType.AsTypeData();
+            var tdo = outputType.AsTypeData();
+            if (tdi != null && tdo != null)
+            {
+                if (tdi.IsNumeric && tdo.IsNumeric)
+                    return true;
+            }
+            return false;
+        }
+        
         public static SelectedOutputItem[] GetAvailableOutputs(ITestStepParent scope, ITestStepParent[] steps, ITypeData outputType)
         {
             var list = scope.ChildTestSteps
-
                 .SelectMany(childStep =>
                 {
                     return TypeData.GetTypeData(childStep).GetMembers()
-                        .Where(y => y.HasAttribute<OutputAttribute>() && y.TypeDescriptor == outputType)
+                        .Where(y => y.HasAttribute<OutputAttribute>() && CanAssignOutputType(y.TypeDescriptor, outputType))
                         .Select(mem => SelectedOutputItem.Create(childStep, mem));
                 })
                 .Where(item => steps.Contains(item.Step) == false)

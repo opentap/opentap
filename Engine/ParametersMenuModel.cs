@@ -205,6 +205,26 @@ namespace OpenTap
         bool IMenuModelState.Enabled => (source?.Length ?? 0) > 0;
 
         static readonly TraceSource log = Log.CreateSource("Menu");
+
+        string GetUniqueName()
+        {
+            var name = member.Name;
+            for (int i = 0;; i++)
+            {
+                string extra = i == 0 ? "" : i.ToString();
+                foreach (var obj in source)
+                {
+                    
+                    if (TypeData.GetTypeData(obj).GetMember(name + extra) != null)
+                    {
+                        goto nextIteration;
+                    }
+                }
+
+                return name + extra;
+                nextIteration: ;
+            }
+        }
         
         [Display("Add Dynamic Property", 
             "Add a dynamic property based on the currently selected one.", 
@@ -216,7 +236,7 @@ namespace OpenTap
             var r = new AddDynamicPropertyRequest
             {
                 // guess on a property name.
-                PropertyName = member.Name + "2",
+                PropertyName = GetUniqueName(),
                 
                 // Assume the type being the same as the selected property.
                 Type = member.TypeDescriptor
@@ -228,7 +248,7 @@ namespace OpenTap
             if (r.Submit == AddDynamicPropertyRequest.OkCancel.Cancel)
                 return; // cancel
             
-            List<object> attributes = new List<object>();
+            var attributes = new List<object>();
             
             { // process DisplayAttribute (if needed)
                 r.Group = r.Group?.Trim();
@@ -265,7 +285,8 @@ namespace OpenTap
                     Description = r.Description,
                     Group = r.Group,
                     Output = r.Output,
-                    Order = r.Order
+                    Order = r.Order,
+                    Result = r.Result
                 };    
                 DynamicMember.AddDynamicMember(src, newMem);
             }
@@ -296,6 +317,9 @@ namespace OpenTap
             [Display("Output", "Selects whether to mark this as an output.", Group: "Advanced" )]
             public bool Output { get; set; }
             
+            [Display("Result", "Selects whether to mark this property as an result.", Group: "Advanced" )]
+            public bool Result { get; set; }
+
             [Display("Name", "Selects whether to mark this as an output.", Group: "Display" )]
             public string DisplayName { get; set; }
             
