@@ -18,6 +18,8 @@ namespace OpenTap.Package
     [Display("install", Group: "package", Description: "Install one or more packages.")]
     public class PackageInstallAction : IsolatedPackageAction
     {
+        static readonly TraceSource log = Log.CreateSource("Install");
+        
         [Obsolete("Use Force instead.")]
         public bool ForceInstall { get => Force; set => Force = value; }
 
@@ -341,9 +343,47 @@ namespace OpenTap.Package
             }
             catch (ImageResolveException ex)
             {
-                log.Error("Could not resolve one or more packages.");
-                log.Info("{0}", ex.Message);
-                return (int) ExitCodes.ArgumentError;
+                if (Packages != null && Packages.Length > 0)
+                {
+                    log.Error("Could not resolve {0}{1}", 
+                        string.Join(", ", Packages.Select(x => $"{x}")),
+                        string.IsNullOrWhiteSpace(Version) ? "" : $" v{Version}");    
+                }
+                else
+                {
+                    log.Error("Could not resolve one or more packages.");
+                }
+
+                if (ex.Image != null)
+                {
+                    log.Info("Image configuration:");
+                    foreach (var req in ex.Image.Packages)
+                    {
+                        log.Info($"  {req.Name}: {req.Version}");
+                    }
+                }
+                var unsatisfiedDependencies = ex.InstalledPackages.Where(x => false == x.Dependencies.All(dep =>
+                    ex.InstalledPackages.Any(x2 =>
+                        x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())))).ToArray();
+                if (unsatisfiedDependencies.Any())
+                {
+                    log.Warning("This might be because of the following broken packages:");
+                    
+                    var unsatisfiedStrings =unsatisfiedDependencies.Select(x =>
+                    {
+                        var missingDeps = x.Dependencies.Where(dep => !ex.InstalledPackages.Any(x2 =>
+                            x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())));
+                        string missingMsg = string.Join(" and ", missingDeps.Select(x2 => $"{x2.Name}:{x2.Version}"));
+                        return $"{x.Name} missing {missingMsg}";
+                    });
+                    foreach (var str in unsatisfiedStrings)
+                    {
+                        log.Info("   {0}.", str);
+                    }
+                }
+
+                log.Debug("{0}", ex.Message);
+                return (int) ExitCodes.PackageResolutionError;
             }
             catch (Exception e)
             {

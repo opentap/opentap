@@ -313,7 +313,7 @@ namespace OpenTap.Cli
                 log.Info("{0}", e.Message);
                 return (int)ExitCodes.UnknownCliAction;
             }
-
+            
             if (packageAction == null)
             {
                 Console.WriteLine("Error instantiating command {0}", SelectedAction.Name);
@@ -350,13 +350,14 @@ namespace OpenTap.Cli
             }
             catch (Exception ex)
             {
+                Log.Flush();
                 if (ex is AggregateException aex)
                 {
                     foreach (var innerException in aex.InnerExceptions)
                         log.Error(innerException.Message);
                 }
                 
-                log.Error("A CliAction has thrown an exception: " + ex.Message);
+                log.Error("{0}", ex.Message);
                 log.Debug(ex);
                 return (int)ExitCodes.GeneralException;
             }

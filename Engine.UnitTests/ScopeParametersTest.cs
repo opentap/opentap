@@ -820,5 +820,36 @@ namespace OpenTap.UnitTests
                 Assert.IsNull(m2);
             }
         }
+        
+        [Test]
+        public void DynamicTypeDataEqualityTest()
+        {
+            // the ITypeData implementation if DynamicTestStepTypeData did not implement Equals / GetHashCode.
+            // this gives rise to issues with caching caching, leading to possible leaks. 
+            
+            var plan = new TestPlan();
+            var scope = new SequenceStep();
+            var scope2 = new SequenceStep();
+            plan.ChildTestSteps.Add(scope);
+            scope.ChildTestSteps.Add(scope2);
+
+            Dictionary<ITypeData, int> dict = new Dictionary<ITypeData, int>();
+            
+            var newMem = TypeData.GetTypeData(scope2).GetMember(nameof(scope2.Name)).Parameterize(scope, scope2, "param");
+            scope.Name = "Test {param}";
+            var tp0 = TypeData.GetTypeData(scope);
+
+            Assert.IsNotNull(newMem);
+            for (int i = 0; i < 5; i++)
+            {
+                var tp1 = TypeData.GetTypeData(scope);
+                Assert.IsTrue(object.ReferenceEquals(tp1, tp0));
+                dict[tp1] = i;
+            }
+
+            // all the values should be inserted at the same key location.
+            Assert.AreEqual(1, dict.Count);
+        }
+        
     }
 }

@@ -242,7 +242,7 @@ namespace OpenTap.Image.Tests
             catch (ImageResolveException ex)
             {
                 var result = ex.Result.ToString();
-                StringAssert.Contains("Unable to resolve packages", result);
+                StringAssert.Contains("Unable to resolve image", result);
             }
         }
 
