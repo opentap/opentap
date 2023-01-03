@@ -877,6 +877,8 @@ jobs:
             tag-suffix: "-slim"
           - target: development
             tag-suffix: ""
+          - target: production-hardened
+            tag-suffix: "-slim-hardened"
     needs:
       - Package-Linux
       - GetVersion

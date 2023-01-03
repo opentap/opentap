@@ -42,3 +42,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends libunwind8 curl
 
 ENV PATH="/opt/tap:${PATH}"
 ENV TAP_PATH="/opt/tap"
+
+FROM production AS production-hardened
+
+# Create non-root system user and group
+ARG USER=opentap UID=101 GROUP=opentap GID=101 DUMMYSHELL=/bin/false
+ARG USERHOME="/home/${USER}"
+RUN groupadd --system --gid=$GID $GROUP && \
+  useradd --system --uid $UID --gid $GID --shell $DUMMYSHELL $USER
+
+WORKDIR $TAP_PATH
+# Fix ownership and permissions
+RUN chown --recursive "${UID}:${GID}" .
+RUN chmod --recursive 0755 .
+
+ENTRYPOINT [ "tap" ]
+
+USER $USER
