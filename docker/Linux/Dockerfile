@@ -54,7 +54,7 @@ RUN groupadd --system --gid=$GID $GROUP && \
 WORKDIR $TAP_PATH
 # Fix ownership and permissions
 RUN chown --recursive "${UID}:${GID}" .
-RUN chmod --recursive 0755 .
+RUN chmod --recursive u=rwx,g=rwx,o= .
 
 ENTRYPOINT [ "tap" ]
 
