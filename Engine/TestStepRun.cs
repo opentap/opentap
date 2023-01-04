@@ -396,6 +396,8 @@ namespace OpenTap
                     var names = primitiveMembers.Select(r => r.GetDisplayAttribute().Name).ToList();
                     ((ResultSource)ResultSource).PublishTable(step.StepRun.TestStepName, names, arrays);
                 }
+                
+                // handle the non-primitive members normally.
                 foreach (var r in resultMembers)
                 {
                     if (r.TypeDescriptor.IsPrimitive())
@@ -406,6 +408,7 @@ namespace OpenTap
                 }    
             }
 
+            // ResultSource may be null.
             if (ResultSource is ResultSource)
             {
                 if (WasDeferred)

@@ -40,23 +40,30 @@ namespace OpenTap.Engine.UnitTests
         public void ExpressionTestStepTest()
         {
             var expressionStep = new ExpressionStep();
-            var memberA = new UserDefinedDynamicMember()
+            var memberA = new UserDefinedDynamicMember
             {
                 Name = "A", 
                 TypeDescriptor = TypeData.FromType(typeof(int)),
                 Readable = true,
                 Writable = true
             };
-            var memberB = new UserDefinedDynamicMember()
+            var memberB = new UserDefinedDynamicMember
             {
                 Name = "B", 
                 TypeDescriptor = TypeData.FromType(typeof(int)),
                 Readable = true,
                 Writable = true
             };
-            var memberC = new UserDefinedDynamicMember()
+            var memberC = new UserDefinedDynamicMember
             {
                 Name = "C", 
+                TypeDescriptor = TypeData.FromType(typeof(bool)),
+                Readable = true,
+                Writable = true
+            };
+            var memberD = new UserDefinedDynamicMember
+            {
+                Name = "D", 
                 TypeDescriptor = TypeData.FromType(typeof(bool)),
                 Readable = true,
                 Writable = true
@@ -64,23 +71,28 @@ namespace OpenTap.Engine.UnitTests
             DynamicMember.AddDynamicMember(expressionStep, memberA);
             DynamicMember.AddDynamicMember(expressionStep, memberB);
             DynamicMember.AddDynamicMember(expressionStep, memberC);
+            DynamicMember.AddDynamicMember(expressionStep, memberD);
             
-            expressionStep.Expression = "A = B + 3; B = B * 2 + 1; C = B > 3";
+            expressionStep.Expression = "A = B + (2 + 1); B = B * 2 + 1; C = B > 3; D = B == 3 || B == 7";
             int a = 0;
             int b = 0;
-            bool c = false;
+            bool c;
+            bool d;
             for (int i = 0; i < 10; i++)
             {
                 expressionStep.Run();
-                a = b + 3;
+                a = b + (2 + 1);
                 b = b * 2 + 1;
                 c = b > 3;
+                d = b == 3 || b == 7;
                 var b1 = memberB.GetValue(expressionStep);
                 var a1 = memberA.GetValue(expressionStep);
                 var c1 = memberC.GetValue(expressionStep);
+                var d1 = memberD.GetValue(expressionStep);
                 Assert.AreEqual(a, a1);
                 Assert.AreEqual(b, b1);
                 Assert.AreEqual(c, c1);
+                Assert.AreEqual(d, d1);
             }
         }
     }
