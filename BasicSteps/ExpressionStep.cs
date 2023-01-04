@@ -9,7 +9,9 @@ namespace OpenTap.Plugins.BasicSteps
 {
     using Expr = System.Linq.Expressions.Expression;
 
-    [Display("Expression", "Invokes a simple expression based on it's variable.")]
+    /// <summary> This expression step defines an expression over user defined variables. The expression step defines a
+    /// little mini-language for evaluating calculator-like expressions. </summary>
+    [Display("Expression", "Invokes a simple expression based on it's variable.", Group: "Basic Steps")]
     [AllowAnyChild]
     public class ExpressionStep : TestStep
     {
@@ -20,28 +22,41 @@ namespace OpenTap.Plugins.BasicSteps
         [DefaultValue("")]
         public string Expression { get; set; } = "";
 
+        /// <summary>
+        /// The various modes available for the expression step.
+        /// </summary>
         public enum ModeType
         {
+            /// <summary> The expression gets evaluated. </summary>
             [Display("Evaluate",  "The expression gets evaluated.")]
             Evaluate,
+            /// <summary> Conditional expression. </summary>
             [Display("If",  "If the expression evaluates to 'true', then child steps are executed.")]
             If,
+            /// <summary> Set the verdict based on the result of the expression. </summary>
             [Display("Check",  "If the expression evaluates to 'true', then child steps are executed.")]
             Check
         }
         
+        /// <summary> When ModeType.If is used, what should happen? </summary>
         public enum IfBehaviorType
         {
-            RunChildSteps,
+            /// <summary> Run the child steps. </summary>
+            [Display("Run Child Test Steps", "Run the child test steps.")]
+            RunChildTestSteps,
+            /// <summary> Break out of the current loop (parent).</summary>
+            [Display("Break Loop", "Break the currently executed loop parent step.")]
             BreakLoop
         }
 
+        /// <summary> Gets or sets the current mode for the expression step. </summary>
         [DefaultValue(ModeType.Evaluate)]
         public ModeType Mode { get; set; } = ModeType.Evaluate;
 
-        [DefaultValue(IfBehaviorType.RunChildSteps)]
+        /// <summary> Gets or sets the behavior in the 'if' mode. </summary>
+        [DefaultValue(IfBehaviorType.RunChildTestSteps)]
         [EnabledIf(nameof(Mode), ModeType.If, HideIfDisabled = true)]
-        public IfBehaviorType IfBehavior { get; set; } = IfBehaviorType.RunChildSteps;
+        public IfBehaviorType IfBehavior { get; set; } = IfBehaviorType.RunChildTestSteps;
         
         public override void Run()
         {
@@ -49,12 +64,14 @@ namespace OpenTap.Plugins.BasicSteps
                 .OfType<UserDefinedDynamicMember>()
                 .ToArray();
             
+            // parameters for the expression are the member variables.
             var parameters = members
                 .Select(x => Expr.Parameter(x.TypeDescriptor.AsTypeData().Type, x.Name))
                 .ToArray();
             
             // parse the expression and get an Abstract Syntax Tree.
-            var ast = Parse(Expression.ToArray());
+            ReadOnlySpan<char> toParse = Expression.ToArray();
+            var ast = Parse(ref toParse);
             
             // generate the expression tree.
             var expr = GenerateCode(ast, parameters);
@@ -88,7 +105,7 @@ namespace OpenTap.Plugins.BasicSteps
                 // for If mode, we expect something like X > 3.
                 if (Equals(result, true))
                 {
-                    if (IfBehavior == IfBehaviorType.RunChildSteps)
+                    if (IfBehavior == IfBehaviorType.RunChildTestSteps)
                         RunChildSteps();
                     else if (IfBehavior == IfBehaviorType.BreakLoop)
                         GetParent<LoopTestStep>()?.BreakLoop();
@@ -109,6 +126,8 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
         
+        /// <summary> Compiles the AST into a tree of concrete expressions.
+        /// This will throw an exception if the types does not match up. e.g "X" + 3 (undefined operation) </summary>
         Expression GenerateCode(AstNode ast, ParameterExpression[] parameterExpressions)
         {
             switch (ast)
@@ -117,81 +136,122 @@ namespace OpenTap.Plugins.BasicSteps
                 {
                     var left = GenerateCode(b.Left, parameterExpressions);
                     var right = GenerateCode(b.Right, parameterExpressions);
+                    
+                    // If the types of the two sides of the expression is not the same.
                     if (left.Type != right.Type)
                     {
+                        // if it is numeric we can try to convert it
                         if (left.Type.IsNumeric() && right.Type.IsNumeric())
                         {
                             // assume left is always right
                             right = Expr.Convert(right, left.Type);
                         }
+                        // otherwise just hope for the best and let .NET throw an exception if necessary.
                     }
+                    
                     var op = b.Operator;
                     if (op == AdditionOp)
-                        return System.Linq.Expressions.Expression.Add(left, right);
+                        return Expr.Add(left, right);
                     if (op == MultiplyOp)
-                        return System.Linq.Expressions.Expression.Multiply(left, right);
+                        return Expr.Multiply(left, right);
                     if (op == DivideOp)
-                        return System.Linq.Expressions.Expression.Divide(left, right);
+                        return Expr.Divide(left, right);
                     if(op == SubtractOp)
-                        return System.Linq.Expressions.Expression.Subtract(left, right);
+                        return Expr.Subtract(left, right);
                     if (op == AssignmentOp)
-                        return System.Linq.Expressions.Expression.Assign(left, right);
+                        return Expr.Assign(left, right);
                     if (op == StatementOperator)
-                        return System.Linq.Expressions.Expression.Block(left, right);
+                        return Expr.Block(left, right);
                     if (op == LessOperator)
-                        return System.Linq.Expressions.Expression.LessThan(left, right);
+                        return Expr.LessThan(left, right);
                     if (op == GreaterOperator)
-                        return System.Linq.Expressions.Expression.GreaterThan(left, right);
+                        return Expr.GreaterThan(left, right);
                     if (op == LessOrEqualOperator)
-                        return System.Linq.Expressions.Expression.LessThanOrEqual(left, right);
+                        return Expr.LessThanOrEqual(left, right);
                     if (op == GreaterOperator)
-                        return System.Linq.Expressions.Expression.GreaterThan(left, right);
+                        return Expr.GreaterThan(left, right);
                     if (op == GreaterOrEqualOperator)
-                        return System.Linq.Expressions.Expression.GreaterThanOrEqual(left, right);
+                        return Expr.GreaterThanOrEqual(left, right);
                     if (op == EqualOperator)
-                        return System.Linq.Expressions.Expression.Equal(left, right);
+                        return Expr.Equal(left, right);
+                    if (op == NotEqualOperator)
+                        return Expr.NotEqual(left, right);
+                    if (op == AndOperator)
+                        return Expr.AndAlso(left, right);
+                    if (op == OrOperator)
+                        return Expr.OrElse(left, right);
                     break;
                 }
-                case IdentifierNode i:
+                case ObjectNode i:
                 {
+                    // if it is an object node, it can either be a parameter (variables) or a constant. 
+                    
+                    // is there a matching parameter?
                     var parameterExpression = parameterExpressions
-                        .FirstOrDefault(x => x.Name == i.Identifier);
-                    if (parameterExpression != null) return parameterExpression;
+                        .FirstOrDefault(x => x.Name == i.data);
+                    if (parameterExpression != null) 
+                        return parameterExpression;
                     
-                    if (int.TryParse(i.Identifier, out var i1))
-                        return System.Linq.Expressions.Expression.Constant(i1);
+                    // otherwise, is it a constant?
+                    if (int.TryParse(i.data, out var i1))
+                        return Expr.Constant(i1);
                     
-                    if (double.TryParse(i.Identifier, out var i2))
-                        return System.Linq.Expressions.Expression.Constant(i2);
+                    if (double.TryParse(i.data, out var i2))
+                        return Expr.Constant(i2);
                     
-                    if (long.TryParse(i.Identifier, out var i3))
-                        return System.Linq.Expressions.Expression.Constant(i3);
-                    
-                    break;
-                }
-                default: break;
+                    if (long.TryParse(i.data, out var i3))
+                        return Expr.Constant(i3);
 
+                    throw new Exception($"Unable to understand: \"{i.data}\".");
+                }
             }
 
             throw new Exception("Unable to parse expression");
         }
         
-        AstNode Parse(ReadOnlySpan<char> str)
+        AstNode Parse(ref ReadOnlySpan<char> str)
         {
-            var symbolStack = new Stack<AstNode>();
+            var expressionList = new List<AstNode>();
+            
+            // Run through the span, parsing elements and adding them to the list.
             while (str.Length > 0)
             {
                 next:
+                // skip past the whitespace
                 SkipWhitespace(ref str);
-                if (str.Length == 0) return null;
-                var ident = ParseIdentifier(ref str, x =>  char.IsLetterOrDigit(x) || x == '.');
+                
+                // maybe we've read the last whitespace.
+                if (str.Length == 0) 
+                    break;
+                
+                // start parsing a sub-expression? (recursively).
+                if (str[0] == '(')
+                {
+                    str = str.Slice(1);
+                    var node = Parse(ref str);
+                    expressionList.Add(node);
+                }
+
+                // end of sub expression?
+                if (str[0] == ')')
+                {
+                    // done with parsing a sub-expression.
+                    str = str.Slice(1);
+                    break;
+                }
+
+                // The content can either be an identifier or an operator.
+                // numbers and other constants are also identifiers.
+                var ident = ParseObject(ref str, x =>  char.IsLetterOrDigit(x) || x == '.');
                 if (ident != null)
                 {
-                    symbolStack.Push(ident);
+                    // if it is an identifier
+                    expressionList.Add(ident);
                     continue;
                 }
 
-                foreach (var op in operators)
+                // operators are sorted by-length to avoid that '==' gets mistaken for '='.
+                foreach (var op in Operators)
                 {
                     if (str[0] == op.Operator[0])
                     {
@@ -200,32 +260,49 @@ namespace OpenTap.Plugins.BasicSteps
                             if (str.Length <= i || str[i] != op.Operator[i])
                                 goto nextOperator;
                         }
-                        symbolStack.Push(op);
-                        str = str.Slice(1);
+                        expressionList.Add(op);
+                        str = str.Slice(op.Operator.Length);
                         goto next;
                     }
                     nextOperator: ;
                 }
             }
-
-            var stack2 = symbolStack.Reverse().ToList();
-
-            // x + y * z / w
-            while (stack2.Count > 1)
+            
+            // now the expression has turned into a list of identifiers and operators. 
+            // e.g: [x, +, y, *, z, /, w]
+            // build the abstract syntax tree by finding the operators and combine with the left and right side
+            // in order of precedence (see operator precedence where operators are defined.
+            while (expressionList.Count > 1)
             {
-                int index = stack2.IndexOf(stack2.FindMax(x => x is OperatorNode op ? op.Precedence : -1));
-                if (!(stack2[index] is OperatorNode))
-                    break;
-                var left = stack2.PopAt(index - 1);
-                var op0 = stack2.PopAt(index - 1);
-                var right = stack2.PopAt(index - 1);
-                stack2.Insert(index - 1, new BinaryExpression(){Left = left, Operator = op0, Right = right});
+                // The index of the highest precedence operator.
+                int index = expressionList.IndexOf(expressionList.FindMax(x => x is OperatorNode op ? op.Precedence : -1));
+                if (index == 0 || index == expressionList.Count - 1)
+                    // it cannot start or end with e.g '*'.
+                    throw new Exception("Invalid sub-expression");
+                
+                // take out the group of things. e.g [1,*,2]
+                // left and right might each be a group of statements.
+                // operator should always be an operator.
+                var left = expressionList.PopAt(index - 1);
+                var @operator = expressionList.PopAt(index - 1);
+                var right = expressionList.PopAt(index - 1);
+
+                // Verify that the right syntax is used.
+                if (!(@operator is OperatorNode) || left is OperatorNode || right is OperatorNode)
+                    throw new Exception("Invalid sub-expression");
+                
+                // insert it back in to the list as a combined group.
+                expressionList.Insert(index - 1, new BinaryExpression {Left = left, Operator = (OperatorNode) @operator, Right = right});
                 
             }
-            return stack2.PopAt(0);
+
+            // now there should only be one element left. Return it.
+            if (expressionList.Count != 1)
+                throw new Exception("Invalid expression");
+            return expressionList[0];
         }
 
-        IdentifierNode ParseIdentifier(ref ReadOnlySpan<char> str, Func<char, bool> filter)
+        ObjectNode ParseObject(ref ReadOnlySpan<char> str, Func<char, bool> filter)
         {
             var str2 = str;
             SkipWhitespace(ref str2);
@@ -236,7 +313,7 @@ namespace OpenTap.Plugins.BasicSteps
 
             if (str2 == str)
                 return null;
-            var identifier = new IdentifierNode(new string(str.Slice(0, str.Length - str2.Length).ToArray()));
+            var identifier = new ObjectNode(new string(str.Slice(0, str.Length - str2.Length).ToArray()));
             str = str2;
             return identifier;
         }
@@ -254,10 +331,10 @@ namespace OpenTap.Plugins.BasicSteps
             
         }
 
-        class IdentifierNode : AstNode
+        class ObjectNode : AstNode
         {
-            public readonly string Identifier;
-            public IdentifierNode(string identifier) => Identifier = identifier;
+            public readonly string data;
+            public ObjectNode(string data) => this.data = data;
         }
         
         class OperatorNode : AstNode
@@ -276,29 +353,42 @@ namespace OpenTap.Plugins.BasicSteps
         {
             public AstNode Left;
             public AstNode Right;
-            public AstNode Operator;
+            public OperatorNode Operator;
         }
-
-        static OperatorNode MultiplyOp = new OperatorNode("*", 5);
-        static OperatorNode AdditionOp = new OperatorNode("+", 3);
-        static OperatorNode DivideOp = new OperatorNode("/", 4);
-        static OperatorNode SubtractOp = new OperatorNode("-", 2);
-        static OperatorNode AssignmentOp = new OperatorNode("=", 1.5);
-        static OperatorNode StatementOperator = new OperatorNode(";", 1);
-        static OperatorNode LessOperator = new OperatorNode("<", 1.8);
-        static OperatorNode GreaterOperator = new OperatorNode(">", 1.8);
-        static OperatorNode LessOrEqualOperator = new OperatorNode("<=", 1.8);
-        static OperatorNode GreaterOrEqualOperator = new OperatorNode(">=", 1.8);
-        static OperatorNode EqualOperator = new OperatorNode("==", 1.5);
         
-        private static OperatorNode[] _operators = null;
-        private static OperatorNode[] operators
+        #region Operators
+        
+        // operators are defined by a string an precedence.
+        static readonly OperatorNode MultiplyOp = new OperatorNode("*", 5);
+        static readonly OperatorNode AdditionOp = new OperatorNode("+", 3);
+        static readonly OperatorNode DivideOp = new OperatorNode("/", 4);
+        static readonly OperatorNode SubtractOp = new OperatorNode("-", 2);
+        static readonly OperatorNode AssignmentOp = new OperatorNode("=", 1.5);
+        static readonly OperatorNode StatementOperator = new OperatorNode(";", 1);
+        static readonly OperatorNode LessOperator = new OperatorNode("<", 1.8);
+        static readonly OperatorNode GreaterOperator = new OperatorNode(">", 1.8);
+        static readonly OperatorNode LessOrEqualOperator = new OperatorNode("<=", 1.8);
+        static readonly OperatorNode GreaterOrEqualOperator = new OperatorNode(">=", 1.8);
+        static readonly OperatorNode EqualOperator = new OperatorNode("==", 1.8);
+        static readonly OperatorNode NotEqualOperator = new OperatorNode("!=", 1.8);
+        static readonly OperatorNode AndOperator = new OperatorNode("&&", 1.7);
+        static readonly OperatorNode OrOperator = new OperatorNode("||", 1.7);
+        
+        static OperatorNode[] operators;
+        static OperatorNode[] Operators
         {
             get
             {
-                return _operators ??= typeof(ExpressionStep).GetFields(BindingFlags.Static | BindingFlags.NonPublic)
-                    .Select(x => x.GetValue(null)).OfType<OperatorNode>().ToArray();
+                // Use reflection to fetch all the defined operators.
+                return operators ??= typeof(ExpressionStep)
+                    .GetFields(BindingFlags.Static | BindingFlags.NonPublic)
+                    .Select(x => x.GetValue(null))
+                    .OfType<OperatorNode>()
+                    // longest operators are first, so that '=' is not used instead of '=='.
+                    .OrderByDescending(o => o.Operator.Length)
+                    .ToArray();
             }
         }
+        #endregion
     }
 }
