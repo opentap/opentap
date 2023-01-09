@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsWindows)'=='True'">
-	  <AdditionalOpenTapPackage Include="Developer's System CE" />
+	  <!--<AdditionalOpenTapPackage Include="Editor" />-->
   </ItemGroup>
 
   <ItemGroup>

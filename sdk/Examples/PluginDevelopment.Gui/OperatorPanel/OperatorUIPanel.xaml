@@ -1,0 +1,286 @@
+﻿<UserControl x:Class="PluginDevelopment.Gui.OperatorPanel.OperatorUIPanel"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:PluginDevelopment.Gui.OperatorPanel"
+             mc:Ignorable="d"
+             SizeChanged="FixAspectRation_OnSizeChanged"
+             d:DesignHeight="300" d:DesignWidth="300">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ControlTemplate TargetType="Control" x:Key="PlayingAnimation">
+                <Canvas Width="26" Height="26">
+                    <Path Canvas.Left="13" Canvas.Top="13" Fill="CornflowerBlue">
+                        <Path.Data>
+                            <GeometryGroup>
+                                <EllipseGeometry Center="10,0" RadiusX="2" RadiusY="2"></EllipseGeometry>
+                                <EllipseGeometry Center="10,0" RadiusX="2" RadiusY="2">
+                                    <EllipseGeometry.Transform>
+                                        <RotateTransform x:Name="rotateTransform" Angle="72" />
+                                    </EllipseGeometry.Transform>
+                                </EllipseGeometry>
+                                <EllipseGeometry Center="10,0" RadiusX="2" RadiusY="2">
+                                    <EllipseGeometry.Transform>
+                                        <RotateTransform x:Name="rotateTransform" Angle="144" />
+                                    </EllipseGeometry.Transform>
+                                </EllipseGeometry>
+                                <EllipseGeometry Center="10,0" RadiusX="2" RadiusY="2">
+                                    <EllipseGeometry.Transform>
+                                        <RotateTransform x:Name="rotateTransform" Angle="216" />
+                                    </EllipseGeometry.Transform>
+                                </EllipseGeometry>
+                                <EllipseGeometry Center="10,0" RadiusX="2" RadiusY="2">
+                                    <EllipseGeometry.Transform>
+                                        <RotateTransform x:Name="rotateTransform" Angle="288" />
+                                    </EllipseGeometry.Transform>
+                                </EllipseGeometry>
+                            </GeometryGroup>
+                        </Path.Data>
+
+                        <Path.RenderTransform>
+                            <RotateTransform x:Name="rotateTransform" CenterX="0" CenterY="0" />
+                        </Path.RenderTransform>
+                        <Path.Triggers>
+                            <EventTrigger RoutedEvent="Path.Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard>
+                                        <DoubleAnimation
+                                            Storyboard.TargetName="rotateTransform"
+                                            Storyboard.TargetProperty="Angle"
+                                            From="0" To="360" Duration="0:0:2"
+                                            RepeatBehavior="Forever" />
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </Path.Triggers>
+                    </Path>
+                </Canvas>
+            </ControlTemplate>
+            <ControlTemplate x:Key="CheckMark">
+                <Canvas Width="40" Height="30">
+                    <Path Canvas.Left="5" Canvas.Top="28" Stroke="Green" StrokeThickness="5" Data="M 0,-10 10,0 20,-30" />
+                </Canvas>
+            </ControlTemplate>
+            <ControlTemplate x:Key="ErrorMark">
+                <Canvas Width="32" Height="30">
+                    <Path Canvas.Left="2" Canvas.Top="30" Stroke="Red" StrokeThickness="5" Data="M 0,0, 30,-30" />
+                    <Path Canvas.Left="2" Canvas.Top="30" Stroke="Red" StrokeThickness="5" Data="M 0,-30, 30,0" />
+                </Canvas>
+            </ControlTemplate>
+            <ControlTemplate x:Key="Idle">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="200" />
+                    </Grid.ColumnDefinitions>
+                    <Rectangle Fill="LightGray" />
+                    <TextBlock Text="Idle" Foreground="White"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"
+                               FontSize="30" />
+                </Grid>
+            </ControlTemplate>
+            <ControlTemplate x:Key="Passed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="40" />
+                    </Grid.ColumnDefinitions>
+                    <Rectangle Fill="Green" />
+                    <Control Grid.Column="1" Template="{StaticResource CheckMark}" />
+                    <TextBlock Text="Passed" Foreground="White"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"
+                               FontSize="30" />
+                </Grid>
+            </ControlTemplate>
+            <ControlTemplate x:Key="Failed">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="40" />
+                    </Grid.ColumnDefinitions>
+                    <Rectangle Fill="Red" />
+                    <Control Grid.Column="1" Template="{StaticResource ErrorMark}" />
+                    <TextBlock Text="Failed" Foreground="White"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"
+                               FontSize="30" />
+                </Grid>
+            </ControlTemplate>
+            <ControlTemplate x:Key="Running">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="150" />
+                        <ColumnDefinition Width="40" />
+                    </Grid.ColumnDefinitions>
+                    <Rectangle Fill="CornflowerBlue" />
+                    <Viewbox Grid.Column="1" Stretch="Uniform" Margin="4,0">
+                        <Control Template="{StaticResource PlayingAnimation}" />
+                    </Viewbox>
+                    <TextBlock Text="Running" Foreground="Black"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"
+                               FontSize="30" />
+                </Grid>
+            </ControlTemplate>
+            <ControlTemplate x:Key="Aborted">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="200" />
+                    </Grid.ColumnDefinitions>
+                    <Rectangle Fill="Gray" />
+                    <TextBlock Text="Aborted" Foreground="Black"
+                               VerticalAlignment="Center"
+                               HorizontalAlignment="Center"
+                               FontSize="30" />
+                </Grid>
+            </ControlTemplate>
+        </ResourceDictionary>
+    </UserControl.Resources>
+    <Viewbox>
+        <Grid Name="grd" Width="500"
+              DataContext="{Binding ViewModel, RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=local:OperatorUIPanel}}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="2*" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="auto" />
+            </Grid.ColumnDefinitions>
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="auto" />
+                </Grid.RowDefinitions>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition />
+                        <ColumnDefinition />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <TextBlock FontWeight="Bold" FontSize="15" HorizontalAlignment="Center" Margin="0,5,0,5">Start</TextBlock>
+                    <Viewbox Grid.Column="0" Grid.Row="1" Stretch="Uniform">
+                        <Button Click="StartButton_Clicked" VerticalAlignment="Stretch" Margin="2">
+                            <Polygon Margin="5,0" Fill="LawnGreen" Stretch="Uniform" Points="0 0 30 20 0 40" />
+                        </Button>
+                    </Viewbox>
+                    <TextBlock Grid.Row="0" Grid.Column="1" FontWeight="Bold" FontSize="15"
+                               HorizontalAlignment="Center" Margin="0,5,0,5">
+                        Stop
+                    </TextBlock>
+                    <Viewbox Grid.Column="1" Grid.Row="1" Stretch="Uniform">
+                        <Button HorizontalAlignment="Center" Click="StopButton_Clicked" Margin="20">
+                            <Rectangle Width="40" Height="40" Margin="10" Fill="Red" />
+                        </Button>
+                    </Viewbox>
+                </Grid>
+
+                <TextBlock Grid.Row="1" FontSize="15" FontWeight="bold" Margin="3,0,0,0">
+                    <Span>Elapsed:</Span>
+                    <TextBlock Text="{Binding ElapsedTime}" />
+                </TextBlock>
+            </Grid>
+
+            <Grid Grid.Row="0" Grid.Column="1" Margin="3">
+                <StackPanel Orientation="Vertical">
+                    <TextBlock FontWeight="bold" FontSize="15">DUT: <TextBlock Text="{Binding DutID}" MinWidth="200" /> </TextBlock>
+                    <TextBlock />
+                    <ItemsControl ItemsSource="{Binding ResultsList}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" MinWidth="100">
+                                    <TextBlock FontWeight="bold">
+                                        <TextBlock Text="{Binding Name}" />:
+                                        <TextBlock Name="value" Text="{Binding Value}" />
+                                    </TextBlock>
+                                    <Viewbox Height="13" Width="13" Margin="3,0,0,0">
+                                        <Control Name="verdictGlyph" />
+                                    </Viewbox>
+                                </StackPanel>
+                                <DataTemplate.Triggers>
+                                    <DataTrigger Binding="{Binding Verdict}" Value="Pass">
+                                        <Setter TargetName="verdictGlyph" Property="Template"
+                                                Value="{StaticResource CheckMark}" />
+                                        <Setter TargetName="value" Property="Foreground" Value="Green" />
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Verdict}" Value="Fail">
+                                        <Setter TargetName="verdictGlyph" Property="Template"
+                                                Value="{StaticResource ErrorMark}" />
+                                        <Setter TargetName="value" Property="Foreground" Value="Red" />
+                                    </DataTrigger>
+                                </DataTemplate.Triggers>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Grid>
+
+
+            <Control Grid.Row="1" Grid.ColumnSpan="2" Margin="3">
+                <Control.Template>
+                    <ControlTemplate TargetType="Control">
+                        <Viewbox>
+                            <Control Name="inner" Template="{StaticResource Passed}" />
+                        </Viewbox>
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding Status}" Value="Passed">
+                                <Setter Property="Template" Value="{StaticResource Passed}" TargetName="inner" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Status}" Value="Running">
+                                <Setter Property="Template" Value="{StaticResource Running}" TargetName="inner" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Status}" Value="Failed">
+                                <Setter Property="Template" Value="{StaticResource Failed}" TargetName="inner" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Status}" Value="Aborted">
+                                <Setter Property="Template" Value="{StaticResource Aborted}" TargetName="inner" />
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Control.Template>
+            </Control>
+
+            <Control Grid.RowSpan="2" Grid.ColumnSpan="2" VerticalAlignment="Bottom">
+                <Control.Template>
+                    <ControlTemplate>
+                        <Viewbox Name="DutEnterView" Visibility="Collapsed">
+
+                            <Border Background="{DynamicResource Control.Static.Background.Medium}"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center">
+                                <StackPanel Orientation="Vertical" Margin="10">
+                                    <TextBlock FontWeight="Bold">Please enter DUT Serial Number</TextBlock>
+                                    <TextBox IsVisibleChanged="DutEnter_VisibileChanged" Name="dutEnterBox" Text="123123"></TextBox>
+                                    <StackPanel HorizontalAlignment="Right" Margin="0,5,0,0" Orientation="Horizontal">
+                                        <Button Height="20" Click="DutIdEntered_OnClick">
+                                            <Viewbox>
+                                                <Control Template="{StaticResource CheckMark}" Margin="5" />
+                                            </Viewbox>
+                                        </Button>
+                                        <Button Height="20" Margin="10,0,0,0" Click="StopButton_Clicked">
+                                            <Viewbox>
+                                                <Control Template="{StaticResource ErrorMark}" Margin="5" />
+                                            </Viewbox>
+                                        </Button>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                        </Viewbox>
+                        <ControlTemplate.Triggers>
+                            <DataTrigger Binding="{Binding AskForDutID}" Value="True">
+                                <Setter TargetName="DutEnterView" Property="Visibility" Value="Visible" />
+                                <Setter TargetName="dutEnterBox" Property="Text" Value="{Binding DutID, Mode=TwoWay}" />
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Control.Template>
+            </Control>
+        </Grid>
+    </Viewbox>
+</UserControl>

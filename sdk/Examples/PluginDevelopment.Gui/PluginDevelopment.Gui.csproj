@@ -7,6 +7,7 @@
     <!-- If your plugin should be cross platform but does not build in release mode, please verify that all API's you used are available. You might need references or nuget packages for API's that are available in NET framework, but not in NetStandard -->
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
     <TargetFramework>net472</TargetFramework>
+    <UseWpf>true</UseWpf>
   </PropertyGroup>
 
   <ItemGroup>
@@ -14,7 +15,8 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(IsWindows)'=='True'">
-	<AdditionalOpenTapPackage Include="Developer's System CE" />
+	<!-- <AdditionalOpenTapPackage Include="Editor" />-->
+    <AdditionalOpenTapPackage Include="Results Viewer" />
 	<OpenTapPackageReference Include="WPF Controls" />
   </ItemGroup>
 
