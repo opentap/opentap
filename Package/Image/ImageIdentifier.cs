@@ -222,7 +222,12 @@ namespace OpenTap.Package
             newInstaller.DoSleep = false;
 
             newInstaller.PackagePaths.AddRange(orderedPackagesToUninstall.Select(x => (x.PackageSource as XmlPackageDefSource)?.PackageDefFilePath).ToList());
-            int exitCode = newInstaller.RunCommand("uninstall", false, true);
+            
+            int exitCode = newInstaller.RunCommand(Installer.PrepareUninstall, false, false);
+            if (uninstallErrors.Any() || exitCode != 0)
+                throw new AggregateException("Image deployment failed to uninstall existing packages.", uninstallErrors);
+            
+            exitCode = newInstaller.RunCommand(Installer.Uninstall, false, true);
 
             if (uninstallErrors.Any() || exitCode != 0)
                 throw new AggregateException("Image deployment failed to uninstall existing packages.", uninstallErrors);
