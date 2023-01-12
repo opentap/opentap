@@ -15,12 +15,15 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(IsWindows)'=='True'">
-	<!-- <AdditionalOpenTapPackage Include="Editor" />-->
+	<OpenTapPackageReference Include="Editor" />
     <AdditionalOpenTapPackage Include="Results Viewer" />
 	<OpenTapPackageReference Include="WPF Controls" />
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="Keysight.Ccl.Wsl">
+      <HintPath>$(OutputPath)\Dependencies\Keysight.Ccl.Wsl.4.0.1.9\Keysight.Ccl.Wsl.dll</HintPath>
+    </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="System.Windows.Forms" />

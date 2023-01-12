@@ -69,7 +69,11 @@ namespace OpenTap.Plugins.ExamplePlugin
         [Result]
         [Unit("A")]
         [Display("Max Discharge Current", Group: "Results")]
-        public double MaxChargeCurrent { get; private set; }
+        public double MaxDischargeCurrent { get; private set; }
+
+        [Unit("A")]
+        [Display("Max Discharge Current Lower Limit", Group: "Results")]
+        public double MaxDischargeCurrentLowerLimit { get; set; } = 1.1;
         
         public SimulatedPsuInstrument Psu { get; set; }
         public SimulatedBattery Battery { get; set; }
@@ -88,8 +92,11 @@ namespace OpenTap.Plugins.ExamplePlugin
                     maxCurrent.Add(current);
                 }
 
-                MaxChargeCurrent = maxCurrent.Max();
-                UpgradeVerdict(Verdict.Fail);
+                MaxDischargeCurrent = maxCurrent.Max();
+                if(MaxDischargeCurrent < MaxDischargeCurrentLowerLimit)
+                    UpgradeVerdict(Verdict.Fail);
+                else
+                    UpgradeVerdict(Verdict.Pass);
             }
             finally
             {
