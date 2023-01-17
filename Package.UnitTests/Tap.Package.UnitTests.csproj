@@ -11,16 +11,16 @@
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
     <ProjectReference Include="..\Engine.UnitTests\Tap.Engine.UnitTests.csproj" />
     <ProjectReference Include="..\Package\Tap.Package.csproj" />    
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="2.10.0" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />    
-    <PackageReference Include="System.CodeDom" Version="4.5.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.4.0" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />    
+    <PackageReference Include="System.CodeDom" Version="7.0.0" />
     <ProjectReference Include="..\sdk\OpenTap.Sdk.MSBuild\OpenTap.Sdk.MSBuild.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.10.0" />
-    <PackageReference Include="NUnit" Version="3.13.2" />
-    <PackageReference Include="NUnit3TestAdapter" Version="4.2.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.4.1" />
+    <PackageReference Include="NUnit" Version="3.13.3" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.3.1" />
   </ItemGroup>
   
   <ItemGroup>
