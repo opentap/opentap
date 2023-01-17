@@ -262,7 +262,13 @@ A package can contain any number of **ActionStep** elements, but they must be co
 </Package>
 ```
 
-The above example is an excerpt of a plugin.xml file that defines a plugin that includes a test plan to verify that the steps it provides are working correctly, and a binary executable for generating debug waveform data. It also contains CLI actions that allow further configuration when it is installed, and a CLI action that it needs to run before it is uninstalled, and a CLI action that it needs to run when it is uninstalled. All this is done using the **ActionStep** elements.
+The above example plugin definition makes use of the following features:
+
++ A CLI action to be run when it is installed
++ A CLI action to be run when OpenTAP is preparing to uninstall it
++ A CLI action to be run when it is uninstalled. 
++ A binary executable which generates waveforms, used in preparation for testing
++ A testplan which verifies the plugin steps are working correctly with `tap package test MyPlugin`
 
 
 The **ActionStep** elements are executed in the order that they appear in the package file. When `MyPlugin` is installed, OpenTAP will run the CLI action:
@@ -271,9 +277,10 @@ The **ActionStep** elements are executed in the order that they appear in the pa
 tap MyPlugin install
 ```
 
-When it is uninstalled, OpenTAP will run the CLI action:
+When it is uninstalled, OpenTAP will run the CLI actions:
 
 ```
+tap MyPlugin prepare-uninstall
 tap MyPlugin uninstall
 ```
 
