@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace OpenTap
@@ -1775,6 +1776,26 @@ namespace OpenTap
             }
 
             bool isWriting;
+
+            void ResizeGenericArray(ref IList list, int newSize)
+            {
+                var t = list.GetType();
+                var elementType = t.GetElementType();
+                
+                // We need to create the correct instance of the generic method 'Array.Resize'.
+                // If we use the `Array.Resize<object>` variant, we are going to run into issues later
+                // when we try to write the value back to the source object.
+                var resizeMethodInfo = typeof(Array).GetMethod(nameof(Array.Resize),
+                    BindingFlags.Static | BindingFlags.Public);
+                var resizeInstance = resizeMethodInfo.MakeGenericMethod(elementType);
+                
+                object[] args = { list, newSize };
+                resizeInstance.Invoke(null, args);
+                // Array.Resize accepts an array as a ref argument.
+                // The result was therefore stored in the argument array.
+                list = args[0] as IList;
+            }
+            
             public void Write(object source)
             {
                 if (isWriting) return;
@@ -1788,7 +1809,21 @@ namespace OpenTap
                     if (lst2.IsReadOnly)
                         rdonly = true;
                     if (!rdonly)
+                    {
                         lst2.Clear();
+
+                        if (lst2 is object[] o)
+                        {
+                            // If lst2 is an array, resize it to have the exact number of elements required
+                            var cnt = Elements.Count();
+                            if (cnt != o.Length)
+                            {
+                                ResizeGenericArray(ref lst2, Elements.Count());
+                                objValue.Value = lst2;
+                            }
+                        }
+                    }
+
                     int index = 0;
                     foreach (var val in Elements)
                     {

@@ -2212,31 +2212,64 @@ namespace OpenTap.UnitTests
 
         [Test]
         public void TestAddToArrayWithAvailableValues()
-        {
+        {   
             var av = new AvailableValuesArrayUser();
-            var names = new string[] { nameof(av.SelectedListItems), nameof(av.SelectedArrayItems) };
 
-            foreach (var name in names)
-            {
-                var a = AnnotationCollection.Annotate(av);
+            var a = AnnotationCollection.Annotate(av);
+            var selectedItems = a.GetMember(nameof(av.SelectedArrayItems));
 
-                var selectedItems = a.GetMember(name);
+            var availProxy = selectedItems.Get<IAvailableValuesAnnotationProxy>();
+            var multiselect = selectedItems.Get<IMultiSelectAnnotationProxy>();
 
-                var availProxy = selectedItems.Get<IAvailableValuesAnnotationProxy>();
-                var multiselect = selectedItems.Get<IMultiSelectAnnotationProxy>();
-
+            { // Test writing two values
                 multiselect.SelectedValues = availProxy.AvailableValues.Take(2);
-
                 a.Write();
                 a.Read();
+
+                Assert.AreEqual(2, av.SelectedArrayItems.Length);
+                Assert.AreEqual("A", av.SelectedArrayItems[0]);
+                Assert.AreEqual("B", av.SelectedArrayItems[1]);
             }
-            
-            Assert.AreEqual("A", av.SelectedListItems[0]);
-            Assert.AreEqual("B", av.SelectedListItems[1]);
-            
-            
-            Assert.AreEqual("A", av.SelectedArrayItems[0]);
-            Assert.AreEqual("B", av.SelectedArrayItems[1]);
+
+            {
+                multiselect.SelectedValues = availProxy.AvailableValues.Skip(2).Take(1);
+                a.Write();
+                a.Read();
+
+                Assert.AreEqual(1, av.SelectedArrayItems.Length);
+                Assert.AreEqual("C", av.SelectedArrayItems[0]);
+            }
+        }
+
+        [Test]
+        public void TestAddToListWithAvailableValues()
+        {
+            var av = new AvailableValuesArrayUser();
+
+            var a = AnnotationCollection.Annotate(av);
+            var selectedItems = a.GetMember(nameof(av.SelectedListItems));
+
+            var availProxy = selectedItems.Get<IAvailableValuesAnnotationProxy>();
+            var multiselect = selectedItems.Get<IMultiSelectAnnotationProxy>();
+
+            { // Test writing two values
+                multiselect.SelectedValues = availProxy.AvailableValues.Take(2);
+                a.Write();
+                a.Read();
+
+                Assert.AreEqual(2, av.SelectedListItems.Count);
+                Assert.AreEqual("A", av.SelectedListItems[0]);
+                Assert.AreEqual("B", av.SelectedListItems[1]);
+            }
+
+            {
+                multiselect.SelectedValues = availProxy.AvailableValues.Skip(2).Take(1);
+                a.Write();
+                a.Read();
+
+                Assert.AreEqual(1, av.SelectedListItems.Count);
+                Assert.AreEqual("C", av.SelectedListItems[0]);
+            }
         }
     }
 }
