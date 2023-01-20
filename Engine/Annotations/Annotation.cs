@@ -58,7 +58,7 @@ namespace OpenTap
     {
         /// <summary> Annotated available values. </summary>
         IEnumerable<AnnotationCollection> AvailableValues { get; }
-        /// <summary> Annotated selected value. Not this should belong to the set of AvailableValues as well.</summary>
+        /// <summary> Annotated selected value. Note this should belong to the set of AvailableValues as well.</summary>
         AnnotationCollection SelectedValue { get; set; }
     }
     /// <summary> Specifies how suggested value proxies are implemented. This class should rarely be implemented. Consider implementing just ISuggestedValuesAnnotation instead.</summary>

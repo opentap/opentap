@@ -2183,9 +2183,7 @@ namespace OpenTap.UnitTests
                     annotations.Add(new MaybeEnabled(){IsEnabled = true});
                     annotations.Add(new MaybeEnabled(){IsEnabled = false});
                     annotations.Add(new MaybeEnabled(){IsEnabled = true});
-                    
                 }
-                
             }
         }
 
@@ -2194,11 +2192,51 @@ namespace OpenTap.UnitTests
         {
             var obj = new EnabledThings();
             var obj2 = new EnabledThings();
-            var x2 = AnnotationCollection.Annotate(new []{obj, obj2}).GetMember("X");
+            var x2 = AnnotationCollection.Annotate(new[] { obj, obj2 }).GetMember("X");
             // after multi-selecting this should be disabled.
             // when this issue occured it was not.
             var enabled = x2.Get<IEnabledAnnotation>().IsEnabled;
             Assert.IsFalse(enabled);
+        }
+
+        public class AvailableValuesArrayUser
+        {
+            public List<string> AvailableItems { get; set; } = new List<string>() { "A", "B", "C" };
+
+            [AvailableValues(nameof(AvailableItems))]
+            public List<string> SelectedListItems { get; set; } = new List<string>();
+
+            [AvailableValues(nameof(AvailableItems))]
+            public string[] SelectedArrayItems { get; set; } = Array.Empty<string>();
+        }
+
+        [Test]
+        public void TestAddToArrayWithAvailableValues()
+        {
+            var av = new AvailableValuesArrayUser();
+            var names = new string[] { nameof(av.SelectedListItems), nameof(av.SelectedArrayItems) };
+
+            foreach (var name in names)
+            {
+                var a = AnnotationCollection.Annotate(av);
+
+                var selectedItems = a.GetMember(name);
+
+                var availProxy = selectedItems.Get<IAvailableValuesAnnotationProxy>();
+                var multiselect = selectedItems.Get<IMultiSelectAnnotationProxy>();
+
+                multiselect.SelectedValues = availProxy.AvailableValues.Take(2);
+
+                a.Write();
+                a.Read();
+            }
+            
+            Assert.AreEqual("A", av.SelectedListItems[0]);
+            Assert.AreEqual("B", av.SelectedListItems[1]);
+            
+            
+            Assert.AreEqual("A", av.SelectedArrayItems[0]);
+            Assert.AreEqual("B", av.SelectedArrayItems[1]);
         }
     }
 }
