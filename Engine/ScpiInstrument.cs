@@ -1334,10 +1334,10 @@ namespace OpenTap
         protected virtual string QueryOpc() => ScpiQuery("*OPC?");
         
         /// <summary> *RST / Reset Command </summary>
-        protected virtual string CommandRst() => ScpiQuery("*RST");
+        protected virtual string CommandRst() => ScpiCommand("*RST");
         
         /// <summary> *CLS / Clear Status Command </summary>
-        protected virtual string CommandCls() => ScpiQuery("*CLS");
+        protected virtual string CommandCls() => ScpiCommand("*CLS");
         
         /// <summary> SYST:ERR? / Queries the instrument for errors.
         /// This will normally be in a format like '123,"Error message"'.  </summary>
