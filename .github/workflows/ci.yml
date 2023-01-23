@@ -363,6 +363,8 @@ jobs:
       - name: Test
         run: |
           chmod +x bin/Release/tap
+          # The .pdb files are in use for some reason during `tap package install`
+          rm ./bin/Release/*.pdb
           ./bin/Release/tap package install ./bin/Release/dbg.zip -f
           bin/Release/tap run tests/regression.TapPlan --verbose --color
 
