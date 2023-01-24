@@ -547,6 +547,29 @@ namespace OpenTap.Plugins.BasicSteps
                     // is controlled in the sweep, however it should still be shown.
                     annotation.Add(new DisabledLoopMemberAnnotation(annotation, mem));
                 }
+                
+                {
+                    // logic to disable parameterizing parameters that are selected by 
+                    // a sweep loop (ISelectedParameters implementor).
+                    if (annotation.Source is ITestStepMenuModel model)
+                    {
+                        // ISelectedParameter implementing steps.
+                        var steps = model.Source.OfType<ISelectedParameters>().ToArray();
+                        if (steps.Length > 0)
+                        {
+                            var iconName = annotation.Get<IIconAnnotation>()?.IconName;
+                            if ( iconName == IconNames.Parameterize || 
+                                 iconName == IconNames.ParameterizeOnParent|| 
+                                 iconName == IconNames.ParameterizeOnTestPlan)
+                            {
+                                if(steps.Any(x => x.SelectedParameters.Contains(model.Member)))
+                                {
+                                    annotation.Add(new DisabledLoopMemberAnnotation(steps, model.Member));
+                                }
+                            }
+                        }
+                    } 
+                }
             }
 
             if (annotation.Get<IReflectionAnnotation>()?.ReflectionInfo is TypeData type && type.Type == typeof(SweepRow))
@@ -556,17 +579,25 @@ namespace OpenTap.Plugins.BasicSteps
         {
             readonly AnnotationCollection annotation;
             readonly IMemberData member;
+            readonly ISelectedParameters[] steps;
             public DisabledLoopMemberAnnotation(AnnotationCollection annotation, IMemberData member)
             {
                 this.annotation = annotation;
                 this.member = member;
+            }
+            public DisabledLoopMemberAnnotation(ISelectedParameters[] steps, IMemberData member)
+            {
+                this.member = member;
+                this.steps = steps;
             }
 
             public bool IsEnabled
             {
                 get
                 { 
-                    if (annotation.Source is ISelectedParameters sw && sw.SelectedParameters.Contains(member))
+                    if (annotation?.Source is ISelectedParameters sw && sw.SelectedParameters.Contains(member))
+                        return false;
+                    if (steps?.Any(x => x.SelectedParameters.Contains(member)) == true)
                         return false;
                     return true;
                 }
