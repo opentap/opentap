@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(IsWindows)'=='True'">
-	<AdditionalOpenTapPackage Include="Developer's System CE" />
+	<AdditionalOpenTapPackage Include="$(DevelopersSystem)" />
 	<OpenTapPackageReference Include="WPF Controls" />
   </ItemGroup>
 

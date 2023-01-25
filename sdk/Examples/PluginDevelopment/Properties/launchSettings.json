@@ -3,6 +3,11 @@
     "Editor": {
       "commandName": "Executable",
       "executablePath": "./editor.exe"
+    },
+    "TUI": {
+      "commandName": "Executable",
+      "executablePath": "./tap.exe",
+      "commandLineArgs": "tui"
     }
   }
 }
