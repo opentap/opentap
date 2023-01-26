@@ -309,6 +309,14 @@ namespace OpenTap.Package
                     }
                     catch (HttpRequestException ex)
                     {
+                        // Try to detect if the error is related to missing certificates
+                        if (Url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                            && ex.ToString().Contains("Could not create SSL/TLS secure channel"))
+                        {
+                            throw new WebException("Unable to connect to '{Url}'. Ensure your certificates are updated, or try using http instead.");
+                        }
+
+
                         log.Debug("HTTP Exception {0}", ex);
                     }
 
