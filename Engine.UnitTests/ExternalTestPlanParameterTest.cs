@@ -145,6 +145,54 @@ namespace OpenTap.Engine.UnitTests
 
         }
 
+
+        [Test]
+        public void TestParameterizedVerdictOf()
+        {
+            // Create the test plan
+            var plan = new TestPlan();
+            var seq = new SequenceStep();
+            var repeat = new RepeatStep();
+            plan.ChildTestSteps.Add(seq);
+            seq.ChildTestSteps.Add(repeat);
+
+            var a = AnnotationCollection.Annotate(repeat);
+
+            void VerifyAvailable(AnnotationCollection mem)
+            {
+                // Verify the expected available values for the member
+                var avail = mem.Get<IAvailableValuesAnnotation>().AvailableValues.Cast<object>().ToArray();
+                Assert.AreEqual(2, avail.Length);
+                Assert.IsTrue(avail.Contains(seq));
+                Assert.IsTrue(avail.Contains(repeat));
+            }
+            
+            var mem = a.GetMember(nameof(repeat.TargetStep));
+            VerifyAvailable(mem);
+
+            { // Parameterize the member on the parent step
+                var parameterize = mem.Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
+                    x.Get<IconAnnotationAttribute>()?.IconName == IconNames.ParameterizeOnParent);
+                parameterize.Get<IMethodAnnotation>().Invoke();
+
+                mem = AnnotationCollection.Annotate(seq).GetMember(@"Parameters \ Verdict Of");
+                VerifyAvailable(mem);
+                
+                var unparameterize = mem.Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
+                    x.Get<IconAnnotationAttribute>()?.IconName == IconNames.Unparameterize);
+                unparameterize.Get<IMethodAnnotation>().Invoke();
+            }
+
+            { // Parameterize the member on the test plan
+                var parameterize = mem.Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
+                    x.Get<IconAnnotationAttribute>()?.IconName == IconNames.ParameterizeOnTestPlan);
+                parameterize.Get<IMethodAnnotation>().Invoke();
+
+                mem = AnnotationCollection.Annotate(plan).GetMember(@"Parameters \ Verdict Of");
+                VerifyAvailable(mem);
+            }
+        }
+
         private void GenerateTestPlanWithNDelaySteps(int stepsCount, string filePath, double defaultValue, string externalParameterName)
         {
             Assert.IsTrue(stepsCount > 0);
