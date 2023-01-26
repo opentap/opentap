@@ -8,6 +8,8 @@
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
     <AssemblyName>OpenTap.Plugins.PluginDevelopment</AssemblyName>
     <RootNamespace>OpenTap.Plugins.PluginDevelopment</RootNamespace>
+    <Configurations>Debug;Release;Debug CE</Configurations>
+    <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsWindows)'=='True'">
