@@ -255,7 +255,6 @@ namespace OpenTap.Package
                         newname = $"{newname} --target \"{target}\"";
 
                     tpmClient.MessageServer("run " + newname);
-                    tpmClient.Dispose();
                 }
             }
         }

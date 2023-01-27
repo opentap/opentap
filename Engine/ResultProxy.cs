@@ -587,24 +587,36 @@ namespace OpenTap
             /// <returns>An optimized table or the original one if it is not possible to optimize.</returns>
             ResultTable CreateOptimizedTable(WorkQueue workQueue)
             {
+                // optimization: only allocate the list if there are more than one mergeable table.
                 List<ResultTable> mergeTables = null;
+                
                 while (workQueue?.Peek() is PublishResultTableInvokable p)
                 {
-                    if (!ResultTableOptimizer.CanMerge(p.table, table))
+                    // this can occur if two steps are publishing results in parallel.
+                    // in this case, the tables should not be combined.
+                    if(p.proxy != proxy)
                         break;
-                    p = (PublishResultTableInvokable)workQueue.Dequeue();
-                    if (p == null) break;
-                    if (mergeTables == null)
-                        mergeTables = new List<ResultTable>();
-                    mergeTables.Add(p.table);
                     
+                    // check if the tables can be merged.
+                    if (!ResultTableOptimizer.CanMerge(p.table, table) )
+                        break;
+                    
+                    // pop the peeked object
+                    if (workQueue.Dequeue() != p)
+                    {
+                        // this should never happen.
+                        // If it did, something went really wrong.
+                        throw new InvalidOperationException("Peeked object not in front of queue.");
+                    }
+
+                    // optimization: only allocate a list if it helps. Also initialize it two long to avoid more allocations.
+                    if (mergeTables == null)
+                        mergeTables = new List<ResultTable>{table, p.table};
+                    else mergeTables.Add(p.table);
                 }
 
                 if (mergeTables != null)
-                {
-                    mergeTables.Add(table);
                     return ResultTableOptimizer.MergeTables(mergeTables);
-                }
 
                 return table;
             }
