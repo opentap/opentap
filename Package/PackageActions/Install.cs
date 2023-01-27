@@ -114,6 +114,8 @@ namespace OpenTap.Package
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
             List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
+            if (!AutoCorrectPackageNames.TryCorrect(Packages, repositories))
+                return 1;
 
             bool installError = false;
             var installer = new Installer(Target, cancellationToken)

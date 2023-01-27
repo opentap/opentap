@@ -87,6 +87,8 @@ namespace OpenTap.Package
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
             List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
+            if (!AutoCorrectPackageNames.TryCorrect(Packages, repositories))
+                return 1;
 
             List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                 destinationInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories,
