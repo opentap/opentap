@@ -49,11 +49,13 @@ FROM production AS production-hardened
 # Create opentap user and group
 # - set home dir, since OpenTAP expects home dir to maintain cache
 # - no default shell, as user should only run tap
-ARG USER=opentap UID=1001 GROUP=opentap GID=1001 DUMMYSHELL=/bin/false HOMEDIR=/home/opentap
-ARG OPENTAP_CACHE=${HOMEDIR}/share/OpenTap
+ARG USER=opentap UID=1001 GROUP=opentap GID=1001 DUMMYSHELL=/bin/false
+ARG HOMEDIR=/home/${USER}
+ARG OPENTAP_CACHE=${HOMEDIR}/.local/share/OpenTap
 RUN groupadd --gid=$GID $GROUP && \
   useradd --uid $UID --gid $GID --shell $DUMMYSHELL --home-dir $HOMEDIR $USER && \
-  install --directory --owner $USER --group $GROUP --mode u=rwx,g=rwx,o= $HOMEDIR
+  install --directory --owner $USER --group $GROUP --mode u=rwx,g=rwx,o= $HOMEDIR && \
+  install --directory --owner $USER --group $GROUP --mode u=rwx,g=rwx,o= $OPENTAP_CACHE
 
 # Set ownership and permissions for OpenTAP installation
 WORKDIR $TAP_PATH
@@ -65,4 +67,5 @@ ENTRYPOINT [ "tap" ]
 # Create mount point to persist OpenTAP cache across restarts
 VOLUME $OPENTAP_CACHE
 
-USER $USER
+# Must use $UID as $USER could potentially alias root user
+USER $UID
