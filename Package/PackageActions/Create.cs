@@ -207,7 +207,7 @@ namespace OpenTap.Package
                 {
                     var path = PackageDef.GetDefaultPackageMetadataPath(pkg, Directory.GetCurrentDirectory());
                     Directory.CreateDirectory(Path.GetDirectoryName(path));
-                    using (FileStream fs = new FileStream(path, FileMode.OpenOrCreate))
+                    using (FileStream fs = new FileStream(path, FileMode.Create))
                     {
                         pkg.SaveTo(fs);
                     }
