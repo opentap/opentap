@@ -1,24 +1,31 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
+using System.IO;
 using System.Linq;
 
 namespace OpenTap.Package
 {
+    internal class AutoCorrectException : Exception 
+    {
+        public AutoCorrectException(string message) : base(message)
+        {
+            
+        }
+    }
     internal static class AutoCorrectPackageNames
     {
         /// <summary>
         /// Correct each name in the string array based on the available packages in the repositories.
-        /// If the user refuses a correction, this function returns false. Otherwise, it returns true.
+        /// If a package name does not exist, and is not corrected, return false; otherwise return true
         /// </summary>
         /// <param name="names"></param>
         /// <param name="repositories"></param>
         /// <returns></returns>
-        public static bool TryCorrect(string[] names, IEnumerable<IPackageRepository> repositories)
+        public static void Correct(string[] names, IEnumerable<IPackageRepository> repositories)
         {
             // We can't provide any corrections if the non-interactive user input is set
-            if (NonInteractiveUserInputInterface.IsSet()) return true;
+            if (NonInteractiveUserInputInterface.IsSet()) return;
             
             var repos = repositories.ToArray();
             List<string> onlinePackages = null;
@@ -32,12 +39,15 @@ namespace OpenTap.Package
             for (int i = 0; i < names.Length; i++)
             {
                 var name = names[i];
+                if (File.Exists(name)) continue;
                 
                 if (string.IsNullOrWhiteSpace(name) || knownPackages.Contains(name))
                 {
                     names[i] = name;
                     continue;
                 }
+                // Checking the repositories is slow. Postpone it as much as possible.
+                // In most cases we can resolve a correctly spelled package from local caches
                 else if (onlinePackages == null)
                 {
                     onlinePackages = repos.SelectMany(r => r.GetPackageNames()).ToList();
@@ -65,8 +75,8 @@ namespace OpenTap.Package
 
                 if (scores.Length == 0)
                 {
-                    names[i] = name;
-                    continue;
+                    // There are no packages 
+                    throw new AutoCorrectException($"No package named '{name}', and no candidates were found in the specified repositories.");
                 }
                 
                 // If there is only one option, provide a yes/no dialog
@@ -81,7 +91,7 @@ namespace OpenTap.Package
                     };
                     UserInput.Request(req);
                     if (req.Choice == cancelChoice)
-                        return false;
+                        throw new AutoCorrectException($"No package named '{name}', and no alternative candidate was selected.");
                     names[i] = scores[0].Candidate;
                 }
                 // If there are more options, provide a numbered list
@@ -99,13 +109,13 @@ namespace OpenTap.Package
                     };
                     UserInput.Request(req);
                     if (req.Choice == cancelChoice)
-                        return false;
+                        throw new AutoCorrectException($"No package named '{name}', and no alternative candidate was selected.");
                     
                     names[i] = req.Choice;
                 }
             }
 
-            return true;
+            return;
         }
     }
     

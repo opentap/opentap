@@ -171,8 +171,7 @@ namespace OpenTap.Package
             }
 
             var arr = new[] { Name };
-            if (!AutoCorrectPackageNames.TryCorrect(arr, repositories))
-                return 1;
+            AutoCorrectPackageNames.Correct(arr, repositories);
             Name = arr[0];
 
             if (Target == null)

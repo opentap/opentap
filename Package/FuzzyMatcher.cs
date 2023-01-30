@@ -46,7 +46,7 @@ namespace OpenTap.Package
 
             return sb.ToString().ToLower();
         }
-        
+
         // Only consider candidates that are within an edit distance of 3 from the input
         // E.g. the input string can be transformed to the candidate with 3 changes (adding, removing, or replacing a character)
         private int _maxThreshhold;
@@ -62,7 +62,7 @@ namespace OpenTap.Package
                     LevensteinDistance(candidateString, inputString, x + 1, y, score + 1), // remove
                     LevensteinDistance(candidateString, inputString, x + 1, y + 1, score + 1))); // replace
         }
-        
+
         /// <summary>
         /// Calculate how similar a candidate is to the input
         /// </summary>
@@ -78,16 +78,20 @@ namespace OpenTap.Package
             {
                 if (prep == Input)
                     return new Match(candidate, 0);
+                // If the input is a prefix of the package name, it is considered a very good candidate
                 if (prep.StartsWith(Input) || prep.EndsWith(Input))
                     return new Match(candidate, 1);
+                // If the input is a substring of the package name, it is a pretty good candiate
                 return new Match(candidate, 2);
             }
+            // If the candidate is a substring of the input, it is still worth considering if there are no better options.
+            else if (Input.Contains(prep))
+            {
+                return new Match(candidate, 3);
+            }
 
-            // If the input is a prefix of the package name, it is considered a very good candidate
-            if (prep.StartsWith(Input)) return new Match(candidate, 0);
-            // If the input is a substring of the package name, it is a pretty good candiate
-            if (prep.Contains(Input)) return new Match(candidate, 1);
             // Otherwise, the suitability is determined by the edit distance
+            // E.g. how many modifications do we need to make to the candidate to turn it into the input
             score = LevensteinDistance(prep, Input, 0, 0, 0);
             return new Match(candidate, score);
         }
