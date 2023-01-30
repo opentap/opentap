@@ -8,6 +8,8 @@
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
     <TargetFramework>net472</TargetFramework>
     <UseWpf>true</UseWpf>
+    <Configurations>Debug;Release;Debug CE</Configurations>
+    <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,9 +17,8 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(IsWindows)'=='True'">
-	<OpenTapPackageReference Include="Editor" />
-    <AdditionalOpenTapPackage Include="Results Viewer" />
-	<OpenTapPackageReference Include="WPF Controls" />
+	  <AdditionalOpenTapPackage Include="$(DevelopersSystem)" />
+	  <OpenTapPackageReference Include="WPF Controls" />
   </ItemGroup>
 
   <ItemGroup>

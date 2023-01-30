@@ -363,8 +363,10 @@ jobs:
       - name: Test
         run: |
           chmod +x bin/Release/tap
-          ./bin/Release/tap package install ./bin/Release/dbg.zip -f
-          bin/Release/tap run tests/regression.TapPlan --verbose --color
+          # The .pdb files are in use for some reason during `tap package install`
+          rm ./bin/Release/*.pdb
+          ./bin/Release/tap package install ./bin/Release/dbg.zip -f --no-isolation
+          ./bin/Release/tap run tests/regression.TapPlan --verbose --color
 
   TestMacPlan:
     runs-on: macos-11
@@ -732,18 +734,18 @@ jobs:
           name: installer-linux
           retention-days: 14
           path: OpenTAP.tar
-          
-  Installer-Windows:
+
+  Build-Installer-Windows:
     runs-on: ubuntu-latest
     environment: sign
     needs:
       - GetVersion
       - Package-Win
     container:
-      image: registry.gitlab.com/opentap/buildrunners/smartinstaller:1.1.0-beta.7
+      image: ghcr.io/opentap/smartinstaller:2.0.0-beta.29
       credentials:
-        username: github
-        password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -753,13 +755,8 @@ jobs:
           name: win-x64-package
           path: .
       - run: mv OpenTAP.*.Windows.TapPackage Installer/Assets/OpenTAP.TapPackage
-      - run: ls /root/go/bin
-      #- name: Remove certificate
-      #  if: github.ref != 'refs/heads/main' && !contains(github.ref, 'refs/heads/release') && !contains(github.ref, 'refs/tags/v')
-      #  run: sed -i 's/<SignCert>Keysight Technologies, Inc<\/SignCert>/<SignCert><\/SignCert>/' 'opentap.installer.xml'
-      #  working-directory: Installer/Assets
       - run: echo "${{ secrets.SIGN_SERVER_CERT }}" > $GITHUB_WORKSPACE/sign.cer
-      - run: tap installer create "opentap.installer.xml"
+      - run: tap installer create "opentap.installer.xml" -v --target-os win
         working-directory: Installer/Assets
         env:
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
@@ -771,6 +768,83 @@ jobs:
           name: installer-windows
           retention-days: 14
           path: OpenTAP.*.exe
+
+  Publish-Installer-Windows:
+    if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/r') || github.ref == 'refs/heads/main'
+    environment: packages.opentap.io 
+    runs-on: ubuntu-latest 
+    needs:
+      - Build-Installer-Windows 
+      - GetVersion
+    steps: 
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: installer-windows
+      - name: Rename Artifact 
+        run: mv OpenTAP.*.exe OpenTAP.exe
+      - name: Upload Installer 
+        env: 
+          REPO_WWW_PASS: ${{ secrets.REPO_WWW_PASS }}
+        run: | 
+          curl -i -X POST 'http://packages.opentap.io/4.0/Objects/www/' \
+               -H 'Metadata-Version: "${{ needs.GetVersion.outputs.LongVersion }}"' \
+               -H 'Metadata-OS: "Windows"' \
+               -H "Auth-Key: $REPO_WWW_PASS" \
+               --form 'file=@"'$(pwd)'/OpenTAP.exe"'
+
+  Build-Installer-Linux:
+    runs-on: ubuntu-latest
+    needs:
+      - GetVersion
+      - Package-Linux
+    container:
+      image: ghcr.io/opentap/smartinstaller:2.0.0-beta.29
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Download Linux package
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-package
+          path: .
+      - run: mv OpenTAP.*.Linux.TapPackage Installer/Assets/OpenTAP.TapPackage
+        name: Rename package
+      - run: tap installer create "opentap.installer.linux.xml" -v --target-os linux
+        working-directory: Installer/Assets
+        name: Build installer
+      - run: mv Installer/Assets/Installer Installer/Assets/OpenTAP
+      - uses: actions/upload-artifact@v2
+        with:
+          name: installer-linux
+          retention-days: 14
+          path: Installer/Assets/OpenTAP
+
+  Publish-Installer-Linux:
+    if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/r') || github.ref == 'refs/heads/main'
+    environment: packages.opentap.io 
+    runs-on: ubuntu-latest 
+    needs:
+      - Build-Installer-Linux
+      - GetVersion
+    steps: 
+      - name: Download Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: installer-linux
+      - name: Upload Installer 
+        env: 
+          REPO_WWW_PASS: ${{ secrets.REPO_WWW_PASS }}
+        run: | 
+          curl -i -X POST 'http://packages.opentap.io/4.0/Objects/www/' \
+               -H 'Metadata-Version: "${{ needs.GetVersion.outputs.LongVersion }}"' \
+               -H 'Metadata-OS: "Linux"' \
+               -H "Auth-Key: $REPO_WWW_PASS" \
+               --form 'file=@"'$(pwd)'/OpenTAP"'
+
 
   Test-Installer-Linux:
     runs-on: ubuntu-20.04
@@ -805,6 +879,8 @@ jobs:
             tag-suffix: "-slim"
           - target: development
             tag-suffix: ""
+          - target: production-hardened
+            tag-suffix: "-slim-hardened"
     needs:
       - Package-Linux
       - GetVersion
