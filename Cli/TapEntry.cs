@@ -85,7 +85,7 @@ namespace OpenTap.Cli
             string arguments = new CommandLineSplit(Environment.CommandLine).Args;
             string message = null;
             
-            using (ExecutorSubProcess subproc = ExecutorSubProcess.Create("tap", arguments))
+            using (ExecutorSubProcess subproc = ExecutorSubProcess.Create(Path.Combine(ExecutorClient.ExeDir, "tap"), arguments))
             {
                 subproc.MessageReceived += (s, msg) =>
                 {

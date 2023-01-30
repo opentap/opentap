@@ -51,6 +51,7 @@ module.exports = {
                     ["/Developer Guide/Component Setting/", "Component Setting"],
                     ["/Developer Guide/Annotations/", "Annotations"],
                     ["/Developer Guide/Plugin Packaging and Versioning/", "Plugin Packaging and Versioning"],
+                    ["/Developer Guide/Package Publishing/", "Package Publishing"],
                     ["/Developer Guide/Continuous Integration/", "Continuous Integration (CI/CD)"],
                     ["/Developer Guide/Attributes/", "Attributes"],
                     ["/Developer Guide/Known Issues/", "Known Issues"],
