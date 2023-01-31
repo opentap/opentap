@@ -7,7 +7,7 @@ namespace PluginDevelopment.Gui.OperatorPanel
     { 
         public override DataTemplate SelectTemplate(object item, DependencyObject container) 
         { 
-            if (item is OperatorUiSetting)
+            if (item is OperatorPanelSetting)
                 return PanelTemplate;
             return NoPanelTemplate; 
         } 

@@ -6,6 +6,6 @@ namespace PluginDevelopment.Gui.OperatorPanel
     {
         public int Rows => OperatorUiSettings.Current.Rows;
         public int Columns => OperatorUiSettings.Current.Columns;
-        public IEnumerable<OperatorUiSetting> Items => OperatorUiSettings.Current.OperatorUis;
+        public IEnumerable<OperatorPanelSetting> Items => OperatorUiSettings.Current.OperatorUis;
     }
 }

@@ -7,9 +7,9 @@ namespace PluginDevelopment.Gui.OperatorPanel
     public class OperatorUiSettings : ComponentSettings<OperatorUiSettings>
     {
         [Display("Operator UIs")]
-        public List<OperatorUiSetting> OperatorUis { get; set; } = new List<OperatorUiSetting>()
+        public List<OperatorPanelSetting> OperatorUis { get; set; } = new List<OperatorPanelSetting>()
         {
-            new OperatorUiSetting { Name = "Panel 1" }
+            new OperatorPanelSetting { Name = "Panel 1" }
         };
         [Display("Rows", Order: 1, Group:"Layout")]
         public int Rows { get; set; } = 1;

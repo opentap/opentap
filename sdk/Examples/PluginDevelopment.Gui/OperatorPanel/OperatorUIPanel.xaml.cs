@@ -9,20 +9,22 @@ using OpenTap;
 
 namespace PluginDevelopment.Gui.OperatorPanel
 {
+    /// <summary>
+    /// The operator UI panel itself, one panel represents one session, one play button, etc.
+    /// but it shares the currently loaded test plan with other panels.
+    /// </summary>
     public partial class OperatorUiPanel : UserControl
     {
         public ITapDockContext Context { get; }
-        public OperatorUiViewModel ViewModel { get;  } 
+        public OperatorPanelViewModel ViewModel { get;  } 
         
-        readonly OperatorResultListener resultListener = new OperatorResultListener();
-        
-        public OperatorUiPanel(ITapDockContext context, OperatorUiSetting operatorUiSetting, OperatorUiViewModel vm = null)
+        readonly TraceSource log = Log.CreateSource("OperatorUI");
+
+        public OperatorUiPanel(ITapDockContext context, OperatorPanelSetting operatorPanelSetting, OperatorPanelViewModel vm = null)
         {
-            ViewModel = vm ?? new OperatorUiViewModel();
+            ViewModel = vm ?? new OperatorPanelViewModel();
             Context = context;
-            Context.ResultListeners.Add(resultListener);
-            ViewModel.ResultListener = resultListener;
-            ViewModel.OperatorUiSetting = operatorUiSetting ?? new OperatorUiSetting();
+            ViewModel.operatorPanelSetting = operatorPanelSetting ?? new OperatorPanelSetting();
             ViewModel.Context = context;
             
             InitializeComponent();
@@ -33,23 +35,27 @@ namespace PluginDevelopment.Gui.OperatorPanel
         void OnIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
             if(Equals(e.NewValue, true))
-                RenderDispatch.RenderingSlow += RenderDispatchOnRenderingSlow;
+                RenderDispatch.RenderingSlow += RenderDispatch_OnRenderingSlow;
             else 
-                RenderDispatch.RenderingSlow -= RenderDispatchOnRenderingSlow;
+                RenderDispatch.RenderingSlow -= RenderDispatch_OnRenderingSlow;
         }
 
-        void RenderDispatchOnRenderingSlow(object sender, EventArgs e) => ViewModel.UpdateTime();
+        /// <summary> Update the time in the UI every 4th frame or so.</summary>
+        void RenderDispatch_OnRenderingSlow(object sender, EventArgs e) => ViewModel.UpdateTime();
+        
         void StartButton_Clicked(object sender, RoutedEventArgs e) => ViewModel.ExecuteTestPlan();
         void StopButton_Clicked(object sender, RoutedEventArgs e) => ViewModel.StopTestPlan();
-        void DutIdEntered_OnClick(object sender, RoutedEventArgs e) => ViewModel.DutIdEntered("");
-
+        void DutIdEntered_OnClick(object sender, RoutedEventArgs e) => ViewModel.DutIdEntered();
         void DutEnter_VisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
             if (Equals(true, e.NewValue))
                 (sender as FrameworkElement)?.Focus();
         }
 
-        [Display("Edit the name")]
+        /// <summary>
+        /// Model for for when the user wants to change the name of the panel.
+        /// </summary>
+        [Display("Edit the name of this panel.")]
         public class ChangeName
         {
             [Layout(LayoutMode.FullRow)]
@@ -68,6 +74,7 @@ namespace PluginDevelopment.Gui.OperatorPanel
 
         void ChangeName_Clicked(object sender, RoutedEventArgs e)
         {
+            // use UserInput.Request to change the name. of the panel.
             var name = new ChangeName { NewName = ViewModel.Name };
             
             UserInput.Request(name);
@@ -78,9 +85,11 @@ namespace PluginDevelopment.Gui.OperatorPanel
             }
         }
 
-        readonly TraceSource log = Log.CreateSource("OperatorUI");
         void EditParameters_Clicked(object sender, RoutedEventArgs e)
         {
+            // Clone the test plan by serializing to an XML byte array
+            // and then reload the XML.
+            
             var xml = Context.Plan.GetCachedXml();
             if (xml == null)
             {
@@ -89,8 +98,13 @@ namespace PluginDevelopment.Gui.OperatorPanel
                 xml = str.ToArray();
             }
             
-            var setting = ViewModel.OperatorUiSetting;
+            var setting = ViewModel.operatorPanelSetting;
+            
+            // create a temporary plan.
             var tmpPlan = TestPlan.Load(new MemoryStream(xml), Context.Plan.Path);
+            
+            // load all the currently defined settings. AnnotationCollection is used to figure out which things
+            // can easily be stored as a string.
             var a = AnnotationCollection.Annotate(tmpPlan);
             foreach (var member in a.Get<IMembersAnnotation>().Members)
             {
@@ -109,10 +123,13 @@ namespace PluginDevelopment.Gui.OperatorPanel
                 }
             }
 
+            // write the data to the object.
             a.Write();
 
+            // popup a UI allowing to edit the temporary plan settings.
             UserInput.Request(tmpPlan);
             
+            // write back the changes to the component settings. Again use annotation collection.
             foreach (var member in AnnotationCollection.Annotate(tmpPlan).Get<IMembersAnnotation>().Members)
             {
                 if (member.Get<IMemberAnnotation>()?.Member is IParameterMemberData)
@@ -124,7 +141,7 @@ namespace PluginDevelopment.Gui.OperatorPanel
                     var param = setting.Parameters.FirstOrDefault(p => p.Name == name);
                     if (param == null)
                     {
-                        param = new UiParameter
+                        param = new PanelParameter
                         {
                             Name = name
                         };
@@ -136,11 +153,14 @@ namespace PluginDevelopment.Gui.OperatorPanel
                     log.Info("Setting {0} = {1}", name, stringValue);
                 }
             }
+            
+            // save the changes to disk.
             OperatorUiSettings.Current.Save();
         }
 
         void ViewLog_OnClick(object sender, RoutedEventArgs e)
         {
+            // open a log panel an show the current messages.
             var panel = new LogPanel();
             panel.AddLogMessages(ViewModel.LogEvents);
             var dialog = new WslDialog

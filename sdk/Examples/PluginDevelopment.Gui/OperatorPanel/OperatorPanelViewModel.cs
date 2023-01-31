@@ -13,9 +13,8 @@ using OpenTap.Diagnostic;
 
 namespace PluginDevelopment.Gui.OperatorPanel
 {
-    public class OperatorUiViewModel : INotifyPropertyChanged
+    public class OperatorPanelViewModel : INotifyPropertyChanged
     {
-        internal OperatorResultListener ResultListener { get; set; }
         readonly Stopwatch startedTimer = new Stopwatch();
         
         TestPlanStatus status;
@@ -46,17 +45,9 @@ namespace PluginDevelopment.Gui.OperatorPanel
             public Verdict Verdict { get; set; }
             public event PropertyChangedEventHandler PropertyChanged;
 
-            public virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+            public void OnPropertyChanged([CallerMemberName] string propertyName = null)
             {
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-            }
-
-            protected bool SetField<T>(ref T field, T value, [CallerMemberName] string propertyName = null)
-            {
-                if (EqualityComparer<T>.Default.Equals(field, value)) return false;
-                field = value;
-                OnPropertyChanged(propertyName);
-                return true;
             }
         }
 
@@ -64,10 +55,10 @@ namespace PluginDevelopment.Gui.OperatorPanel
         public double DurationSecs => startedTimer.Elapsed.TotalSeconds * 10.0;
         public string Name
         {
-            get { return OperatorUiSetting.Name ?? $"Panel ({OperatorUiSetting.Location})"; }
+            get => operatorPanelSetting.Name ?? "Panel";
             set
             {
-                OperatorUiSetting.Name = value;
+                operatorPanelSetting.Name = value;
                 GuiHelpers.GuiInvoke(() => OnPropertyChanged(nameof(Name)));
             }
         }
@@ -174,12 +165,13 @@ namespace PluginDevelopment.Gui.OperatorPanel
 
         TestPlan currentPlan;
         Session executorSession;
-        internal OperatorUiSetting OperatorUiSetting;
+        internal OperatorPanelSetting operatorPanelSetting;
         readonly List<Event> logEvents = new List<Event>();
         public IEnumerable<Event> LogEvents => logEvents;
 
         public void ExecuteTestPlan()
         {
+            // save the current test plan XML as a byte array. 
             var xml = Context.Plan.GetCachedXml();
             if (xml == null)
             {
@@ -188,23 +180,33 @@ namespace PluginDevelopment.Gui.OperatorPanel
                 xml = str.ToArray();
             }
 
+            // clear the current log events.
             logEvents.Clear();
 
+            // start a new session to avoid interfering with settings (or resources) used by other panels.
+            // overlay the component settings means that we make a copy of the current settings for the session.
+            // redirect logging means that any log message inside the session will be redirected to new log listeners
+            //     instead of the ones used by the default session.
             executorSession = Session.Create(SessionOptions.OverlayComponentSettings | SessionOptions.RedirectLogging);
             {
-                
+                // redirect trace listener.
+                // note, that stores the log in memory, using this may cause out of memory exceptions
+                // on limited systems and very large / logging test plans.
                 var log = new EventTraceListener();
-                log.MessageLogged += (events) => logEvents.AddRange(events);
+                log.MessageLogged += events => logEvents.AddRange(events);
                 Log.AddListener(log);
+                
+                // load the test plan in the new session.
                 currentPlan = TestPlan.Load(new MemoryStream(xml), Context.Plan.Path);
 
+                // load the panel settings.
                 var a = AnnotationCollection.Annotate(currentPlan);
                 foreach (var member in a.Get<IMembersAnnotation>().Members)
                 {
                     var str = member.Get<IStringValueAnnotation>();
                     if (str == null) continue; // this parameter cannot be set.
                     var name = member.Get<IDisplayAnnotation>()?.Name;
-                    var param = OperatorUiSetting.Parameters.FirstOrDefault(x => x.Name == name);
+                    var param = operatorPanelSetting.Parameters.FirstOrDefault(x => x.Name == name);
                     if (param == null) continue;
                     try
                     {
@@ -216,8 +218,12 @@ namespace PluginDevelopment.Gui.OperatorPanel
                     }
                 }
 
+                // write the changes to the test plan.
                 a.Write();
                 
+                // override the current user input interface.
+                // this UserInputOverride only intercepts some specific events.
+                // all other events are redirected to the default user input interface.
                 var prev = UserInput.Interface as IUserInputInterface;
                 var ui = new UserInputOverride(prev,
                     () =>
@@ -238,17 +244,27 @@ namespace PluginDevelopment.Gui.OperatorPanel
                         });
                     });
                 UserInput.SetInterface(ui);
+                
+                // promoted results are [Result] properties extracted from the test plan.
                 UpdatePromotedResults();
+                
                 DutID = "N/A";
                 OnPropertyChanged("");
                 var resultListeners = ResultSettings.Current;
-                var addedListener = new OperatorResultListener();
-                addedListener.TestStepRunStart += AddedListenerOnTestStepRunStart;
-                addedListener.TestPlanRunStarted += AddedListenerOnTestPlanRunStarted;
+                
+                // setup the UI Update result listener 
+                var uiListener = new OperatorResultListener();
+                uiListener.TestStepRunCompleted += UiListener_OnTestStepRunCompleted;
+                uiListener.TestPlanRunStarted += UIListener_OnTestPlanRunStarted;
+                
                 startedTimer.Restart();
                 Status = TestPlanStatus.Running;
+                
+                // this is used to cancel test plan execution.
                 cancellationToken = new CancellationTokenSource();
-                var runTask = currentPlan.ExecuteAsync(resultListeners.Concat(new IResultListener[] { addedListener }),
+                
+                // run the test plan.
+                var runTask = currentPlan.ExecuteAsync(resultListeners.Concat(new IResultListener[] { uiListener }),
                     Array.Empty<ResultParameter>(), null, cancellationToken.Token);
 
                 runTask.ContinueWith(t =>
@@ -270,19 +286,24 @@ namespace PluginDevelopment.Gui.OperatorPanel
                     });
                 });
                 var prevSession = executorSession;
+                // create a sub session before disposing the current session.
+                // this is because we want to make sure executor session 
+                // needed for the DutIdEntered callback
                 executorSession = Session.Create(SessionOptions.None);
                 prevSession.Dispose();
             }
         }
 
-        void AddedListenerOnTestPlanRunStarted(object sender, TestPlanRun e)
+        void UIListener_OnTestPlanRunStarted(object sender, TestPlanRun e)
         {
+            // Update the DUT ID.
             DutID = e.Parameters.FirstOrDefault(x => x.Name == "ID")?.Value?.ToString() ?? "?";
             GuiHelpers.GuiInvokeAsync(() => OnPropertyChanged(nameof(DutID)));
         }
 
-        void AddedListenerOnTestStepRunStart(object sender, TestStepRun run)
+        void UiListener_OnTestStepRunCompleted(object sender, TestStepRun run)
         {
+            // Update the results in the UI when a test step run is finished.
             foreach (var mem in ResultsList)
             {
                 if (mem.StepSource.Id == run.TestStepId)
@@ -300,22 +321,19 @@ namespace PluginDevelopment.Gui.OperatorPanel
 
         public void StopTestPlan() => cancellationToken?.Cancel();
 
-        public void DutIdEntered(string data)
+        public void DutIdEntered()
         {
             executorSession.RunInSession(() => {
                 (UserInput.Interface as UserInputOverride)?.EnterComplete();
             
-                foreach(var dutmem in TypeData.GetTypeData(currentPlan).GetMembers().Where(x => x.TypeDescriptor.DescendsTo(typeof(Dut))))
+                foreach(var dutTypeMembers in TypeData.GetTypeData(currentPlan)
+                    .GetMembers()
+                    .Where(x => x.TypeDescriptor.DescendsTo(typeof(Dut))))
                 {
-                    if (dutmem.GetValue(currentPlan) is Dut d)
-                        d.ID = this.DutID;
+                    if (dutTypeMembers.GetValue(currentPlan) is Dut d)
+                        d.ID = DutID;
                 }
             });
-        }
-
-        public void RaiseChanged()
-        {
-            OnPropertyChanged("");
         }
     }
 }

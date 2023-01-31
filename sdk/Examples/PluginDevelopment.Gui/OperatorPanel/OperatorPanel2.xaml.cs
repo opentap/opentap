@@ -16,16 +16,16 @@ namespace PluginDevelopment.Gui.OperatorPanel
             baseGrid.DataContext = ViewModel;
         }
 
-        readonly Dictionary<OperatorUiSetting, OperatorUiViewModel> viewModels =
-            new Dictionary<OperatorUiSetting, OperatorUiViewModel>();
+        readonly Dictionary<OperatorPanelSetting, OperatorPanelViewModel> viewModels =
+            new Dictionary<OperatorPanelSetting, OperatorPanelViewModel>();
         void PanelContainer_Loaded(object sender, RoutedEventArgs e)
         {
             var decorator = (Decorator)sender;
-            var viewModel = decorator.DataContext as OperatorUiSetting;
+            var viewModel = decorator.DataContext as OperatorPanelSetting;
             if (viewModel == null) return;
             if (!viewModels.TryGetValue(viewModel, out var model2))
             {
-                model2 = new OperatorUiViewModel();
+                model2 = new OperatorPanelViewModel();
                 viewModels[viewModel] = model2;
             }
 
