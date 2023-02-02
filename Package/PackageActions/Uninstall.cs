@@ -36,7 +36,7 @@ namespace OpenTap.Package
                 return (int) ExitCodes.ArgumentError;
             }
 
-            AutoCorrectPackageNames.Correct(Packages, Array.Empty<IPackageRepository>());
+            Packages = AutoCorrectPackageNames.Correct(Packages, Array.Empty<IPackageRepository>());
 
             Installer installer = new Installer(Target, cancellationToken) {DoSleep = false};
             installer.ProgressUpdate += RaiseProgressUpdate;

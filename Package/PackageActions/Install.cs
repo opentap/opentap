@@ -114,7 +114,7 @@ namespace OpenTap.Package
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
             List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
-            AutoCorrectPackageNames.Correct(Packages, repositories);
+            Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
 
             bool installError = false;
             var installer = new Installer(Target, cancellationToken)
@@ -168,11 +168,14 @@ namespace OpenTap.Package
                     // 'any' would be the most likely specifier to succeed, but it is probably a bit too extreme to suggest something so bleeding edge.
                     // A beta version strikes a good middle ground. It is pretty likely to resolve, and probably won't be too unstable.
                     if (NonInteractiveUserInputInterface.IsSet()) throw;
+                    if (Packages.Length != 1) throw;
                     if (false == (ex.Result is FailedImageResolution fir)) throw;
                     if (fir.resolveProblems.Count != 1) throw;
 
                     var problem = fir.resolveProblems[0];
                     if (problem.Version != VersionSpecifier.AnyRelease) throw;
+                    // Only show the beta option if the resolution problem was with the package we are trying to install
+                    if (problem.Name != Packages[0]) throw;
 
                     var req = new AskAboutPrerelease($"Package '{problem.Name}' has no compatible release version. Try a beta version instead?");
                     UserInput.Request(req);

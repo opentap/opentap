@@ -22,33 +22,37 @@ namespace OpenTap.Package
         /// <param name="names"></param>
         /// <param name="repositories"></param>
         /// <returns></returns>
-        public static void Correct(string[] names, IEnumerable<IPackageRepository> repositories)
+        public static string[] Correct(string[] names, IEnumerable<IPackageRepository> repositories)
         {
             // We can't provide any corrections if the non-interactive user input is set
-            if (NonInteractiveUserInputInterface.IsSet()) return;
+            if (NonInteractiveUserInputInterface.IsSet()) return names;
+            // Copy the input array to use as return value
+            var result = names.ToArray();
             
             var repos = repositories.ToArray();
             List<string> onlinePackages = null;
 
-            var installed = Installation.Current.GetPackages().Select(p => p.Name);
-            var packageCache =
-                PackageRepositoryHelpers.DetermineRepositoryType(new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri);
-            var cached = packageCache.GetPackageNames();
-            var knownPackages = cached.Concat(installed).ToHashSet();
+            var packageCache = PackageRepositoryHelpers.DetermineRepositoryType(new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri);
+            var knownPackages = Installation.Current.GetPackages().Select(p => p.Name)
+                .Concat(packageCache.GetPackageNames()).ToHashSet();
+            
 
             for (int i = 0; i < names.Length; i++)
             {
                 var name = names[i];
                 if (File.Exists(name)) continue;
+
+                var notFoundMessage = $"Package '{name}' not found.";
                 
                 if (string.IsNullOrWhiteSpace(name) || knownPackages.Contains(name))
                 {
-                    names[i] = name;
+                    result[i] = name;
                     continue;
                 }
                 // Checking the repositories is slow. Postpone it as much as possible.
                 // In most cases we can resolve a correctly spelled package from local caches
-                else if (onlinePackages == null)
+
+                if (onlinePackages == null)
                 {
                     onlinePackages = repos.SelectMany(r => r.GetPackageNames()).ToList();
                     foreach (var pkg in onlinePackages)
@@ -58,7 +62,7 @@ namespace OpenTap.Package
 
                     if (knownPackages.Contains(name))
                     {
-                        names[i] = name;
+                        result[i] = name;
                         continue;
                     }
                 }
@@ -76,7 +80,7 @@ namespace OpenTap.Package
                 if (scores.Length == 0)
                 {
                     // There are no packages 
-                    throw new AutoCorrectException($"No package named '{name}', and no candidates were found in the specified repositories.");
+                    throw new AutoCorrectException(notFoundMessage);
                 }
                 
                 // If there is only one option, provide a yes/no dialog
@@ -91,11 +95,11 @@ namespace OpenTap.Package
                     };
                     UserInput.Request(req);
                     if (req.Choice == cancelChoice)
-                        throw new AutoCorrectException($"No package named '{name}', and no alternative candidate was selected.");
-                    names[i] = scores[0].Candidate;
+                        throw new AutoCorrectException(notFoundMessage);
+                    result[i] = scores[0].Candidate;
                 }
                 // If there are more options, provide a numbered list
-                else if (scores.Length > 0)
+                else if (scores.Length > 1)
                 {
                     const string cancelChoice = "Cancel";
                     var options = scores.Select(s => s.Candidate).ToList();
@@ -109,13 +113,13 @@ namespace OpenTap.Package
                     };
                     UserInput.Request(req);
                     if (req.Choice == cancelChoice)
-                        throw new AutoCorrectException($"No package named '{name}', and no alternative candidate was selected.");
+                        throw new AutoCorrectException(notFoundMessage);
                     
-                    names[i] = req.Choice;
+                    result[i] = req.Choice;
                 }
             }
 
-            return;
+            return result;
         }
     }
     
