@@ -1247,18 +1247,17 @@ namespace OpenTap
             public string Content;
         }
         
-        // note: this should probably be a conditional weak table to avoid leaking exotic transient ITypeData values.
-        static readonly ConcurrentDictionary<ITypeData, Dictionary<string, IMemberData>> formatterLutCache 
-            = new ConcurrentDictionary<ITypeData, Dictionary<string, IMemberData>>();
+        /// <summary> Cache for quickly getting the display names of members used to generate the formatted name. </summary>
+        static readonly ConditionalWeakTable<ITypeData, Dictionary<string, IMemberData>> formatterLutCache 
+            = new ConditionalWeakTable<ITypeData, Dictionary<string, IMemberData>>();
         
         /// <summary> Takes the name of step and replaces {} tokens with the value of properties. </summary>
         public static string GetFormattedName(this ITestStep step)
         {
             if(step.Name.Contains('{') == false || step.Name.Contains('}') == false)
                 return step.Name;
-            Dictionary<string, IMemberData> props;
             var type = TypeData.GetTypeData(step);
-            if (formatterLutCache.TryGetValue(type, out props) == false)
+            if (formatterLutCache.TryGetValue(type, out var props) == false)
             {
                 // GetProperties potentially slow. GetFormattedName is in test plan exec thread, so the outcome is cached.
                 
@@ -1273,7 +1272,7 @@ namespace OpenTap
                     if ((s.Group != null) && (s.Group.Length > 0))
                     {
                         // GroupName [space] DisplayName
-                        var fullFormat = string.Format("{0} {1}", string.Join(" ", s.Group.Select(g => g.Trim())), s.Name.Trim());
+                        var fullFormat = $"{string.Join(" ", s.Group.Select(g => g.Trim()))} {s.Name.Trim()}";
                         props[fullFormat.ToLower()] = item;
                         // just DisplayName
                         var shortFormat = s.Name.Trim().ToLower();
@@ -1285,7 +1284,8 @@ namespace OpenTap
                         props[s.Name.ToLower()] = item;
                     }
                 }
-                formatterLutCache[type] = props;
+
+                formatterLutCache.GetValue(type, _ => props);
             }
             var name = step.Name;
             if (name == null)
