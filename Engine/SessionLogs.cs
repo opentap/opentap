@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Threading;
+using System.Diagnostics;
 
 namespace OpenTap
 {
@@ -21,12 +22,42 @@ namespace OpenTap
     /// </summary>
     public static class SessionLogs
     {
-        [DllImport("Kernel32.dll", CharSet = CharSet.Unicode)]
-        static extern bool CreateHardLink(
+        [DllImport("Kernel32.dll", CharSet = CharSet.Unicode, EntryPoint = "CreateHardlink")]
+        static extern bool CreateHardLinkWin(
           string lpFileName,
           string lpExistingFileName,
           IntPtr lpSecurityAttributes
         );
+
+        [DllImport("libc", EntryPoint = "symlink")]
+        static unsafe extern bool CreateHardLinkLin(
+            char *target,
+            char *linkpath
+        );
+
+        static unsafe void CreateHardLink(string targetFile, string linkName)
+        {
+            if (OperatingSystem.Current == OperatingSystem.Windows)
+            {
+                CreateHardLinkWin(linkName, targetFile, IntPtr.Zero);
+            }
+            else if (OperatingSystem.Current == OperatingSystem.Linux)
+            {
+                IntPtr target = Marshal.StringToCoTaskMemAnsi(targetFile);
+                IntPtr link = Marshal.StringToCoTaskMemAnsi(linkName);
+                CreateHardLinkLin((char*)target, (char*)link);
+                Marshal.FreeCoTaskMem(target);
+                Marshal.FreeCoTaskMem(link);
+            }
+            else if (OperatingSystem.Current == OperatingSystem.MacOS)
+            {
+                Process.Start("ln", $"\"{targetFile}\" \"{linkName}\"");
+            }
+            else
+            {
+                // Platform hardlinks not implemented.
+            }
+        }
 
         private static readonly TraceSource log = Log.CreateSource("Session");
 
@@ -375,10 +406,17 @@ namespace OpenTap
                 recentSystemlogs.AddRecent(Path.GetFullPath(path));
             }
 
-            string latestPath = Path.Combine(dir, "Latest.txt");
-            if (File.Exists(latestPath))
-                File.Delete(latestPath);
-            CreateHardLink(latestPath, path, IntPtr.Zero);
+            try
+            {
+                string latestPath = Path.Combine(dir, "Latest.txt");
+                if (File.Exists(latestPath))
+                    File.Delete(latestPath);
+                CreateHardLink(path, latestPath);
+            }
+            catch
+            {
+                // Ignore in case of race conditions.
+            }
         }
 
         static int sessionLogCount = 0;
