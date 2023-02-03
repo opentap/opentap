@@ -44,7 +44,7 @@ namespace OpenTap.Plugins.BasicSteps
         public uint SweepPoints { get; set; }
 
         private int iteration = 0;
-        [Output]
+        [Output(OutputAvailability.BeforeRun)]
         [Display("Iteration", "Shows the iteration of the sweep that is currently running or about to run.", "Sweep", Order: 1.5)]
         public string IterationInfo => $"{iteration} of {SweepPoints}";
 
