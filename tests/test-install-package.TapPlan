@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan">
+  <Steps>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RunOnOs" Id="602f7a42-41d3-48c8-9b7f-7cce86983212" OpenTap.Visibility="Visible">
+      <OperatingSystem>Windows</OperatingSystem>
+      <Name Metadata="Step Name">Run On {OperatingSystem}</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Id="aa23442b-dc13-419d-9cf7-3e47864543fc">
+          <Application>tap</Application>
+          <Arguments>package install Demonstration</Arguments>
+          <WorkingDirectory></WorkingDirectory>
+          <EnvironmentVariables />
+          <Timeout>0</Timeout>
+          <AddToLog>true</AddToLog>
+          <CheckExitCode>true</CheckExitCode>
+          <RegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </RegularExpressionPattern>
+          <VerdictOnMatch>Pass</VerdictOnMatch>
+          <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+          <ResultRegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </ResultRegularExpressionPattern>
+          <ResultName>Regex Result</ResultName>
+          <Behavior>GroupsAsDimensions</Behavior>
+          <DimensionTitles></DimensionTitles>
+          <Name Metadata="Step Name">Install Demonstration</Name>
+        </TestStep>
+      </ChildTestSteps>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RunOnOs" Id="b6f6e377-9dda-4f30-9eb5-0227eb5d9f33" OpenTap.Visibility="Visible">
+      <OperatingSystem>Linux</OperatingSystem>
+      <Name Metadata="Step Name">Run On {OperatingSystem}</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Id="52cce158-c58d-42a2-9589-625bb8d34cd2">
+          <Application>tap</Application>
+          <Arguments>package install Demonstration</Arguments>
+          <WorkingDirectory></WorkingDirectory>
+          <EnvironmentVariables />
+          <Timeout>0</Timeout>
+          <AddToLog>true</AddToLog>
+          <CheckExitCode>true</CheckExitCode>
+          <RegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </RegularExpressionPattern>
+          <VerdictOnMatch>Pass</VerdictOnMatch>
+          <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+          <ResultRegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </ResultRegularExpressionPattern>
+          <ResultName>Regex Result</ResultName>
+          <Behavior>GroupsAsDimensions</Behavior>
+          <DimensionTitles></DimensionTitles>
+          <Name Metadata="Step Name">Install Demonstration</Name>
+        </TestStep>
+      </ChildTestSteps>
+    </TestStep>
+  </Steps>
+  <OpenTap.Description>This tests the very basic capability of being able to install a package</OpenTap.Description>
+</TestPlan>

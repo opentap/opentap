@@ -3,6 +3,8 @@ using System.ComponentModel;
 using System.Linq;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests.TestTestSteps;
+using OpenTap.Plugins.BasicSteps;
+using OpenTap.UnitTests;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -54,6 +56,53 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsFalse(listener.IsConnected);
                 Assert.IsTrue(listener.Results.Any());
                 Assert.IsFalse(ResultSettings.Current.Any());
+            }
+        }
+
+        public class UnopenedInstrument : Instrument
+        {
+            public bool WasOpened { get; set; } = false;
+            public override void Open()
+            {
+                WasOpened = true;
+                base.Open();
+            }
+        }
+
+        public class UnopenedResultListener : ResultListener
+        {
+            public bool WasOpened { get; set; } = false;
+            public override void Open()
+            {
+                WasOpened = true;
+                base.Open();
+            }
+        }
+        [Test]
+        public void TestNoResourcesOpenedOnRunMonitorThrow([Values(true, false)] bool throwOnEnter)
+        {
+            var plan = new TestPlan();
+            var ins = new UnopenedInstrument();
+            var res = new UnopenedResultListener();
+            plan.ChildTestSteps.Add(new AnnotationTest.InstrumentStep() { Instrument = ins });
+
+            var resourceManagers = TypeData.GetDerivedTypes<IResourceManager>().Select(td => td.CreateInstance())
+                .Cast<IResourceManager>().ToArray();
+
+            foreach (var rm in resourceManagers)
+            {
+                using (Session.Create(SessionOptions.OverlayComponentSettings))
+                {
+                    EngineSettings.Current.ResourceManagerType = rm;
+                    InstrumentSettings.Current.Add(ins);
+                    ResultSettings.Current.Add(res);
+                    TestTestPlanRunMonitor.Current.IsEnabled = true;
+                    TestTestPlanRunMonitor.Current.ThrowOnEnter = throwOnEnter;
+                    var executed = plan.Execute();
+                    Assert.AreEqual(throwOnEnter, executed.FailedToStart);
+                    Assert.AreNotEqual(throwOnEnter, ins.WasOpened);
+                    Assert.AreNotEqual(throwOnEnter, res.WasOpened);
+                }
             }
         }
 

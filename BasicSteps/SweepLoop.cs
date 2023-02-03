@@ -453,7 +453,7 @@ namespace OpenTap.Plugins.BasicSteps
                 logMessage.Append(")");
                 Log.Info(logMessage.ToString());
                 //Fix issue 687: Ensure the latest Sweep params are applied before running any child steps
-                RunChildSteps(AdditionalParams, BreakLoopRequested);
+                RunChildSteps(AdditionalParams, BreakLoopRequested, throwOnBreak: false);
 
                 crossPlanSweepIndex++;
                 acrossRunsGotoEnabledSweepIndex();
@@ -482,7 +482,7 @@ namespace OpenTap.Plugins.BasicSteps
                     affectedSteps.ForEach(step => step.OnPropertyChanged(""));
                     var AdditionalParams = RegisterAdditionalParams(i);
                     Log.Info(logMessage.ToString());
-                    var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
+                    var runs = RunChildSteps(AdditionalParams, BreakLoopRequested, throwOnBreak: false).ToArray();
                     
                     if (BreakLoopRequested.IsCancellationRequested) break;
                     runs.ForEach(r => r.WaitForCompletion());

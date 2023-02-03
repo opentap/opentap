@@ -9,7 +9,7 @@
 	<PropertyGroup>
 		<!-- This variable is only defined so we can compile locally without replacing GitVersion. 
 		     It will be removed in the build script. -->
-		<GitVersion>9.17.0</GitVersion>
+		<GitVersion>9.19.5</GitVersion>
 	</PropertyGroup>	
 	<PropertyGroup>
 		<!-- Ensure that all projects in this solution use the same version of OpenTAP -->		
@@ -31,6 +31,11 @@
 	<PropertyGroup Condition="'$(OS)'=='Windows_NT'">
 		<IsLinux>False</IsLinux>
 		<IsWindows>True</IsWindows>
+	</PropertyGroup>
+	
+	<PropertyGroup>
+		<DevelopersSystem Condition="'$(Configuration)' == 'Debug CE'">Developer's System CE</DevelopersSystem>
+		<DevelopersSystem Condition="'$(Configuration)' != 'Debug CE'">Developer's System</DevelopersSystem>
 	</PropertyGroup>
 
   <ItemGroup>

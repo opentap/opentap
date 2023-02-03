@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests;
 using OpenTap.Plugins.BasicSteps;
@@ -146,6 +149,44 @@ namespace OpenTap.UnitTests
             Assert.IsFalse(string.IsNullOrEmpty(scpiRegex.Error));
             scpiRegex.Action = SCPIAction.Command; // it is a valid command though.
             Assert.IsTrue(string.IsNullOrEmpty(scpiRegex.Error));
+        }
+
+        class SimpleResultTest2 : TestStep 
+        {
+            public override void Run()
+            {
+                Results.Publish("Test", new List<string> { "X", "Y" }, 1.0, 2.0);
+            }
+        }
+        
+        [Test]
+        public void RepeatCheckResultsHasIterations()
+        {
+            var pushResult1 = new SimpleResultTest2();
+            var pushResult2 = new SimpleResultTest2();
+            
+            var repeatStep = new RepeatStep
+            {
+                Action =  RepeatStep.RepeatStepAction.Fixed_Count,
+                Count = 100
+            };
+            
+            var collectEverythingListener = new RecordAllResultListener();
+            
+            repeatStep.ChildTestSteps.Add(pushResult1);
+            repeatStep.ChildTestSteps.Add(pushResult2);
+
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(repeatStep);
+
+            plan.Execute(new IResultListener[]{collectEverythingListener});
+            
+            // verify that there are 200 distinct result tables (from 200 different test plan runs)
+            // 200 = repeatStep.Count * 2 (pushResult1 and pushResult2).
+            Assert.AreEqual(200, collectEverythingListener.Results.Count);
+            
+            // verify that each result table came from a different step run
+            Assert.AreEqual(200, collectEverythingListener.ResultTableGuids.Distinct().Count());
         }
     }
 }

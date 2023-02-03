@@ -67,18 +67,6 @@ namespace OpenTap.Package
         /// <returns>Returns 0 to indicate success.</returns>
         public int Execute(CancellationToken cancellationToken)
         {
-            string repositoryDir = RepoPath;
-            while (!Directory.Exists(Path.Combine(repositoryDir, ".git")))
-            {
-                repositoryDir = Path.GetDirectoryName(repositoryDir);
-                if (repositoryDir == null)
-                {
-                    log.Error("Directory {0} is not a git repository.", RepoPath);
-                    return (int)ExitCodes.ArgumentError;
-                }
-            }
-            RepoPath = repositoryDir;
-
             if (FieldCount < 1 || FieldCount > 5)
             {
                 log.Error("The argument for --fields ({0}) must be an integer between 1 and 5.", FieldCount);

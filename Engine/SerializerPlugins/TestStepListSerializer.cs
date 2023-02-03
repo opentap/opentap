@@ -29,13 +29,13 @@ namespace OpenTap.Plugins
                 {
                     if (!Serializer.Deserialize(subnode, x => result = (ITestStep)x))
                     {
-                        Log.Warning(subnode, "Unable to deserialize step.");
+                        Serializer.PushError(subnode, "Unable to deserialize test step.");
                         continue; // skip to next step.
                     }
                 }
                 catch(Exception ex)
                 {
-                    Log.Error(ex);
+                    Serializer.PushError(subnode, "Unable to deserialize test step.", ex);
                     continue;
                 }
 

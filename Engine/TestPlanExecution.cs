@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -430,11 +429,21 @@ namespace OpenTap
             return Execute(ResultSettings.Current, null);
         }
 
-        /// <summary> </summary>
-        /// <returns></returns>
+        /// <summary>Executes the test plan asynchronously </summary>
+        /// <returns>A task returning the test plan run.</returns>
         public Task<TestPlanRun> ExecuteAsync()
         {
             return ExecuteAsync(ResultSettings.Current, null,null, TapThread.Current.AbortToken);
+        }
+        
+        /// <summary>
+        /// Executes the test plan asynchronously.
+        /// </summary>
+        /// <param name="abortToken">This abort token can be used to abort the operation.</param>
+        /// <returns>A task returning the test plan run.</returns>
+        public Task<TestPlanRun> ExecuteAsync(CancellationToken abortToken)
+        {
+            return ExecuteAsync(ResultSettings.Current, null,null, abortToken);
         }
         
         readonly TestPlanRunSummaryListener summaryListener = new TestPlanRunSummaryListener();
@@ -631,11 +640,13 @@ namespace OpenTap
                 }
                 else if (e is System.ComponentModel.LicenseException)
                 {
+                    execStage.Exception = e;
                     Log.Error(e.Message);
                     execStage.UpgradeVerdict(Verdict.Error);
                 }
                 else
                 {
+                    execStage.Exception = e;
                     Log.Warning("TestPlan aborted.");
                     Log.Error(e.Message);
                     Log.Debug(e);
@@ -751,20 +762,16 @@ namespace OpenTap
         private void OpenInternal(TestPlanRun run, bool isOpen, List<ITestStep> steps)
         {
             monitors = TestPlanRunMonitors.GetCurrent();
-            try
-            {
-                // Enter monitors
-                foreach (var item in monitors)
-                    item.EnterTestPlanRun(run);
-            }
-            finally   // We need to make sure OpenAllAsync is always called (even when CheckResources throws an exception). 
-            {         // Otherwise we risk that e.g. ResourceManager.WaitUntilAllResourcesOpened() will hang forever.
-                run.ResourceManager.EnabledSteps = steps;
-                run.ResourceManager.StaticResources = run.ResultListeners.ToArray();
-                run.ResultListenersSealed = true;
-                if (!isOpen)
-                    run.ResourceManager.BeginStep(run, this, TestPlanExecutionStage.Open, TapThread.Current.AbortToken);
-            }
+
+            // Enter monitors
+            foreach (var item in monitors)
+                item.EnterTestPlanRun(run);
+            
+            run.ResourceManager.EnabledSteps = steps;
+            run.ResourceManager.StaticResources = run.ResultListeners.ToArray();
+            run.ResultListenersSealed = true;
+            if (!isOpen)
+                run.ResourceManager.BeginStep(run, this, TestPlanExecutionStage.Open, TapThread.Current.AbortToken);
         }
 
         /// <summary>

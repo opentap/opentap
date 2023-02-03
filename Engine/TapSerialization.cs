@@ -6,6 +6,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -67,22 +68,44 @@ namespace OpenTap
         /// <param name="message"></param>
         public void PushError(XElement element, string message)
         {
-            errors.Add(new XmlError( element, message));
+            messages.Add(new XmlError( element, message));
         }
         
-        /// <summary>  Pushes a message to the list of errors for things that happened during load. Includes optional Exception value. </summary>
+        /// <summary>  Pushes an error to the list of errors for things that happened during load. Includes optional Exception value. </summary>
         public void PushError(XElement element, string message, Exception e)
         {
-            errors.Add(new XmlError( element, message, e));
+            messages.Add(new XmlError( element, message, e));
         }
 
-        void logErrors()
+        
+        internal void HandleError(XElement element, string message, Exception e)
         {
-            foreach (var error in errors)
+            while (e is TargetInvocationException && e.InnerException != null)
+                e = e.InnerException;
+            PushError(element, $"{message} {e.Message}", e);
+        }
+        
+        /// <summary> Pushes a message. </summary>
+        internal void PushMessage(XElement elem, string s)
+        {
+            messages.Add(new XmlMessage(elem, s));
+        }
+
+        void LogMessages()
+        {
+            foreach (var message in messages)
             {
-                log.Error("{0}", error);
-                if(error.Exception != null)
-                    log.Debug(error.Exception);
+                if (message is XmlError error)
+                {
+                    log.Error("{0}", message);
+
+                    if (error.Exception != null)
+                        log.Debug(error.Exception);
+                }
+                else
+                {
+                    log.Info("{0}", message);
+                }
             }
         }
 
@@ -125,7 +148,7 @@ namespace OpenTap
                 {
                     if (IgnoreErrors == false)
                     {
-                        logErrors();
+                        LogMessages();
 
                         var rs = GetSerializer<ResourceSerializer>();
                         if (rs.TestPlanChanged)
@@ -205,11 +228,11 @@ namespace OpenTap
                 return Deserialize(fileStream, flush, type, file);
         }
 
-        List<ITapSerializerPlugin> serializers = new List<ITapSerializerPlugin>();
+        ITapSerializerPlugin[] serializers = Array.Empty<ITapSerializerPlugin>();
         readonly Stack<object> activeSerializers = new Stack<object>(32);
         
         /// <summary> Get all the serializers loaded by this TapSerializer. </summary>
-        public ITapSerializerPlugin[] GetSerializers() => serializers.OfType<ITapSerializerPlugin>().ToArray();
+        public ITapSerializerPlugin[] GetSerializers() => serializers.ToArray();
         /// <summary>
         /// The stack of serializers. Changes during serialization depending on the order of serializers used.
         /// </summary>
@@ -234,8 +257,7 @@ namespace OpenTap
         /// <param name="_serializers"></param>
         public void AddSerializers(IEnumerable<ITapSerializerPlugin> _serializers)
         {
-            serializers.AddRange(_serializers);
-            serializers.Sort((x, y) => -x.Order.CompareTo(y.Order));
+            serializers = serializers.Concat(_serializers).OrderByDescending(x => x.Order).ToArray();
         }
 
         static System.Threading.ThreadLocal<TapSerializer> currentSerializer = new System.Threading.ThreadLocal<TapSerializer>();
@@ -279,18 +301,20 @@ namespace OpenTap
             deferredLoads.Enqueue(deferred);
         }
 
-        readonly List<XmlError> errors = new List<XmlError>();
+        readonly List<XmlMessage> messages = new List<XmlMessage>();
 
         /// <summary> Get the errors associated with deserialization. The errors only persists between calls to Serialize/Deserialize. See XmlErrors for more detailed information. </summary>
-        public IEnumerable<string> Errors => errors.Select(x => x.ToString());
+        public IEnumerable<string> Errors => XmlErrors.Select(x => x.ToString());
 
         /// <summary> Gets a list of exceptions tha occured while loading the test plan.</summary>
-        public IEnumerable<XmlError> XmlErrors => errors.AsReadOnly();
+        public IEnumerable<XmlError> XmlErrors => messages.OfType<XmlError>();
+
+        internal IEnumerable<XmlMessage> XmlMessages => messages.Select(x => x);
 
         /// <summary> Clears the errors accumulated in the serializer. </summary>
         void ClearErrors()
         {
-            errors.Clear();
+            messages.Clear();
         }
 
         static readonly TraceSource log = Log.CreateSource("Serializer");
@@ -331,9 +355,7 @@ namespace OpenTap
                 }
                 else
                 {
-                    var message = string.Format("Unable to locate type '{0}'. Are you missing a plugin?", typeattribute.Value);
-                    log.Warning(element, message);
-                    PushError(element, message);
+                    PushError(element, $"Unable to locate type '{typeattribute.Value}'. Are you missing a plugin?");
                     if (t == null)
                         return false;
                 }
@@ -395,7 +417,7 @@ namespace OpenTap
             doc.Add(elem);
             doc.WriteTo(writer);
             if (IgnoreErrors == false)
-                logErrors();
+                LogMessages();
         }
 
         /// <summary>
@@ -579,7 +601,9 @@ namespace OpenTap
         }
 
         readonly Dictionary<string, XName> xmlPropertyNames = new Dictionary<string, XName>();
-        internal XName PropertyXmlName(string subPropName) => xmlPropertyNames.GetOrCreateValue(subPropName, name => XmlConvert.EncodeLocalName(name));   
+        internal XName PropertyXmlName(string subPropName) => xmlPropertyNames.GetOrCreateValue(subPropName, name => XmlConvert.EncodeLocalName(name));
+
+
     }
 }
 

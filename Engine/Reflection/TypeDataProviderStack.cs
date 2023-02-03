@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 namespace OpenTap
 {
@@ -163,7 +164,10 @@ namespace OpenTap
                     }
                     catch (Exception e)
                     {
-                        bool isNewError = false;
+                        while (e is TargetInvocationException te)
+                            e = te.InnerException;
+                        
+                        bool isNewError;
                         lock (badProviders)
                             isNewError = badProviders.Add(providerType);
                         if (isNewError)

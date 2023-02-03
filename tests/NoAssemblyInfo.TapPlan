@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <TestPlan type="OpenTap.TestPlan" Locked="false">
   <Steps>
-    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RemoveDirectory" Version="0.0.0" Id="45ab17b7-0999-4a4d-8b7a-a6fd7c4cf4dc">
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.RemoveDirectory" Version="0.0.0.0" Id="45ab17b7-0999-4a4d-8b7a-a6fd7c4cf4dc">
       <Path>../../NewProj3</Path>
       <Enabled>true</Enabled>
-      <Name>Remove {Path}</Name>
+      <Name Metadata="Step Name">Remove {Path}</Name>
       <ChildTestSteps />
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
-    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.CreateDirectoryStep" Version="0.0.0" Id="3a8e33d7-d7f9-4d58-868b-c38acbf0c15e">
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.CreateDirectoryStep" Version="0.0.0.0" Id="3a8e33d7-d7f9-4d58-868b-c38acbf0c15e">
       <Directory>../../NewProj3</Directory>
       <Enabled>true</Enabled>
-      <Name>Create Directory: {Directory}</Name>
+      <Name Metadata="Step Name">Create Directory: {Directory}</Name>
       <ChildTestSteps />
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
-    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="45f82fc0-8acf-41b2-8472-2c1b9db25f32">
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0.0" Id="45f82fc0-8acf-41b2-8472-2c1b9db25f32">
       <String>&lt;Project Sdk="Microsoft.NET.Sdk"&gt;
   &lt;PropertyGroup&gt;
   &lt;TargetFrameworkIdentifier&gt;&lt;/TargetFrameworkIdentifier&gt;
@@ -31,17 +31,17 @@
 &lt;/Project&gt;</String>
       <File>../../NewProj3/NewProj3.csproj</File>
       <Enabled>true</Enabled>
-      <Name>Write {File}</Name>
+      <Name Metadata="Step Name">Write {File}</Name>
       <ChildTestSteps />
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
-    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0" Id="87ef4ac9-541e-4add-8c40-7303cdccda87">
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Version="0.0.0.0" Id="87ef4ac9-541e-4add-8c40-7303cdccda87">
       <String>
-        <Base64>PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxQYWNrYWdlIE5hbWU9Ik5ld1Byb2ozIiB4bWxucz0iaHR0cDovL29wZW50YXAuaW8vc2NoZW1hcy9wYWNrYWdlIiBJbmZvTGluaz0iIiBWZXJzaW9uPSIwLjIuMC1hbHBoYSI+DQogIDxGaWxlcz4NCiAgICA8RmlsZSBQYXRoPSJQYWNrYWdlcy9OZXdQcm9qMy9OZXdQcm9qMy5kbGwiIFNvdXJjZVBhdGg9Ik5ld1Byb2ozLmRsbCI+DQogICAgICAgICAgPFNldEFzc2VtYmx5SW5mbyBBdHRyaWJ1dGVzPSJWZXJzaW9uIi8+DQogICAgPC9GaWxlPg0KICA8L0ZpbGVzPg0KPC9QYWNrYWdlPg0K</Base64>
+        <Base64>PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPFBhY2thZ2UgTmFtZT0iTmV3UHJvajMiIHhtbG5zPSJodHRwOi8vb3BlbnRhcC5pby9zY2hlbWFzL3BhY2thZ2UiIEluZm9MaW5rPSIiIFZlcnNpb249IjEuMi4zLWFscGhhIj4KICA8RmlsZXM+CiAgICA8RmlsZSBQYXRoPSJQYWNrYWdlcy9OZXdQcm9qMy9OZXdQcm9qMy5kbGwiIFNvdXJjZVBhdGg9Ik5ld1Byb2ozLmRsbCI+CiAgICAgICAgICA8U2V0QXNzZW1ibHlJbmZvIEF0dHJpYnV0ZXM9IlZlcnNpb24iLz4KICAgIDwvRmlsZT4KICA8L0ZpbGVzPgo8L1BhY2thZ2U+Cg==</Base64>
       </String>
       <File>../../NewProj3/package.xml</File>
       <Enabled>true</Enabled>
-      <Name>Write {File}</Name>
+      <Name Metadata="Step Name">Write {File}</Name>
       <ChildTestSteps />
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
@@ -68,7 +68,7 @@
       <Behavior>GroupsAsDimensions</Behavior>
       <DimensionTitles></DimensionTitles>
       <Enabled>true</Enabled>
-      <Name>Run: {Application} {Command Line Arguments}</Name>
+      <Name Metadata="Step Name">Run: {Application} {Command Line Arguments}</Name>
       <ChildTestSteps />
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
@@ -95,7 +95,7 @@
       <Behavior>GroupsAsDimensions</Behavior>
       <DimensionTitles></DimensionTitles>
       <Enabled>true</Enabled>
-      <Name>Run: {Application} {Command Line Arguments}</Name>
+      <Name Metadata="Step Name">Run: {Application} {Command Line Arguments}</Name>
       <ChildTestSteps />
       <BreakConditions>Inherit</BreakConditions>
       <OpenTap.Description>Install the current debug OpenTAP version instead of the one coming from the build.</OpenTap.Description>
@@ -123,13 +123,13 @@
       <Behavior>GroupsAsDimensions</Behavior>
       <DimensionTitles></DimensionTitles>
       <Enabled>true</Enabled>
-      <Name>Run: {Application} {Command Line Arguments}</Name>
+      <Name Metadata="Step Name">Run: {Application} {Command Line Arguments}</Name>
       <ChildTestSteps />
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
     <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="708f61c5-dab6-43be-a203-ff2541f43bc5">
       <Application>../../NewProj3/bin/Debug/tap</Application>
-      <Arguments>package install NewProj3.0.2.0-alpha.TapPackage</Arguments>
+      <Arguments>package install NewProj3.1.2.3-alpha.TapPackage</Arguments>
       <WorkingDirectory>../../NewProj3/bin/Debug</WorkingDirectory>
       <WaitForEnd>true</WaitForEnd>
       <Timeout>0</Timeout>
@@ -150,17 +150,45 @@
       <Behavior>GroupsAsDimensions</Behavior>
       <DimensionTitles></DimensionTitles>
       <Enabled>true</Enabled>
-      <Name>Run: {Application} {Command Line Arguments}</Name>
+      <Name Metadata="Step Name">Run: {Application} {Command Line Arguments}</Name>
       <ChildTestSteps />
       <BreakConditions>Inherit</BreakConditions>
     </TestStep>
-    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ReadAssemblyVersionStep" Version="0.0.0" Id="a3dec63f-d7a9-4dd4-a23c-d56e885c9983">
-      <File>../../NewProj3/bin/Debug/Packages/NewProj3/NewProj3.dll</File>
-      <MatchVersion>0.2.0-alpha</MatchVersion>
+    <TestStep type="OpenTap.Plugins.BasicSteps.SweepParameterStep" Version="9.4.0-Development" Id="e06a9bda-7d19-4e00-ba4c-604a75c93f55">
+      <SweepValues>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>e06a9bda-7d19-4e00-ba4c-604a75c93f55</Loop>
+          <Parameters_x0020__x005C__x0020_VersionType>FileVersion</Parameters_x0020__x005C__x0020_VersionType>
+        </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>e06a9bda-7d19-4e00-ba4c-604a75c93f55</Loop>
+          <Parameters_x0020__x005C__x0020_VersionType>SemanticVersion</Parameters_x0020__x005C__x0020_VersionType>
+        </SweepRow>
+      </SweepValues>
+      <Selected>
+        <KeyValuePairOfString>
+          <Key>Parameters \ VersionType</Key>
+          <Value>true</Value>
+        </KeyValuePairOfString>
+      </Selected>
       <Enabled>true</Enabled>
-      <Name>File Version: {MatchVersion} of {File}</Name>
-      <ChildTestSteps />
+      <Name Metadata="Step Name">Sweep {Parameters}</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ReadAssemblyVersionStep" Version="0.0.0.0" Id="a3dec63f-d7a9-4dd4-a23c-d56e885c9983">
+          <File>../../NewProj3/bin/Debug/Packages/NewProj3/NewProj3.dll</File>
+          <MatchVersion>1.2.3-alpha</MatchVersion>
+          <VersionType Parameter="Parameters \ VersionType" Scope="e06a9bda-7d19-4e00-ba4c-604a75c93f55">SemanticVersion</VersionType>
+          <Enabled>true</Enabled>
+          <Name Metadata="Step Name">{VersionType}: {MatchVersion} of {File}</Name>
+          <ChildTestSteps />
+          <BreakConditions>Inherit</BreakConditions>
+          <OpenTap.Description />
+        </TestStep>
+      </ChildTestSteps>
       <BreakConditions>Inherit</BreakConditions>
+      <Parameters_x0020__x005C__x0020_VersionType>SemanticVersion</Parameters_x0020__x005C__x0020_VersionType>
     </TestStep>
   </Steps>
   <BreakConditions>BreakOnError, BreakOnFail</BreakConditions>

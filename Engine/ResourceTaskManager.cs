@@ -384,10 +384,28 @@ namespace OpenTap
             }
         }
 
-        void beginOpenResoureces(List<ResourceNode> resources, CancellationToken cancellationToken)
+        void BeginOpenResources(List<ResourceNode> resources, CancellationToken cancellationToken)
         {
             lockManager.BeforeOpen(resources, cancellationToken);
-            
+
+            {
+                // check if any resources that has been deleted from InstrumentSettings or DutSettings
+                // are still being referred to.
+                var untouched = new IComponentSettingsList[]{InstrumentSettings.Current, 
+                        DutSettings.Current, ResultSettings.Current}
+                    .SelectMany(x => x.GetRemovedAliveResources())
+                    .ToHashSet();
+                foreach (var res in resources)
+                {
+                    if (untouched.Contains(res.Resource))
+                    {
+                        if(res.Depender != null)
+                            throw new Exception($"Deleted resource '{res.Resource}' is in use by {res.Depender.DeclaringType}.");
+                        throw new Exception($"Deleted resource '{res.Resource}' is in use.");
+                    }
+                }
+            }
+
             // Check null resources
             if (resources.Any(res => res.Resource == null))
             {
@@ -402,7 +420,7 @@ namespace OpenTap
             }
             else
             {
-                // Open all resources asynchroniously
+                // Open all resources asynchronously
                 Task wait = new Task(() => { }); // This task is not started yet, so it's used as an awaitable semaphore.
                 foreach (ResourceNode r in resources)
                 {
@@ -437,19 +455,19 @@ namespace OpenTap
                         // In case any are null, we need to do this before the resource prompt to allow a ILockManager implementation to 
                         // set the resource first.
                         if (resources.Any(r => r.Resource == null))
-                            beginOpenResoureces(resources, cancellationToken);
+                            BeginOpenResources(resources, cancellationToken);
 
                         testPlan.StartResourcePromptAsync(planRun, resources.Select(res => res.Resource));
                         
                         if (resources.Any(r => openTasks.ContainsKey(r.Resource) == false))
-                            beginOpenResoureces(resources, cancellationToken); 
+                            BeginOpenResources(resources, cancellationToken); 
                     }
                     break;
                 case TestPlanExecutionStage.Open:
                     if (item is TestPlan)
                     {
                         var resources = ResourceManagerUtils.GetResourceNodes(StaticResources.Cast<object>().Concat(EnabledSteps));
-                        beginOpenResoureces(resources, cancellationToken);
+                        BeginOpenResources(resources, cancellationToken);
                     }
                     break;
                 case TestPlanExecutionStage.Run:

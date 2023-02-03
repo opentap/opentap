@@ -113,15 +113,16 @@ namespace OpenTap.Plugins
                         {
                             setResult(step);
                             FixupStep(step, true);
-                            return true;
                         }
+                        // return true even tough the deserialization failed. 
+                        // since this is a test step being deserialized
+                        // it should always be handled here.
+                        // otherwise the errors will show up twice.
+                        return true;
                     }finally
                     {
                         currentNode.Remove(elem);
                     }
-                    
-                    return false;
-
                 }
             }
             return false;

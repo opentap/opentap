@@ -2,6 +2,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
+
+using System;
 using NUnit.Framework;
 using OpenTap.EngineUnitTestUtils;
 
@@ -103,6 +105,38 @@ namespace OpenTap.Engine.UnitTests
             finally
             {
                 InstrumentSettings.Current.Clear();
+            }
+        }
+
+        [Test]
+        public void LostReferenceStep()
+        {
+            using (Session.Create(SessionOptions.OverlayComponentSettings))
+            {
+                var inst1 = new CircInst();
+                var inst2 = new DummyInstrument();
+                inst1.inst = inst2;
+
+                InstrumentSettings.Current.Clear();
+                InstrumentSettings.Current.Add(inst1);
+                InstrumentSettings.Current.Add(inst2);
+                
+                TestPlan plan = new TestPlan();
+                var step1 = new CircTestStep {Instrument = inst1};
+                plan.ChildTestSteps.Add(step1);
+                {
+                    var planRun = plan.Execute();
+                    Assert.AreEqual(Verdict.NotSet, actual: planRun.Verdict);
+                }
+                InstrumentSettings.Current.Remove(inst2);
+                {
+                    // this should now fail because a inner reference resource has been removed.
+                    var planRun = plan.Execute();
+                    var ex = planRun.Exception;
+                    Assert.AreEqual(Verdict.Error, actual: planRun.Verdict);
+                    Assert.IsNotNull(ex);
+                    Assert.IsFalse(ex is NullReferenceException);
+                }
             }
         }
 

@@ -113,7 +113,7 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// A vector containing a number of results with matching names, column name, and types. 
+    /// A result table containing rows of results with matching names, column name, and types. 
     /// </summary>
     [Serializable]
     public class ResultTable : IResultTable
@@ -133,7 +133,7 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Indicates how many rows of results this vector contains.
+        /// Indicates how many rows of results this table contains.
         /// </summary>
         public int Rows { get; private set; }
 
@@ -162,7 +162,7 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Creates an empty vector.
+        /// Creates an empty results table.
         /// </summary>
         public ResultTable()
         {
@@ -172,10 +172,10 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Creates a new vector.
+        /// Creates a new result table.
         /// </summary>
-        /// <param name="name">The name of the result vector.</param>
-        /// <param name="resultColumns">The columns of the vector.</param>
+        /// <param name="name">The name of the result table.</param>
+        /// <param name="resultColumns">The columns of the table.</param>
         public ResultTable(string name, ResultColumn[] resultColumns)
         {
             if (name == null) throw new ArgumentNullException(nameof(name));
@@ -587,22 +587,36 @@ namespace OpenTap
             /// <returns>An optimized table or the original one if it is not possible to optimize.</returns>
             ResultTable CreateOptimizedTable(WorkQueue workQueue)
             {
+                // optimization: only allocate the list if there are more than one mergeable table.
                 List<ResultTable> mergeTables = null;
+                
                 while (workQueue?.Peek() is PublishResultTableInvokable p)
                 {
-                    if (!ResultTableOptimizer.CanMerge(p.table, table))
+                    // this can occur if two steps are publishing results in parallel.
+                    // in this case, the tables should not be combined.
+                    if(p.proxy != proxy)
                         break;
+                    
+                    // check if the tables can be merged.
+                    if (!ResultTableOptimizer.CanMerge(p.table, table) )
+                        break;
+                    
+                    // pop the peeked object
+                    if (workQueue.Dequeue() != p)
+                    {
+                        // this should never happen.
+                        // If it did, something went really wrong.
+                        throw new InvalidOperationException("Peeked object not in front of queue.");
+                    }
+
+                    // optimization: only allocate a list if it helps. Also initialize it two long to avoid more allocations.
                     if (mergeTables == null)
-                        mergeTables = new List<ResultTable>();
-                    mergeTables.Add(p.table);
-                    workQueue.Dequeue();
+                        mergeTables = new List<ResultTable>{table, p.table};
+                    else mergeTables.Add(p.table);
                 }
 
                 if (mergeTables != null)
-                {
-                    mergeTables.Add(table);
                     return ResultTableOptimizer.MergeTables(mergeTables);
-                }
 
                 return table;
             }

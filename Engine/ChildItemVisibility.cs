@@ -1,4 +1,3 @@
-using System;
 using System.ComponentModel;
 using System.Xml.Serialization;
 
@@ -15,12 +14,16 @@ namespace OpenTap
             /// <summary> Child items are collapsed.</summary>
             Collapsed
         }
+
+        // when test steps are added to a test plan, 
+        // the default should be that the child steps are collapsed.
+        const Visibility DefaultVisibility = Visibility.Collapsed; 
         
         internal static readonly DynamicMember VisibilityProperty = new DynamicMember
         {
             Name = "OpenTap.Visibility",
-            Attributes = new object[] { new BrowsableAttribute(false), new DefaultValueAttribute(Visibility.Visible), new XmlAttributeAttribute() },
-            DefaultValue = Visibility.Visible,
+            Attributes = new object[] { new BrowsableAttribute(false), new DefaultValueAttribute(DefaultVisibility), new XmlAttributeAttribute() },
+            DefaultValue = DefaultVisibility,
             TypeDescriptor = TypeData.FromType(typeof(Visibility)),
             DeclaringType = TypeData.FromType(typeof(ChildItemVisibility)),
             Writable = true,

@@ -182,8 +182,8 @@ namespace OpenTap
             if (childType == null)
                 throw new ArgumentNullException(nameof(childType));
             // if the parent is a TestPlan or the parent specifies "AllowAnyChild", then OK
-            bool parentAllowsAnyChild = parentType.HasAttribute<AllowAnyChildAttribute>();
-            bool isChildIn = childType.HasAttribute<AllowAsChildInAttribute>();
+            bool parentAllowsAnyChild = parentType.HasAttributeInherited<AllowAnyChildAttribute>();
+            bool isChildIn = childType.HasAttributeInherited<AllowAsChildInAttribute>();
             if (parentAllowsAnyChild)
             {
                 if (!isChildIn)
@@ -195,7 +195,7 @@ namespace OpenTap
             if (isChildIn)
             {
                 // if the child specifies the parent type or the parent ancestor type in a "AllowAsChildIn" attribute, then OK
-                var childIn = childType.GetAttributes<AllowAsChildInAttribute>();
+                var childIn = childType.GetAttributesInherited<AllowAsChildInAttribute>();
                 foreach (AllowAsChildInAttribute attribute in childIn)
                 {
                     if (parentType.DescendsTo(attribute.ParentStepType))
@@ -204,7 +204,7 @@ namespace OpenTap
             }
 
             // if the parent specifies the childType or a base type of childType in an "AllowChildrenOfType" attribute, then OK
-            var child = parentType.GetAttributes<AllowChildrenOfTypeAttribute>();
+            var child = parentType.GetAttributesInherited<AllowChildrenOfTypeAttribute>();
             foreach (AllowChildrenOfTypeAttribute attribute in child)
             {
                 if (childType.DescendsTo(attribute.RequiredInterface))

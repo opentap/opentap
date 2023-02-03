@@ -31,5 +31,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)ProcessCliAction.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PipeReader.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)SudoHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WeakHashSet.cs" />
   </ItemGroup>
 </Project>

@@ -114,7 +114,8 @@ namespace OpenTap.Package.PackageInstallHelpers
             // Open 'file' in read/write + append mode. If the file does not exist it will be created with the
             // most permissive access settings possible
             fileDescriptor =
-                PosixNative.open(file, PosixNative.O_RDWR | PosixNative.O_APPEND | PosixNative.O_CREAT, PosixNative.ALL_READ_WRITE);
+                PosixNative.open(file, PosixNative.O_RDONLY | PosixNative.O_APPEND | PosixNative.O_CREAT, PosixNative.ALL_READ_WRITE);
+
             if (fileDescriptor == -1) throw new IOException($"Failed create file lock on {file}");
             _waitHandle = new ManualResetEvent(false);
         }
@@ -228,6 +229,8 @@ namespace OpenTap.Package.PackageInstallHelpers
         public const int O_CREAT = 64; //00000100;
         public const int O_TRUNC = 512; //00001000;
         public const int O_APPEND = 1024; //00002000;
+
+        public const int O_RDONLY = 0; //00000000;
         public const int O_RDWR = 2; //00000002;
         /// <summary>
         /// Place a shared lock. More than one process may hold a shared lock for a given file at a given time. 

@@ -10,6 +10,9 @@ namespace OpenTap.UnitTests
         public Dictionary<Guid, TestRun> Runs { get; set; } = new Dictionary<Guid, TestRun>();
         public Dictionary<Guid, string> planLogs = new Dictionary<Guid, string>();
         public List<ResultTable> Results = new List<ResultTable>();
+        
+        // 1:1 with the Results list.
+        public List<Guid> ResultTableGuids = new List<Guid>();
         public Action OnTestStepRunStartAction = () => { };
 
         public override void OnTestStepRunStart(TestStepRun stepRun)
@@ -34,8 +37,10 @@ namespace OpenTap.UnitTests
 
         public override void OnResultPublished(Guid stepRunId, ResultTable result)
         {
+            //TapThread.Sleep(1);
             base.OnResultPublished(stepRunId, result);
             Results.Add(result);
+            ResultTableGuids.Add(stepRunId);
         }
     }
 }

@@ -45,6 +45,8 @@ namespace OpenTap.Package
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
+            // OS was explicitly specified. This is interpreted as: Show only packages compatible with that OS. 
+            bool checkOs = OS != null;
             if (OS == null)
             {
                 switch (Environment.OSVersion.Platform)
@@ -71,9 +73,10 @@ namespace OpenTap.Package
 
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
-
+            
             HashSet<PackageDef> installed = new Installation(Target).GetPackages().ToHashSet();
-
+            if (checkOs)
+                installed = installed.Where(pkg => pkg.IsOsCompatible(OS)).ToHashSet();
 
             VersionSpecifier versionSpec = VersionSpecifier.Parse("^");
             if (!String.IsNullOrWhiteSpace(Version))
@@ -122,6 +125,8 @@ namespace OpenTap.Package
 
                     if (Version != null) // Version is specified by user
                         versions = versions.Where(v => versionSpec.IsCompatible(v.Version)).ToList();
+                    if(checkOs)
+                        versions = versions.Where(v => v.IsOsCompatible(OS)).ToList();
 
                     if (versions.Any() == false && versionsCount > 0)
                     {
@@ -152,18 +157,19 @@ namespace OpenTap.Package
                     }
 
 
+                    var allVersion = versions;
                     versions = versions.Where(v => versionSpec.IsCompatible(v.Version)).ToList();
                     if (versions.Any() == false) // No versions that are compatible
                     {
                         if (string.IsNullOrEmpty(Version))
-                            log.Warning($"There are no released versions of '{Name}'.");
+                            log.Warning($"There are no released versions of '{Name}'. Showing pre-releases instead.");
                         else
                             log.Warning($"Package '{Name}' does not exists with version '{Version}'.");
 
                         var anyPrereleaseSpecifier = new VersionSpecifier(versionSpec.Major, versionSpec.Minor, versionSpec.Patch, versionSpec.PreRelease, versionSpec.BuildMetadata, VersionMatchBehavior.AnyPrerelease | versionSpec.MatchBehavior);
-                        versions = versions.Where(v => anyPrereleaseSpecifier.IsCompatible(v.Version)).ToList();
+                        versions = allVersion.Where(v => anyPrereleaseSpecifier.IsCompatible(v.Version)).ToList();
                         if (versions.Any())
-                            log.Info($"There are {versions.Count} pre-released versions available. Use '--version <pre-release>' (e.g. '--version rc') or '--all' to show these.");
+                            PrintVersionsReadable(package, versions);
 
                         return (int)ExitCodes.Success;
                     }
@@ -178,7 +184,7 @@ namespace OpenTap.Package
             var verLen = versions.Select(p => p.Version?.ToString().Length).Max() ?? 0;
             var arcLen = versions.Select(p => p?.Architecture.ToString().Length).Max() ?? 0;
             var osLen = versions.Select(p => p.OS?.Length).Max() ?? 0;
-            foreach (var version in versions)
+            foreach (var version in versions.OrderBy(x => x.Version))
             {
                 // string interpolate + format complex to add padding.
                 log.Info(string.Format($"{{0,-{verLen}}} - {{1,-{arcLen}}} - {{2,-{osLen}}} - {{3}}", version.Version, version.Architecture, version.OS ?? "Unknown", package != null && package.Equals(version) ? "installed" : ""));

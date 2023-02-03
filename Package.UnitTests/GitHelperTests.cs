@@ -24,9 +24,12 @@ namespace OpenTap.Package.UnitTests
             repo.Commit(commitMessage, me, me);
         }
 
-        void commitChangesToGitVersionFile(LibGit2Sharp.Repository repo, string version, string commitMessage)
+        void commitChangesToGitVersionFile(LibGit2Sharp.Repository repo, string version, string commitMessage, string filename = ".gitversion")
         {
-            string filePath = Path.Combine(repo.Info.WorkingDirectory, ".gitversion");
+            string filePath = Path.Combine(repo.Info.WorkingDirectory, filename);
+            string dir = Path.GetDirectoryName(filePath);
+            if (!Directory.Exists(dir))
+                Directory.CreateDirectory(dir);
             using (StreamWriter file = new StreamWriter(filePath))
             {
                 file.WriteLine("version = " + version);
@@ -37,22 +40,22 @@ namespace OpenTap.Package.UnitTests
         }
 
         [DebuggerStepThrough]
-        void verifyVersion(LibGit2Sharp.Repository repo, int major, int minor, int patch, string prerelease, string branchName = "")
+        void verifyVersion(LibGit2Sharp.Repository repo, int major, int minor, int patch, string prerelease, string branchName = "", string dir = null)
         {
-            verifyVersion(repo, repo.Head.Tip, major, minor, patch, prerelease, branchName);
+            verifyVersion(repo, repo.Head.Tip, major, minor, patch, prerelease, branchName, dir);
         }
 
         [DebuggerStepThrough]
-        void verifyVersion(LibGit2Sharp.Repository repo, Commit c, int major, int minor, int patch, string prerelease, string branchName = null)
+        void verifyVersion(LibGit2Sharp.Repository repo, Commit c, int major, int minor, int patch, string prerelease, string branchName = null, string dir = null)
         {
             var metadata = c.Sha.Substring(0, 8);  // (note: hashes will differ each time this is run)
             if (!String.IsNullOrEmpty(branchName))
                 metadata += "." + branchName;
-            using (var calc = new GitVersionCalulator(repo.Info.WorkingDirectory))
+            using (var calc = new GitVersionCalulator(Path.Combine(repo.Info.WorkingDirectory, dir ?? "")))
             {
                 SemanticVersion tv = calc.GetVersion();
-                Assert.AreEqual(major, tv.Major, "Unexpected patch major number.");
-                Assert.AreEqual(minor, tv.Minor, "Unexpected patch minor number.");
+                Assert.AreEqual(major, tv.Major, "Unexpected major version number.");
+                Assert.AreEqual(minor, tv.Minor, "Unexpected minor version number.");
                 Assert.AreEqual(patch, tv.Patch, "Unexpected patch version number.");
                 Assert.AreEqual(prerelease, tv.PreRelease, "Unexpected prerelease.");
                 Assert.AreEqual(metadata, tv.BuildMetadata, "Unexpected build metadata.");
@@ -252,6 +255,19 @@ namespace OpenTap.Package.UnitTests
             Commands.Checkout(repo, "master");
             repo.Merge("feature", me, noFastForward);
             verifyVersion(repo, 1, 0, 0, "beta.1");
+        }
+
+        [Test]
+        public void ConfigFileInSubFolders()
+        {
+            commitChangesToGitVersionFile(repo, "1.0.0", "Added .gitversion file with version = 1.0.0", ".gitversion");
+            commitChangesToReadme(repo, "Hello", "Added readme.");
+            //verifyVersion(repo, 1, 0, 0, "beta.2");
+            commitChangesToGitVersionFile(repo, "2.0.0", "Added .gitversion file with version = 2.0.0 in subfolder", "test/.gitversion");
+            verifyVersion(repo, 1, 0, 0, "beta.3");
+            // in the "test" folder there is now a .gitversion file specifying 2.0.0.
+            // That file was last changed one commit ago, so it becomes beta.1
+            verifyVersion(repo, 2, 0, 0, "beta.1", dir: "test");
         }
     }
 }

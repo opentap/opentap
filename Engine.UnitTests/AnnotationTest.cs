@@ -1233,6 +1233,38 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        public void MultiSelectList()
+        {
+            var step1 = new ClassWithListOfString();
+            var step2 = new ClassWithListOfString();
+            var a = AnnotationCollection.Annotate(new []{step1, step2});
+            var lst = a.GetMember(nameof(step1.List));
+            var valAnnotation = lst.Get<ICollectionAnnotation>();
+            valAnnotation.AnnotatedElements = valAnnotation.AnnotatedElements.Append(valAnnotation.NewElement()).ToArray();
+            a.Write();
+            Assert.IsTrue(step1.List.Count == 3);
+            Assert.IsTrue(step1.List.SequenceEqual(step2.List));
+            Assert.AreNotSame(step1.List, step2.List);
+        }
+        
+        [Test]
+        public void FixNullList()
+        {
+            var step1 = new ClassWithListOfString { List = null };
+            
+            var a = AnnotationCollection.Annotate(step1);
+            var lst = a.GetMember(nameof(step1.List));
+            var seqAnnotation = lst.Get<ICollectionAnnotation>();
+            var numbers = seqAnnotation.AnnotatedElements.ToArray();
+            seqAnnotation.AnnotatedElements = numbers.Append(seqAnnotation.NewElement());
+            a.Write();
+            // step1.List should not be null as we have just added an element to it.
+            Assert.IsNotNull(step1.List);
+            Assert.AreEqual(1, step1.List.Count);
+        }
+        
+
+        [Test]
         public void ParameterInputsTest()
         {
             var plan = new TestPlan();

@@ -93,7 +93,7 @@ namespace OpenTap.Package
             }
 
 
-            HashAlgorithm algorithm = SHA1.Create();
+            using var algorithm = SHA1.Create();
             var bytes = algorithm.ComputeHash(Encoding.UTF8.GetBytes(string.Join(",", packageHashes)));
             return BitConverter.ToString(bytes).Replace("-", "");
         }
@@ -126,7 +126,7 @@ namespace OpenTap.Package
             if (Cached)
                 return;
             foreach (var package in Packages)
-                Download(package);
+                Download(package, TapThread.Current.AbortToken);
         }
 
         private static void Deploy(Installation currentInstallation, List<PackageDef> dependencies, CancellationToken cancellationToken)
@@ -183,8 +183,11 @@ namespace OpenTap.Package
             List<string> paths = new List<string>();
             foreach (var package in packagesInOrder)
             {
-                if (CachedLocation(package) is null)
-                    Download(package);
+                if (CachedLocation(package) is string cachedLocation)
+                    log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
+                else
+                    Download(package, cancellationToken);
+                    
                 paths.Add(CachedLocation(package));
             }
             installer.PackagePaths.Clear();
@@ -219,7 +222,12 @@ namespace OpenTap.Package
             newInstaller.DoSleep = false;
 
             newInstaller.PackagePaths.AddRange(orderedPackagesToUninstall.Select(x => (x.PackageSource as XmlPackageDefSource)?.PackageDefFilePath).ToList());
-            int exitCode = newInstaller.RunCommand("uninstall", false, true);
+            
+            int exitCode = newInstaller.RunCommand(Installer.PrepareUninstall, false, false);
+            if (uninstallErrors.Any() || exitCode != 0)
+                throw new AggregateException("Image deployment failed to uninstall existing packages.", uninstallErrors);
+            
+            exitCode = newInstaller.RunCommand(Installer.Uninstall, false, true);
 
             if (uninstallErrors.Any() || exitCode != 0)
                 throw new AggregateException("Image deployment failed to uninstall existing packages.", uninstallErrors);
@@ -241,10 +249,13 @@ namespace OpenTap.Package
             return toInstall;
         }
 
-        private static void Download(PackageDef package)
+        private static void Download(PackageDef package, CancellationToken token)
         {
-            if (CachedLocation(package) != null)
+            if (CachedLocation(package) is string cachedLocation)
+            {
+                log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
                 return;
+            }
 
             string filename = PackageCacheHelper.GetCacheFilePath(package);
             Directory.CreateDirectory(Path.GetDirectoryName(filename));
@@ -257,7 +268,7 @@ namespace OpenTap.Package
             {
                 IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(repoSource.RepositoryUrl);
                 log.Info($"Downloading {package.Name} version {package.Version} from {rm.Url}");
-                rm.DownloadPackage(package, filename, CancellationToken.None);
+                rm.DownloadPackage(package, filename, token);
             }
         }
 
@@ -267,7 +278,6 @@ namespace OpenTap.Package
 
             if (File.Exists(filename))
             {
-                log.Info($"Package {package.Name} exists in cache: {filename}");
                 return filename;
             }
             return null;

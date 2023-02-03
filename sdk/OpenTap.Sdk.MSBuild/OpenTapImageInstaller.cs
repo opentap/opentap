@@ -19,8 +19,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     {
         public void Install(ImageSpecifier spec, Installation install, CancellationToken cts)
         {
-            if (!spec.Repositories.Any(r => r.ToLower().Contains("packages.opentap.io")))
-                spec.Repositories.Add("packages.opentap.io");
+            if (!spec.Repositories.Any(r => r.ToLower().Contains("https://packages.opentap.io") || r.ToLower().Contains("http://packages.opentap.io")))
+                spec.Repositories.Add("https://packages.opentap.io");
             spec.MergeAndDeploy(install, cts);
         }
     }

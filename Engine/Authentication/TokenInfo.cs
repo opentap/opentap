@@ -1,74 +1,125 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Text.Json;
+using System.Xml.Serialization;
 
 namespace OpenTap.Authentication
 {
-    /// <summary> Represents stored information about a token. </summary>
+    /// <summary> 
+    /// Represents a set of Oauth2/OpenID Connect jwt tokens (access and possibly refresh token) that grants access to a given domain.
+    /// </summary>
     public class TokenInfo
     {
-        /// <summary> Raw token string. </summary>
-        public string TokenData { get; set; }
-        /// <summary> Expiration date of the token. </summary>
-        public DateTime Expiration { get; set; }
-        /// <summary> The site this token activates. </summary>
-        public string Domain { get; set; }
-        /// <summary> The type of token. </summary>
-        public TokenType Type { get; set; }
+        static DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
 
-        /// <summary> Gets if the token is expired.</summary>
-        public bool Expired => Expiration < DateTime.Now;
+        /// <summary>
+        /// Raw access token string. This value can be used as a Bearer token. The HttpClient 
+        /// returned from <see cref="AuthenticationSettings.GetClient"/> will automatically do 
+        /// this for requests that go to domains that match <see cref="Domain"/>.
+        /// </summary>
+        public string AccessToken { get; set; }
 
-        System.Text.Json.JsonDocument payload;
+        /// <summary>
+        /// Raw refresh token string. May be null if no refresh token is available.
+        /// </summary>
+        public string RefreshToken { get; set; }
 
-        System.Text.Json.JsonDocument GetPayload()
+        private string domain;
+        /// <summary> 
+        /// The hostname or IP address this token is intended for. Used by the HttpClient 
+        /// returned from <see cref="AuthenticationSettings.GetClient"/> to determine which TokenInfo
+        /// in the <see cref="AuthenticationSettings.Tokens"/> list to use for a given request.
+        /// </summary>
+        public string Domain 
+        { 
+            get => domain; 
+            set
+            {
+                if (Uri.IsWellFormedUriString(value, UriKind.Absolute))
+                    throw new ArgumentException("Domain should only be the host part of a URI and not a full absolute URI.");
+                domain = value;
+            }
+        }
+
+        private Dictionary<string, string> _Claims;
+        /// <summary>
+        /// Claims contained in the <see cref="AccessToken"/>.
+        /// </summary>
+        public IReadOnlyDictionary<string, string> Claims
+        {
+            get
+            {
+                if (_Claims == null)
+                    _Claims = GetPayload().RootElement.EnumerateObject().ToDictionary(c => c.Name, c => c.Value.ToString());
+                return _Claims;
+            }
+        }
+
+        /// <summary> Expiration date of the <see cref="AccessToken"/>. </summary>
+        [XmlIgnore]
+        public DateTime Expiration => unixEpoch.AddSeconds(long.Parse(Claims["exp"]));
+
+        JsonDocument payload;
+
+        JsonDocument GetPayload()
         {
             if (payload != null) return payload;
-            var payloadData = TokenData.Split('.')[1];
-            payload = System.Text.Json.JsonDocument.Parse(Convert.FromBase64String(payloadData));
+            var payloadData = AccessToken.Split('.')[1];
+            payload = JsonDocument.Parse(Base64UrlDecode(payloadData));
             return payload;
         }
-        /// <summary> Gets the client id. </summary>
-        public string GetClientId()
+
+
+        byte[] Base64UrlDecode(string encoded)
         {
-            if (GetPayload().RootElement.TryGetProperty("azp", out var id))
-                return id.GetString();
-            return null;
+            string substituded = encoded;
+            substituded = substituded.Replace('-', '+');
+            substituded = substituded.Replace('_', '/');
+            while (substituded.Length % 4 != 0)
+            {
+                substituded += '=';
+            }
+            return Convert.FromBase64String(substituded);
         }
 
-        /// <summary> Gets the auth URL. </summary>
-        public string GetAuthority()
+        /// <summary>
+        /// Constructor used by serializer, please use constructor with arguments from user code.
+        /// </summary>
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public TokenInfo()
         {
-            if (GetPayload().RootElement.TryGetProperty("iss", out var id))
-                return id.GetString();
-            return null;
+
         }
 
-        static readonly TimeSpan refreshSlack = TimeSpan.FromSeconds(30);
-        /// <summary> Parses tokens from oauth response string (json format). </summary>
-
-        public static List<TokenInfo> ParseTokens(string responseString, string domain)
+        /// <summary>
+        /// Default constructor from user code
+        /// </summary>
+        /// <param name="access_token">The raw jwt token string for the access token</param>
+        /// <param name="refresh_token">Access, Refresh or ID type</param>
+        /// <param name="domain">Domain name for which this token is valid</param>
+        public TokenInfo(string access_token, string refresh_token, string domain)
         {
-            var json = System.Text.Json.JsonDocument.Parse(responseString);
+            AccessToken = access_token;
+            RefreshToken = refresh_token;
+            Domain = domain;
+        }
 
-            //"expires_in":300,"refresh_expires_in":1800
-            var accessExp = DateTime.Now.AddSeconds(300);
-            var refreshExp = DateTime.Now.AddSeconds(1800);
-            if (json.RootElement.TryGetProperty("expires_in", out var exp1Str) && exp1Str.TryGetInt32(out var accessAdd))
-                accessExp = DateTime.Now.AddSeconds(accessAdd).Subtract(refreshSlack);
-            if (json.RootElement.TryGetProperty("refresh_expires_in", out exp1Str) && exp1Str.TryGetInt32(out var refreshAdd))
-                refreshExp = DateTime.Now.AddSeconds(refreshAdd).Subtract(refreshSlack);
-            List<TokenInfo> tokens = new List<TokenInfo>();
+        /// <summary> Creates a TokenInfo object based on the given OAuth response (json format). </summary>
+        public static TokenInfo FromResponse(string response, string domain)
+        {
+            var ti = new TokenInfo();
+            ti.Domain = domain;
+            var json = JsonDocument.Parse(response);
 
             if (json.RootElement.TryGetProperty("access_token", out var accessTokenData))
-                tokens.Add(new TokenInfo { Domain = domain, Expiration = accessExp, Type = TokenType.AccessToken, TokenData = accessTokenData.GetString() });
+                ti.AccessToken = accessTokenData.GetString();
 
             if (json.RootElement.TryGetProperty("refresh_token", out var refreshTokenData))
-                tokens.Add(new TokenInfo { Domain = domain, Expiration = refreshExp, Type = TokenType.RefreshToken, TokenData = refreshTokenData.GetString() });
-
-            if(json.RootElement.TryGetProperty("id_token", out var idTokenData))
-                tokens.Add(new TokenInfo { Domain = domain, Expiration = accessExp, Type = TokenType.IdentityToken, TokenData = idTokenData.GetString() });
-
-            return tokens;
+                ti.RefreshToken = refreshTokenData.GetString();
+            return ti;
         }
     }
 }

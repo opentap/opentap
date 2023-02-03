@@ -15,7 +15,7 @@ using System.Xml.Linq;
 namespace OpenTap.Package
 {
     [Display("Test Plan Package Dependencies", Description: "Serializer plugin that inserts package dependencies for a test plan in the test plan itself.")]
-    internal class TestPlanPackageDependency : TapSerializerPlugin
+    internal class TestPlanPackageDependencySerializer : TapSerializerPlugin
     {
         static readonly XName PackageDependenciesName = "Package.Dependencies";
         static readonly XName PackageDependencyName = "Package";

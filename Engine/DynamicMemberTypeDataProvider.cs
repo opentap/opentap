@@ -12,6 +12,11 @@ namespace OpenTap
     {
         IDictionary<string, IMemberData> DynamicMembers { get; set; }
     }
+    interface IDynamicMemberValue
+    {
+        bool TryGetValue(IMemberData member, out object value);
+        void SetValue(IMemberData member, object value);
+    }
     
 
     /// <summary>  Extensions for parameter operations. </summary>
@@ -60,6 +65,10 @@ namespace OpenTap
             }
             return null;
         }
+
+        /// <summary> Returns true if a member is parameters </summary>
+        public static bool IsParameterized(this IMemberData member, object source) =>
+            DynamicMember.IsParameterized(member, source);
     }
 
     /// <summary>
@@ -285,14 +294,25 @@ namespace OpenTap
         
         public virtual void SetValue(object owner, object value)
         {
-                dict.Remove(owner);
-                if (Equals(value, DefaultValue) == false)
-                    dict.Add(owner, value);
+            if (owner is IDynamicMemberValue dmv)
+            {
+                dmv.SetValue(this, value);
+                return;
+            }
+            dict.Remove(owner);
+            if (Equals(value, DefaultValue) == false)
+                dict.Add(owner, value);
         }
 
         public virtual object GetValue(object owner)
         {
-            // TODO: use IDynamicMembersProvider
+            if (owner is IDynamicMemberValue dmv)
+            {
+                if (dmv.TryGetValue(this, out var value2))
+                    return value2;
+                return DefaultValue;
+            }
+
             if (dict.TryGetValue(owner, out object value))
                 return value ?? DefaultValue;
             return DefaultValue;
@@ -564,7 +584,22 @@ namespace OpenTap
             public object CreateInstance(object[] arguments) => BaseType.CreateInstance(arguments);
 
             public bool CanCreateInstance => BaseType.CanCreateInstance;
+            
+            public override string ToString() => "*" + BaseType;
 
+            public override bool Equals(object obj)
+            {
+                if (obj is DynamicTestStepTypeData other)
+                    return Equals(other.target, target) && Equals(other.BaseType, BaseType);
+
+                return false;
+            }
+
+            public override int GetHashCode()
+            { 
+                // Random factors for hashing (primes to reduce the risk of collision).
+                return ((((BaseType?.GetHashCode() ?? 0) + 86533973) * 25714789 + (target?.GetHashCode() ?? 0) + 67186051) * 63349417);
+            }
         }
 
         internal class TestStepTypeData : ITypeData
@@ -579,7 +614,8 @@ namespace OpenTap
                         "When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step, test plan, or engine settings.",
                         "Common", 20001.1),
                     new UnsweepableAttribute(),
-                    new NonMetaDataAttribute()
+                    new NonMetaDataAttribute(),
+                    new DefaultValueAttribute(BreakCondition.Inherit)
                 },
                 DeclaringType = TypeData.FromType(typeof(ITestStep)),
                 Readable = true,
@@ -600,7 +636,8 @@ namespace OpenTap
                         "When enabled, specify new break conditions. When disabled conditions are inherited from the engine settings.", Order: 3),
                     new UnsweepableAttribute(),
                     new EnabledIfAttribute("Locked", false),
-                    new NonMetaDataAttribute()
+                    new NonMetaDataAttribute(),
+                    new DefaultValueAttribute(BreakCondition.Inherit)
                 },
                 DeclaringType = TypeData.FromType(typeof(TestPlan)),
                 Readable = true,
@@ -713,6 +750,9 @@ namespace OpenTap
             }
 
             public bool CanCreateInstance => innerType.CanCreateInstance;
+            
+            public override string ToString() => innerType.ToString();
+            
         }
 
         // memorize for reference equality.
@@ -732,15 +772,19 @@ namespace OpenTap
 
             return subtype;
         }
+        
+        // cache Dynamic type data for each ITestStepParent (which has parameters).
+        static readonly ConditionalWeakTable<ITestStepParent, DynamicTestStepTypeData> dict2 =
+            new ConditionalWeakTable<ITestStepParent, DynamicTestStepTypeData>();
 
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
-            if (obj is ITestStepParent)
+            if (obj is ITestStepParent p)
             {
                 var subtype = stack.GetTypeData(obj);
                 var result = getStepTypeData(subtype);
                 if (TestStepTypeData.DynamicMembers.GetValue(obj) is Dictionary<string, IMemberData>)
-                    return new DynamicTestStepTypeData(result, obj);
+                    return dict2.GetValue(p, o => new DynamicTestStepTypeData(result, o));
                 return result;
             }
             return null;

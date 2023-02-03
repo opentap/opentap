@@ -377,11 +377,11 @@ namespace OpenTap
                         base.Open();
                         SetTerminationCharacter(scpiIO.ID);
 
-                        IdnString = ScpiQuery("*IDN?");
+                        IdnString = QueryIdn();
                         IdnString = IdnString.Trim();
                         Log.Info("Now connected to: " + IdnString);
 
-                        ScpiCommand("*CLS"); // Empty error log
+                        CommandCls(); // Empty error log
 
                         try
                         {
@@ -1105,7 +1105,6 @@ namespace OpenTap
                         throw new IOException("SCPI block transmission incomplete");
                     }
 
-
                     //send binary data
                     int bufferSize = 0x10000;
                     byte[] buffer = new byte[bufferSize];
@@ -1281,7 +1280,7 @@ namespace OpenTap
         {
             int errorCode = 0;
             string error = String.Empty;
-            string errorStr = ScpiQuery("SYST:ERR?", true).Trim();
+            string errorStr = QueryErr(true).Trim();
             Match regexMatch = Regex.Match(errorStr, "(?<code>[\\-\\+0-9]+),\"(?<msg>.+)\"");
             if (regexMatch.Success)
             {
@@ -1309,7 +1308,7 @@ namespace OpenTap
             }
             try
             {
-                ScpiQuery("*OPC?");
+                QueryOpc();
             }
             finally
             {
@@ -1322,12 +1321,28 @@ namespace OpenTap
 
         /// <summary>
         ///  Aborts the currently running measurement and makes the default measurement active. 
-        ///  This gets the mode to a consistent state with all of the default couplings set.  
         /// </summary>
         public void Reset()
         {
-            ScpiCommand("*RST");
+            CommandRst();
         }
+
+        /// <summary> *IDN / Queries the instrument for a IDN string. </summary>
+        protected virtual string QueryIdn() => ScpiQuery("*IDN?");
+        
+        /// <summary> *OPC / Operation Complete Query </summary>
+        protected virtual string QueryOpc() => ScpiQuery("*OPC?");
+        
+        /// <summary> *RST / Reset Command </summary>
+        protected virtual void CommandRst() => ScpiCommand("*RST");
+        
+        /// <summary> *CLS / Clear Status Command </summary>
+        protected virtual void CommandCls() => ScpiCommand("*CLS");
+        
+        /// <summary> SYST:ERR? / Queries the instrument for errors.
+        /// This will normally be in a format like '123,"Error message"'.  </summary>
+        protected virtual string QueryErr(bool isSilent = false) => ScpiQuery("SYST:ERR?", isSilent);
+        
 
         #region Service Request routines
         /// <summary>

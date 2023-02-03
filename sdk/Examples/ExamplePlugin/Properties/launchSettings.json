@@ -1,8 +1,13 @@
 {
   "profiles": {
-    "Editor": {
+    "WPF Editor": {
       "commandName": "Executable",
       "executablePath": "./editor.exe"
+    },
+    "Terminal Editor": {
+      "commandName": "Executable",
+      "executablePath": "./tap.exe",
+      "commandLineArgs": "tui"
     }
   }
 }

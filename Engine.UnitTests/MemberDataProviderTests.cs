@@ -2055,6 +2055,65 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(descriptionString, (string)TypeData.GetTypeData(step).GetMember(descriptionName).GetValue(step3));
             
         }
+        
+        class AvailableStep1 : TestStep
+        {
+            [Browsable(false)]
+            public string[] Available { get; set; } = new[] { "On", "Off" };
+            [AvailableValues(nameof(Available))]
+            public string MyValue { get; set; }
+            public override void Run()
+            {
+                throw new NotImplementedException();
+            }
+        }
+        class AvailableStep2 : TestStep
+        {
+            private string[] avail = new[] {"Blue", "Green", "Red"};
+            [Browsable(false)]
+            public string[] Available { 
+                get => avail;
+                set
+                {
+                    if (!avail.SequenceEqual(value))
+                        throw new InvalidOperationException();
+                    avail = value;
+                }
+            }
+            [AvailableValues(nameof(Available))]
+            public string MyValue { get; set; }
+            public override void Run()
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        [Test]
+        public void TestSweepSameNamedAvailableValues()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            var step1 = new AvailableStep1();
+            var step2 = new AvailableStep2();
+            plan.Steps.Add(sweep);
+            sweep.ChildTestSteps.Add(step1);
+            sweep.ChildTestSteps.Add(step2);
+            string name = nameof(AvailableStep1.MyValue);
+            
+            ParameterManager.Parameterize(sweep, TypeData.GetTypeData(step1).GetMember(name), new ITestStepParent[]{step1}, name);
+            ParameterManager.Parameterize(sweep, TypeData.GetTypeData(step2).GetMember(name), new ITestStepParent[]{step2}, name);
+
+            var valParam = (ParameterMemberData)TypeData.GetTypeData(sweep).GetMember(name);
+            Assert.IsNotNull(valParam);
+
+            var annotation = AnnotationCollection.Annotate(sweep);
+            var strings = annotation.GetMember(name).Get<IAvailableValuesAnnotation>().AvailableValues.Cast<string>().ToArray();
+            annotation.Write();
+            
+            Assert.IsFalse(step1.Available.SequenceEqual(step2.Available));
+
+
+        }
     }
 }
 

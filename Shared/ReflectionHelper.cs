@@ -843,6 +843,13 @@ namespace OpenTap
     
     static class Utils
     {
+        static readonly char[] padding = { '=' };
+        public static string Base64UrlEncode(byte[] bytes)
+        {
+            return Convert.ToBase64String(bytes)
+                .TrimEnd(padding).Replace('+', '-')
+                .Replace('/', '_');
+        }
         public static IEnumerable<(int, T)> WithIndex<T>(this IEnumerable<T> collection)
         {
             return collection.Select((ele, index) => (index, ele));
@@ -1148,6 +1155,14 @@ namespace OpenTap
         {
             foreach (var value in values)
                 lst.Add(value);
+        }
+        
+        [Obsolete("Cannot add to array", true)]
+        public static void AddRange<T>(this T[] lst, IEnumerable<T> values)
+        {
+            // This function is intentionally added to avoid adding the arrays.
+            // They also implement IList, so they normally hit the other overload.
+            throw new NotSupportedException();
         }
 
         /// <summary>

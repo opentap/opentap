@@ -153,9 +153,12 @@ namespace OpenTap
         bool Enabled { get; }
     }
 
-    internal interface ITestStepMenuModel
+    /// <summary> Menu models for test step properties. </summary>
+    public interface ITestStepMenuModel
     {
+        /// <summary> The selected test steps. </summary>
         ITestStepParent[] Source { get; }
+        /// <summary> Selected Member </summary>
         IMemberData Member { get; }
     }
 

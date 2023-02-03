@@ -83,7 +83,11 @@ namespace OpenTap.Package
         {
             var customActions = TypeData.GetDerivedTypes<ICustomPackageAction>()
                 .Where(s => s.CanCreateInstance)
-                .Select(s => s.CreateInstance() as ICustomPackageAction)
+                .TrySelect(s => s.CreateInstance() as ICustomPackageAction, (ex, s) =>
+                {
+                    log.Warning($"Failed to instantiate type '{s.Name}'.");
+                    log.Debug(ex);
+                })
                 .Where(s => s != null)
                 .Where(w => w.ActionStage == stage)
                 .OrderBy(p => p.Order())

@@ -17,40 +17,53 @@ namespace OpenTap.Cli
         /// </summary>
         [Display("Success", "Action completed successfully")]
         Success = 0,
+
         /// <summary>
         /// User cancelled CLI action
         /// </summary>
         [Display("User Cancelled", "Action cancelled by user")]
         UserCancelled = 192,
+
         /// <summary>
         /// CLI action threw an unhandled exception
         /// </summary>
         [Display("General Error", "An unhandled exception occurred")]
         GeneralException = 193,
+
         /// <summary>
         /// No CLI action found matching commands
         /// </summary>
         [Display("Unknown Action", "Found no CLI action matching command")]
         UnknownCliAction = 194,
+
         /// <summary>
         /// CLI action missing a license
         /// </summary>
         [Display("LicenseError", "A required license is missing")]
         LicenseError = 195,
+
         /// <summary>
         /// Unable to parse one or more arguments
         /// </summary>
         [Display("Argument Parse Error", "Unable to parse one or more arguments")]
         ArgumentParseError = 196,
+
         /// <summary>
         /// One or more arguments is incorrect
         /// </summary>
         [Display("Argument Error", "One or more arguments are incorrect")]
         ArgumentError = 197,
+
         /// <summary>
         /// Network error occurred
         /// </summary>
         [Display("Network Error", "A network error occurred")]
         NetworkError = 198,
+
+        /// <summary>
+        /// Package resolution Error
+        /// </summary>
+        [Display("Package Resolution Error", "A package configuration was not able to be resolved.")]
+        PackageResolutionError = 199
     }
 }

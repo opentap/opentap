@@ -80,13 +80,20 @@ namespace OpenTap
         void AfterClose(IEnumerable<IResourceReferences> resources, CancellationToken abortToken);
     }
 
-    internal class LockManager
+    class LockManager
     {
-        private List<ILockManager> managers;
-
+        readonly ILockManager[] managers;
+        static readonly TraceSource log = Log.CreateSource("LockManager");
         public LockManager()
         {
-            managers = PluginManager.GetPlugins<ILockManager>().OrderByDescending(t => t.GetDisplayAttribute().Order).Select(t => (ILockManager)t.CreateInstance()).ToList();
+            managers = PluginManager.GetPlugins<ILockManager>()
+                .OrderByDescending(t => t.GetDisplayAttribute().Order)
+                .TrySelect(t => (ILockManager)t.CreateInstance(), (ex, t) =>
+                {
+                    log.Error("Unable to create an instance of {0}: {1}", t, ex.Message);
+                    log.Debug(ex);
+                })
+                .ToArray();
         }
         
         internal void BeforeOpen(IEnumerable<IResourceReferences> resources, CancellationToken cancellationToken)

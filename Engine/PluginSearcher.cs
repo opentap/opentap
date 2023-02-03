@@ -3,7 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -233,10 +232,10 @@ namespace OpenTap
                             MetadataReader metadata = header.GetMetadataReader();
                             AssemblyDefinition def = metadata.GetAssemblyDefinition();
 
-                            // if we were asked to only prvide distinct assembly names and 
+                            // if we were asked to only provide distinct assembly names and 
                             // this assembly name has already been encountered, just return that.
-                            var fileIdentifer = Option.HasFlag(Options.IncludeSameAssemblies) ? file : def.GetAssemblyName().FullName;
-                            if (asmNameToAsmData.TryGetValue(fileIdentifer, out AssemblyData data))
+                            var fileIdentifier = Option.HasFlag(Options.IncludeSameAssemblies) ? file : def.GetAssemblyName().FullName;
+                            if (asmNameToAsmData.TryGetValue(fileIdentifier, out AssemblyData data))
                                 return data;
 
                             thisAssembly.Name = metadata.GetString(def.Name);
@@ -245,7 +244,33 @@ namespace OpenTap
                                 throw new Exception("Assembly name does not match the file name.");
                             var thisRef = new AssemblyRef(thisAssembly.Name, def.Version);
 
-                            thisAssembly.RawVersion = def.Version.ToString();
+                            var prov = new CustomAttributeTypeProvider();
+                            foreach (CustomAttributeHandle attrHandle in def.GetCustomAttributes())
+                            {
+                                CustomAttribute attr = metadata.GetCustomAttribute(attrHandle);
+
+                                if (attr.Constructor.Kind == HandleKind.MemberReference)
+                                {
+                                    var ctor = metadata.GetMemberReference((MemberReferenceHandle)attr.Constructor);
+                                    string attributeFullName = GetFullName(metadata, ctor.Parent);
+                                    if (attributeFullName == typeof(AssemblyInformationalVersionAttribute).FullName)
+                                    {
+                                        var valueString = attr.DecodeValue(prov).FixedArguments[0].Value?.ToString();
+                                        if (SemanticVersion.TryParse(valueString, out _))
+                                            thisAssembly.RawVersion = valueString;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // If the semantic version was not set, fall back to using the version
+                            // from the AssemblyDefinition
+                            if (string.IsNullOrWhiteSpace(thisAssembly.RawVersion))
+                            {
+                                thisAssembly.RawVersion = def.Version.ToString();
+                            }
+
+                            thisAssembly.Version = def.Version;
 
                             if (!nameToAsmMap.ContainsKey(thisRef))
                             {
@@ -253,7 +278,7 @@ namespace OpenTap
                                 nameToAsmMap2[PathUtils.NormalizePath(thisAssembly.Location)] = thisRef;
                             }
 
-                            asmNameToAsmData[fileIdentifer] = thisAssembly;
+                            asmNameToAsmData[fileIdentifier] = thisAssembly;
 
                             foreach (var asmRefHandle in metadata.AssemblyReferences)
                             {
@@ -483,6 +508,67 @@ namespace OpenTap
             return null; // This is not a type that we care about (not defined in any of the files the searcher is given)
         }
 
+        private static string valueTypeName = typeof(ValueType).FullName;
+        private static readonly Dictionary<string, bool> ValueTypeMap = new Dictionary<string, bool>(); 
+        private bool IsValueType(TypeDefinition typeDef, string typeName = null)
+        {
+            
+            bool helper(string s)
+            {
+                try
+                {
+                    if (s == valueTypeName) return true;
+
+                    var baseType = typeDef.BaseType;
+                    switch (baseType.Kind)
+                    {
+                        case HandleKind.TypeReference:
+                            var tr = (TypeReferenceHandle)baseType;
+                            var r = CurrentReader.GetTypeReference(tr);
+                            return CurrentReader.GetString(r.Name) == "ValueType";
+                        case HandleKind.TypeDefinition:
+                            var td = (TypeDefinitionHandle)baseType;
+                            if (td.IsNil) return false;
+                            var d = CurrentReader.GetTypeDefinition(td);
+                            return IsValueType(d);
+                        default:
+                            return false;
+                    }
+                }
+                catch
+                {
+                    // This should be rare, and if the reader can't resolve some base type we can't do anything about it.
+                    // Just assume it isn't a valuetype and move on.
+                    return false;
+                }
+            }
+
+            typeName ??= GetTypeName(typeDef);
+            return ValueTypeMap.GetOrCreateValue(typeName, helper);
+        }
+
+        private string GetTypeName(TypeDefinition td)
+        {
+            string typeName;
+
+            TypeDefinitionHandle declaringTypeHandle = td.GetDeclaringType();
+            if (declaringTypeHandle.IsNil)
+            {
+                typeName = string.Format("{0}.{1}", CurrentReader.GetString(td.Namespace),
+                    CurrentReader.GetString(td.Name));
+            }
+            else
+            {
+                // This is a nested type
+                TypeData declaringType = PluginFromTypeDefRecursive(declaringTypeHandle);
+                if (declaringType == null)
+                    return null;
+                typeName = string.Format("{0}+{1}", declaringType.Name, CurrentReader.GetString(td.Name));
+            }
+
+            return typeName;
+        }
+
         private TypeData PluginFromTypeDefRecursive(TypeDefinitionHandle handle)
         {
             if (TypesInCurrentAsm.TryGetValue(handle, out var result))
@@ -504,21 +590,8 @@ namespace OpenTap
                     return null;
             }
 
-            string typeName;
-            
-            TypeDefinitionHandle declaringTypeHandle = typeDef.GetDeclaringType();
-            if (declaringTypeHandle.IsNil)
-            {
-                typeName = string.Format("{0}.{1}", CurrentReader.GetString(typeDef.Namespace), CurrentReader.GetString(typeDef.Name));
-            }
-            else
-            {
-                // This is a nested type
-                TypeData declaringType = PluginFromTypeDefRecursive(declaringTypeHandle);
-                if (declaringType == null)
-                    return null;
-                typeName = string.Format("{0}+{1}", declaringType.Name, CurrentReader.GetString(typeDef.Name));
-            }
+            var typeName = GetTypeName(typeDef);
+            if (typeName == null) return null;
             if (AllTypes.TryGetValue(typeName, out var existingPlugin))
             {
                 if (existingPlugin.Assembly.Name == CurrentAsm.Name)
@@ -630,6 +703,19 @@ namespace OpenTap
                 if (typeAttributes.HasFlag(TypeAttributes.Interface) || typeAttributes.HasFlag(TypeAttributes.Abstract))
                 {
                     plugin.CanCreateInstance = false;
+                }
+                // It is not possible to instantiate types if they have unresolved generic parameters.
+                // Since we are currently reflecing an unloaded assembly, it is impossible for generic parameters
+                // to be resolved. If there are generic parameters, this typedata must therefore be unconstroctable.
+                // Once the type is actually loaded, whether an instance can be created for resolved instances
+                // of this type will be computed differently in the TypeData implementation.
+                else if (typeDef.GetGenericParameters().Count != 0)
+                {
+                    plugin.CanCreateInstance = false;
+                }
+                else if (IsValueType(typeDef, typeName))
+                {
+                    plugin.CanCreateInstance = true;
                 }
                 else
                 {

@@ -30,10 +30,12 @@ namespace OpenTap.Cli
         /// Human readable description of the argument.
         /// </summary>
         public string Description { get; set; }
+
         /// <summary>
         /// Indicates whether this will be shown when writing CLI usage information.
         /// </summary>
-        public bool Visible { get; set; }
+        [Obsolete("Please use the 'Browsable' attribute.")]
+        public bool Visible { get; set; } = true;
 
         /// <summary>
         /// Primary constructor.
@@ -44,7 +46,6 @@ namespace OpenTap.Cli
             this.Name = name;
             ShortName = null;
             Description = null;
-            Visible = true;
         }
     }
 

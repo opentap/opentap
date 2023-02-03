@@ -19,7 +19,7 @@ Usability Improvements:
 - EmbeddedProperties Gets an Empty Group and is Misaligned With Other Properties [#715](https://gitlab.com/OpenTAP/opentap/issues/715)
 - Add Bench Setting for Including Prereleases in Package Actions [#723](https://gitlab.com/OpenTAP/opentap/issues/723)
 - Make TestPlan Path Available to Result Listeners [#738](https://gitlab.com/OpenTAP/opentap/issues/738)
-- Generate <OpenTapPackageReference> references earlier [#742](https://gitlab.com/OpenTAP/opentap/issues/742)
+- Generate \<OpenTapPackageReference\> references earlier [#742](https://gitlab.com/OpenTAP/opentap/issues/742)
 - Confusing Error When 'tap sdk gitversion' Fails [#744](https://gitlab.com/OpenTAP/opentap/issues/744)
 - `tap package install --version` Considers Packages Differing Only for the Build Metadata Identical [#761](https://gitlab.com/OpenTAP/opentap/issues/761)
 

@@ -419,5 +419,22 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsTrue(ResultTableOptimizer.CanMerge(rt1, rt2) == false);
             }
         }
+        
+        // an issue inside ResultTableOptimizer caused it to
+        // think that two tables were 'mergable' even though they had different
+        // column types. In this test, one is bool and the other is int.
+        [Test]
+        public void TestResultTableMergeBug()
+        {
+            var boolColumnTable = new ResultTable("X", new[] {new ResultColumn("A", new bool[1])});
+            var boolColumnTable2 = new ResultTable("X", new[] {new ResultColumn("A", new bool[1])});
+            var intColumnTable = new ResultTable("X", new[] {new ResultColumn("A", new int[1])});
+            var intColumnTable2 = new ResultTable("X", new[] {new ResultColumn("A", new int[1])});
+            Assert.IsTrue(ResultTableOptimizer.CanMerge(intColumnTable, intColumnTable2), "These columns should be mergeable.");
+            Assert.IsTrue(ResultTableOptimizer.CanMerge(boolColumnTable, boolColumnTable2), "These columns should be mergeable.");
+            Assert.IsFalse(ResultTableOptimizer.CanMerge(boolColumnTable, intColumnTable), "It should not be possible to merge an int column and bool column.");
+            
+            
+        }
     }
 }

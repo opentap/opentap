@@ -51,6 +51,7 @@ module.exports = {
                     ["/Developer Guide/Component Setting/", "Component Setting"],
                     ["/Developer Guide/Annotations/", "Annotations"],
                     ["/Developer Guide/Plugin Packaging and Versioning/", "Plugin Packaging and Versioning"],
+                    ["/Developer Guide/Package Publishing/", "Package Publishing"],
                     ["/Developer Guide/Continuous Integration/", "Continuous Integration (CI/CD)"],
                     ["/Developer Guide/Attributes/", "Attributes"],
                     ["/Developer Guide/Known Issues/", "Known Issues"],
@@ -61,6 +62,9 @@ module.exports = {
             {
                 title: 'Release Notes',
                 children: [
+                    ['/Release Notes/ReleaseNote_OpenTAP9.19.md', "Release Notes - OpenTAP 9.19"],
+                    ['/Release Notes/ReleaseNote_OpenTAP9.18.md', "Release Notes - OpenTAP 9.18"],
+                    ['/Release Notes/ReleaseNote_OpenTAP9.17.md', "Release Notes - OpenTAP 9.17"],
                     ['/Release Notes/ReleaseNote_OpenTAP9.16.md', "Release Notes - OpenTAP 9.16"],
                     ['/Release Notes/ReleaseNote_OpenTAP9.15.md', "Release Notes - OpenTAP 9.15"],
                     ['/Release Notes/ReleaseNote_OpenTAP9.14.md', "Release Notes - OpenTAP 9.14"],

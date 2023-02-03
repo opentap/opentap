@@ -1,11 +1,6 @@
-﻿using OpenTap.Package;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace OpenTap.Package
 {
@@ -17,12 +12,13 @@ namespace OpenTap.Package
             {
                 return ImageXmlSerializer.DeserializeImageSpecifier(value);
             }
-            else if (value.IsJson())
+            if (value.IsJson())
             {
                 return ImageJsonSerializer.DeserializeImageSpecifier(value);
-
             }
-            throw new FormatException("Value could not be parsed as JSON or XML");
+            if (ParseCommaSeparated(value) is ImageSpecifier r)
+                return r;
+            throw new FormatException("Image specifier could not be read.");
         }
 
         static bool IsJson(this string jsonData)
@@ -33,6 +29,24 @@ namespace OpenTap.Package
         static bool IsXml(this string xmlData)
         {
             return xmlData.Trim().Substring(0, 1).IndexOfAny(new[] { '<' }) == 0;
+        }
+        static ImageSpecifier ParseCommaSeparated(this string xmlData)
+        {
+            var pkgStrings = xmlData.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            
+            var list = new List<PackageSpecifier>();
+            foreach (var pkg in pkgStrings)
+            {
+                var pkgInfo = pkg.Trim().Split(':').Select(x => x.Trim()).ToArray();
+                string pkgName = pkgInfo.FirstOrDefault();
+                string pkgVersion = pkgInfo.Skip(1).FirstOrDefault();
+                if (pkgInfo.Skip(2).Any())
+                    return null;
+                list.Add(new PackageSpecifier(pkgName, string.IsNullOrWhiteSpace(pkgVersion) ? VersionSpecifier.AnyRelease : VersionSpecifier.Parse(pkgVersion)));
+            }
+
+            if (list.Count == 0) return null;
+            return new ImageSpecifier(list);
         }
     }
 

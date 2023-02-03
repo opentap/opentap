@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan">
+  <Steps>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Id="3cc8182a-cc2a-4a07-acd3-5825735a39ea" OpenTap.Visibility="Visible">
+      <ExpectedVerdict>Fail</ExpectedVerdict>
+      <Name Metadata="Step Name">Expect: {ExpectedVerdict}</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Id="e3dc8692-52b8-4eb0-87a1-eb3cbb005a49">
+          <Application>tap</Application>
+          <Arguments>run ../../tests/planWithLoadErrors.TapPlan --non-interactive</Arguments>
+          <AddToLog>true</AddToLog>
+          <CheckExitCode>true</CheckExitCode>
+          <Name Metadata="Step Name">Run: {Application} {Command Line Arguments}</Name>
+        </TestStep>
+      </ChildTestSteps>
+    </TestStep>
+  </Steps>
+</TestPlan>

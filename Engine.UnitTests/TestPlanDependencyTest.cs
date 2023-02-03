@@ -66,7 +66,7 @@ namespace OpenTap.UnitTests
         [SetUp]
         public void Uninstall()
         {
-            FileSystemHelper.EnsureDirectory(PackageXmlPath);
+            FileSystemHelper.EnsureDirectoryOf(PackageXmlPath);
             if (File.Exists(PackageXmlPath))
                 File.Delete(PackageXmlPath);
 

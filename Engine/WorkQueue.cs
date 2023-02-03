@@ -67,9 +67,9 @@ namespace OpenTap
         //this should always be either 1(thread was started) or 0(thread is not started yet)
         int threadCount = 0;
 
-        const int semaphoreMaxCount = 1024 * 1024;
+        internal static int semaphoreMaxCount = 1024 * 1024;
         // the addSemaphore counts the current number of things in the tasklist.
-        readonly SemaphoreSlim addSemaphore = new SemaphoreSlim(0,semaphoreMaxCount); 
+        readonly SemaphoreSlim addSemaphore = new SemaphoreSlim(0, semaphoreMaxCount); 
 
         int countdown = 0;
         
@@ -103,69 +103,72 @@ namespace OpenTap
         public void EnqueueWork(Action a) => EnqueueWork(new ActionInvokable(a));
         internal void EnqueueWork<T1, T2>(IInvokable<T1, T2> v, T1 a1, T2 a2) =>  EnqueueWork(new WrappedInvokable<T1,T2>(v, a1, a2));
 
-        /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
-        internal void EnqueueWork(IInvokable f)
+        /// <summary>
+        /// This method in in charge of processing the work queue.
+        /// </summary>
+        void WorkerFunction()
         {
-            void threadGo()
+            try
             {
-                try
+                var awaitArray = new WaitHandle[] {addSemaphore.AvailableWaitHandle, cancel.Token.WaitHandle};
+                while (true)
                 {
-                    var awaitArray = new WaitHandle[] { addSemaphore.AvailableWaitHandle, cancel.Token.WaitHandle };
-                    while (true)
+                    retry:
+                    awaitArray[1] = cancel.Token.WaitHandle;
+                    int cancelIndex = 0;
+                    if (longRunning)
+                        cancelIndex = WaitHandle.WaitAny(awaitArray);
+                    else
+                        cancelIndex = WaitHandle.WaitAny(awaitArray, Timeout);
+                    if (cancelIndex == 0 && !addSemaphore.Wait(0))
+                        goto retry;
+                    bool ok = cancelIndex == 0;
+
+                    if (!ok)
                     {
-                        retry:
-                        awaitArray[1] = cancel.Token.WaitHandle;
-                        int cancelIndex = 0;
-                        if (longRunning)
-                            cancelIndex = WaitHandle.WaitAny(awaitArray);
-                        else
-                            cancelIndex = WaitHandle.WaitAny(awaitArray, Timeout);
-                        if (cancelIndex == 0 && !addSemaphore.Wait(0))
-                            goto retry;
-                        bool ok = cancelIndex == 0;
-
-                        if (!ok)
+                        if (cancel.IsCancellationRequested == false && longRunning) continue;
+                        lock (threadCreationLock)
                         {
-                            if (cancel.IsCancellationRequested == false && longRunning) continue;
-                            lock (threadCreationLock)
-                            {
-                                if (workItems.Count > 0)
-                                    goto retry;
-                                break;
-                            }
-                        }
-
-                        IInvokable run;
-                        while (!workItems.TryDequeue(out run))
-                            Thread.Yield();
-                        try
-                        {
-                            if (average != null)
-                            {
-                                var sw = Stopwatch.StartNew();
-                                run.Invoke();
-                                average.PushTimeSpan(sw.Elapsed);
-                            }
-                            else
-                            {
-                                run.Invoke();
-                            }
-                        }
-                        finally
-                        {
-                            Interlocked.Decrement(ref countdown);
+                            if (workItems.Count > 0)
+                                goto retry;
+                            break;
                         }
                     }
-                }
-                finally
-                {
-                    lock (threadCreationLock)
+
+                    IInvokable run;
+                    while (!workItems.TryDequeue(out run))
+                        Thread.Yield();
+                    try
                     {
-                        threadCount--;
+                        if (average != null)
+                        {
+                            var sw = Stopwatch.StartNew();
+                            run.Invoke();
+                            average.PushTimeSpan(sw.Elapsed);
+                        }
+                        else
+                        {
+                            run.Invoke();
+                        }
+                    }
+                    finally
+                    {
+                        Interlocked.Decrement(ref countdown);
                     }
                 }
             }
+            finally
+            {
+                lock (threadCreationLock)
+                {
+                    threadCount--;
+                }
+            }
+        }
 
+        /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
+        internal void EnqueueWork(IInvokable f)
+        {
             while (addSemaphore.CurrentCount >= semaphoreMaxCount - 10)
             {
                 // #4246: this is incredibly rare, but can happen if millions of results are pushed at once.
@@ -183,7 +186,7 @@ namespace OpenTap
                 {
                     if (threadCount == 0)
                     {
-                        TapThread.Start(threadGo, null, Name, threadContext);
+                        TapThread.Start(WorkerFunction, null, Name, threadContext);
                         threadCount++;
                     }
                 }
@@ -208,9 +211,14 @@ namespace OpenTap
 
         internal object Dequeue()
         {
+            // Take the semaphore then take an object, just like WorkerFunction does.
+            if (!addSemaphore.Wait(0))
+                return null;
             if (workItems.TryDequeue(out var inv))
             {
+                // when taking an item from the workqueue the countdown and the semaphore must be decremented
                 Interlocked.Decrement(ref countdown);
+                
                 if (inv is IWrappedInvokable wrap)
                     return wrap.InnerInvokable;
                 return inv;
