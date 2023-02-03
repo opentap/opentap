@@ -1681,9 +1681,14 @@ namespace OpenTap
                     {
                         return step.GetFormattedName();
                     }
-                    IEnumerable<ITestStep> steps = (IEnumerable<ITestStep>)value;
-                    string formattedName = steps.First().GetFormattedName();
-                    return steps.Skip(1).Any(s => s.GetFormattedName() != formattedName) ? null : formattedName;
+                    
+                    if (value is IEnumerable<ITestStep> steps)
+                    {
+                        string formattedName = steps.FirstOrDefault()?.GetFormattedName();
+                        return steps.Skip(1).Any(s => s.GetFormattedName() != formattedName) ? null : formattedName;
+                    }
+
+                    return null;
                 }
             }
         }
