@@ -70,38 +70,25 @@ namespace OpenTap.Plugins
             }
             if (newobj == null)
             {
-                try
+                if (t.CanCreateInstance == false)
                 {
-                    if (t.CanCreateInstance == false)
-                    { 
-                        // if the instance type cannot be constructed,
-                        // use the instance already on the object.
-                        var objectSerializer = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
-                        var ownerMember = objectSerializer?.CurrentMember;
-                        var ownerObj = objectSerializer?.Object;
-                        if (ownerMember == null || ownerObj == null)
-                        {
-                            throw new Exception($"Cannot create instance of {t} and no default value exists.");
-                        }
-                        newobj = ownerMember.GetValue(ownerObj);
-                        if (newobj == null)
-                            throw new Exception($"Unable to get default value of {ownerMember}");
-                    }
-                    else
+                    // if the instance type cannot be constructed,
+                    // use the instance already on the object.
+                    var objectSerializer = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
+                    var ownerMember = objectSerializer?.CurrentMember;
+                    var ownerObj = objectSerializer?.Object;
+                    if (ownerMember == null || ownerObj == null)
                     {
-                        newobj = t.CreateInstance(Array.Empty<object>());
+                        throw new Exception($"Cannot create instance of {t} and no default value exists.");
                     }
 
+                    newobj = ownerMember.GetValue(ownerObj);
+                    if (newobj == null)
+                        throw new Exception($"Unable to get default value of {ownerMember}");
                 }
-                catch (TargetInvocationException ex)
+                else
                 {
-
-                    if (ex.InnerException is System.ComponentModel.LicenseException)
-                        throw new Exception(string.Format("Could not create an instance of '{0}': {1}", t.GetAttribute<DisplayAttribute>().Name, ex.InnerException.Message));
-                    else
-                    {
-                        ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-                    }
+                    newobj = t.CreateInstance(Array.Empty<object>());
                 }
             }
             
@@ -589,27 +576,12 @@ namespace OpenTap.Plugins
                         return true;
                     }
                 }
-            }
-            catch(Exception ex)
-            {
-                if (ex is TargetInvocationException tarEx)
-                {
-                    Serializer.PushError(element, tarEx.InnerException.Message, tarEx.InnerException);
-                }
-                else
-                {
-                    Serializer.PushError(element, $"Object value was not read correctly.", ex);
-                }
-                return false;
-            }
-            try
-            {
                 if (TryDeserializeObject(element, t, setter))
                     return true;
             }
             catch (Exception ex) 
             {
-                Serializer.PushError(element, $"Unable to create instance of {t}.", ex);
+                Serializer.HandleError(element, $"Unable to read {t.GetDisplayAttribute().GetFullName()}.", ex);
             }
             return false;
         }

@@ -106,6 +106,12 @@ namespace OpenTap.Package
                 {
                     var fullpath = Path.GetFullPath(PackageXmlFile);
                     pkg = PackageDefExt.FromInputXml(fullpath, ProjectDir);
+                    if (pkg.Version == null)
+                    {
+                        log.Error(
+                            $"The specified version '{pkg.RawVersion}' is not a valid semantic version. See https://semver.org");
+                        return (int)PackageExitCodes.InvalidPackageDefinition;
+                    }
 
                     // Check if package name has invalid characters or is not a valid path
                     var illegalCharacter = pkg.Name.IndexOfAny(IllegalPackageNameChars);
@@ -201,7 +207,7 @@ namespace OpenTap.Package
                 {
                     var path = PackageDef.GetDefaultPackageMetadataPath(pkg, Directory.GetCurrentDirectory());
                     Directory.CreateDirectory(Path.GetDirectoryName(path));
-                    using (FileStream fs = new FileStream(path, FileMode.OpenOrCreate))
+                    using (FileStream fs = new FileStream(path, FileMode.Create))
                     {
                         pkg.SaveTo(fs);
                     }

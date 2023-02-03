@@ -6,6 +6,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Xml;
 using System.Xml.Linq;
@@ -74,6 +75,14 @@ namespace OpenTap
         public void PushError(XElement element, string message, Exception e)
         {
             messages.Add(new XmlError( element, message, e));
+        }
+
+        
+        internal void HandleError(XElement element, string message, Exception e)
+        {
+            while (e is TargetInvocationException && e.InnerException != null)
+                e = e.InnerException;
+            PushError(element, $"{message} {e.Message}", e);
         }
         
         /// <summary> Pushes a message. </summary>
