@@ -1,11 +1,6 @@
-﻿using OpenTap.Package;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace OpenTap.Package
 {
@@ -23,7 +18,7 @@ namespace OpenTap.Package
             }
             if (ParseCommaSeparated(value) is ImageSpecifier r)
                 return r;
-            throw new FormatException("Value could not be parsed as JSON or XML");
+            throw new FormatException("Image specifier could not be read.");
         }
 
         static bool IsJson(this string jsonData)
