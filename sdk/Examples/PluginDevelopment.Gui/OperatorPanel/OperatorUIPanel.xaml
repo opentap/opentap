@@ -278,10 +278,7 @@
 
             <ScrollViewer Margin="3" VerticalScrollBarVisibility="Auto">
                 <StackPanel Orientation="Vertical">
-                    <TextBlock FontWeight="bold" FontSize="15">
-                        DUT:
-                        <TextBlock Text="{Binding DutID}" MinWidth="200" />
-                    </TextBlock>
+                    
                     <ItemsControl ItemsSource="{Binding ResultsList}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
@@ -311,8 +308,6 @@
                     </ItemsControl>
                 </StackPanel>
             </ScrollViewer>
-
-
         </Grid>
     </ContentControl>
 </UserControl>

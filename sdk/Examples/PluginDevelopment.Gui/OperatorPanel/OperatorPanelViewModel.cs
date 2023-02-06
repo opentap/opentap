@@ -40,7 +40,7 @@ namespace PluginDevelopment.Gui.OperatorPanel
         {
             public string Name { get; set; }
             public string Value { get; set; }
-            public ITestStep StepSource { get; set; }
+            public object ValueSource { get; set; }
             public IMemberData Member { get; set; }
             public Verdict Verdict { get; set; }
             public event PropertyChangedEventHandler PropertyChanged;
@@ -62,11 +62,53 @@ namespace PluginDevelopment.Gui.OperatorPanel
                 GuiHelpers.GuiInvoke(() => OnPropertyChanged(nameof(Name)));
             }
         }
+
+        void PopulatePromotedResultsFromResource(List<PromotedResults> results, object obj)
+        {
+            var members =
+                TypeData.GetTypeData(obj).GetMembers();
+
+            foreach (var member in members)
+            {
+                if (member.HasAttribute<MetaDataAttribute>() == false) continue;
+                if (results.Any(x => x.ValueSource == obj && x.Member == member))
+                    continue;
+                results.Add(new
+                    PromotedResults {
+                        Name = member.GetDisplayAttribute().Name,
+                        Value = "  ",
+                        ValueSource = obj,
+                        Member = member,
+                        Verdict = Verdict.NotSet
+                    });
+            }
+        }
+        
+        void PopulatePromotedResults(List<PromotedResults> results, object obj)
+        {
+            var members =
+                TypeData.GetTypeData(obj).GetMembers();
+
+            foreach (var member in members)
+            {
+                if (!member.Readable)
+                    continue;
+                var memberValue = member.GetValue(obj);
+                if (memberValue is IResource == false)
+                    continue;
+                PopulatePromotedResultsFromResource(results, memberValue);
+            }
+        }
         
         void UpdatePromotedResults()
         {
             var newResults = new List<PromotedResults>();
             var allSteps = (currentPlan ?? Context.Plan).Steps.RecursivelyGetAllTestSteps(TestStepSearch.EnabledOnly);
+
+            foreach (var s in allSteps.Cast<ITestStepParent>().Append(Context.Plan))
+            {
+                PopulatePromotedResults(newResults, s);
+            }
             
             foreach (var step in allSteps)
             {
@@ -80,7 +122,7 @@ namespace PluginDevelopment.Gui.OperatorPanel
                         PromotedResults {
                             Name = r.GetDisplayAttribute().Name,
                             Value = "  ",
-                            StepSource = step,
+                            ValueSource = step,
                             Member = r,
                             Verdict = Verdict.NotSet
                         });   
@@ -297,7 +339,17 @@ namespace PluginDevelopment.Gui.OperatorPanel
         void UIListener_OnTestPlanRunStarted(object sender, TestPlanRun e)
         {
             // Update the DUT ID.
-            DutID = e.Parameters.FirstOrDefault(x => x.Name == "ID")?.Value?.ToString() ?? "?";
+            foreach (var mem in ResultsList)
+            {
+                
+                if (mem.ValueSource is IResource)
+                {
+                    mem.Value = mem.Member.GetValue(mem.ValueSource)?.ToString() ?? "<null>";
+                    var unit = mem.Member.GetAttribute<UnitAttribute>()?.Unit;
+                    if(unit != null)
+                        mem.Value += " " + unit;
+                }
+            }
             GuiHelpers.GuiInvokeAsync(() => OnPropertyChanged(nameof(DutID)));
         }
 
@@ -306,9 +358,16 @@ namespace PluginDevelopment.Gui.OperatorPanel
             // Update the results in the UI when a test step run is finished.
             foreach (var mem in ResultsList)
             {
-                if (mem.StepSource.Id == run.TestStepId)
+                if (mem.ValueSource is IResource)
                 {
-                    mem.Value = mem.Member.GetValue(mem.StepSource)?.ToString() ?? "<null>";
+                    mem.Value = mem.Member.GetValue(mem.ValueSource)?.ToString() ?? "<null>";
+                    var unit = mem.Member.GetAttribute<UnitAttribute>()?.Unit;
+                    if(unit != null)
+                        mem.Value += " " + unit;
+                }
+                if (mem.ValueSource is ITestStep step && step.Id == run.TestStepId)
+                {
+                    mem.Value = mem.Member.GetValue(mem.ValueSource)?.ToString() ?? "<null>";
                     var unit = mem.Member.GetAttribute<UnitAttribute>()?.Unit;
                     if(unit != null)
                         mem.Value += " " + unit;
