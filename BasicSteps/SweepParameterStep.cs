@@ -9,6 +9,7 @@ using System.Threading;
 
 namespace OpenTap.Plugins.BasicSteps
 {
+
     [AllowAnyChild]
     [Display("Sweep Parameter", "Table based loop that sweeps the value of its parameters based on a set of values.", "Flow Control")]
     public class SweepParameterStep : SweepParameterStepBase
