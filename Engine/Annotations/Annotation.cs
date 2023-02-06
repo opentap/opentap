@@ -760,7 +760,7 @@ namespace OpenTap
             }
             set
             {
-                
+
                 if (value is ValueType || value is string)
                 {
                     //  The trivial case - just copy the values.
@@ -768,6 +768,7 @@ namespace OpenTap
                         m.Get<IObjectValueAnnotation>().Value = value;
                     return;
                 }
+
                 // same as for parameters.
                 var first = merged[0];
                 first.Get<IObjectValueAnnotation>().Value = value;
@@ -775,7 +776,10 @@ namespace OpenTap
                 foreach (var m in merged.Skip(1))
                 {
                     var memberType = m.Get<IMemberAnnotation>()?.ReflectionInfo ?? TypeData.GetTypeData(value);
-                    if(cloner.TryClone(null, memberType, false, out var val ))
+                    var context = m.ParentAnnotation?.Source;
+                    // use the source of the parent annotation as the context object because it may contain
+                    // additional information about how to decode the value internally
+                    if (cloner.TryClone(context, memberType, false, out var val))
                         m.Get<IObjectValueAnnotation>().Value = val;
                 }
             }

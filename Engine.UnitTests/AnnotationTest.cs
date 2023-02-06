@@ -870,6 +870,7 @@ namespace OpenTap.UnitTests
                 TapThread.Sleep(Time.FromSeconds(DelaySecs));
             }
         }
+        
         public class TwoDelayStep : TestStep
         {
             public double DelaySecs { get; set; }
@@ -921,6 +922,60 @@ namespace OpenTap.UnitTests
             icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
             parameterizeIcon = icons[IconNames.Unparameterize].First();
             Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+        }
+
+        [Test]
+        public void TestMultiSelectInputProperty()
+        {
+            var dialog = new DialogStep();
+            var if1 = new IfStep();
+            var if2 = new IfStep();
+            var plan = new TestPlan()
+            {
+                ChildTestSteps =
+                {
+                    dialog, if1, if2
+                }
+            };
+
+            var multiSelect = new[] { if1, if2 };
+
+            void SetInputVerdict(AnnotationCollection a, ITestStep targetStep)
+            {
+                var member = a.GetMember(nameof(if1.InputVerdict));
+                var input = new Input<Verdict>() { Property = TypeData.FromType(typeof(DialogStep)).GetMember(nameof(dialog.Verdict)), Step = targetStep };
+                member.Get<IObjectValueAnnotation>().Value = input;
+                a.Write();
+                a.Read();
+            }
+
+            { // Test multiselect editing
+                var a = AnnotationCollection.Annotate(multiSelect);
+                SetInputVerdict(a, dialog);
+                Assert.AreSame(dialog, if1.InputVerdict.Step);
+                Assert.AreSame(dialog, if2.InputVerdict.Step);
+            }
+
+            { // Set if1 independent of if2
+                var a = AnnotationCollection.Annotate(if1);
+                SetInputVerdict(a, if2);
+                Assert.AreSame(if2, if1.InputVerdict.Step);
+                Assert.AreSame(dialog, if2.InputVerdict.Step);
+            }
+
+            { // Set if2 independent of if1
+                var a = AnnotationCollection.Annotate(if2);
+                SetInputVerdict(a, if1);
+                Assert.AreSame(if2, if1.InputVerdict.Step);
+                Assert.AreSame(if1, if2.InputVerdict.Step);
+            }
+            
+            { // Set both back to dialog
+                var a = AnnotationCollection.Annotate(multiSelect);
+                SetInputVerdict(a, dialog);
+                Assert.AreSame(dialog, if1.InputVerdict.Step);
+                Assert.AreSame(dialog, if2.InputVerdict.Step);
+            }
         }
 
         [Test]

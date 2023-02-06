@@ -844,7 +844,7 @@ namespace OpenTap
                 if (id == Guid.Empty)
                     return inp;
                     
-                ITestStepParent plan = contextObject as ITestStepParent;
+                ITestStepParent plan = step;
                 while (plan.Parent != null)
                     plan = plan.Parent;
                 var step2 = Utils.FlattenHeirarchy(plan.ChildTestSteps, x => x.ChildTestSteps)
