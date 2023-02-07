@@ -912,7 +912,7 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
           target: ${{ matrix.target }}
-          tag: ${{env.TAG_NAME}}-bionic${{ matrix.tag-suffix }}
+          tag: ${{env.TAG_NAME}}${{ matrix.tag-suffix }}
           path: docker/Linux
 
   Package-Deb:
