@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests;
@@ -93,6 +94,48 @@ namespace OpenTap.UnitTests
             catch (Exception ex)
             {
                 Assert.IsTrue(ex.Message.Contains(content));
+            }
+        }
+
+        [Test]
+        public void TestErrorsSetFromStream()
+        {
+            { // Two missing dependency errors
+                string content = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<DutSettings type=""OpenTap.DutSettings"">
+  <Package.Dependencies>
+    <Package Name=""Not Installed Plugin"" Version=""1.0.0"" />
+    <Package Name=""Also Not Installed Plugin"" Version=""1.0.0"" />
+  </Package.Dependencies>
+</DutSettings>
+";
+                using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(content));
+                var errors = ComponentSettings.SetFromXmlStream(memoryStream);
+
+                Assert.AreEqual(2, errors.Length);
+                CollectionAssert.Contains(errors.Select(e => e.Message),
+                    "Package 'Not Installed Plugin' is required to load, but it is not installed.");
+                CollectionAssert.Contains(errors.Select(e => e.Message),
+                    "Package 'Also Not Installed Plugin' is required to load, but it is not installed.");
+            }
+
+            { // No xml errors
+                var content = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<DutSettings type=""OpenTap.DutSettings"">
+</DutSettings>";
+
+
+                using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(content));
+                var errors = ComponentSettings.SetFromXmlStream(memoryStream);
+
+                Assert.AreEqual(0, errors.Length);
+            }
+
+
+            { // Invalid data
+                var content = "Definitely not ComponentSettingsXML";
+                using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(content));
+                Assert.Throws<InvalidDataException>(() => ComponentSettings.SetFromXmlStream(memoryStream));
             }
         }
 

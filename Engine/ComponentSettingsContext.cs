@@ -164,8 +164,7 @@ namespace OpenTap
             return objectCache.Invoke(settingsType);
         }
 
-
-        public void SetCurrent(Stream xmlFileStream)
+        public XmlError[] SetCurrent(Stream xmlFileStream)
         {
             xmlFileStream.Position = 0;
             using (var mem = new MemoryStream())
@@ -183,6 +182,7 @@ namespace OpenTap
                     ITypeData typedata = TypeData.GetTypeData(doc.Root.Attribute(TapSerializer.typeName).Value);
                     xmlCache[typedata.AsTypeData().Type] = mem.ToArray();
                     Invalidate(typedata.AsTypeData().Type);
+                    return ComponentSettings.GetCurrent(typedata)?.loadErrors ?? Array.Empty<XmlError>();
                 }
                 catch (XmlException ex)
                 {
@@ -224,6 +224,7 @@ namespace OpenTap
                             flushQueues.Enqueue(serializer);
                         settings = (ComponentSettings)serializer.Deserialize(str, false,
                             TypeData.FromType(settingsType), path: path);
+                        settings.loadErrors = serializer.XmlErrors?.ToArray();
                     }
                 }
                 catch (Exception ex) when (ex.InnerException is System.ComponentModel.LicenseException lex)
