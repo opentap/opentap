@@ -287,7 +287,7 @@ jobs:
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"
-          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
+          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000 RunConfiguration.TreatNoTestsAsError=true
 
   TestPackage:
     runs-on: windows-2022
@@ -310,7 +310,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
           cd bin/Release
-          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
+          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TreatNoTestsAsError=true
 
   TestWindowsPlan:
     runs-on: windows-2022
