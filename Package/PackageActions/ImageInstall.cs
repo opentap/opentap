@@ -24,21 +24,23 @@ namespace OpenTap.Package
         [CommandLineArgument("merge")]
         public bool Merge { get; set; }
         
-        /// <summary>
-        /// Never prompt for user input.
-        /// </summary>
+        /// <summary> Never prompt for user input. </summary>
         [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
         public bool NonInteractive { get; set; } = false;
         
+        /// <summary> Which operative system to resolve packages for. </summary>
         [CommandLineArgument("os", Description = "Specify which operative system to resolve packages for.")]
         public string Os { get; set; }
 
+        /// <summary> Which CPU architecture to resolve packages for. </summary>
         [CommandLineArgument("architecture", Description = "Specify which architecture to resolve packages for.")]
         public CpuArchitecture Architecture { get; set; } = CpuArchitecture.Unspecified;
         
+        /// <summary> dry-run - resolve, but don't install the packages. </summary>
         [CommandLineArgument("dry-run", Description = "Only print the result, don't install the packages.")]
         public bool DryRun { get; set; }
 
+        /// <summary> Which repositories to use. </summary>
         [CommandLineArgument("repository", ShortName = "r", Description = "Repositories to use for resolving the image.")]
         public string[] Repositories { get; set; } = null;
 
@@ -50,14 +52,13 @@ namespace OpenTap.Package
             if (Force)
                 log.Warning($"Using --force does not force an image installation");
 
-            ImageSpecifier imageSpecifier = new ImageSpecifier();
-            if (ImagePath != null)
-            {
-                var imageString = ImagePath;
-                if (File.Exists(imageString))
-                    imageString = File.ReadAllText(imageString);
-                imageSpecifier = ImageSpecifier.FromString(imageString);
-            }
+            if (string.IsNullOrEmpty(ImagePath))
+                throw new ArgumentException("'image' not specified.", nameof(ImagePath));
+            
+            var imageString = ImagePath;
+            if (File.Exists(imageString))
+                imageString = File.ReadAllText(imageString);
+            var imageSpecifier = ImageSpecifier.FromString(imageString);
 
             // image specifies any repositories?
             if(imageSpecifier.Repositories?.Any() != true)
@@ -102,7 +103,11 @@ namespace OpenTap.Package
                     return 1;
                 }
 
-                log.Debug(sw, "Resolution done");
+                log.Debug(sw, "Image resolution done");
+
+                if (image.Packages.Count == 0)
+                    throw new InvalidOperationException("Resolved image is empty.");
+                
                 log.Debug("Image hash: {0}", image.Id);
                 if (DryRun)
                 {
