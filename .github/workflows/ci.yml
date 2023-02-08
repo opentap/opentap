@@ -287,7 +287,7 @@ jobs:
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"
-          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
+          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000 RunConfiguration.TreatNoTestsAsError=true
 
   TestPackage:
     runs-on: windows-2022
@@ -310,7 +310,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
           cd bin/Release
-          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
+          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TreatNoTestsAsError=true
 
   TestWindowsPlan:
     runs-on: windows-2022
@@ -363,8 +363,10 @@ jobs:
       - name: Test
         run: |
           chmod +x bin/Release/tap
-          ./bin/Release/tap package install ./bin/Release/dbg.zip -f
-          bin/Release/tap run tests/regression.TapPlan --verbose --color
+          # The .pdb files are in use for some reason during `tap package install`
+          rm ./bin/Release/*.pdb
+          ./bin/Release/tap package install ./bin/Release/dbg.zip -f --no-isolation
+          ./bin/Release/tap run tests/regression.TapPlan --verbose --color
 
   TestMacPlan:
     runs-on: macos-11
@@ -910,7 +912,7 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
           target: ${{ matrix.target }}
-          tag: ${{env.TAG_NAME}}-bionic${{ matrix.tag-suffix }}
+          tag: ${{env.TAG_NAME}}${{ matrix.tag-suffix }}
           path: docker/Linux
 
   Package-Deb:
