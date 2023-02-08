@@ -42,3 +42,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends libunwind8 curl
 
 ENV PATH="/opt/tap:${PATH}"
 ENV TAP_PATH="/opt/tap"
+
+### Hardened security - will run as non-root user by default 
+FROM production AS production-hardened
+
+# Create opentap user and group
+# - set home dir, since OpenTAP expects home dir to maintain cache
+# - no default shell, as user should only run tap
+ARG USER=opentap UID=1001 GROUP=opentap GID=1001 DUMMYSHELL=/bin/false
+ARG HOMEDIR=/home/${USER}
+ARG OPENTAP_CACHE=${HOMEDIR}/.local/share/OpenTap
+RUN groupadd --gid=$GID $GROUP && \
+  useradd --uid $UID --gid $GID --shell $DUMMYSHELL --home-dir $HOMEDIR $USER && \
+  install --directory --owner $USER --group $GROUP --mode u=rwx,g=rwx,o= $HOMEDIR && \
+  install --directory --owner $USER --group $GROUP --mode u=rwx,g=rwx,o= $OPENTAP_CACHE
+
+# Set ownership and permissions for OpenTAP installation
+WORKDIR $TAP_PATH
+RUN chown --recursive "${UID}:${GID}" .
+RUN chmod --recursive u=rwx,g=rwx,o= .
+
+ENTRYPOINT [ "tap" ]
+
+# Create mount point to persist OpenTAP cache across restarts
+VOLUME $OPENTAP_CACHE
+
+# Must use $UID as $USER could potentially alias root user
+USER $UID

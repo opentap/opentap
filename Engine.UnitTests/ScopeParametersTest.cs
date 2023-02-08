@@ -287,6 +287,52 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(20, param.Value);
             }
         }
+        
+        [Test]
+        public void SweepLoopRange4Test()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterRangeStep();
+            var seq = new SequenceStep();
+            var delay = new DelayStep();
+            plan.ChildTestSteps.Add(seq);
+            seq.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(delay);
+            
+            var a = AnnotationCollection.Annotate(delay).GetMember(nameof(delay.DelaySecs));
+            var menu = a.Get<MenuAnnotation>();
+            var icons = menu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+            var parameterize = icons[IconNames.ParameterizeOnParent].First();
+            parameterize.Get<IMethodAnnotation>().Invoke();
+            
+            a = AnnotationCollection.Annotate(sweep).GetMember("Parameters \\ Time Delay");
+            menu = a.Get<MenuAnnotation>();
+            icons = menu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+            
+            // It should not be possible to parameterize (parameterized) properties which are selected for sweeping.
+            var names = new [] {IconNames.ParameterizeOnTestPlan, IconNames.Parameterize, IconNames.ParameterizeOnParent };
+            foreach (var name in names)
+            {
+                parameterize = icons[name].First();
+                Assert.IsTrue(parameterize.GetAll<IEnabledAnnotation>().Any(x => x.IsEnabled == false));
+            }
+
+            sweep.SelectedParameters.Clear();
+            a.Read();
+            
+            // It should be possible to parameterize (parameterized) properties which are not selected for sweeping.
+            foreach (var name in names)
+            {
+                parameterize = icons[name].First();
+                Assert.IsFalse(parameterize.GetAll<IEnabledAnnotation>().Any(x => x.IsEnabled == false));
+            }
+
+            // Now parameterize it (sweep -> sequence step).
+            icons[IconNames.ParameterizeOnParent].First().Get<IMethodAnnotation>().Invoke();
+            
+            // It should not be possible to select a parameterized property to be swept.
+            Assert.IsTrue(!sweep.AvailableParameters.Any());
+        }
 
         [Test]
         public void SweepLoop2Test()
