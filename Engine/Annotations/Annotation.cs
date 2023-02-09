@@ -737,7 +737,8 @@ namespace OpenTap
                     {
                         var x = merged[i];
                         var thisVal = x.Get<IObjectValueAnnotation>().Value;
-                        if (thisVal == selectedValue) return selectedValue;
+                        if (thisVal == selectedValue)
+                            continue;
                         if (selectedValue is IEnumerable ie1 && !(selectedValue is string))
                         {
                             // if the two lists has the same content it is fine to just return one of them.
@@ -746,7 +747,7 @@ namespace OpenTap
                             if (thisVal is IEnumerable ie2)
                             {
                                 if (ie2.Cast<object>().SequenceEqual(ie1.Cast<object>()))
-                                    return selectedValue;
+                                    continue;
                             }
 
                             return null;
@@ -1355,9 +1356,6 @@ namespace OpenTap
                     var inp = getInput();
                     if (inp == null)
                         return Enumerable.Empty<object>();
-                    AnnotationCollection parent = annotation;
-                    while (parent.ParentAnnotation != null)
-                        parent = parent.ParentAnnotation;
 
                     ITestStepParent step = getContextStep();
 
@@ -1390,6 +1388,29 @@ namespace OpenTap
             IInput getInput() => annotation.GetAll<IObjectValueAnnotation>()
                 .FirstNonDefault(x => x.Value as IInput);
 
+            // Use this when an instance of IInput is required, but the exact one is not critical
+            IInput getInputRecursive()
+            {
+                foreach (var ova in annotation.GetAll<IObjectValueAnnotation>())
+                {
+                    // This is the case in almost all instances
+                    if (ova.Value is IInput i)
+                        return i;
+
+                    // This is the case in rare instances when using merged values
+                    if (ova is MergedValueAnnotation merged)
+                    {
+                        foreach (var m in merged.Merged)
+                        {
+                            if (m.Get<IObjectValueAnnotation>().Value is IInput i2)
+                                return i2;
+                        }
+                    }
+                }
+
+                return null;
+            }
+
             public void Read(object source)
             {
                 setValue = null;
@@ -1399,11 +1420,17 @@ namespace OpenTap
             {
                 if (setValue is InputThing v)
                 {
-                    var inp = getInput();
-                    if (inp != null)
+                    var inp = getInputRecursive();
+                    if (inp == null) return;
+                    
+                    inp.Step = v.Step;
+                    inp.Property = v.Member;
+
+                    // Ensure we actually call the setter for the object value annotation since some
+                    // implementations (MergedValueAnnotation) require this for the change to propagate to all targets
+                    foreach (var ova in annotation.GetAll<IObjectValueAnnotation>())
                     {
-                        inp.Step = v.Step;
-                        inp.Property = v.Member;
+                        ova.Value = inp;
                     }
                 }
             }
