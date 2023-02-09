@@ -225,11 +225,15 @@ at predefined stages. The **ActionStep** element supports the following attribut
 | **Arguments** | The arguments with which to invoke the ExeFile. |
 | **ActionName** | The stage at which to run the action. |
 
-OpenTAP runs actions at three predefined stages:
+OpenTAP runs actions at four predefined stages:
 
 1. **ActionName == "install"** is executed *after* a package has finished installing.
-2. **ActionName == "uninstall"** is executed *before* a package starts uninstalling.
-3. **ActionName == "test"** is executed when `tap package test MyPlugin` is invoked on the command line.
+2. **ActionName == "prepareUninstall"** is executed before a package is uninstalled *before* OpenTAP has verified that no files are in use.
+3. **ActionName == "uninstall"** is executed before a package is uninstalled *after* a package OpenTAP has verified that no files are in use.
+4. **ActionName == "test"** is executed when `tap package test MyPlugin` is invoked on the command line.
+
+The difference between **prepareUninstall** and **uninstall** is subtle. **prepareUninstall** can be used to release any resources held by the installation that would otherwise cause the package uninstall to fail. If **prepareUninstall** fails for some reason, the uninstall will be stopped before any files are removed. **uninstall**, on the other hand, can be used to clean up files created by the plugin, but which are not part of the plugin package. This is necessary because OpenTAP cannot track loose files, and will only remove files which are part of the package definition.
+
 
 A package can contain any number of **ActionStep** elements, but they must be contained in a **PackageActionExtensions** element:
 
@@ -249,6 +253,7 @@ A package can contain any number of **ActionStep** elements, but they must be co
     <File Path="Packages/MyPlugin/Example Icon.ico"> 
   <PackageActionExtensions>
     <ActionStep ExeFile="tap" Arguments="MyPlugin install" ActionName="install" />
+    <ActionStep Exefile="tap" Arguments="MyPlugin prepare-uninstall" ActionName="prepareUninstall" />
     <ActionStep ExeFile="tap" Arguments="MyPlugin uninstall" ActionName="uninstall" />
     <ActionStep ExeFile="./Packages/MyPlugin/WaveformGenerator.exe" Arguments='--generate-waveforms --debug' ActionName="test" />    
     <ActionStep ExeFile="tap" Arguments='run -v ./Packages/MyPlugin/waveform-test.TapPlan' ActionName="test" />
@@ -257,7 +262,14 @@ A package can contain any number of **ActionStep** elements, but they must be co
 </Package>
 ```
 
-The above example is an excerpt of a plugin.xml file that defines a plugin that includes a test plan to verify that the steps it provides are working correctly, and a binary executable for generating debug waveform data. It also contains CLI actions that allow further configuration when it is installed, and a CLI action that it needs to run when it is uninstalled. All this is done using the **ActionStep** elements.
+The above example plugin definition makes use of the following features:
+
++ A CLI action to be run when it is installed
++ A CLI action to be run when OpenTAP is preparing to uninstall it
++ A CLI action to be run when it is uninstalled. 
++ A binary executable which generates waveforms, used in preparation for testing
++ A testplan which verifies the plugin steps are working correctly with `tap package test MyPlugin`
+
 
 The **ActionStep** elements are executed in the order that they appear in the package file. When `MyPlugin` is installed, OpenTAP will run the CLI action:
 
@@ -265,9 +277,10 @@ The **ActionStep** elements are executed in the order that they appear in the pa
 tap MyPlugin install
 ```
 
-When it is uninstalled, OpenTAP will run the CLI action:
+When it is uninstalled, OpenTAP will run the CLI actions:
 
 ```
+tap MyPlugin prepare-uninstall
 tap MyPlugin uninstall
 ```
 

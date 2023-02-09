@@ -1092,10 +1092,10 @@ namespace OpenTap
         }
 
         // this dictionary may be accessed by multiple threads, so it is best to use ConcurrentDictionary.
-        static readonly ConcurrentDictionary<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]> 
-            membersLookup = new ConcurrentDictionary<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]>();
+        static readonly Cache<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]> 
+            membersLookup = new Cache<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]>(() => PluginManager.ChangeID);
 
-        static (IMemberData, bool hasEnabledAttribute)[] getSettingsLookup(TypeData targetType, ITypeData sourceType)
+        static (IMemberData, bool hasEnabledAttribute)[] GetSettingsLookup(TypeData targetType, ITypeData sourceType)
         {
             if(membersLookup.TryGetValue((targetType, sourceType), out var value))
                 return value;
@@ -1126,7 +1126,7 @@ namespace OpenTap
                 }
             }
 
-            return membersLookup[(targetType, sourceType)] = (result?.ToArray() ?? Array.Empty<(IMemberData, bool hasEnabledAttribute)>());
+            return membersLookup.AddValue((targetType, sourceType), (result?.ToArray() ?? Array.Empty<(IMemberData, bool)>()));
         }
         
         
@@ -1145,7 +1145,7 @@ namespace OpenTap
             if(targetType == null) targetType = TypeData.FromType(typeof(T));
             var enabledAttributes = new List<EnabledIfAttribute>();
 
-            var properties = getSettingsLookup(targetType, TypeData.GetTypeData(item));
+            var properties = GetSettingsLookup(targetType, TypeData.GetTypeData(item));
             foreach (var (prop, hasEnabled) in properties)
             {
                 if (onlyEnabled && hasEnabled)
