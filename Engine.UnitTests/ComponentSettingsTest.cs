@@ -110,7 +110,7 @@ namespace OpenTap.UnitTests
 </DutSettings>
 ";
                 using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(content));
-                var errors = ComponentSettings.SetFromXmlStream(memoryStream);
+                ComponentSettings.SetCurrent(memoryStream, out var errors);
 
                 Assert.AreEqual(2, errors.Length);
                 CollectionAssert.Contains(errors.Select(e => e.Message),
@@ -126,7 +126,8 @@ namespace OpenTap.UnitTests
 
 
                 using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(content));
-                var errors = ComponentSettings.SetFromXmlStream(memoryStream);
+                ComponentSettings.SetCurrent(memoryStream, out var errors);
+
 
                 Assert.AreEqual(0, errors.Length);
             }
@@ -135,7 +136,7 @@ namespace OpenTap.UnitTests
             { // Invalid data
                 var content = "Definitely not ComponentSettingsXML";
                 using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(content));
-                Assert.Throws<InvalidDataException>(() => ComponentSettings.SetFromXmlStream(memoryStream));
+                Assert.Throws<InvalidDataException>(() => ComponentSettings.SetCurrent(memoryStream, out _));
             }
         }
 
