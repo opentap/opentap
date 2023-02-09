@@ -24,6 +24,7 @@ namespace OpenTap.Package
         /// <returns></returns>
         public static string[] Correct(string[] names, IEnumerable<IPackageRepository> repositories)
         {
+            if (names == null || names.Length == 0) return names;
             // We can't provide any corrections if the non-interactive user input is set
             if (NonInteractiveUserInputInterface.IsSet()) return names;
             // Copy the input array to use as return value
