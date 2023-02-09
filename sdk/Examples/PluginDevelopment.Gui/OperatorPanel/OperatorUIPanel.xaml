@@ -136,6 +136,9 @@
                                FontSize="30" />
                 </Grid>
             </ControlTemplate>
+            <DataTemplate DataType="{x:Type local:UserInputRequestData}">
+                <ItemsControl ItemsSource="{Binding Elements}"/>
+            </DataTemplate>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -203,16 +206,14 @@
                     <Control VerticalAlignment="Center">
                         <Control.Template>
                             <ControlTemplate>
-                                <Viewbox Name="DutEnterView" Visibility="Collapsed">
+                                <Viewbox Name="DutEnterView">
 
                                     <Border Background="{DynamicResource Control.Static.Background.Medium}"
                                             VerticalAlignment="Center"
                                             HorizontalAlignment="Center">
-                                        <StackPanel Orientation="Vertical" Margin="10">
+                                        <StackPanel Orientation="Vertical" Margin="10" Name="promptPanel">
                                             <TextBlock FontWeight="Bold">Please enter DUT Serial Number</TextBlock>
-                                            <TextBox IsVisibleChanged="DutEnter_VisibleChanged" Name="dutEnterBox"
-                                                     Text="123123">
-                                            </TextBox>
+                                            <ContentPresenter Content="{Binding ViewModel.CurrentUserInput, ElementName=This}"/>
                                             <StackPanel HorizontalAlignment="Right" Margin="0,5,0,0"
                                                         Orientation="Horizontal">
                                                 <Button Height="20" Click="DutIdEntered_OnClick">
@@ -230,10 +231,8 @@
                                     </Border>
                                 </Viewbox>
                                 <ControlTemplate.Triggers>
-                                    <DataTrigger Binding="{Binding ViewModel.AskForDutID, ElementName=This}" Value="True">
-                                        <Setter TargetName="DutEnterView" Property="Visibility" Value="Visible" />
-                                        <Setter TargetName="dutEnterBox" Property="Text"
-                                                Value="{Binding ViewModel.DutID, ElementName=This, Mode=TwoWay}" />
+                                    <DataTrigger Binding="{Binding ViewModel.CurrentUserInput, ElementName=This}" Value="{x:Null}">
+                                        <Setter TargetName="DutEnterView" Property="Visibility" Value="Collapsed" />
                                     </DataTrigger>
                                 </ControlTemplate.Triggers>
                             </ControlTemplate>

@@ -15,6 +15,22 @@ namespace PluginDevelopment.Gui.OperatorPanel
 {
     public class OperatorPanelViewModel : INotifyPropertyChanged
     {
+        public class PromotedResults : INotifyPropertyChanged
+        {
+            public string Name { get; set; }
+            public string Value { get; set; }
+            public object ValueSource { get; set; }
+            public IMemberData Member { get; set; }
+            public Verdict Verdict { get; set; }
+            public event PropertyChangedEventHandler PropertyChanged;
+
+            public void OnPropertyChanged([CallerMemberName] string propertyName = null)
+            {
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            }
+        }
+
+        
         readonly Stopwatch startedTimer = new Stopwatch();
         
         TestPlanStatus status;
@@ -36,20 +52,6 @@ namespace PluginDevelopment.Gui.OperatorPanel
 
         public bool AskForDutID { get; set; }
 
-        public class PromotedResults : INotifyPropertyChanged
-        {
-            public string Name { get; set; }
-            public string Value { get; set; }
-            public object ValueSource { get; set; }
-            public IMemberData Member { get; set; }
-            public Verdict Verdict { get; set; }
-            public event PropertyChangedEventHandler PropertyChanged;
-
-            public void OnPropertyChanged([CallerMemberName] string propertyName = null)
-            {
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-            }
-        }
 
         public List<PromotedResults> ResultsList { get; set; }= new List<PromotedResults>();
         public double DurationSecs => startedTimer.Elapsed.TotalSeconds * 10.0;
@@ -62,6 +64,17 @@ namespace PluginDevelopment.Gui.OperatorPanel
                 GuiHelpers.GuiInvoke(() => OnPropertyChanged(nameof(Name)));
             }
         }
+
+        class NameTest
+        {
+            public double A { get;set; }
+            public double B { get; set; }
+            [Display("D", Group: "123")]
+            public string D { get; set; }
+        }
+        
+        List<UserInputRequestData> UserInputRequests = new List<UserInputRequestData>{ };
+        public UserInputRequestData CurrentUserInput => UserInputRequests.FirstOrDefault();
 
         void PopulatePromotedResultsFromResource(List<PromotedResults> results, object obj)
         {
@@ -114,7 +127,7 @@ namespace PluginDevelopment.Gui.OperatorPanel
             {
                 var resultMembers = TypeData.GetTypeData(step)
                     .GetMembers()
-                    .Where(x => ReflectionDataExtensions.HasAttribute<ResultAttribute>(x))
+                    .Where(x => x.HasAttribute<ResultAttribute>())
                     .ToArray();
                 foreach (var r in resultMembers)
                 {
@@ -159,39 +172,32 @@ namespace PluginDevelopment.Gui.OperatorPanel
         {
             readonly Action enterDutStarted;
             readonly Action enterDutEnded;
+            readonly OperatorPanelViewModel vm;
             IUserInputInterface prev;
             IUserInterface prev2;
 
-            public UserInputOverride(object prev, Action enterDutStarted, Action enterDutEnded)
+            public UserInputOverride(object prev, Action enterDutStarted, Action enterDutEnded ,OperatorPanelViewModel vm)
             {
                 this.enterDutStarted = enterDutStarted;
                 this.enterDutEnded = enterDutEnded;
+                this.vm = vm;
                 this.prev = prev as IUserInputInterface;
                 this.prev2 = prev as IUserInterface;
             }
 
             readonly ManualResetEventSlim enterComplete = new ManualResetEventSlim();
-            
+
             public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
             {
-                enterComplete.Reset();
-                if (dataObject.GetType().Name == "MetadataPromptObject")
+                UserInputRequestData waitObject = vm.PushUserInput(dataObject);
+                try
                 {
-                    enterDutStarted?.Invoke();
-                    try
-                    {
-                        if(Timeout.TotalSeconds > 10000)
-                            enterComplete.Wait(TapThread.Current.AbortToken);
-                        else
-                            enterComplete.Wait(Timeout, TapThread.Current.AbortToken);
-                    }
-                    finally
-                    {
-                        enterDutEnded?.Invoke();
-                    }
-
-                }else
-                    prev?.RequestUserInput(dataObject, Timeout, modal);
+                    waitObject.WaitHandle.WaitExtended(Timeout, TapThread.Current.AbortToken);
+                }
+                finally
+                {
+                    vm.PopUserInput(waitObject);
+                }
             }
 
             public void EnterComplete()
@@ -203,6 +209,20 @@ namespace PluginDevelopment.Gui.OperatorPanel
             {
                 prev2?.NotifyChanged(obj, property);
             }
+        }
+
+        void PopUserInput(UserInputRequestData userInputRequest)
+        {
+            UserInputRequests.Remove(userInputRequest);
+            OnPropertyChanged(nameof(CurrentUserInput));
+
+        }
+        UserInputRequestData PushUserInput(object dataObject)
+        {
+            var request = new UserInputRequestData(dataObject, PopUserInput);
+            UserInputRequests.Add(request);
+            OnPropertyChanged(nameof(CurrentUserInput));
+            return request;
         }
 
         TestPlan currentPlan;
@@ -284,7 +304,7 @@ namespace PluginDevelopment.Gui.OperatorPanel
                             AskForDutID = false;
                             OnPropertyChanged("");
                         });
-                    });
+                    }, this);
                 UserInput.SetInterface(ui);
                 
                 // promoted results are [Result] properties extracted from the test plan.
@@ -393,6 +413,21 @@ namespace PluginDevelopment.Gui.OperatorPanel
                         d.ID = DutID;
                 }
             });
+        }
+    }
+
+    public static class Utils
+    {
+        public static bool WaitExtended(this ManualResetEventSlim eventObject, TimeSpan timeout, CancellationToken cancel)
+        {
+            var bigWait = TimeSpan.FromDays(1);
+            while (timeout > bigWait)
+            {
+                if (eventObject.Wait(bigWait, cancel))
+                    return true;
+                timeout -= bigWait;
+            }
+            return eventObject.Wait(timeout);
         }
     }
 }
