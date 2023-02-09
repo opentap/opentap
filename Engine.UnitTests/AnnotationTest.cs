@@ -195,6 +195,30 @@ namespace OpenTap.UnitTests
             Assert.IsNull(sv.Value);
         }
 
+        public class StepWithMacroString : TestStep
+        {
+            public string A { get; set; } = "Hello";
+            public MacroString MacroString { get; set; }
+            public override void Run()
+            {
+            }
+        }
+
+        [Test]
+        public void TestMacroStringContext()
+        {
+            var plan = new TestPlan();
+            var step = new StepWithMacroString();
+            plan.ChildTestSteps.Add(step);
+            step.MacroString = new MacroString(step);
+            Assert.IsTrue(step.MacroString.Context == plan.ChildTestSteps.First(), "MacroString Context is set.");
+
+            plan = new TapSerializer().Clone(plan) as TestPlan;
+            step = plan.ChildTestSteps.First() as StepWithMacroString;
+            
+            Assert.IsTrue(step.MacroString.Context == plan.ChildTestSteps.First(), "MacroString Context is set.");
+        }
+
         public class ClassWithMethodAnnotation
         {
             public int TimesCalled { private set; get; }
