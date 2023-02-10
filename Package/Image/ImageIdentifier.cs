@@ -17,6 +17,17 @@ namespace OpenTap.Package
     /// </summary>
     public class ImageIdentifier 
     {
+        /// <summary>
+        /// A delegate used by <see cref="ProgressUpdate"/>
+        /// </summary>
+        /// <param name="progressPercent">Indicates progress from 0 to 100.</param>
+        /// <param name="message"></param>
+        public delegate void ProgressUpdateDelegate(int progressPercent, string message);
+        /// <summary>
+        /// Called by the action to indicate how far it has gotten. Will usually be called with a progressPercent of 100 to indicate that it is done.
+        /// </summary>
+        public event ProgressUpdateDelegate ProgressUpdate;
+        
         internal bool Cached => Packages.All(s => CachedLocation(s) != null);
         static TraceSource log = Log.CreateSource("OpenTAP");
 
@@ -115,7 +126,7 @@ namespace OpenTap.Package
 
             Installation currentInstallation = new Installation(targetDir);
 
-            Deploy(currentInstallation, Packages.ToList(), cancellationToken);
+            Deploy(currentInstallation, Packages.ToList(), ProgressUpdate, cancellationToken);
         }
 
         /// <summary>
@@ -129,7 +140,8 @@ namespace OpenTap.Package
                 Download(package, TapThread.Current.AbortToken);
         }
 
-        private static void Deploy(Installation currentInstallation, List<PackageDef> dependencies, CancellationToken cancellationToken)
+        private static void Deploy(Installation currentInstallation, List<PackageDef> dependencies,
+            ProgressUpdateDelegate progress, CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested)
                 throw new OperationCanceledException("Deployment operation cancelled by user");
@@ -167,18 +179,20 @@ namespace OpenTap.Package
                 throw new OperationCanceledException("Deployment operation cancelled by user");
 
             if (packagesToUninstall.Any())
-                Uninstall(packagesToUninstall, currentInstallation.Directory, cancellationToken);
+                Uninstall(packagesToUninstall, currentInstallation.Directory, progress, cancellationToken);
 
             if (cancellationToken.IsCancellationRequested)
                 throw new OperationCanceledException("Deployment operation cancelled by user");
 
             if (modifyOrAdd.Any())
-                Install(modifyOrAdd, currentInstallation.Directory, cancellationToken);
+                Install(modifyOrAdd, currentInstallation.Directory, progress, cancellationToken);
         }
 
-        private static void Install(IEnumerable<PackageDef> modifyOrAdd, string target, CancellationToken cancellationToken)
+        private static void Install(IEnumerable<PackageDef> modifyOrAdd, string target,
+            ProgressUpdateDelegate progress, CancellationToken cancellationToken)
         {
             Installer installer = new Installer(target, cancellationToken) { DoSleep = false };
+            installer.ProgressUpdate += (percent, message) => progress?.Invoke(percent, message); 
             var packagesInOrder = OrderPackagesForInstallation(modifyOrAdd);
             List<string> paths = new List<string>();
             foreach (var package in packagesInOrder)
@@ -210,13 +224,15 @@ namespace OpenTap.Package
                 throw new AggregateException("Image deployment failed to install packages.", installErrors);
         }
 
-        private static void Uninstall(IEnumerable<PackageDef> packagesToUninstall, string target, CancellationToken cancellationToken)
+        private static void Uninstall(IEnumerable<PackageDef> packagesToUninstall, string target,
+            ProgressUpdateDelegate progress, CancellationToken cancellationToken)
         {
             var orderedPackagesToUninstall = OrderPackagesForInstallation(packagesToUninstall);
             orderedPackagesToUninstall.Reverse();
 
             List<Exception> uninstallErrors = new List<Exception>();
             var newInstaller = new Installer(target, cancellationToken) { DoSleep = false };
+            newInstaller.ProgressUpdate += (percent, message) => progress?.Invoke(percent, message); 
 
             newInstaller.Error += ex => uninstallErrors.Add(ex);
             newInstaller.DoSleep = false;
