@@ -17,19 +17,19 @@
     <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/win-x86/native/git2-b7bad55.dll" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll.x86" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="DotNet.Glob" Version="3.0.1" />
+    <PackageReference Include="DotNet.Glob" Version="3.1.3" />
     <PackageReference Include="LibGit2Sharp" Version="0.27.0.0-preview-0175" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
-    <PackageReference Include="Mono.Cecil" Version="0.10.1" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="Mono.Cecil" Version="0.11.4" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
     <PackageReference Include="NuGet.Client" Version="4.2.0" />
     <PackageReference Include="System.Collections" Version="4.3.0" />
-    <PackageReference Include="System.Collections.Immutable" Version="1.5.0" />
+    <PackageReference Include="System.Collections.Immutable" Version="7.0.0" />
     <PackageReference Include="System.IO.FileSystem" Version="4.3.0" />
     <PackageReference Include="System.IO.FileSystem.Primitives" Version="4.3.0" />
-    <PackageReference Include="System.IO.Packaging" Version="4.5.0" />
-    <PackageReference Include="System.Reflection.Metadata" Version="1.6.0" />
-    <PackageReference Include="System.Runtime.Extensions" Version="4.3.0" />
+    <PackageReference Include="System.IO.Packaging" Version="7.0.0" />
+    <PackageReference Include="System.Reflection.Metadata" Version="7.0.0" />
+    <PackageReference Include="System.Runtime.Extensions" Version="4.3.1" />
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />

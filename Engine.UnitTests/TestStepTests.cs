@@ -11,7 +11,7 @@ namespace OpenTap.Engine.UnitTests
         {
             var delay = new DelayStep() {DelaySecs = 0.1, Name = "Delay: {Time Delay}"};
             var formattedName = delay.GetFormattedName();
-            Assert.AreEqual("Delay: 0.1 s", formattedName);
+            Assert.That(formattedName, Does.Match(@"Delay: 0(\.|,)1 s"));
         }
 
         [Test]
@@ -22,10 +22,10 @@ namespace OpenTap.Engine.UnitTests
             var delay = new DelayStep() {DelaySecs = 0.1, Name = "Delay: {Time Delay}"};
             var annotation = AnnotationCollection.Annotate(delay);
             var formattedName = annotation.Get<IStringReadOnlyValueAnnotation>().Value;
-            Assert.AreEqual("Delay: 0.1 s", formattedName);
+            Assert.That(formattedName, Does.Match(@"Delay: 0(\.|,)1 s"));
 
             var formattedName2 = annotation.GetMember(nameof(TestStep.Name)).Get<IStringReadOnlyValueAnnotation>().Value;
-            Assert.AreEqual("Delay: 0.1 s", formattedName2);
+            Assert.That(formattedName2, Does.Match(@"Delay: 0(\.|,)1 s"));
         }
 
         [Test]
