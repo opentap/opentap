@@ -737,8 +737,7 @@ namespace OpenTap
                     {
                         var x = merged[i];
                         var thisVal = x.Get<IObjectValueAnnotation>().Value;
-                        if (thisVal == selectedValue)
-                            continue;
+                        if (thisVal == selectedValue) return selectedValue;
                         if (selectedValue is IEnumerable ie1 && !(selectedValue is string))
                         {
                             // if the two lists has the same content it is fine to just return one of them.
@@ -747,7 +746,7 @@ namespace OpenTap
                             if (thisVal is IEnumerable ie2)
                             {
                                 if (ie2.Cast<object>().SequenceEqual(ie1.Cast<object>()))
-                                    continue;
+                                    return selectedValue;
                             }
 
                             return null;
@@ -1391,13 +1390,17 @@ namespace OpenTap
             // Use this when an instance of IInput is required, but the exact one is not critical
             IInput getInputRecursive()
             {
+                // Recursively search for IInput instances. This should only be used during Write.
+                // This is only relevant if the ObjectValueAnnotation is a MergedValueAnnotation.
+                // If we are dealing with a merged value, we don't care if the current values are not aligned,
+                // because they will be aligned after we call the setter.
                 foreach (var ova in annotation.GetAll<IObjectValueAnnotation>())
                 {
                     // This is the case in almost all instances
                     if (ova.Value is IInput i)
                         return i;
 
-                    // This is the case in rare instances when using merged values
+                    // This is the case when using unaligned merged values
                     if (ova is MergedValueAnnotation merged)
                     {
                         foreach (var m in merged.Merged)
@@ -1418,21 +1421,17 @@ namespace OpenTap
 
             public void Write(object source)
             {
-                if (setValue is InputThing v)
-                {
-                    var inp = getInputRecursive();
-                    if (inp == null) return;
-                    
-                    inp.Step = v.Step;
-                    inp.Property = v.Member;
+                if (!(setValue is InputThing v)) return;
+                
+                var inp = getInputRecursive();
+                if (inp == null) return;
 
-                    // Ensure we actually call the setter for the object value annotation since some
-                    // implementations (MergedValueAnnotation) require this for the change to propagate to all targets
-                    foreach (var ova in annotation.GetAll<IObjectValueAnnotation>())
-                    {
-                        ova.Value = inp;
-                    }
-                }
+                inp.Step = v.Step;
+                inp.Property = v.Member;
+                 
+                // If we are dealing with a MergedValueAnnotation, call the setter to propagate the IInput changes
+                var merged = annotation.Get<MergedValueAnnotation>();
+                if (merged != null) merged.Value = inp;
             }
 
             InputThing? setValue = null;

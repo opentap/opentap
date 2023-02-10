@@ -964,11 +964,7 @@ namespace OpenTap.UnitTests
                 a.Write();
                 a.Read();
             }
-
-            if2.InputVerdict = new Input<Verdict>()
-            {
-                Step = dialog, PropertyName = nameof(dialog.Verdict)
-            };
+            
             { // Test multiselect editing
                 var a = AnnotationCollection.Annotate(merged);
                 setInputVerdict(a, dialog);
