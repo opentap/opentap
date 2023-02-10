@@ -139,7 +139,7 @@ namespace OpenTap.Package
         {
             try
             {
-                IsolatedPackageAction.RunIsolated(application,target);
+                IsolatedPackageAction.RunIsolated(application, target);
                 return true;
             }
             catch(InvalidOperationException)

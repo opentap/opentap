@@ -4,7 +4,7 @@
 
   <Name>OpenTAP 9</Name>
 
-  <DefaultInstallDir>OpenTAP</DefaultInstallDir>
+  <DefaultInstallDir>/opt/opentap</DefaultInstallDir>
   <Publisher>Keysight Technologies</Publisher>
   <URL>http://opentap.io</URL>
   <SetupIcon>opentap.ico</SetupIcon>

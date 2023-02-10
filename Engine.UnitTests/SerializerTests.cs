@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Xml.Linq;
 using NUnit.Framework;
@@ -239,6 +240,47 @@ namespace OpenTap.Engine.UnitTests
                 var msg = serializer.XmlMessages.FirstOrDefault();
                 StringAssert.Contains("Selected resource 'AABBCC' of type InstrB instead of declared type InstrA.", msg.ToString());
             }
+        }
+
+        public class StepWithLicenseException : TestStep
+        {
+            public static bool ThrowLicense; 
+            public StepWithLicenseException()
+            {
+                if (ThrowLicense)
+                    throw new LicenseException(GetType());
+            }
+            public override void Run() { }
+        }
+        
+
+        [Test]
+        public void DeserializeLicensedTest()
+        {
+            TestTraceListener tapTraceListener = new TestTraceListener();
+
+            using (Session.Create(SessionOptions.RedirectLogging))
+            {
+                Log.AddListener(tapTraceListener);
+                var step = new StepWithLicenseException();
+                var plan = new TestPlan();
+                plan.Steps.Add(step);
+                var str = plan.SerializeToString();
+                try
+                {
+                    StepWithLicenseException.ThrowLicense = true;
+                    new TapSerializer().DeserializeFromString(str);
+                }
+                finally
+                {
+                    StepWithLicenseException.ThrowLicense = false;
+                }
+            }
+            // there should only be one error message (the license error)
+            Assert.AreEqual(1, tapTraceListener.ErrorMessage.Count);
+            Assert.AreEqual(1,
+                tapTraceListener.ErrorMessage.Count(x =>
+                    x.Contains("Unable to read StepWithLicenseException. A valid license cannot be granted")));
         }
         
     }
