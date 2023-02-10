@@ -11,17 +11,12 @@
   },
   "sources": [
     {
-      "source": "./sln/",
-      "target": "./../"
-    },
-    {
       "source": "./",
       "target": "./",
       "exclude": [
         "**/[Bb]in/**",
         "**/[Oo]bj/**",
-        ".template.config/**/*",
-        "./sln/**/*"
+        ".template.config/**/*"
       ],
       "modifiers": [
         {
