@@ -11,5 +11,7 @@ namespace OpenTap
         {
             
         }
+
+        internal static bool IsSet() => UserInput.GetInterface() is NonInteractiveUserInputInterface;
     }
 }

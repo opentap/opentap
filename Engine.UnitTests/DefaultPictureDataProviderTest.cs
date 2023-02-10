@@ -1,6 +1,8 @@
 ﻿using System.IO;
-using System.Linq;
+using System.Net;
 using System.Net.Http;
+using System.Net.Sockets;
+using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
@@ -75,7 +77,26 @@ namespace OpenTap.UnitTests
         [Test]
         public async Task TestWebPicture()
         {
-            var source = @"http://packages.opentap.io/img/package.a7440fd6.png";
+            var dir = Path.GetDirectoryName(typeof(DefaultPictureDataProviderTest).Assembly.Location);
+            var filename = Path.Combine(dir, "Resources/TestImg.png");
+            var fileContent = File.ReadAllBytes(filename);
+            
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            var source = $"http://{IPAddress.Loopback}:{((IPEndPoint)listener.LocalEndpoint).Port}/file.png";
+            TapThread.Start(() =>
+            {
+                for (int i = 0; i < 2; i++)
+                {
+                    var client = listener.AcceptTcpClient();
+                    var stream = client.GetStream();
+                    var header = $"HTTP/1.0 200 OK\r\nContent-Length: {fileContent.Length}\r\n\r\n";
+                    stream.Write(Encoding.UTF8.GetBytes(header), 0, header.Length);
+                    stream.Write(fileContent, 0, fileContent.Length);
+                }
+            });
+
+
 
             var pic = new Picture() {Source = source, Description = "Test Picture"};
 
@@ -89,6 +110,7 @@ namespace OpenTap.UnitTests
                 var req = new HttpRequestMessage(HttpMethod.Get, source);
                 var data = client.SendAsync(req).Result;
                 expectedBytes = data.Content.ReadAsByteArrayAsync().Result;
+                CollectionAssert.AreEqual(fileContent, expectedBytes, "Files are not equal");
             }
 
             using (var picStream = await pic.GetStream())
@@ -99,6 +121,8 @@ namespace OpenTap.UnitTests
                     CollectionAssert.AreEqual(expectedBytes, memoryStream.ToArray());
                 }
             }
+            
+            listener.Stop();
         }
 
         [Test]
