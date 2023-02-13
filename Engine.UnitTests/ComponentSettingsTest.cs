@@ -112,7 +112,7 @@ namespace OpenTap.UnitTests
                 using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(content));
                 ComponentSettings.SetCurrent(memoryStream, out var errors);
 
-                Assert.AreEqual(2, errors.Length);
+                Assert.AreEqual(2, errors.Count());
                 CollectionAssert.Contains(errors.Select(e => e.Message),
                     "Package 'Not Installed Plugin' is required to load, but it is not installed.");
                 CollectionAssert.Contains(errors.Select(e => e.Message),
@@ -129,14 +129,30 @@ namespace OpenTap.UnitTests
                 ComponentSettings.SetCurrent(memoryStream, out var errors);
 
 
-                Assert.AreEqual(0, errors.Length);
+                Assert.AreEqual(0, errors.Count());
+            }
+
+            { // Invalid component setting -- missing type
+                string content = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<DutSettings>
+</DutSettings>
+";
+                using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(content));
+                ComponentSettings.SetCurrent(memoryStream, out var errors);
+                
+                Assert.AreEqual(1, errors.Count());
+                var err = errors.First().ToString();
+                StringAssert.Contains("Stream does not contain valid ComponentSettings. Unable to determine ComponentSettings type from root attribute", err);
             }
 
 
             { // Invalid data
                 var content = "Definitely not ComponentSettingsXML";
                 using var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(content));
-                Assert.Throws<InvalidDataException>(() => ComponentSettings.SetCurrent(memoryStream, out _));
+                ComponentSettings.SetCurrent(memoryStream, out var errors);
+                
+                Assert.AreEqual(1, errors.Count());
+                StringAssert.Contains("Data at the root level is invalid. Line 1, position 1.", errors.First().Message);
             }
         }
 
