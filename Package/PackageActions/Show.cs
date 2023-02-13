@@ -165,6 +165,12 @@ namespace OpenTap.Package
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
             repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
+            if (Offline)
+            {
+                DisableHttpRepositories();
+            }
+
+            Name = AutoCorrectPackageNames.Correct(new[] { Name }, repositories)[0];
 
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();

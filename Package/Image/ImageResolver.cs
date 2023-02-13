@@ -281,7 +281,7 @@ namespace OpenTap.Package
 
     class FailedImageResolution : ImageResolution
     {
-        readonly IReadOnlyList<PackageSpecifier> resolveProblems;
+        internal readonly IReadOnlyList<PackageSpecifier> resolveProblems;
         readonly ImageSpecifier image;
         public FailedImageResolution(ImageSpecifier img, IReadOnlyList<PackageSpecifier> resolveProblems, long iterations) : base(Array.Empty<PackageSpecifier>(), iterations)
         {
