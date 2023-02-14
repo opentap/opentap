@@ -517,6 +517,8 @@ jobs:
           ../Release/tap package install -f "../../Sign.TapPackage"
           echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
           cp .\runtimes\win-x64\native\git2-b7bad55.dll .
+          # Manually copy the correct newtonsoft dll here since it was overwritten by a unittest
+          cp ../../Installer/Assets/Newtonsoft.Json.dll .
           ..\Release\tap package create -v -c ../../package.xml -o Packages/OpenTAP.Linux.TapPackage
           cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.Linux.TapPackage
         env: 
