@@ -551,7 +551,7 @@ jobs:
       - name: Update Version
         run: |
           Set-Content .\templates\Templates.csproj (Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
-          Get-Content .\templates\Templates.csproj
+          Set-Content .\templates\src\project\ProjectName.csproj (Get-Content .\templates\src\project\ProjectName.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
       - name: Package
         run: dotnet pack ./templates/
       - uses: actions/upload-artifact@v2

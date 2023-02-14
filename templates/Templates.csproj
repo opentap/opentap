@@ -20,7 +20,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="src\project\sln\Directory.Build.Props" />
     <None Remove="src\solution\ProjectName\package.xml" />
   </ItemGroup>
 

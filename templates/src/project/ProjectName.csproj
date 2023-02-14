@@ -1,10 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk" ToolsVersion="Current">
-    <PropertyGroup>
-        <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
-        <TargetFrameworkVersion></TargetFrameworkVersion>
-        <TargetFramework>netstandard2.0</TargetFramework>
-		<DebugWith>Editor</DebugWith>
-    </PropertyGroup>
+  <PropertyGroup>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
+    <TargetFrameworkVersion></TargetFrameworkVersion>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <DebugWith>Editor</DebugWith>
+  </PropertyGroup>
     
   <PropertyGroup>
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
@@ -14,10 +18,11 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <CreateOpenTapPackage>true</CreateOpenTapPackage>
   </PropertyGroup>
-	<ItemGroup Condition="'$(DebugWith)' == 'Editor'">
-		<OpenTapPackageReference Include="Editor" version="beta"></OpenTapPackageReference>
-	</ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
+  <ItemGroup Condition="'$(DebugWith)' == 'Editor'">
+    <OpenTapPackageReference Include="Editor" version="beta"></OpenTapPackageReference>
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenTAP" Version="$(GitVersion)" />
+  </ItemGroup>
+
 </Project>
