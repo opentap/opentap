@@ -272,7 +272,7 @@ namespace OpenTap.Package
                 var tries = 0;
                 const int maxTries = 10;
                 var delaySeconds = 3;
-                var noninteractive = UserInput.GetInterface() is NonInteractiveUserInputInterface;
+                var noninteractive = NonInteractiveUserInputInterface.IsSet();
                 var inUseString = BuildString(filesInUse);
                 if (noninteractive)
                     log.Warning(inUseString);

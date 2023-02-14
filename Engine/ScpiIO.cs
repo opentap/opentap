@@ -67,7 +67,7 @@ namespace OpenTap
 
         void EnableSRQ()
         {
-            RaiseError(Visa.viInstallHandler(instrument, Visa.VI_EVENT_SERVICE_REQ, new Visa.viEventHandler((vi, evt, context, handle) => { invokeSrqListeners(); return Visa.VI_SUCCESS; }), 0));
+            RaiseError(Visa.viInstallHandler(instrument, Visa.VI_EVENT_SERVICE_REQ, new IVisa.viEventHandler((vi, evt, context, handle) => { invokeSrqListeners(); return Visa.VI_SUCCESS; }), 0));
             RaiseError(Visa.viEnableEvent(instrument, Visa.VI_EVENT_SERVICE_REQ, Visa.VI_HNDLR, Visa.VI_NULL));
         }
 

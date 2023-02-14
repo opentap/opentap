@@ -88,6 +88,32 @@ namespace OpenTap.UnitTests
             }
 
         }
+
+        [Test]
+        public void ArrayStepNameAnnotationTest()
+        {
+            var step1 = new DelayStep() { Name = "A" };
+            var step2 = new DelayStep() { Name = "A" };
+            var step3 = new DelayStep() { Name = "A" };
+            var steps = new ITestStep[]
+            {
+                step1, step2, step3
+            };
+            
+            Assert.AreEqual(GetValue(steps), "A");
+            step2.Name = "B";
+            Assert.IsNull(GetValue(steps));
+
+            static string GetValue(ITestStep[] steps)
+            {
+                var annotations = AnnotationCollection.Annotate(steps);
+                var membersAnnotation = annotations.Get<IMembersAnnotation>();
+                var memberAnnotation = membersAnnotation.Members.First(m => m.Name == "Step Name");
+                var stepNameAnnotation = memberAnnotation.Get<IStringReadOnlyValueAnnotation>();
+                Assert.DoesNotThrow(() => _ = stepNameAnnotation.Value);
+                return stepNameAnnotation.Value;
+            }
+        }
         
 
         [Test]
@@ -193,6 +219,30 @@ namespace OpenTap.UnitTests
             Assert.AreEqual("test2", elements[0].String.ToString());
             elems.Read();
             Assert.IsNull(sv.Value);
+        }
+
+        public class StepWithMacroString : TestStep
+        {
+            public string A { get; set; } = "Hello";
+            public MacroString MacroString { get; set; }
+            public override void Run()
+            {
+            }
+        }
+
+        [Test]
+        public void TestMacroStringContext()
+        {
+            var plan = new TestPlan();
+            var step = new StepWithMacroString();
+            plan.ChildTestSteps.Add(step);
+            step.MacroString = new MacroString(step);
+            Assert.IsTrue(step.MacroString.Context == plan.ChildTestSteps.First(), "MacroString Context is set.");
+
+            plan = new TapSerializer().Clone(plan) as TestPlan;
+            step = plan.ChildTestSteps.First() as StepWithMacroString;
+            
+            Assert.IsTrue(step.MacroString.Context == plan.ChildTestSteps.First(), "MacroString Context is set.");
         }
 
         public class ClassWithMethodAnnotation

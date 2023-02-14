@@ -464,7 +464,19 @@ namespace OpenTap
                     {
                         if (ser.Serialize(elem, obj, type))
                         {
-                            NotifyTypeUsed(TypeData.GetTypeData(ser));
+                            if (ser is ITapSerializerPluginDependencyMarker marker)
+                            {
+                                if (marker.NeededForDeserialization)
+                                {
+                                    NotifyTypeUsed(TypeData.GetTypeData(ser));
+                                }
+                                // else  serializer is specifically not a dependency.
+                            }
+                            else
+                            {    
+                                // mark the serializer plugin types as having been used during serialization.
+                                NotifyTypeUsed(TypeData.GetTypeData(ser));
+                            }
                             return true;
                         }
                     }
@@ -568,6 +580,8 @@ namespace OpenTap
         readonly HashSet<ITypeData> registeredTypes = new HashSet<ITypeData>();
         readonly HashSet<string> registeredFiles = new HashSet<string>();
 
+        /// <summary> This is used to keep track of which types has been used by the serializer. </summary>
+        /// <param name="type"></param>
         internal void NotifyTypeUsed(ITypeData type)
         {
             registeredTypes.Add(type);
