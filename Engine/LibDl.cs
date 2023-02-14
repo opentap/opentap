@@ -1,6 +1,7 @@
 using System;
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using OpenTap;
 
 /// <summary>
 ///  This class uses and resolves libdl, which dependning on the OS comes in a libdl.so or libdl.so.2 flavor.
@@ -74,19 +75,47 @@ static class LibDl
         IntPtr ILibDL.dlsym(IntPtr handle, string symbol) => dlsym(handle, symbol);
     }
     
+    /// <summary>
+    /// MacOS calls it libdl
+    /// </summary>
+    class libdlMac : ILibDL
+    {
+        private const string libName = "libdl";
+        [DllImport(libName)]
+        static extern IntPtr dlopen(string fileName, int flags);
+        [DllImport(libName)]
+        static extern int dlclose(IntPtr handle);
+        [DllImport(libName)]
+        static extern IntPtr dlerror();
+        [DllImport(libName)]
+        static extern IntPtr dlsym(IntPtr handle, string symbol);
+        
+        IntPtr ILibDL.dlopen(string fileName, int flags) => dlopen(fileName, flags);
+        int ILibDL.dlclose(IntPtr handle) => dlclose(handle);
+        IntPtr ILibDL.dlerror() => dlerror();
+        IntPtr ILibDL.dlsym(IntPtr handle, string symbol) => dlsym(handle, symbol);
+    }
+    
     static readonly ILibDL libDl;
 
     static LibDl()
     {
-        try
+        if (OpenTap.OperatingSystem.Current == OpenTap.OperatingSystem.MacOS)
         {
-            libDl = new libdl2();
-            // call dlerror to ensure library is resolved
-            libDl.dlerror();
+            libDl = new libdlMac();
         }
-        catch (DllNotFoundException)
+        else 
         {
-            libDl = new libdl1();
+            try
+            {
+                libDl = new libdl2();
+                // call dlerror to ensure library is resolved
+                libDl.dlerror();
+            }
+            catch (DllNotFoundException)
+            {
+                libDl = new libdl1();
+            }
         }
     }
 
