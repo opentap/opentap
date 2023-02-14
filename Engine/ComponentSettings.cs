@@ -498,6 +498,7 @@ namespace OpenTap
     /// </remarks>
     public abstract class ComponentSettings : ValidatingObject, IComponentSettings
     {
+        internal XmlError[] loadErrors;
         string groupName;
         /// <summary> Settings group of this settings class. </summary>
         public string GroupName
@@ -626,10 +627,18 @@ namespace OpenTap
         /// <summary>
         /// Sets current settings for a component setting based on a stream of the file contents of a ComponentSettings XML file.
         /// </summary>
+        /// <exception cref="InvalidDataException">If the input stream is not valid XML</exception>
         /// <param name="xmlFileStream">The component settings stream to be set</param>
         /// <returns></returns>
-        public static void SetCurrent(Stream xmlFileStream) =>
-            context.SetCurrent(xmlFileStream);
+        public static void SetCurrent(Stream xmlFileStream) => context.SetCurrent(xmlFileStream);
+
+        /// <summary>
+        /// Sets current settings for a component setting based on a stream of the file contents of a ComponentSettings XML file.
+        /// </summary>
+        /// <param name="xmlFileStream">The component settings stream to be set</param>
+        /// <param name="errors">Any XML errors that occurred during deserialization</param>
+        /// <returns></returns>
+        public static void SetCurrent(Stream xmlFileStream, out IEnumerable<XmlError> errors) => context.SetCurrent(xmlFileStream, out errors);
 
         /// <summary>
         /// Gets current settings for a specified component. This is either an instance of the settings class previously loaded, or a new instance loaded from the associated file.

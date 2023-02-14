@@ -23,6 +23,8 @@ namespace OpenTap
             string message = Message ?? Exception.Message;
             if (Element is IXmlLineInfo lineInfo && lineInfo.HasLineInfo())
                 return $"XML Line {lineInfo.LineNumber}: {message}";
+            if (Exception is XmlException x)
+                return $"XML Line {x.LineNumber}: {message}";
             return message;
         }
     }
