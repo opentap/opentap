@@ -1667,17 +1667,28 @@ namespace OpenTap
             {
                 get
                 {
-                    ITestStep value;
+                    object value;
                     if (member)
                     {
-                        value = (ITestStep) annotation.ParentAnnotation.Get<IObjectValueAnnotation>().Value;
+                        value = annotation.ParentAnnotation.Get<IObjectValueAnnotation>().Value;
                     }
                     else
                     {
-                        value = (ITestStep)annotation.Get<IObjectValueAnnotation>().Value;
+                        value = annotation.Get<IObjectValueAnnotation>().Value;
                     }
 
-                    return value.GetFormattedName();
+                    if (value is ITestStep step)
+                    {
+                        return step.GetFormattedName();
+                    }
+                    
+                    if (value is IEnumerable<ITestStep> steps)
+                    {
+                        string formattedName = steps.FirstOrDefault()?.GetFormattedName();
+                        return steps.Skip(1).Any(s => s.GetFormattedName() != formattedName) ? null : formattedName;
+                    }
+
+                    return null;
                 }
             }
         }
