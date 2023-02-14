@@ -57,6 +57,7 @@
     <File Path="Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/Properties/AssemblyInfo.cs"/>
   </Files>
   <PackageActionExtensions>
-    <ActionStep ExeFile="dotnet" Arguments='-i OpenTap.Templates.$(GitLongVersion).nupkg' ActionName="install"/> 
+    <!-- The template install will fail with exit code 106 if the templates are already installed -->
+    <ActionStep ExeFile="dotnet" Arguments='new install Packages/SDK/OpenTap.Templates.$(GitLongVersion).nupkg' ActionName="install" ExpectedExitCodes="0,106"/> 
   </PackageActionExtensions>
 </Package>
