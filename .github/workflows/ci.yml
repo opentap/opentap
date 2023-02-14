@@ -621,7 +621,7 @@ jobs:
       - name: Diff Package
         run: |
           mv OpenTAP.*.TapPackage OpenTAP.TapPackage
-          tap package install "Package Diff" --version any
+          tap package install "Package Diff" --version 0.1.0-beta.19+2b1aa952
           tap package diff OpenTAP.TapPackage -o diff
 
   Package-NuGet:
