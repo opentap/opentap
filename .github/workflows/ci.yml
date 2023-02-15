@@ -535,6 +535,31 @@ jobs:
           path: |
             OpenTAP.*.Linux.TapPackage
 
+  Package-Templates:
+    runs-on: windows-2022
+    needs:
+      - GetVersion
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Update Version
+        run: |
+          Set-Content .\templates\Templates.csproj (Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+          Set-Content .\templates\src\project\ProjectName.csproj (Get-Content .\templates\src\project\ProjectName.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+      - name: Package
+        run: dotnet pack ./templates/
+      - uses: actions/upload-artifact@v2
+        with:
+          name: package-templates
+          retention-days: 14
+          path: ./bin/Release/OpenTAP.Templates.*.nupkg
+
   Package-SDK:
     runs-on: windows-2022
     needs:
@@ -542,6 +567,7 @@ jobs:
       - Build-DevGuide
       - Build-ApiDoc
       - GetVersion
+      - Package-Templates
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -565,6 +591,11 @@ jobs:
         with:
           name: doc-api-chm
           path: Help/
+      - name: Download Template package
+        uses: actions/download-artifact@v2
+        with:
+          name: package-templates
+          path: bin/Release/Packages2/SDK/
       - name: Package
         run: |
           $env:Sign = "false"
@@ -584,6 +615,7 @@ jobs:
           $doc.FirstChild.RemoveChild($ele) # First Child is the Project element
           $doc.Save("$pwd/Directory.Build.props")
           cd ../../..
+          Move-Item "Packages2/SDK/OpenTap.Templates.*.nupkg" "Packages/SDK/"
           $content=(Get-Content Packages/SDK/Examples/Directory.Build.props).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Set-Content Packages/SDK/Examples/Directory.Build.props $content
           ./tap package create -v -c ../../sdk/sdk.package.xml
@@ -722,7 +754,6 @@ jobs:
           path: .
       - name: Package
         run: |
-          
           $path=(get-item -path "./").Fullname
           $str=[IO.File]::ReadAllText($path + "/LinuxInstall/INSTALL.sh") -replace "`r`n", "`n"
           ([IO.File]::WriteAllText($path + "/INSTALL.sh", $str))
@@ -958,8 +989,14 @@ jobs:
     environment: nuget.org
     runs-on: windows-2022
     needs:
+      - Package-Templates
       - Package-NuGet
     steps:
+      - name: Download Template package
+        uses: actions/download-artifact@v2
+        with:
+          name: package-templates
+          path: .
       - name: Download nuget package
         uses: actions/download-artifact@v2
         with:

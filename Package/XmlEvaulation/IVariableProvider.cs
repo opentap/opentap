@@ -218,31 +218,41 @@ namespace OpenTap.Package
 
         private string ProjectDir { get; }
 
+        private string longVersion = null;
+
         private string version = null;
 
         private static TraceSource log = Log.CreateSource(nameof(GitVersionExpander));
 
         public void Expand(XElement element)
         {
-            if (!element.ToString().Contains("$(GitVersion)")) return;
-            if (version == null && string.IsNullOrWhiteSpace(ProjectDir) == false)
-            {
-                try
-                {
-                    var calc = new GitVersionCalulator(ProjectDir);
-                    version = calc.GetVersion().ToString(5);
-                    log.Info("Package version is {0}", version);
-                }
-                catch (Exception ex)
-                {
-                    log.ErrorOnce(this, "Failed to calculate GitVersion.");
-                    log.Debug(ex);
-                }
-            }
+            ReplaceVersion("GitVersion", 5, ref version);
+            ReplaceVersion("GitLongVersion", 4, ref longVersion);
 
-            // If 'GitVersion' could not be resolved, don't replace it
-            if (version != null)
-                ExpansionHelper.ReplaceToken(element, "GitVersion", version);
+            void ReplaceVersion(string versionName, int fieldCount, ref string cachedVersion)
+            {
+                if (!element.ToString().Contains("$(" + versionName + ")"))
+                    return;
+
+                if (cachedVersion == null && string.IsNullOrWhiteSpace(ProjectDir) == false)
+                {
+                    try
+                    {
+                        var calc = new GitVersionCalulator(ProjectDir);
+                        cachedVersion = calc.GetVersion().ToString(fieldCount);
+                        log.Info("Package {1} is {0}", cachedVersion, versionName);
+                    }
+                    catch (Exception ex)
+                    {
+                        log.ErrorOnce(cachedVersion, "Failed to calculate {0}.", versionName);
+                        log.Debug(ex);
+                    }
+                }
+
+                // If 'GitVersion' could not be resolved, don't replace it
+                if (cachedVersion != null)
+                    ExpansionHelper.ReplaceToken(element, versionName, cachedVersion);
+            }
         }
     }
 }

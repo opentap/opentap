@@ -138,6 +138,11 @@ namespace OpenTap.Package
                         replaceLineCount++;
                         line = line.Replace("$(GitVersion)", versionString);
                     }
+                    if (line.Contains("$(GitLongVersion)"))
+                    {
+                        replaceLineCount++;
+                        line = line.Replace("$(GitLongVersion)", versionString);
+                    }
                     output.WriteLine(line);
                 }
             }
