@@ -3,7 +3,7 @@
     "Debug with editor": {
       "commandName": "Executable",
       "commandLineArgs": "tui",
-      "executablePath": "tap.exe",
+      "executablePath": "./tap.exe",
       "dotnetRunMessages": true
     }
   }
