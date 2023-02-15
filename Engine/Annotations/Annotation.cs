@@ -760,7 +760,7 @@ namespace OpenTap
             }
             set
             {
-                
+
                 if (value is ValueType || value is string)
                 {
                     //  The trivial case - just copy the values.
@@ -768,6 +768,7 @@ namespace OpenTap
                         m.Get<IObjectValueAnnotation>().Value = value;
                     return;
                 }
+
                 // same as for parameters.
                 var first = merged[0];
                 first.Get<IObjectValueAnnotation>().Value = value;
@@ -775,7 +776,10 @@ namespace OpenTap
                 foreach (var m in merged.Skip(1))
                 {
                     var memberType = m.Get<IMemberAnnotation>()?.ReflectionInfo ?? TypeData.GetTypeData(value);
-                    if(cloner.TryClone(null, memberType, false, out var val ))
+                    var context = m.ParentAnnotation?.Source;
+                    // use the source of the parent annotation as the context object because it may contain
+                    // additional information about how to decode the value internally
+                    if (cloner.TryClone(context, memberType, false, out var val))
                         m.Get<IObjectValueAnnotation>().Value = val;
                 }
             }
@@ -1351,9 +1355,6 @@ namespace OpenTap
                     var inp = getInput();
                     if (inp == null)
                         return Enumerable.Empty<object>();
-                    AnnotationCollection parent = annotation;
-                    while (parent.ParentAnnotation != null)
-                        parent = parent.ParentAnnotation;
 
                     ITestStepParent step = getContextStep();
 
@@ -1386,6 +1387,33 @@ namespace OpenTap
             IInput getInput() => annotation.GetAll<IObjectValueAnnotation>()
                 .FirstNonDefault(x => x.Value as IInput);
 
+            // Use this when an instance of IInput is required, but the exact one is not critical
+            IInput getInputRecursive()
+            {
+                // Recursively search for IInput instances. This should only be used during Write.
+                // This is only relevant if the ObjectValueAnnotation is a MergedValueAnnotation.
+                // If we are dealing with a merged value, we don't care if the current values are not aligned,
+                // because they will be aligned after we call the setter.
+                foreach (var ova in annotation.GetAll<IObjectValueAnnotation>())
+                {
+                    // This is the case in almost all instances
+                    if (ova.Value is IInput i)
+                        return i;
+
+                    // This is the case when using unaligned merged values
+                    if (ova is MergedValueAnnotation merged)
+                    {
+                        foreach (var m in merged.Merged)
+                        {
+                            if (m.Get<IObjectValueAnnotation>().Value is IInput i2)
+                                return i2;
+                        }
+                    }
+                }
+
+                return null;
+            }
+
             public void Read(object source)
             {
                 setValue = null;
@@ -1393,15 +1421,17 @@ namespace OpenTap
 
             public void Write(object source)
             {
-                if (setValue is InputThing v)
-                {
-                    var inp = getInput();
-                    if (inp != null)
-                    {
-                        inp.Step = v.Step;
-                        inp.Property = v.Member;
-                    }
-                }
+                if (!(setValue is InputThing v)) return;
+                
+                var inp = getInputRecursive();
+                if (inp == null) return;
+
+                inp.Step = v.Step;
+                inp.Property = v.Member;
+                 
+                // If we are dealing with a MergedValueAnnotation, call the setter to propagate the IInput changes
+                var merged = annotation.Get<MergedValueAnnotation>();
+                if (merged != null) merged.Value = inp;
             }
 
             InputThing? setValue = null;
