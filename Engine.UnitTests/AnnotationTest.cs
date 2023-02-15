@@ -896,6 +896,7 @@ namespace OpenTap.UnitTests
                 TapThread.Sleep(Time.FromSeconds(DelaySecs));
             }
         }
+        
         public class TwoDelayStep : TestStep
         {
             public double DelaySecs { get; set; }
@@ -947,6 +948,96 @@ namespace OpenTap.UnitTests
             icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
             parameterizeIcon = icons[IconNames.Unparameterize].First();
             Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+        }
+
+        [Test]
+        public void TestMergedInputVerdict([Values(true, false)]bool availableProxy)
+        {
+            var dialog = new DialogStep();
+            var if1 = new IfStep();
+            var if2 = new IfStep();
+            var if3 = new IfStep();
+            var plan = new TestPlan()
+            {
+                ChildTestSteps =
+                {
+                    dialog, if1, if2, if3
+                }
+            };
+
+            ITestStep[] merged = { if1, if2, if3 };
+
+            void setInputVerdict(AnnotationCollection a, ITestStep targetStep)
+            {
+                var member = a.GetMember(nameof(if1.InputVerdict));
+                if (availableProxy)
+                {
+                    var avail = member.Get<IAvailableValuesAnnotationProxy>();
+                    var sel = avail.AvailableValues.First(av =>
+                        av.GetMember("Step").Get<IObjectValueAnnotation>().Value == targetStep);
+                    avail.SelectedValue = sel;
+                }
+                else
+                {
+                    var input = new Input<Verdict>()
+                    {
+                        Property = TypeData.FromType(typeof(DialogStep)).GetMember(nameof(dialog.Verdict)),
+                        Step = targetStep
+                    };
+                    member.Get<IObjectValueAnnotation>().Value = input;
+                }
+
+                a.Write();
+                a.Read();
+            }
+            
+            { // Test multiselect editing
+                var a = AnnotationCollection.Annotate(merged);
+                setInputVerdict(a, dialog);
+                Assert.AreSame(dialog, if1.InputVerdict.Step);
+                Assert.AreSame(dialog, if2.InputVerdict.Step);
+                Assert.AreSame(dialog, if3.InputVerdict.Step);
+            }
+            
+            { // Unset all
+                var a = AnnotationCollection.Annotate(merged);
+                setInputVerdict(a, null);
+                Assert.AreSame(null, if1.InputVerdict.Step);
+                Assert.AreSame(null, if2.InputVerdict.Step);
+                Assert.AreSame(null, if3.InputVerdict.Step);
+            }
+
+            { // Set if1 independent of if2
+                var a = AnnotationCollection.Annotate(if1);
+                setInputVerdict(a, if2);
+                Assert.AreSame(if2, if1.InputVerdict.Step);
+                Assert.AreSame(null, if2.InputVerdict.Step);
+                Assert.AreSame(null, if3.InputVerdict.Step);
+            }
+
+            { // Set if2 independent of if1
+                var a = AnnotationCollection.Annotate(if2);
+                setInputVerdict(a, if1);
+                Assert.AreSame(if2, if1.InputVerdict.Step);
+                Assert.AreSame(if1, if2.InputVerdict.Step);
+                Assert.AreSame(null, if3.InputVerdict.Step);
+            }
+            
+            { // Set all back to dialog
+                var a = AnnotationCollection.Annotate(merged);
+                setInputVerdict(a, dialog);
+                Assert.AreSame(dialog, if1.InputVerdict.Step);
+                Assert.AreSame(dialog, if2.InputVerdict.Step);
+                Assert.AreSame(dialog, if3.InputVerdict.Step);
+            }
+            
+            { // Unset all
+                var a = AnnotationCollection.Annotate(merged);
+                setInputVerdict(a, null);
+                Assert.AreSame(null, if1.InputVerdict.Step);
+                Assert.AreSame(null, if2.InputVerdict.Step);
+                Assert.AreSame(null, if3.InputVerdict.Step);
+            }
         }
 
         [Test]
