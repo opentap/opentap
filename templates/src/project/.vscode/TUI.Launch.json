@@ -9,7 +9,7 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "tap",
+      "program": "tap.exe",
       "args": [ "tui" ],
       "cwd": "${workspaceFolder}/bin/Debug/",
       "console": "externalTerminal",
