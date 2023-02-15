@@ -18,6 +18,7 @@
     </File>
     <File Path="OpenTap.xml"/>
     <File Path="OpenTap.Package.xml"/>
+    <File Path="Packages/SDK/OpenTap.Templates.$(GitLongVersion).nupkg"/>
     <File Path="Packages/SDK/PackageSchema.xsd"/>
     <File Path="Packages/SDK/OpenTAP Developer Guide.pdf" SourcePath="Packages/SDK/Examples/OpenTAP Developer Guide.pdf"/>
     <File Path="Packages/SDK/Examples/.OpenTapIgnore"/>
@@ -55,4 +56,8 @@
     <File Path="Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/RunTestPlan.Api.csproj"/>
     <File Path="Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/Properties/AssemblyInfo.cs"/>
   </Files>
+  <PackageActionExtensions>
+    <!-- The template install will fail with exit code 106 if the templates are already installed -->
+    <ActionStep ExeFile="dotnet" Arguments='new install Packages/SDK/OpenTap.Templates.$(GitLongVersion).nupkg' ActionName="install" ExpectedExitCodes="0,106"/> 
+  </PackageActionExtensions>
 </Package>

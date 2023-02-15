@@ -162,6 +162,25 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void MovingStepWithInputTest()
+        {
+            var plan = new TestPlan();
+            var ifVerdict = new IfStep
+            {
+            };
+            var ifVerdict2 = new IfStep{};
+            plan.ChildTestSteps.Add(ifVerdict);
+            plan.ChildTestSteps.Add(ifVerdict2);
+            ifVerdict2.InputVerdict.Step = ifVerdict;
+            ifVerdict2.InputVerdict.Step = null;
+            plan.ChildTestSteps.Remove(ifVerdict);
+            plan.ChildTestSteps.Insert(0, ifVerdict);
+            
+            // this should still be null, but was not because of a (fixed) bug.
+            Assert.IsNull(ifVerdict2.InputVerdict.Step);
+        }
+
+        [Test]
         public void RepeatVerdictTest()
         {
             var plan = new TestPlan();

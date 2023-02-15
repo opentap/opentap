@@ -71,6 +71,8 @@ namespace OpenTap.Package
                 repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
             }
 
+            Name = AutoCorrectPackageNames.Correct(new[] { Name }, repositories)[0];
+
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
             
@@ -157,18 +159,19 @@ namespace OpenTap.Package
                     }
 
 
+                    var allVersion = versions;
                     versions = versions.Where(v => versionSpec.IsCompatible(v.Version)).ToList();
                     if (versions.Any() == false) // No versions that are compatible
                     {
                         if (string.IsNullOrEmpty(Version))
-                            log.Warning($"There are no released versions of '{Name}'.");
+                            log.Warning($"There are no released versions of '{Name}'. Showing pre-releases instead.");
                         else
                             log.Warning($"Package '{Name}' does not exists with version '{Version}'.");
 
                         var anyPrereleaseSpecifier = new VersionSpecifier(versionSpec.Major, versionSpec.Minor, versionSpec.Patch, versionSpec.PreRelease, versionSpec.BuildMetadata, VersionMatchBehavior.AnyPrerelease | versionSpec.MatchBehavior);
-                        versions = versions.Where(v => anyPrereleaseSpecifier.IsCompatible(v.Version)).ToList();
+                        versions = allVersion.Where(v => anyPrereleaseSpecifier.IsCompatible(v.Version)).ToList();
                         if (versions.Any())
-                            log.Info($"There are {versions.Count} pre-released versions available. Use '--version <pre-release>' (e.g. '--version rc') or '--all' to show these.");
+                            PrintVersionsReadable(package, versions);
 
                         return (int)ExitCodes.Success;
                     }

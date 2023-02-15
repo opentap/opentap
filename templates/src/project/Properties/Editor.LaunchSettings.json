@@ -1,0 +1,9 @@
+﻿{
+  "profiles": {
+    "Debug with editor": {
+      "commandName": "Executable",
+      "executablePath": "./Editor.exe",
+      "dotnetRunMessages": true
+    }
+  }
+}

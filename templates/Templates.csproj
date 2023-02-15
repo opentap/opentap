@@ -1,0 +1,26 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <PackageType>Template</PackageType>
+    <PackageVersion>$(GitVersion)</PackageVersion>
+    <PackageId>OpenTap.Templates</PackageId>
+    <Title>OpenTap Templates</Title>
+    <Authors>OpenTap.io</Authors>
+    <Description>Templates to use when developing OpenTap plugins</Description>
+    <PackageTags>dotnet-new;templates;opentap</PackageTags>
+
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <ContentTargetFolders>content</ContentTargetFolders>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="src\**\*" PackagePath="content" />
+    <Compile Remove="**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="src\solution\ProjectName\package.xml" />
+  </ItemGroup>
+
+</Project>

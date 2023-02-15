@@ -101,7 +101,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         int iteration;
         
-        [Output]
+        [Output(OutputAvailability.BeforeRun)]
         [Display("Iteration", "Shows the iteration of the sweep that is currently running or about to run.", "Sweep", Order: 3)]
         public string IterationInfo => $"{iteration} of {SweepValues.Count(x => x.Enabled)}";
 
