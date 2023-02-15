@@ -121,6 +121,8 @@ namespace OpenTap
             }
         }
 
+        // the step ID is used for storing the step ID when moving the Step owning the Input.
+        // otherwise, after moving the step (taking it out of the test plan and moving it back in) the Step might be null.
         Guid stepId;
         void ChildTestSteps_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
@@ -142,7 +144,15 @@ namespace OpenTap
                 var allSteps = Utils.FlattenHeirarchy(steps, x => x.ChildTestSteps).Distinct();
                 foreach(var step in allSteps)
                 {
-                    if(step.Id == stepId)
+                    // Update the Step value when the step has moved inside the test plan.
+                    // We do this because we want to set the Input to null if the test plan changes in a way
+                    //     where the target step disappears.
+                    
+                    // Avoid setting the Step if the property name is null - this usually means that 
+                    //     the property has been set to null, but the stepId still has a remaining value.
+                    //     this should be ok to ignore.
+                    
+                    if(step.Id == stepId && Property != null)
                     {
                         Step = step;
                         return;

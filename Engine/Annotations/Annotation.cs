@@ -3125,6 +3125,10 @@ namespace OpenTap
 
             }
         }
+        
+        /// <summary>
+        /// For things that can be multi-selected, for example flag enum.
+        /// </summary>
         class MultiSelectProxy : IMultiSelectAnnotationProxy
         {
             IEnumerable<AnnotationCollection> annotations => annotation.Get<IAvailableValuesAnnotationProxy>().AvailableValues;
