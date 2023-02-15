@@ -989,14 +989,8 @@ jobs:
     environment: nuget.org
     runs-on: windows-2022
     needs:
-      - Package-Templates
       - Package-NuGet
     steps:
-      - name: Download Template package
-        uses: actions/download-artifact@v2
-        with:
-          name: package-templates
-          path: .
       - name: Download nuget package
         uses: actions/download-artifact@v2
         with:
