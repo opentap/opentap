@@ -9,9 +9,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "tap.exe",
-      "args": [ "editor", "ProjectName.TapPlan", "-c", "-v" ],
-      "cwd": "${workspaceFolder}/bin/debug/",
+      "program": "tap",
+      "args": [ "tui" ],
+      "cwd": "${workspaceFolder}/bin/Debug/",
       "console": "externalTerminal",
       "stopAtEntry": false
     }

@@ -7,21 +7,25 @@
     <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
     <TargetFrameworkVersion></TargetFrameworkVersion>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <DebugWith>TapEditor</DebugWith>
   </PropertyGroup>
     
   <PropertyGroup>
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
     <CreateOpenTapPackage>false</CreateOpenTapPackage>
   </PropertyGroup>
-  
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <CreateOpenTapPackage>true</CreateOpenTapPackage>
   </PropertyGroup>
-  <ItemGroup>
-    <OpenTapPackageReference Include="Editor" version="9.19.1"></OpenTapPackageReference>
-  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="OpenTAP" Version="$(GitVersion)" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(DebugWith)' == 'TUI'">
+    <OpenTapPackageReference Include="TUI" version="1.0.0"/>
+  </ItemGroup>
+  <ItemGroup Condition="'$(DebugWith)' == 'Editor'">
+    <OpenTapPackageReference Include="Editor" version="9.19.1"/>
   </ItemGroup>
 
 </Project>

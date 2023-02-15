@@ -10,7 +10,6 @@
       "request": "launch",
       "preLaunchTask": "build",
       "program": "Editor.exe",
-      "args": [ "ProjectName.TapPlan" ],
       "cwd": "${workspaceFolder}/bin/debug/",
       "console": "externalTerminal",
       "stopAtEntry": false

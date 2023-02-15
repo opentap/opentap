@@ -67,17 +67,6 @@
           "exclude": [ "**/TUI.*" ]
         },
         {
-          "condition": "(EditorCERegex)",
-          "rename": {
-            "EditorCE.LaunchSettings.json": "LaunchSettings.json",
-            "EditorCE.Launch.json": "Launch.json"
-          }
-        },
-        {
-          "condition": "(!EditorCERegex)",
-          "exclude": [ "**/EditorCE.*" ]
-        },
-        {
           "condition": "(EditorRegex)",
           "rename": {
             "Editor.LaunchSettings.json": "LaunchSettings.json",
@@ -142,23 +131,18 @@
       "type": "parameter",
       "datatype": "choice",
       "defaultValue": "TUI",
-      "replaces": "Editor",
+      "replaces": "TapEditor",
       "description": "The default editor to debug with.",
       "choices": [
         {
           "choice": "TUI",
           "displayName": "OpenTAP TUI",
-          "description": "Set TUI (Terminal User Interface) as the debugging editor."
+          "description": "Set TUI as the debugging editor."
         },
         {
           "choice": "Editor",
           "displayName": "Keysight Test Automation",
-          "description": "This is not implemented yet."
-        },
-        {
-          "choice": "Editor CE",
-          "displayName": "Keysight Test Automation - Community Edition",
-          "description": "This is not implemented yet."
+          "description": "Set Keysight Test Automation as the debugging editor."
         }
       ]
     },
@@ -178,15 +162,6 @@
       "parameters": {
         "source": "Editor",
         "pattern": "Editor"
-      }
-    },
-    "EditorCERegex": {
-      "type": "generated",
-      "generator": "regexMatch",
-      "dataType": "bool",
-      "parameters": {
-        "source": "Editor",
-        "pattern": "Editor CE"
       }
     }
   }
