@@ -2,9 +2,7 @@
   "profiles": {
     "Debug with editor": {
       "commandName": "Executable",
-      "commandLineArgs": "editor ProjectName.TapPlan -c -v",
-      "workingDirectory": "./../bin/Debug/",
-      "executablePath": "./tap.exe",
+      "executablePath": "Editor.exe",
       "dotnetRunMessages": true
     }
   }
