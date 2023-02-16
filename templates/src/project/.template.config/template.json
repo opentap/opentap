@@ -141,7 +141,7 @@
         },
         {
           "choice": "Editor",
-          "displayName": "Keysight Test Automation",
+          "displayName": "Keysight Test Automation (License required)",
           "description": "Set Keysight Test Automation as the debugging editor."
         }
       ]
