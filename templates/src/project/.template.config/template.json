@@ -1,9 +1,9 @@
 {
   "$schema": "http://json.schemastore.org/template",
-  "author": "OpenTap.io",
-  "classifications": [ "OpenTap", "Test", "Windows", "Linux", "MacOS", "Desktop" ],
-  "identity": "OpenTap.Project",
-  "name": "OpenTap project",
+  "author": "opentap.io",
+  "classifications": [ "OpenTAP", "Test Automation", "Windows", "Linux", "MacOS", "Desktop" ],
+  "identity": "OpenTAP.Project",
+  "name": "OpenTAP Project",
   "shortName": "opentap",
   "tags": {
     "language": "C#",
@@ -81,7 +81,7 @@
     }
   ],
   "sourceName": "ProjectName",
-  "defaultName": "MyOpentapProject",
+  "defaultName": "MyOpenTAPProject",
   "preferNameDirectory": true,
 
   "symbols": {
