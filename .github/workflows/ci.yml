@@ -142,6 +142,10 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
+      - uses: actions/setup-node@v3
+        name: Setup NPM
+        with:
+          node-version: 14
       - name: Install
         run: npm install
         working-directory: doc
