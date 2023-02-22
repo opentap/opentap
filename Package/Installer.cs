@@ -186,7 +186,7 @@ namespace OpenTap.Package
                     }
                     else if(res == ActionResult.NothingToDo)
                     {
-                        log.Info($"Tried to {command} {pkg.Name}, but there was nothing to do.");
+                        log.Debug($"Tried to {command} {pkg.Name}, but there was nothing to do.");
                     }
                     else
                         log.Info(timer, $"{verb} {pkg.Name} version {pkg.Version}.");

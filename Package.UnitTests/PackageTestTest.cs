@@ -129,7 +129,7 @@ namespace OpenTap.Package.UnitTests
         public void BasicTest()
         {
             Restore();
-            var (stdout, stderr, exitCode) = RunTest(false);
+            var (stdout, stderr, exitCode) = RunTest(true);
 
             StringAssert.Contains("Tried to test MyPlugin5, but there was nothing to do.", stdout);
             Assert.AreEqual(exitCode, 0);

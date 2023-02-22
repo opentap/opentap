@@ -14,16 +14,31 @@
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
     <CreateOpenTapPackage>false</CreateOpenTapPackage>
   </PropertyGroup>
+
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <CreateOpenTapPackage>true</CreateOpenTapPackage>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(OS)' == 'WINDOWS_NT' AND '$(Configuration)' == 'Debug'">
+    <!--
+      We target .NET Framework in debug builds when debugging with the WPF Editor due to a bug in Visual Studio's debugger.
+      The debugger assumes that netstandard projects should be debugged as .NET Core apps, and thus launches a .NET Core debugger
+      which fails to attach because tap.exe is a .NET Framework application.
+
+      To ensure maximum compatibility, we recommend targetting netstandard2.0 in release builds, unless you need specific
+      APIs that are not available in netstandard2.0.
+    -->
+    <TargetFramework>net472</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="OpenTAP" Version="$(GitVersion)" />
   </ItemGroup>
+
   <ItemGroup Condition="'$(DebugWith)' == 'TUI'">
     <OpenTapPackageReference Include="TUI" version="1.0.0"/>
   </ItemGroup>
+
   <ItemGroup Condition="'$(DebugWith)' == 'Editor'">
     <OpenTapPackageReference Include="Editor" version="9.19.1"/>
   </ItemGroup>

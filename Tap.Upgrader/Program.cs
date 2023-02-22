@@ -193,9 +193,12 @@ namespace Tap.Upgrader
                     // We also copy this executable to a temporary file which will delete itself after running
                     // Otherwise we will cause OpenTAP reinstalls to hang while waiting for Tap.Upgrader.exe to become free
                     var thisExe = typeof(Program).Assembly.Location;
-                    var backup = Path.Combine(exeDir, "Tap.Upgrader.Copy.exe");
-                    if (!File.Exists(backup))
-                        File.Copy(thisExe, backup);
+                    // We want the backup file to run outside of the OpenTAP installation.
+                    // Keeping it in the OpenTAP installaton causes a few small annoying problems:
+                    // 1. Immediately running a CLI action will show warnings about duplicate assemblies due to the copy
+                    // 2. The smartinstaller fails to wipe the directory because the backup file is in use
+                    var backup = Path.GetTempFileName() + ".exe";
+                    File.Copy(thisExe, backup, true);
                     Process.Start(new ProcessStartInfo(backup)
                     {
                             // Specify the OpenTAP version we are installing and the directory it is being installed to
