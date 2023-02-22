@@ -2253,6 +2253,20 @@ namespace OpenTap
             }
         }
 
+        class EnabledStringAnnotation : IStringValueAnnotation
+        {
+            readonly AnnotationCollection a;
+            public EnabledStringAnnotation(AnnotationCollection a)
+            {
+                this.a = a;
+            }
+
+            public string Value
+            {
+                get => StringConvertProvider.GetString(a.Get<IObjectValueAnnotation>().Value);
+                set => a.Get<IObjectValueAnnotation>().Value = StringConvertProvider.FromString(value, a.Get<IReflectionAnnotation>()?.ReflectionInfo, a?.ParentAnnotation?.Source ?? a.Source);
+            }
+        }
         class EnabledAnnotation : IEnabledValueAnnotation, IMembersAnnotation, IOwnedAnnotation
         {
             class EnabledAccessAnnotation : IAccessAnnotation
@@ -2904,6 +2918,10 @@ namespace OpenTap
                     if (tp.DescendsTo(typeof(IEnabled)))
                     {
                         annotation.Add(new EnabledAnnotation(annotation));
+                        if (tp.DescendsTo(typeof(Enabled<>)))
+                        {
+                            annotation.Add(new EnabledStringAnnotation(annotation));
+                        }
                     }
                 }
             }
