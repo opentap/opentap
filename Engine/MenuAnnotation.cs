@@ -11,12 +11,20 @@ namespace OpenTap
     /// </summary>
     public sealed class MenuAnnotation : IOwnedAnnotation
     {
-        /// <summary> Creates a new instance. </summary>
+        /// <summary> Creates a 'member' menu annotation. </summary>
         /// <param name="member"> Which member of an object should the menu be generated for</param>
-        internal MenuAnnotation(IMemberData member) => this.member = member; 
+        internal MenuAnnotation(IMemberData member) => this.member = member;
+        
+        /// <summary> Create a 'type' menu annotation. </summary>
+        /// <param name="type"> The type for which the menu should be generated. </param>
+        internal MenuAnnotation(ITypeData type) => this.type = type;
 
-        /// <summary> The model used to construct menu items. </summary>
-        readonly IMemberData member; 
+        /// <summary> The member used to construct menu items. This maybe be null if 'type' has a value.</summary>
+        readonly IMemberData member;
+        
+        /// <summary> The type used to construct menu items. This maybe be null if 'model' has a value.</summary>
+        readonly ITypeData type;
+        
         List<AnnotationCollection> annotations;
         List<IMenuModel> models;
         object[] source;
@@ -25,23 +33,50 @@ namespace OpenTap
         {
             if (models == null)
             {
-                var factoryTypes = TypeData.GetDerivedTypes<IMenuModelFactory>();
-                models = new List<IMenuModel>();
-                foreach (var type in factoryTypes)
+                // get models for type menu annotations
+                if (type != null)
                 {
-                    if (type.CanCreateInstance == false) continue;
-                    try
+                    var factoryTypes = TypeData.GetDerivedTypes<ITypeMenuModelFactory>();
+                    models = new List<IMenuModel>();
+                    foreach (var type in factoryTypes)
                     {
-                        var factory = (IMenuModelFactory)type.CreateInstance();
-                        var model = factory.CreateModel(member);
-                        if (model == null) continue;
-                        model.Source = source;
-                        if (model is IMenuModelState active && active.Enabled == false) continue;
-                        models.Add(model);
+                        if (type.CanCreateInstance == false) continue;
+                        try
+                        {
+                            var factory = (ITypeMenuModelFactory)type.CreateInstance();
+                            IMenuModel model = factory.CreateModel(this.type);
+                            if (model == null) continue;
+                            model.Source = source;
+                            if (model is IMenuModelState active && active.Enabled == false) continue;
+                            models.Add(model);
+                        }
+                        catch
+                        {
+
+                        }
                     }
-                    catch
+                }
+                else
+                {
+                    // get models for member menu annotations
+                    var factoryTypes = TypeData.GetDerivedTypes<IMenuModelFactory>();
+                    models = new List<IMenuModel>();
+                    foreach (var type in factoryTypes)
                     {
-                    
+                        if (type.CanCreateInstance == false) continue;
+                        try
+                        {
+                            var factory = (IMenuModelFactory)type.CreateInstance();
+                            IMenuModel model = factory.CreateModel(member);
+                            if (model == null) continue;
+                            model.Source = source;
+                            if (model is IMenuModelState active && active.Enabled == false) continue;
+                            models.Add(model);
+                        }
+                        catch
+                        {
+
+                        }
                     }
                 }
             }
@@ -132,6 +167,15 @@ namespace OpenTap
         /// <param name="member">The member to show the menu for.</param>
         /// <returns>Shall return null if the model does not support the member.</returns>
         IMenuModel CreateModel(IMemberData member);
+    }
+
+    /// <summary> Factory class for build menus. This can be used to extend a type with additional menu annotations.</summary>
+    public interface ITypeMenuModelFactory : ITapPlugin
+    {
+        /// <summary> Create model should create exactly one IMenuItemModel whose members will be used in the MenuAnnotation. </summary>
+        /// <param name="type">The member to show the menu for.</param>
+        /// <returns>Shall return null if the model does not support the member.</returns>
+        IMenuModel CreateModel(ITypeData type);
     }
 
     /// <summary>

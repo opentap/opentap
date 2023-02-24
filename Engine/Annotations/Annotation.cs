@@ -2911,6 +2911,13 @@ namespace OpenTap
             {
                 if (tp.DescendsTo(typeof(ITestStep)))
                     annotation.Add(new StepNameStringValue(annotation, member: false));
+
+                // When not annotating a member, but an object, we add type annotation
+
+                if (mem == null && tp.DescendsTo(typeof(ITestStepParent)))
+                
+
+                    annotation.Add(new MenuAnnotation(tp));
                 
                 bool csharpPrimitive = tp is TypeData cst && (cst.Type.IsPrimitive || cst.Type == typeof(string));
                 if (tp.GetMembers().Any(x => x.HasAttribute<AnnotationIgnoreAttribute>() == false) && !csharpPrimitive)
