@@ -1041,6 +1041,69 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        public void TestMergedInputVerdict2([Values(true, false)] bool availableProxy)
+        {
+            var repeat1 = new RepeatStep() { Action = RepeatStep.RepeatStepAction.While };
+            var repeat2 = new RepeatStep() { Action = RepeatStep.RepeatStepAction.While };
+            var plan = new TestPlan()
+            {
+                ChildTestSteps =
+                {
+                    repeat1, repeat2
+                }
+            };
+            
+            ITestStep[] merged = { repeat1, repeat2 };
+
+            void setInputVerdict(AnnotationCollection a, ITestStep targetStep)
+            {
+                var member = a.GetMember(nameof(repeat1.TargetStep));
+                if (availableProxy)
+                {
+                    var avail = member.Get<IAvailableValuesAnnotationProxy>();
+                    var sel = avail.AvailableValues.FirstOrDefault(av =>
+                        av.Get<IObjectValueAnnotation>().Value == targetStep);
+                    avail.SelectedValue = sel;
+                }
+                else
+                {
+                    member.Get<IObjectValueAnnotation>().Value = targetStep;
+                }
+
+                a.Write();
+                a.Read();
+            } 
+            
+            { // Test multiselect editing
+                var a = AnnotationCollection.Annotate(merged);
+                setInputVerdict(a, repeat1);
+                Assert.AreSame(repeat1, repeat1.TargetStep);
+                Assert.AreSame(repeat1, repeat1.TargetStep);
+            }
+
+            { // Set repeat1 independent of repeat2
+                var a = AnnotationCollection.Annotate(repeat1);
+                setInputVerdict(a, repeat2);
+                Assert.AreSame(repeat2, repeat1.TargetStep);
+                Assert.AreSame(null, repeat2.TargetStep);
+            }
+
+            { // Set repeat2 independent of repeat1
+                var a = AnnotationCollection.Annotate(repeat2);
+                setInputVerdict(a, repeat1);
+                Assert.AreSame(repeat2, repeat1.TargetStep);
+                Assert.AreSame(repeat1, repeat2.TargetStep);
+            }
+            
+            { // Set all back to repeat1
+                var a = AnnotationCollection.Annotate(merged);
+                setInputVerdict(a, repeat1);
+                Assert.AreSame(repeat1, repeat1.TargetStep);
+                Assert.AreSame(repeat1, repeat2.TargetStep);
+            }
+        }
+
+        [Test]
         public void ParameterizeOnParentTest()
         {
             var plan = new TestPlan();
