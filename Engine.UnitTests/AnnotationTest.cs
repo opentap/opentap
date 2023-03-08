@@ -1085,7 +1085,7 @@ namespace OpenTap.UnitTests
                 var a = AnnotationCollection.Annotate(repeat1);
                 setInputVerdict(a, repeat2);
                 Assert.AreSame(repeat2, repeat1.TargetStep);
-                Assert.AreSame(null, repeat2.TargetStep);
+                Assert.AreSame(repeat1, repeat2.TargetStep);
             }
 
             { // Set repeat2 independent of repeat1
