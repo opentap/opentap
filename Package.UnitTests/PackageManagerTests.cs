@@ -97,19 +97,21 @@ namespace OpenTap.Package.UnitTests
             try
             {
                 // Check id are the same
-                var id = HttpPackageRepository.GetUserId();
-                var id2 = HttpPackageRepository.GetUserId();
+                var id = Installation.GetMachineId();
+                var id2 = Installation.GetMachineId();
                 Assert.AreEqual(id, id2, "User id are different between runs.");
 
                 // Remove id file
                 File.Delete(idPath);
                 if (File.Exists(idPath))
                     Assert.Fail("Id still exists.");
-                Assert.AreNotEqual(HttpPackageRepository.GetUserId(), default(Guid), "Failed to create new user id after deleting file.");
+                Assert.AreNotEqual(Installation.GetMachineId(), default(Guid), "Failed to create new user id after deleting file.");
 
                 // Remove directory
                 Directory.Delete(Path.GetDirectoryName(idPath), true);
-                Assert.AreNotEqual(HttpPackageRepository.GetUserId(), default(Guid), "Failed to create new user id after deleting directory.");
+                Assert.AreNotEqual(Installation.GetMachineId(), default(Guid), "Failed to create new user id after deleting directory.");
+                
+                Assert.AreEqual(Installation.Current.Id, Installation.Current.Id, "Installation ID gave different results!");
             }
             finally
             {

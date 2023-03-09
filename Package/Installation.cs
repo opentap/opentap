@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenTap.Package.Ipc;
+using Tap.Shared;
 
 namespace OpenTap.Package
 {
@@ -20,6 +21,37 @@ namespace OpenTap.Package
         /// Path to the installation
         /// </summary>
         public string Directory { get; }
+        
+        /// <summary>
+        /// Get an ID describing this installation 
+        /// </summary>
+        public string Id => $"{MurMurHash3.Hash(GetMachineId()):X8}{MurMurHash3.Hash(Directory):X8}";
+        internal static string GetMachineId()
+        {
+            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTap", "OpenTapGeneratedId");
+            string id = default(Guid).ToString(); // 00000000-0000-0000-0000-000000000000
+
+            try
+            {
+                if (File.Exists(idPath))
+                    id = File.ReadAllText(idPath);
+                else
+                {
+                    id = Guid.NewGuid().ToString();
+                    if (System.IO.Directory.Exists(Path.GetDirectoryName(idPath)) == false)
+                        System.IO.Directory.CreateDirectory(Path.GetDirectoryName(idPath));
+                    File.WriteAllText(idPath, id);
+                }
+            }
+            catch (Exception e)
+            {
+                log.Error("Could not read user id.");
+                log.Debug(e);
+            }
+
+            return id;
+        }
+
 
         /// <summary>
         /// Initialize an instance of a OpenTAP installation.
