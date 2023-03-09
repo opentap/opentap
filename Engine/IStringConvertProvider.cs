@@ -786,6 +786,14 @@ namespace OpenTap
         /// <summary> String convert provider for TestStep </summary>
         internal class TestStepConvertProvider : IStringConvertProvider
         {
+            internal static ITestStep GetStepFromContext(ITestStepParent context, Guid id)
+            {
+                ITestStepParent plan = context;
+                while (plan.Parent != null) 
+                    plan = plan.Parent;
+                return Utils.FlattenHeirarchy(plan.ChildTestSteps, x => x.ChildTestSteps)
+                    .FirstOrDefault(x => x.Id == id);
+            }
             /// <summary>
             /// Gets a TestStep from a string value. This will be a step from the test plan context object.
             /// </summary>
@@ -800,7 +808,7 @@ namespace OpenTap
                 {
                     if(Guid.TryParse(stringdata, out Guid id))
                     {
-                        return parent.ChildTestSteps.GetStep(id);
+                        return GetStepFromContext(parent, id);
                     }
                 }
                 return null;
@@ -843,12 +851,8 @@ namespace OpenTap
                 var inp = (IInput)type.CreateInstance(Array.Empty<object>());
                 if (id == Guid.Empty)
                     return inp;
-                    
-                ITestStepParent plan = step;
-                while (plan.Parent != null)
-                    plan = plan.Parent;
-                var step2 = Utils.FlattenHeirarchy(plan.ChildTestSteps, x => x.ChildTestSteps)
-                    .FirstOrDefault(x => x.Id == id);
+
+                var step2 = TestStepConvertProvider.GetStepFromContext(step, id);
                 if (step2 == null) return null;
                 inp.Step = step2;
                     
