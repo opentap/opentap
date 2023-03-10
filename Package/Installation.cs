@@ -21,12 +21,21 @@ namespace OpenTap.Package
         /// Path to the installation
         /// </summary>
         public string Directory { get; }
-        
+
         /// <summary>
         /// Get a unique identifier for this OpenTAP installation.
-        /// The identifier is computed from a uniquely generated machine ID combined with the hash of the installation directory.
+        /// The identifier is computed from hashing a uniquely generated machine ID combined with the hash of the installation directory.
         /// </summary>
-        public string Id => $"{MurMurHash3.Hash(GetMachineId()):X8}{MurMurHash3.Hash(Directory):X8}";
+        public string Id 
+        {
+            get
+            {
+                if(string.IsNullOrWhiteSpace(id))
+                    id = $"{MurMurHash3.Hash(GetMachineId()):X8}{MurMurHash3.Hash(Directory):X8}";
+                return id;
+            }
+        }
+        private string id { get; set; }
         internal static string GetMachineId()
         {
             var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTap", "OpenTapGeneratedId");
@@ -35,18 +44,22 @@ namespace OpenTap.Package
             try
             {
                 if (File.Exists(idPath))
-                    id = File.ReadAllText(idPath);
-                else
                 {
-                    id = Guid.NewGuid().ToString();
-                    if (System.IO.Directory.Exists(Path.GetDirectoryName(idPath)) == false)
-                        System.IO.Directory.CreateDirectory(Path.GetDirectoryName(idPath));
-                    File.WriteAllText(idPath, id);
+                    if (Guid.TryParse(File.ReadAllText(idPath), out Guid parsedGuid)) // In the assumable rare case that a user tampers with the OpenTapGeneratedId file.
+                    {
+                        id = parsedGuid.ToString();
+                        return id;
+                    }
                 }
+                
+                id = Guid.NewGuid().ToString();
+                if (System.IO.Directory.Exists(Path.GetDirectoryName(idPath)) == false)
+                    System.IO.Directory.CreateDirectory(Path.GetDirectoryName(idPath));
+                File.WriteAllText(idPath, id);
             }
             catch (Exception e)
             {
-                log.Error("Could not read user id.");
+                log.Error("Failed to read machine ID. See debug messages for more information");
                 log.Debug(e);
             }
 
@@ -69,7 +82,7 @@ namespace OpenTap.Package
         public bool IsInstallationFolder => GetPackages().Any(x => x.IsSystemWide() == false);
 
         private static Installation current;
-        
+
         /// <summary>
         /// Get the installation of the currently running tap process
         /// </summary>
@@ -90,7 +103,7 @@ namespace OpenTap.Package
                 return "Linux";
             }
         }
-        
+
 
         /// <summary>
         /// Invalidate cached package list. This should only be called if changes have been made to the installation by circumventing OpenTAP APIs.
@@ -104,7 +117,7 @@ namespace OpenTap.Package
 
         bool invalidate;
         readonly ConcurrentDictionary<string, PackageDef> fileMap = new ConcurrentDictionary<string, PackageDef>();
-        
+
         /// <summary>
         /// Get the installed package which provides the file specified by the string.
         /// If multiple packages provide the file the package is chosen arbitrarily.
@@ -143,7 +156,7 @@ namespace OpenTap.Package
             // abs must be contained within installDir
             if (abs.Length <= installDir.Length)
                 return null;
-            
+
             // Ensure the file is in a subdirectory of the installation. Otherwise it is not contained in a package.
             if (!abs.StartsWith(installDir))
                 return null;
@@ -161,7 +174,7 @@ namespace OpenTap.Package
                         var fileName = packageFile.FileName.Replace('\\', '/');
                         fileMap.TryAdd(fileName, package);
                     }
-                }                
+                }
             }
 
             if (fileMap.TryGetValue(relative, out var result))
@@ -182,7 +195,7 @@ namespace OpenTap.Package
             // sourceFile is normally a .DLL, but may also be other things, e.g .py-file.
             var sourceFile = source.Location;
             if (string.IsNullOrWhiteSpace(sourceFile)) return null;
-            
+
             var assemblyPath = Path.GetFullPath(sourceFile);
             var installPath = Path.GetFullPath(ExecutorClient.ExeDir);
 
@@ -195,7 +208,7 @@ namespace OpenTap.Package
 
         private Dictionary<string, PackageDef> packageCache;
         private long previousChangeId = -1;
-        
+
         // Keeps track of which warnings about duplicate packages has been emitted.
         static readonly HashSet<string> duplicateLogWarningsEmitted = new HashSet<string>();
 
@@ -205,7 +218,7 @@ namespace OpenTap.Package
         private void InvalidateIfChanged()
         {
             long changeId = IsolatedPackageAction.GetChangeId(Directory);
-            
+
             if (changeId != previousChangeId)
             {
                 Invalidate();
@@ -220,7 +233,7 @@ namespace OpenTap.Package
 
         /// <summary> Finds an installed package by name. Returns null if the package was not found. </summary>
         public PackageDef FindPackage(string name) => GetPackagesLookup().TryGetValue(name, out var package) ? package : null;
-        
+
         /// <summary>
         /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
         /// Results are cached, and Invalidate must be called if changes to the installation are made by circumventing OpenTAP APIs.
@@ -270,7 +283,7 @@ namespace OpenTap.Package
                     else
                     {
                         duplicatePlugins.Add(package);
-                        
+
                     }
                 }
 
@@ -281,7 +294,7 @@ namespace OpenTap.Package
                         if (duplicateLogWarningsEmitted.Add(p.Key))
                             log.Warning(
                                 $"Duplicate {p.Key} packages detected. Consider removing some of the duplicate package definitions:\n" +
-                                $"{string.Join("\n", p.Append(plugins[p.Key]).Select(x => " - " + ((InstalledPackageDefSource) x.PackageSource).PackageDefFilePath))}");
+                                $"{string.Join("\n", p.Append(plugins[p.Key]).Select(x => " - " + ((InstalledPackageDefSource)x.PackageSource).PackageDefFilePath))}");
                     }
                 }
 
@@ -316,7 +329,7 @@ namespace OpenTap.Package
         {
             public IgnoreCyclicCallMemorizer(Func<T1, T2> func) : base(null, func)
             {
-                
+
             }
 
             public override T2 OnCyclicCallDetected(T1 key)

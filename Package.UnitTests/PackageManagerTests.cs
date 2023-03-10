@@ -106,11 +106,18 @@ namespace OpenTap.Package.UnitTests
                 if (File.Exists(idPath))
                     Assert.Fail("Id still exists.");
                 Assert.AreNotEqual(Installation.GetMachineId(), default(Guid), "Failed to create new user id after deleting file.");
+                Assert.IsTrue(Guid.TryParse(Installation.GetMachineId(), out Guid _));
 
                 // Remove directory
                 Directory.Delete(Path.GetDirectoryName(idPath), true);
                 Assert.AreNotEqual(Installation.GetMachineId(), default(Guid), "Failed to create new user id after deleting directory.");
-                
+                Assert.IsTrue(Guid.TryParse(Installation.GetMachineId(), out Guid _));
+
+                // Tamper with id file
+                File.WriteAllText(idPath, "Not a valid GUID");
+                Assert.AreNotEqual(Installation.GetMachineId(), default(Guid), "Failed to create new user id after tampering with file.");
+                Assert.IsTrue(Guid.TryParse(Installation.GetMachineId(), out Guid _));
+
                 Assert.AreEqual(Installation.Current.Id, Installation.Current.Id, "Installation ID gave different results!");
             }
             finally
