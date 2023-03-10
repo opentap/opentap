@@ -23,7 +23,8 @@ namespace OpenTap.Package
         public string Directory { get; }
         
         /// <summary>
-        /// Get an ID describing this installation 
+        /// Get a unique identifier for this OpenTAP installation.
+        /// The identifier is computed from a uniquely generated machine ID combined with the hash of the installation directory.
         /// </summary>
         public string Id => $"{MurMurHash3.Hash(GetMachineId()):X8}{MurMurHash3.Hash(Directory):X8}";
         internal static string GetMachineId()
