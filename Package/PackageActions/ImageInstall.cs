@@ -106,7 +106,20 @@ namespace OpenTap.Package
                 log.Debug(sw, "Image resolution done");
 
                 if (image.Packages.Count == 0)
-                    throw new InvalidOperationException("Resolved image is empty.");
+                {
+                    // If we are running interactively, we should prompt the user and warn them that they are
+                    // about to completely wipe their installation.
+                    if (NonInteractiveUserInputInterface.IsSet() == false)
+                    {
+                        var req = new WipeInstallationQuestion();
+                        UserInput.Request(req, true);
+
+                        if (req.WipeInstallation == WipeInstallationResponse.No)
+                        {
+                            throw new OperationCanceledException("Image installation was canceled.");
+                        }
+                    }
+                }
                 
                 log.Debug("Image hash: {0}", image.Id);
                 if (DryRun)
@@ -130,6 +143,23 @@ namespace OpenTap.Package
                 throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, e.Message);
             }
 
+        }
+        
+        enum WipeInstallationResponse
+        {
+            No,
+            Yes,
+        }
+
+        [Display("Completely wipe installation?")]
+        class WipeInstallationQuestion
+        {
+            [Browsable(true)]
+            [Layout(LayoutMode.FullRow)]
+            public string Message { get; } = "You are about to completely wipe your installation. Do you wish to Contineu?";
+            [Submit]
+            [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+            public WipeInstallationResponse WipeInstallation { get; set; } = WipeInstallationResponse.No;
         }
     }
 }
