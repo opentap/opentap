@@ -107,17 +107,13 @@ namespace OpenTap.Package
 
                 if (image.Packages.Count == 0)
                 {
-                    // If we are running interactively, we should prompt the user and warn them that they are
-                    // about to completely wipe their installation.
-                    if (NonInteractiveUserInputInterface.IsSet() == false)
-                    {
-                        var req = new WipeInstallationQuestion();
-                        UserInput.Request(req, true);
+                    // We should prompt the user and warn them that they are about to completely wipe their installation.
+                    var req = new WipeInstallationQuestion();
+                    UserInput.Request(req, true);
 
-                        if (req.WipeInstallation == WipeInstallationResponse.No)
-                        {
-                            throw new OperationCanceledException("Image installation was canceled.");
-                        }
+                    if (req.WipeInstallation == WipeInstallationResponse.No)
+                    {
+                        throw new OperationCanceledException("Image installation was canceled.");
                     }
                 }
                 
@@ -156,10 +152,11 @@ namespace OpenTap.Package
         {
             [Browsable(true)]
             [Layout(LayoutMode.FullRow)]
-            public string Message { get; } = "You are about to completely wipe your installation. Do you wish to Contineu?";
+            public string Message { get; } = "You are about to completely wipe your installation. Do you wish to Continue?";
+
             [Submit]
             [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
-            public WipeInstallationResponse WipeInstallation { get; set; } = WipeInstallationResponse.No;
+            public WipeInstallationResponse WipeInstallation { get; set; } = WipeInstallationResponse.Yes;
         }
     }
 }
