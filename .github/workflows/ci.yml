@@ -807,7 +807,7 @@ jobs:
           path: OpenTAP.*.exe
 
   Publish-Installer-Windows:
-    if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/r') || github.ref == 'refs/heads/main'
+    if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     environment: packages.opentap.io 
     runs-on: ubuntu-latest 
     needs:
@@ -861,7 +861,7 @@ jobs:
           path: Installer/Assets/OpenTAP
 
   Publish-Installer-Linux:
-    if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/r') || github.ref == 'refs/heads/main'
+    if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     environment: packages.opentap.io 
     runs-on: ubuntu-latest 
     needs:
