@@ -7,6 +7,9 @@
 
   <ItemGroup>
     <None Remove="PackageSchema.xsd" />
+    <None Update="libgit2-b7bad55.source">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="PackageSchema.xsd" />
