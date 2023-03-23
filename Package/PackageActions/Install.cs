@@ -94,7 +94,7 @@ namespace OpenTap.Package
         /// In this instance, it is better to just try the installation with the current privileges, and fail with whatever
         /// error if those privileges are not sufficient.
         /// </summary>
-        internal bool ElevatedOverride { get; set; }
+        internal bool AlreadyElevated { get; set; }
 
         public PackageInstallAction()
         {
@@ -327,46 +327,53 @@ namespace OpenTap.Package
                 // System wide packages require elevated privileges. Install them in a separate elevated process.
                 var systemWide = packagesToInstall.Where(p => p.IsSystemWide()).ToArray();
 
-                // Skip this condition if `ElevatedOverride` is set
-                if (!ElevatedOverride)
+                // We need to elevate if 
+                // 1. Elevation was not already attempted, and
+                // 2. we need to install systemWide packages, and
+                // 3. We are not already running as admin
+                bool needElevation = !AlreadyElevated && systemWide.Any() && SubProcessHost.IsAdmin() == false;
+
+                // Warn the user if elevation was already attempted, and we are not currently running as admin
+                if (AlreadyElevated && SubProcessHost.IsAdmin() == false)
                 {
-                    // If we are already running as administrator, skip this and install normally
-                    if (systemWide.Any() && SubProcessHost.IsAdmin() == false)
+                    log.Warning($"Process elevation failed. Installation will continue without elevation.");
+                }
+                
+                if (needElevation)
+                {
+                    RaiseProgressUpdate(20, "Installing system-wide packages.");
+                    var installStep = new PackageInstallStep()
                     {
-                        RaiseProgressUpdate(20, "Installing system-wide packages.");
-                        var installStep = new PackageInstallStep()
-                        {
-                            Packages = systemWide,
-                            Repositories = repositories.Select(r => r.Url).ToArray(),
-                            Target = PackageDef.SystemWideInstallationDirectory,
-                            Force = Force,
-                            SystemWideOnly = true
-                        };
+                        Packages = systemWide,
+                        Repositories = repositories.Select(r => r.Url).ToArray(),
+                        Target = PackageDef.SystemWideInstallationDirectory,
+                        Force = Force,
+                        SystemWideOnly = true
+                    };
 
-                        var processRunner = new SubProcessHost
+                    var processRunner = new SubProcessHost
+                    {
+                        ForwardLogs = true,
+                        MutedSources =
                         {
-                            ForwardLogs = true,
-                            MutedSources =
-                            {
-                                "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan",
-                                "UpdateCheck",
-                                "Installation"
-                            }
-                        };
-
-                        var result = processRunner.Run(installStep, true, cancellationToken);
-                        if (result != Verdict.Pass)
-                        {
-                            var ex = new Exception(
-                                $"Failed installing system-wide packages. Try running the command as administrator.");
-                            RaiseError(ex);
+                            "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan",
+                            "UpdateCheck",
+                            "Installation"
                         }
+                    };
 
-                        var pct = ((double)systemWide.Length / systemWide.Length + packagesToInstall.Count) * 100;
-                        RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
-                        // And remove the system wide packages from the list
-                        packagesToInstall = packagesToInstall.Except(p => p.IsSystemWide()).ToList();
+                    var result = processRunner.Run(installStep, true, cancellationToken);
+                    if (result != Verdict.Pass)
+                    {
+                        var ex = new Exception(
+                            $"Failed installing system-wide packages. Try running the command as administrator.");
+                        RaiseError(ex);
                     }
+
+                    var pct = ((double)systemWide.Length / systemWide.Length + packagesToInstall.Count) * 100;
+                    RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
+                    // And remove the system wide packages from the list
+                    packagesToInstall = packagesToInstall.Except(p => p.IsSystemWide()).ToList();
                 }
 
                 // Download the packages
