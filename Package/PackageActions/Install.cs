@@ -86,6 +86,15 @@ namespace OpenTap.Package
 
 
         private string DefaultOs;
+        
+        /// <summary>
+        /// This will be set only if the install action was started by <see cref="PackageInstallStep"/>
+        /// This is supposed to solve an issue where OpenTAP fails to detect that the process was elevated.
+        /// If one level of elevation was already attempted, it is unlikely that further attempts will cause the check to succeed.
+        /// In this instance, it is better to just try the installation with the current privileges, and fail with whatever
+        /// error if those privileges are not sufficient.
+        /// </summary>
+        internal bool ElevatedOverride { get; set; }
 
         public PackageInstallAction()
         {
@@ -318,41 +327,46 @@ namespace OpenTap.Package
                 // System wide packages require elevated privileges. Install them in a separate elevated process.
                 var systemWide = packagesToInstall.Where(p => p.IsSystemWide()).ToArray();
 
-                // If we are already running as administrator, skip this and install normally
-                if (systemWide.Any() && SubProcessHost.IsAdmin() == false)
+                // Skip this condition if `ElevatedOverride` is set
+                if (!ElevatedOverride)
                 {
-                    RaiseProgressUpdate(20, "Installing system-wide packages.");
-                    var installStep = new PackageInstallStep()
+                    // If we are already running as administrator, skip this and install normally
+                    if (systemWide.Any() && SubProcessHost.IsAdmin() == false)
                     {
-                        Packages = systemWide,
-                        Repositories = repositories.Select(r => r.Url).ToArray(),
-                        Target = PackageDef.SystemWideInstallationDirectory,
-                        Force = Force,
-                        SystemWideOnly = true
-                    };
-
-                    var processRunner = new SubProcessHost
-                    {
-                        ForwardLogs = true,
-                        MutedSources =
+                        RaiseProgressUpdate(20, "Installing system-wide packages.");
+                        var installStep = new PackageInstallStep()
                         {
-                            "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan", "UpdateCheck",
-                            "Installation"
+                            Packages = systemWide,
+                            Repositories = repositories.Select(r => r.Url).ToArray(),
+                            Target = PackageDef.SystemWideInstallationDirectory,
+                            Force = Force,
+                            SystemWideOnly = true
+                        };
+
+                        var processRunner = new SubProcessHost
+                        {
+                            ForwardLogs = true,
+                            MutedSources =
+                            {
+                                "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan",
+                                "UpdateCheck",
+                                "Installation"
+                            }
+                        };
+
+                        var result = processRunner.Run(installStep, true, cancellationToken);
+                        if (result != Verdict.Pass)
+                        {
+                            var ex = new Exception(
+                                $"Failed installing system-wide packages. Try running the command as administrator.");
+                            RaiseError(ex);
                         }
-                    };
 
-                    var result = processRunner.Run(installStep, true, cancellationToken);
-                    if (result != Verdict.Pass)
-                    {
-                        var ex = new Exception(
-                            $"Failed installing system-wide packages. Try running the command as administrator.");
-                        RaiseError(ex);
+                        var pct = ((double)systemWide.Length / systemWide.Length + packagesToInstall.Count) * 100;
+                        RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
+                        // And remove the system wide packages from the list
+                        packagesToInstall = packagesToInstall.Except(p => p.IsSystemWide()).ToList();
                     }
-
-                    var pct = ((double)systemWide.Length / systemWide.Length + packagesToInstall.Count) * 100;
-                    RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
-                    // And remove the system wide packages from the list
-                    packagesToInstall = packagesToInstall.Except(p => p.IsSystemWide()).ToList();
                 }
 
                 // Download the packages

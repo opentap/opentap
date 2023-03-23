@@ -27,7 +27,8 @@ namespace OpenTap.Package.PackageInstallHelpers
                     .ToArray(),
                 Target = Target,
                 Repository = Repositories,
-                SystemWideOnly = SystemWideOnly
+                SystemWideOnly = SystemWideOnly,
+                ElevatedOverride = true,
             };
 
             try
