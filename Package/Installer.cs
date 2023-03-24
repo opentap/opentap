@@ -186,7 +186,7 @@ namespace OpenTap.Package
                     }
                     else if(res == ActionResult.NothingToDo)
                     {
-                        log.Info($"Tried to {command} {pkg.Name}, but there was nothing to do.");
+                        log.Debug($"Tried to {command} {pkg.Name}, but there was nothing to do.");
                     }
                     else
                         log.Info(timer, $"{verb} {pkg.Name} version {pkg.Version}.");
@@ -272,7 +272,7 @@ namespace OpenTap.Package
                 var tries = 0;
                 const int maxTries = 10;
                 var delaySeconds = 3;
-                var noninteractive = UserInput.GetInterface() is NonInteractiveUserInputInterface;
+                var noninteractive = NonInteractiveUserInputInterface.IsSet();
                 var inUseString = BuildString(filesInUse);
                 if (noninteractive)
                     log.Warning(inUseString);

@@ -282,6 +282,54 @@ namespace OpenTap.Engine.UnitTests
                 tapTraceListener.ErrorMessage.Count(x =>
                     x.Contains("Unable to read StepWithLicenseException. A valid license cannot be granted")));
         }
+
+        public class DynamicDependencySerializerPlugin : TapSerializerPlugin, ITapSerializerPluginDependencyMarker
+        {
+
+            public override double Order => 1000;
+            HashSet<XElement> visitedNodes = new HashSet<XElement>();
+            static XName testPlanName = "TestPlan";
+            public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
+            {
+                if (node.Name == testPlanName)
+                {
+                    if (visitedNodes.Add(node))
+                        return Serializer.Deserialize(node, setter, t);
+                }
+                return false;
+            }
+            public override bool Serialize(XElement node, object obj, ITypeData expectedType)
+            {
+                if (visitedNodes.Add(node) == false) return false;
+                return Serializer.Serialize(node, obj, expectedType);
+            }
+            
+            public bool NeededForDeserialization
+            {
+                get;
+                set;
+            }
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void SerializerMaybeUsedType(bool addSerializerPluginDependency)
+        {
+            var serializer = new TapSerializer();
+            var obj = new TestPlan();
+            serializer.GetSerializer<DynamicDependencySerializerPlugin>().NeededForDeserialization = addSerializerPluginDependency;
+            serializer.SerializeToString(obj);
+            var usedTypes = serializer.GetUsedTypes();
+            var wasUsed = usedTypes.Contains(TypeData.FromType(typeof(DynamicDependencySerializerPlugin)));
+            if (addSerializerPluginDependency)
+            {
+                Assert.IsTrue(wasUsed);
+            }
+            else
+            {
+                Assert.IsFalse(wasUsed);
+            }
+        }
         
     }
 }

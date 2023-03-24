@@ -14,6 +14,9 @@ namespace OpenTap.Package.UnitTests
         [Test]
         public void TwoPackagesWithSameName()
         {
+            using var session = Session.Create();
+            UserInput.SetInterface(new NonInteractiveUserInputInterface());
+            
             string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
 <Package Name='Test4' xmlns ='http://opentap.io/schemas/package'>
   <Files>

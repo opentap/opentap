@@ -142,6 +142,10 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
+      - uses: actions/setup-node@v3
+        name: Setup NPM
+        with:
+          node-version: 14
       - name: Install
         run: npm install
         working-directory: doc
@@ -287,7 +291,7 @@ jobs:
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"
-          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000
+          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000 RunConfiguration.TreatNoTestsAsError=true
 
   TestPackage:
     runs-on: windows-2022
@@ -310,7 +314,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
           cd bin/Release
-          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed"
+          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TreatNoTestsAsError=true
 
   TestWindowsPlan:
     runs-on: windows-2022
@@ -517,6 +521,8 @@ jobs:
           ../Release/tap package install -f "../../Sign.TapPackage"
           echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
           cp .\runtimes\win-x64\native\git2-b7bad55.dll .
+          # Manually copy the correct newtonsoft dll here since it was overwritten by a unittest
+          cp ../../Installer/Assets/Newtonsoft.Json.dll .
           ..\Release\tap package create -v -c ../../package.xml -o Packages/OpenTAP.Linux.TapPackage
           cp Packages/OpenTAP.Linux.TapPackage ../../OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.Linux.TapPackage
         env: 
@@ -533,6 +539,31 @@ jobs:
           path: |
             OpenTAP.*.Linux.TapPackage
 
+  Package-Templates:
+    runs-on: windows-2022
+    needs:
+      - GetVersion
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Update Version
+        run: |
+          Set-Content .\templates\Templates.csproj (Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+          Set-Content .\templates\src\project\ProjectName.csproj (Get-Content .\templates\src\project\ProjectName.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+      - name: Package
+        run: dotnet pack ./templates/
+      - uses: actions/upload-artifact@v2
+        with:
+          name: package-templates
+          retention-days: 14
+          path: ./bin/Release/OpenTAP.Templates.*.nupkg
+
   Package-SDK:
     runs-on: windows-2022
     needs:
@@ -540,6 +571,7 @@ jobs:
       - Build-DevGuide
       - Build-ApiDoc
       - GetVersion
+      - Package-Templates
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -563,6 +595,11 @@ jobs:
         with:
           name: doc-api-chm
           path: Help/
+      - name: Download Template package
+        uses: actions/download-artifact@v2
+        with:
+          name: package-templates
+          path: bin/Release/Packages2/SDK/
       - name: Package
         run: |
           $env:Sign = "false"
@@ -582,6 +619,7 @@ jobs:
           $doc.FirstChild.RemoveChild($ele) # First Child is the Project element
           $doc.Save("$pwd/Directory.Build.props")
           cd ../../..
+          Move-Item "Packages2/SDK/OpenTap.Templates.*.nupkg" "Packages/SDK/"
           $content=(Get-Content Packages/SDK/Examples/Directory.Build.props).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Set-Content Packages/SDK/Examples/Directory.Build.props $content
           ./tap package create -v -c ../../sdk/sdk.package.xml
@@ -619,7 +657,7 @@ jobs:
       - name: Diff Package
         run: |
           mv OpenTAP.*.TapPackage OpenTAP.TapPackage
-          tap package install "Package Diff" --version any
+          tap package install "Package Diff" --version 0.1.0-beta.19+2b1aa952
           tap package diff OpenTAP.TapPackage -o diff
 
   Package-NuGet:
@@ -720,7 +758,6 @@ jobs:
           path: .
       - name: Package
         run: |
-          
           $path=(get-item -path "./").Fullname
           $str=[IO.File]::ReadAllText($path + "/LinuxInstall/INSTALL.sh") -replace "`r`n", "`n"
           ([IO.File]::WriteAllText($path + "/INSTALL.sh", $str))
@@ -742,7 +779,7 @@ jobs:
       - GetVersion
       - Package-Win
     container:
-      image: ghcr.io/opentap/smartinstaller:2.0.0-beta.29
+      image: ghcr.io/opentap/smartinstaller:2.1.0-beta.5
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -770,7 +807,7 @@ jobs:
           path: OpenTAP.*.exe
 
   Publish-Installer-Windows:
-    if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/r') || github.ref == 'refs/heads/main'
+    if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     environment: packages.opentap.io 
     runs-on: ubuntu-latest 
     needs:
@@ -799,7 +836,7 @@ jobs:
       - GetVersion
       - Package-Linux
     container:
-      image: ghcr.io/opentap/smartinstaller:2.0.0-beta.29
+      image: ghcr.io/opentap/smartinstaller:2.1.0-beta.5
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -824,7 +861,7 @@ jobs:
           path: Installer/Assets/OpenTAP
 
   Publish-Installer-Linux:
-    if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/r') || github.ref == 'refs/heads/main'
+    if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     environment: packages.opentap.io 
     runs-on: ubuntu-latest 
     needs:
@@ -912,7 +949,7 @@ jobs:
           username: ${{ secrets.DOCKER_USER }}
           password: ${{ secrets.DOCKER_PASS }}
           target: ${{ matrix.target }}
-          tag: ${{env.TAG_NAME}}-bionic${{ matrix.tag-suffix }}
+          tag: ${{env.TAG_NAME}}${{ matrix.tag-suffix }}
           path: docker/Linux
 
   Package-Deb:

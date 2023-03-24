@@ -103,7 +103,7 @@ namespace OpenTap.Package
                 log.Info("Waiting for other package manager operation to complete.");
                 try
                 {
-                    switch (WaitHandle.WaitAny(new WaitHandle[] { fileLock.WaitHandle, cancellationToken.WaitHandle }, 120000))
+                    switch (WaitHandle.WaitAny(new WaitHandle[] { fileLock.WaitHandle, cancellationToken.WaitHandle }, TimeSpan.FromMinutes(2)))
                     {
                         case 0: // we got the mutex
                             break;

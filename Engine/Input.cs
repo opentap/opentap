@@ -121,28 +121,42 @@ namespace OpenTap
             }
         }
 
+        // the step ID is used for storing the step ID when moving the Step owning the Input.
+        // otherwise, after moving the step (taking it out of the test plan and moving it back in) the Step might be null.
         Guid stepId;
         void ChildTestSteps_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
-            if(Step != null && e.OldItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove)
+            if (Step != null && e.OldItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove)
             {
                 if (e.OldItems.Contains(step) || Step.GetParents().Any(e.OldItems.Contains))
                 {
                     stepId = Step.Id;
                     Step = null;
                 }
-            }else if(e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+            }
+            else if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
             {
-                if(Step != null)
-                  stepId = Step.Id;
+                if (Step != null)
+                    stepId = Step.Id;
                 Step = null;
-            }else  if(e.NewItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
+            }
+            else if (e.NewItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
             {
+                // Update the Step value when the step has moved inside the test plan.
+                // We do this because we want to set the Input to null if the test plan changes in a way
+                //     where the target step disappears.
+
+                // Avoid setting the Step if the property name is null - this usually means that 
+                //     the property has been set to null, but the stepId still has a remaining value.
+                //     this should be ok to ignore.
+                if (Property == null)
+                    return;
+
                 var steps = e.NewItems.OfType<ITestStep>();
                 var allSteps = Utils.FlattenHeirarchy(steps, x => x.ChildTestSteps).Distinct();
-                foreach(var step in allSteps)
+                foreach (var step in allSteps)
                 {
-                    if(step.Id == stepId)
+                    if (step.Id == stepId)
                     {
                         Step = step;
                         return;

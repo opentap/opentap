@@ -97,19 +97,28 @@ namespace OpenTap.Package.UnitTests
             try
             {
                 // Check id are the same
-                var id = HttpPackageRepository.GetUserId();
-                var id2 = HttpPackageRepository.GetUserId();
+                var id = Installation.GetMachineId();
+                var id2 = Installation.GetMachineId();
                 Assert.AreEqual(id, id2, "User id are different between runs.");
 
                 // Remove id file
                 File.Delete(idPath);
                 if (File.Exists(idPath))
                     Assert.Fail("Id still exists.");
-                Assert.AreNotEqual(HttpPackageRepository.GetUserId(), default(Guid), "Failed to create new user id after deleting file.");
+                Assert.AreNotEqual(Installation.GetMachineId(), default(Guid), "Failed to create new user id after deleting file.");
+                Assert.IsTrue(Guid.TryParse(Installation.GetMachineId(), out Guid _));
 
                 // Remove directory
                 Directory.Delete(Path.GetDirectoryName(idPath), true);
-                Assert.AreNotEqual(HttpPackageRepository.GetUserId(), default(Guid), "Failed to create new user id after deleting directory.");
+                Assert.AreNotEqual(Installation.GetMachineId(), default(Guid), "Failed to create new user id after deleting directory.");
+                Assert.IsTrue(Guid.TryParse(Installation.GetMachineId(), out Guid _));
+
+                // Tamper with id file
+                File.WriteAllText(idPath, "Not a valid GUID");
+                Assert.AreNotEqual(Installation.GetMachineId(), default(Guid), "Failed to create new user id after tampering with file.");
+                Assert.IsTrue(Guid.TryParse(Installation.GetMachineId(), out Guid _));
+
+                Assert.AreEqual(Installation.Current.Id, Installation.Current.Id, "Installation ID gave different results!");
             }
             finally
             {

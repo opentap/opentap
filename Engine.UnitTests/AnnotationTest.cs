@@ -88,6 +88,32 @@ namespace OpenTap.UnitTests
             }
 
         }
+
+        [Test]
+        public void ArrayStepNameAnnotationTest()
+        {
+            var step1 = new DelayStep() { Name = "A" };
+            var step2 = new DelayStep() { Name = "A" };
+            var step3 = new DelayStep() { Name = "A" };
+            var steps = new ITestStep[]
+            {
+                step1, step2, step3
+            };
+            
+            Assert.AreEqual(GetValue(steps), "A");
+            step2.Name = "B";
+            Assert.IsNull(GetValue(steps));
+
+            static string GetValue(ITestStep[] steps)
+            {
+                var annotations = AnnotationCollection.Annotate(steps);
+                var membersAnnotation = annotations.Get<IMembersAnnotation>();
+                var memberAnnotation = membersAnnotation.Members.First(m => m.Name == "Step Name");
+                var stepNameAnnotation = memberAnnotation.Get<IStringReadOnlyValueAnnotation>();
+                Assert.DoesNotThrow(() => _ = stepNameAnnotation.Value);
+                return stepNameAnnotation.Value;
+            }
+        }
         
 
         [Test]
@@ -193,6 +219,30 @@ namespace OpenTap.UnitTests
             Assert.AreEqual("test2", elements[0].String.ToString());
             elems.Read();
             Assert.IsNull(sv.Value);
+        }
+
+        public class StepWithMacroString : TestStep
+        {
+            public string A { get; set; } = "Hello";
+            public MacroString MacroString { get; set; }
+            public override void Run()
+            {
+            }
+        }
+
+        [Test]
+        public void TestMacroStringContext()
+        {
+            var plan = new TestPlan();
+            var step = new StepWithMacroString();
+            plan.ChildTestSteps.Add(step);
+            step.MacroString = new MacroString(step);
+            Assert.IsTrue(step.MacroString.Context == plan.ChildTestSteps.First(), "MacroString Context is set.");
+
+            plan = new TapSerializer().Clone(plan) as TestPlan;
+            step = plan.ChildTestSteps.First() as StepWithMacroString;
+            
+            Assert.IsTrue(step.MacroString.Context == plan.ChildTestSteps.First(), "MacroString Context is set.");
         }
 
         public class ClassWithMethodAnnotation
@@ -846,6 +896,7 @@ namespace OpenTap.UnitTests
                 TapThread.Sleep(Time.FromSeconds(DelaySecs));
             }
         }
+        
         public class TwoDelayStep : TestStep
         {
             public double DelaySecs { get; set; }
@@ -897,6 +948,159 @@ namespace OpenTap.UnitTests
             icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
             parameterizeIcon = icons[IconNames.Unparameterize].First();
             Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
+        }
+
+        [Test]
+        public void TestMergedInputVerdict([Values(true, false)]bool availableProxy)
+        {
+            var dialog = new DialogStep();
+            var if1 = new IfStep();
+            var if2 = new IfStep();
+            var if3 = new IfStep();
+            var plan = new TestPlan()
+            {
+                ChildTestSteps =
+                {
+                    dialog, if1, if2, if3
+                }
+            };
+
+            ITestStep[] merged = { if1, if2, if3 };
+
+            void setInputVerdict(AnnotationCollection a, ITestStep targetStep)
+            {
+                var member = a.GetMember(nameof(if1.InputVerdict));
+                if (availableProxy)
+                {
+                    var avail = member.Get<IAvailableValuesAnnotationProxy>();
+                    var sel = avail.AvailableValues.First(av =>
+                        av.GetMember("Step").Get<IObjectValueAnnotation>().Value == targetStep);
+                    avail.SelectedValue = sel;
+                }
+                else
+                {
+                    var input = new Input<Verdict>()
+                    {
+                        Property = TypeData.FromType(typeof(DialogStep)).GetMember(nameof(dialog.Verdict)),
+                        Step = targetStep
+                    };
+                    member.Get<IObjectValueAnnotation>().Value = input;
+                }
+
+                a.Write();
+                a.Read();
+            }
+            
+            { // Test multiselect editing
+                var a = AnnotationCollection.Annotate(merged);
+                setInputVerdict(a, dialog);
+                Assert.AreSame(dialog, if1.InputVerdict.Step);
+                Assert.AreSame(dialog, if2.InputVerdict.Step);
+                Assert.AreSame(dialog, if3.InputVerdict.Step);
+            }
+            
+            { // Unset all
+                var a = AnnotationCollection.Annotate(merged);
+                setInputVerdict(a, null);
+                Assert.AreSame(null, if1.InputVerdict.Step);
+                Assert.AreSame(null, if2.InputVerdict.Step);
+                Assert.AreSame(null, if3.InputVerdict.Step);
+            }
+
+            { // Set if1 independent of if2
+                var a = AnnotationCollection.Annotate(if1);
+                setInputVerdict(a, if2);
+                Assert.AreSame(if2, if1.InputVerdict.Step);
+                Assert.AreSame(null, if2.InputVerdict.Step);
+                Assert.AreSame(null, if3.InputVerdict.Step);
+            }
+
+            { // Set if2 independent of if1
+                var a = AnnotationCollection.Annotate(if2);
+                setInputVerdict(a, if1);
+                Assert.AreSame(if2, if1.InputVerdict.Step);
+                Assert.AreSame(if1, if2.InputVerdict.Step);
+                Assert.AreSame(null, if3.InputVerdict.Step);
+            }
+            
+            { // Set all back to dialog
+                var a = AnnotationCollection.Annotate(merged);
+                setInputVerdict(a, dialog);
+                Assert.AreSame(dialog, if1.InputVerdict.Step);
+                Assert.AreSame(dialog, if2.InputVerdict.Step);
+                Assert.AreSame(dialog, if3.InputVerdict.Step);
+            }
+            
+            { // Unset all
+                var a = AnnotationCollection.Annotate(merged);
+                setInputVerdict(a, null);
+                Assert.AreSame(null, if1.InputVerdict.Step);
+                Assert.AreSame(null, if2.InputVerdict.Step);
+                Assert.AreSame(null, if3.InputVerdict.Step);
+            }
+        }
+
+        [Test]
+        public void TestMergedInputVerdict2([Values(true, false)] bool availableProxy)
+        {
+            var repeat1 = new RepeatStep() { Action = RepeatStep.RepeatStepAction.While };
+            var repeat2 = new RepeatStep() { Action = RepeatStep.RepeatStepAction.While };
+            var plan = new TestPlan()
+            {
+                ChildTestSteps =
+                {
+                    repeat1, repeat2
+                }
+            };
+            
+            ITestStep[] merged = { repeat1, repeat2 };
+
+            void setInputVerdict(AnnotationCollection a, ITestStep targetStep)
+            {
+                var member = a.GetMember(nameof(repeat1.TargetStep));
+                if (availableProxy)
+                {
+                    var avail = member.Get<IAvailableValuesAnnotationProxy>();
+                    var sel = avail.AvailableValues.FirstOrDefault(av =>
+                        av.Get<IObjectValueAnnotation>().Value == targetStep);
+                    avail.SelectedValue = sel;
+                }
+                else
+                {
+                    member.Get<IObjectValueAnnotation>().Value = targetStep;
+                }
+
+                a.Write();
+                a.Read();
+            } 
+            
+            { // Test multiselect editing
+                var a = AnnotationCollection.Annotate(merged);
+                setInputVerdict(a, repeat1);
+                Assert.AreSame(repeat1, repeat1.TargetStep);
+                Assert.AreSame(repeat1, repeat1.TargetStep);
+            }
+
+            { // Set repeat1 independent of repeat2
+                var a = AnnotationCollection.Annotate(repeat1);
+                setInputVerdict(a, repeat2);
+                Assert.AreSame(repeat2, repeat1.TargetStep);
+                Assert.AreSame(repeat1, repeat2.TargetStep);
+            }
+
+            { // Set repeat2 independent of repeat1
+                var a = AnnotationCollection.Annotate(repeat2);
+                setInputVerdict(a, repeat1);
+                Assert.AreSame(repeat2, repeat1.TargetStep);
+                Assert.AreSame(repeat1, repeat2.TargetStep);
+            }
+            
+            { // Set all back to repeat1
+                var a = AnnotationCollection.Annotate(merged);
+                setInputVerdict(a, repeat1);
+                Assert.AreSame(repeat1, repeat1.TargetStep);
+                Assert.AreSame(repeat1, repeat2.TargetStep);
+            }
         }
 
         [Test]

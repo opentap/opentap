@@ -442,8 +442,8 @@ namespace OpenTap.Package.UnitTests
         {
             int exitCode;
             string output = RunPackageCli("install NonExistent.TapPackage", out exitCode);
-            Assert.AreEqual((int)ExitCodes.NetworkError, exitCode, "Unexpected exit code.\n" + output);
-            StringAssert.Contains("Could not download", output);
+            Assert.AreEqual((int)ExitCodes.GeneralException, exitCode, "Unexpected exit code.\n" + output);
+            StringAssert.Contains("Package 'NonExistent.TapPackage' not found.", output);
         }
 
         [Test]

@@ -18,8 +18,8 @@ namespace OpenTap.Package
     [Display("install", Group: "package", Description: "Install one or more packages.")]
     public class PackageInstallAction : IsolatedPackageAction
     {
-        static readonly TraceSource log = Log.CreateSource("Install");
-        
+        static readonly TraceSource Log = OpenTap.Log.CreateSource("Install");
+
         [Obsolete("Use Force instead.")]
         public bool ForceInstall { get => Force; set => Force = value; }
 
@@ -32,7 +32,7 @@ namespace OpenTap.Package
 
         [CommandLineArgument("overwrite", Description = "Overwrite files that already exist without asking. This is implied when using --force.")]
         public bool Overwrite { get; set; }
-        
+
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
@@ -75,7 +75,7 @@ namespace OpenTap.Package
                                                           "skip any additional install actions the package might have defined.\n" +
                                                           "This can leave the installed package unusable.")]
         public bool UnpackOnly { get; set; }
-        
+
         // This is set when system wide packages are being installed.
         public bool SystemWideOnly { get; set; }
 
@@ -87,6 +87,15 @@ namespace OpenTap.Package
 
         private string DefaultOs;
         
+        /// <summary>
+        /// This will be set only if the install action was started by <see cref="PackageInstallStep"/>
+        /// This is supposed to solve an issue where OpenTAP fails to detect that the process was elevated.
+        /// If one level of elevation was already attempted, it is unlikely that further attempts will cause the check to succeed.
+        /// In this instance, it is better to just try the installation with the current privileges, and fail with whatever
+        /// error if those privileges are not sufficient.
+        /// </summary>
+        internal bool AlreadyElevated { get; set; }
+
         public PackageInstallAction()
         {
             Architecture = ArchitectureHelper.GuessBaseArchitecture;
@@ -114,17 +123,18 @@ namespace OpenTap.Package
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
             List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
+            Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
 
             bool installError = false;
             var installer = new Installer(Target, cancellationToken)
-            {DoSleep = false, ForceInstall = Force, UnpackOnly = UnpackOnly};
+            { DoSleep = false, ForceInstall = Force, UnpackOnly = UnpackOnly };
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
             installer.Error += ex => installError = true;
 
             try
             {
-                log.Debug("Fetching package information...");
+                Log.Debug("Fetching package information...");
 
                 RaiseProgressUpdate(5, "Gathering packages.");
 
@@ -141,8 +151,8 @@ namespace OpenTap.Package
                         var installedPackage = targetInstallation.GetPackages().FirstOrDefault(p => p.Name == pid.Name);
                         if (installedPackage != null && pid.Version.Equals(installedPackage.Version))
                         {
-                            log.Info($"Package '{pid.Name}' '{installedPackage.Version}' is already installed.");
-                            return (int) ExitCodes.Success;
+                            Log.Info($"Package '{pid.Name}' '{installedPackage.Version}' is already installed.");
+                            return (int)ExitCodes.Success;
                         }
                     }
                 }
@@ -151,12 +161,42 @@ namespace OpenTap.Package
                 bool askToInstallDependencies = !NonInteractive;
                 if (Force)
                     askToInstallDependencies = false;
-                List<PackageDef> packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
-                    targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
-                    InstallDependencies, Force, askToInstallDependencies, NoDowngrade);
 
-        
-                
+                List<PackageDef> packagesToInstall;
+                try
+                {
+                    packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
+                        targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
+                        InstallDependencies, Force, askToInstallDependencies, NoDowngrade);
+                }
+                catch (ImageResolveException ex)
+                {
+                    // If the problem is exactly that we failed to resolve a compatible release version of a package,
+                    // ask the user to retry the resolution with a pre-release instead.
+                    // We could also ask for an RC / Any, but if there are no releases, then it is likely also the case that there are no RCs.
+                    // 'any' would be the most likely specifier to succeed, but it is probably a bit too extreme to suggest something so bleeding edge.
+                    // A beta version strikes a good middle ground. It is pretty likely to resolve, and probably won't be too unstable.
+                    if (NonInteractiveUserInputInterface.IsSet()) throw;
+                    if (Packages.Length != 1) throw;
+                    if (false == (ex.Result is FailedImageResolution fir)) throw;
+                    if (fir.resolveProblems.Count != 1) throw;
+
+                    var problem = fir.resolveProblems[0];
+                    if (problem.Version != VersionSpecifier.AnyRelease) throw;
+                    // Only show the beta option if the resolution problem was with the package we are trying to install
+                    if (problem.Name != Packages[0]) throw;
+
+                    var req = new AskAboutPrerelease($"Package '{problem.Name}' has no compatible release version. Try a beta version instead?");
+                    UserInput.Request(req);
+
+                    if (req.Response == UseBetaQuestion.No) throw;
+
+                    Version = "beta";
+                    packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
+                        targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
+                        InstallDependencies, Force, askToInstallDependencies, NoDowngrade);
+                }
+
                 if (SystemWideOnly)
                 {
                     // the current process is for installing system wide packages only.
@@ -167,12 +207,12 @@ namespace OpenTap.Package
                 {
                     if (NoDowngrade)
                     {
-                        log.Info("No package(s) were upgraded.");
-                        return (int) ExitCodes.Success;
+                        Log.Info("No package(s) were upgraded.");
+                        return (int)ExitCodes.Success;
                     }
 
-                    log.Info("Could not find one or more packages.");
-                    return (int) PackageExitCodes.PackageDependencyError;
+                    Log.Info("Could not find one or more packages.");
+                    return (int)PackageExitCodes.PackageDependencyError;
                 }
 
                 foreach (var pkg in packagesToInstall)
@@ -181,8 +221,8 @@ namespace OpenTap.Package
                     // or return an error if the package does not match.
                     var platformCompatible =
                         pkg.IsPlatformCompatible(targetInstallation.Architecture, targetInstallation.OS);
-                    
-                    if (!Force )
+
+                    if (!Force)
                     {
                         // print a warning if necessary.
                         // --os and --architecture are not really supported when --force is not enabled.
@@ -194,7 +234,7 @@ namespace OpenTap.Package
                         {
                             if (printedWarning) return;
                             printedWarning = true;
-                            log.Warning("OS or Architecture were specified without --force. Only compatible packages will be selected.");
+                            Log.Warning("OS or Architecture were specified without --force. Only compatible packages will be selected.");
 
                         }
                         foreach (var package in packagesToInstall)
@@ -204,7 +244,7 @@ namespace OpenTap.Package
                                 if (package.Architecture != CpuArchitecture.AnyCPU && Architecture != package.Architecture)
                                 {
                                     maybePrintWarning();
-                                    log.Warning("Selected package {2} architecture {0} instead of {1}", package.Architecture, Architecture, package.Name);
+                                    Log.Warning("Selected package {2} architecture {0} instead of {1}", package.Architecture, Architecture, package.Name);
                                 }
                             }
 
@@ -213,13 +253,13 @@ namespace OpenTap.Package
                                 if (!package.IsOsCompatible(OS))
                                 {
                                     maybePrintWarning();
-                                    log.Warning("Selected package {2} for {0} instead of {1}", package.Name, package.OS, OS);
+                                    Log.Warning("Selected package {2} for {0} instead of {1}", package.Name, package.OS, OS);
                                 }
                             }
                         }
-                        
+
                     }
-                    
+
                     if (!platformCompatible)
                     {
                         var selectedPlatformCompatible = pkg.IsPlatformCompatible(Architecture, OS);
@@ -227,11 +267,11 @@ namespace OpenTap.Package
                             $"Selected package {pkg.Name} for {pkg.OS}, {pkg.Architecture} is incompatible with the host platform {targetInstallation.OS}, {targetInstallation.Architecture}.";
                         if (selectedPlatformCompatible || Force)
                             // --OS [arg] was used or --force is specified. Try to install it anyway. 
-                            log.Warning(message);
+                            Log.Warning(message);
                         else
                         {
-                            log.Error(message);
-                            return (int) ExitCodes.ArgumentError;
+                            Log.Error(message);
+                            return (int)ExitCodes.ArgumentError;
                         }
                     }
                 }
@@ -242,12 +282,12 @@ namespace OpenTap.Package
                     Force || Overwrite, !(NonInteractive || Overwrite));
                 if (overWriteCheckExitCode == InstallationQuestion.Cancel)
                 {
-                    log.Info("Install cancelled by user.");
-                    return (int) ExitCodes.UserCancelled;
+                    Log.Info("Install cancelled by user.");
+                    return (int)ExitCodes.UserCancelled;
                 }
 
                 if (overWriteCheckExitCode == InstallationQuestion.OverwriteFile)
-                    log.Warning("Overwriting files. (--{0} option specified).", Overwrite ? "overwrite" : "force");
+                    Log.Warning("Overwriting files. (--{0} option specified).", Overwrite ? "overwrite" : "force");
 
                 RaiseProgressUpdate(10, "Gathering dependencies.");
 
@@ -256,7 +296,7 @@ namespace OpenTap.Package
                     // Sometimes system wide packages depends on non-system wide packages.
                     // when installing system wide packages in a sub-process we dont need to check the dependencies
                     // because that has already been done.
-                    
+
                     bool checkDependencies = !Force || CheckOnly;
                     var installedToCheck =
                         installationPackages.Where(p =>
@@ -270,16 +310,16 @@ namespace OpenTap.Package
                     {
                         if (issue == DependencyChecker.Issue.BrokenPackages)
                         {
-                            log.Info("To fix the package conflict uninstall or update the conflicted packages.");
-                            log.Info(
+                            Log.Info("To fix the package conflict uninstall or update the conflicted packages.");
+                            Log.Info(
                                 "To install packages despite the conflicts, use the --force option. Note that this can break the installation.");
-                            return (int) PackageExitCodes.PackageDependencyError;
+                            return (int)PackageExitCodes.PackageDependencyError;
                         }
 
                         if (CheckOnly)
                         {
-                            log.Info("Check completed with no problems detected.");
-                            return (int) ExitCodes.Success;
+                            Log.Info("Check completed with no problems detected.");
+                            return (int)ExitCodes.Success;
                         }
                     }
                 }
@@ -287,8 +327,19 @@ namespace OpenTap.Package
                 // System wide packages require elevated privileges. Install them in a separate elevated process.
                 var systemWide = packagesToInstall.Where(p => p.IsSystemWide()).ToArray();
 
-                // If we are already running as administrator, skip this and install normally
-                if (systemWide.Any() && SubProcessHost.IsAdmin() == false)
+                // We need to elevate if 
+                // 1. Elevation was not already attempted, and
+                // 2. we need to install systemWide packages, and
+                // 3. We are not already running as admin
+                bool needElevation = !AlreadyElevated && systemWide.Any() && SubProcessHost.IsAdmin() == false;
+
+                // Warn the user if elevation was already attempted, and we are not currently running as admin
+                if (AlreadyElevated && SubProcessHost.IsAdmin() == false)
+                {
+                    log.Warning($"Process elevation failed. Installation will continue without elevation.");
+                }
+                
+                if (needElevation)
                 {
                     RaiseProgressUpdate(20, "Installing system-wide packages.");
                     var installStep = new PackageInstallStep()
@@ -305,7 +356,8 @@ namespace OpenTap.Package
                         ForwardLogs = true,
                         MutedSources =
                         {
-                            "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan", "UpdateCheck",
+                            "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan",
+                            "UpdateCheck",
                             "Installation"
                         }
                     };
@@ -318,8 +370,8 @@ namespace OpenTap.Package
                         RaiseError(ex);
                     }
 
-                    var pct = ((double) systemWide.Length / systemWide.Length + packagesToInstall.Count) * 100;
-                    RaiseProgressUpdate((int) pct, "Installed system-wide packages.");
+                    var pct = ((double)systemWide.Length / systemWide.Length + packagesToInstall.Count) * 100;
+                    RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
                     // And remove the system wide packages from the list
                     packagesToInstall = packagesToInstall.Except(p => p.IsSystemWide()).ToList();
                 }
@@ -338,38 +390,39 @@ namespace OpenTap.Package
             }
             catch (OperationCanceledException e)
             {
-                log.Info(e.Message);
-                return (int) ExitCodes.UserCancelled;
+                Log.Info(e.Message);
+                return (int)ExitCodes.UserCancelled;
             }
             catch (ImageResolveException ex)
             {
                 if (Packages != null && Packages.Length > 0)
                 {
-                    log.Error("Could not resolve {0}{1}", 
+                    Log.Error("Could not resolve {0}{1}", 
                         string.Join(", ", Packages.Select(x => $"{x}")),
                         string.IsNullOrWhiteSpace(Version) ? "" : $" v{Version}");    
                 }
                 else
                 {
-                    log.Error("Could not resolve one or more packages.");
+                    Log.Error("Could not resolve one or more packages.");
                 }
 
                 if (ex.Image != null)
                 {
-                    log.Info("Image configuration:");
+                    Log.Info("Image configuration:");
                     foreach (var req in ex.Image.Packages)
                     {
-                        log.Info($"  {req.Name}: {req.Version}");
+                        Log.Info($"  {req.Name}: {req.Version}");
                     }
                 }
+
                 var unsatisfiedDependencies = ex.InstalledPackages.Where(x => false == x.Dependencies.All(dep =>
                     ex.InstalledPackages.Any(x2 =>
                         x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())))).ToArray();
                 if (unsatisfiedDependencies.Any())
                 {
-                    log.Warning("This might be because of the following broken packages:");
-                    
-                    var unsatisfiedStrings =unsatisfiedDependencies.Select(x =>
+                    Log.Warning("This might be because of the following broken packages:");
+
+                    var unsatisfiedStrings = unsatisfiedDependencies.Select(x =>
                     {
                         var missingDeps = x.Dependencies.Where(dep => !ex.InstalledPackages.Any(x2 =>
                             x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())));
@@ -378,23 +431,23 @@ namespace OpenTap.Package
                     });
                     foreach (var str in unsatisfiedStrings)
                     {
-                        log.Info("   {0}.", str);
+                        Log.Info("   {0}.", str);
                     }
                 }
 
-                log.Debug("{0}", ex.Message);
-                return (int) ExitCodes.PackageResolutionError;
+                Log.Debug("{0}", ex.Message);
+                return (int)ExitCodes.PackageResolutionError;
             }
             catch (Exception e)
             {
-                log.Info("Could not download one or more packages.");
-                log.Info(e.Message);
-                log.Debug(e);
+                Log.Info("Could not download one or more packages.");
+                Log.Info(e.Message);
+                Log.Debug(e);
                 RaiseError(e);
-                return (int) ExitCodes.NetworkError;
+                return (int)ExitCodes.NetworkError;
             }
 
-            log.Info("Installing to {0}", Path.GetFullPath(Target));
+            Log.Info("Installing to {0}", Path.GetFullPath(Target));
 
             // Uninstall old packages before
             UninstallExisting(targetInstallation, installer.PackagePaths, cancellationToken);
@@ -407,7 +460,7 @@ namespace OpenTap.Package
             installer.InstallThread();
 
             if (installError)
-                return (int) PackageExitCodes.PackageInstallError;
+                return (int)PackageExitCodes.PackageInstallError;
 
             return 0;
         }
@@ -484,6 +537,7 @@ namespace OpenTap.Package
             [Browsable(false)]
             Success = 0,
         }
+
         class AskAboutInstallingAnyway
         {
             public string Name { get; } = "Overwrite Files?";
@@ -496,6 +550,24 @@ namespace OpenTap.Package
 
             [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
             [Submit] public InstallationQuestion Response { get; set; } = InstallationQuestion.Cancel;
+        }
+
+        internal enum UseBetaQuestion
+        {
+            [Display("Yes")]
+            Beta = 0,
+            [Display("No")]
+            No = 1,
+        }
+
+        class AskAboutPrerelease
+        {
+            [Browsable(true)]
+            [Layout(LayoutMode.FullRow)]
+            public string Message { get; private set; }
+            public AskAboutPrerelease(string message) => Message = message;
+            [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
+            [Submit] public UseBetaQuestion Response { get; set; } = UseBetaQuestion.No;
         }
 
         internal static InstallationQuestion CheckForOverwrittenPackages(IEnumerable<PackageDef> installedPackages,
@@ -526,14 +598,14 @@ namespace OpenTap.Package
                     return question.Response;
                 }
 
-                buildMessage(line => log.Info(line));
+                buildMessage(line => Log.Info(line));
 
                 if (force)
                 {
                     return InstallationQuestion.OverwriteFile;
                 }
 
-                log.Error(
+                Log.Error(
                     "Installing these packages will overwrite existing files. " +
                     "Use --overwrite to overwrite existing files, possibly breaking installed packages.");
                 return InstallationQuestion.Cancel;
