@@ -216,7 +216,6 @@ namespace OpenTap.Package
         }
     }
 
-    [Obfuscation(Exclude = true)]
     enum ContinueResponse
     {
         [Display("Remove all the packages")]
@@ -231,7 +230,6 @@ namespace OpenTap.Package
 
     }
 
-    [Obfuscation(Exclude = true)]
     class ContinueRequest
     {
         [Browsable(true)]
@@ -245,14 +243,12 @@ namespace OpenTap.Package
         public ContinueResponse Response { get; set; }
     }
 
-    [Obfuscation(Exclude = true)]
     enum UninstallResponse
     {
         No,
         Yes,
     }
 
-    [Obfuscation(Exclude = true)]
     [Display("Uninstall bundled package?")]
     class UninstallRequest
     {
