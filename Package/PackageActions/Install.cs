@@ -86,6 +86,15 @@ namespace OpenTap.Package
 
 
         private string DefaultOs;
+        
+        /// <summary>
+        /// This will be set only if the install action was started by <see cref="PackageInstallStep"/>
+        /// This is supposed to solve an issue where OpenTAP fails to detect that the process was elevated.
+        /// If one level of elevation was already attempted, it is unlikely that further attempts will cause the check to succeed.
+        /// In this instance, it is better to just try the installation with the current privileges, and fail with whatever
+        /// error if those privileges are not sufficient.
+        /// </summary>
+        internal bool AlreadyElevated { get; set; }
 
         public PackageInstallAction()
         {
@@ -318,8 +327,19 @@ namespace OpenTap.Package
                 // System wide packages require elevated privileges. Install them in a separate elevated process.
                 var systemWide = packagesToInstall.Where(p => p.IsSystemWide()).ToArray();
 
-                // If we are already running as administrator, skip this and install normally
-                if (systemWide.Any() && SubProcessHost.IsAdmin() == false)
+                // We need to elevate if 
+                // 1. Elevation was not already attempted, and
+                // 2. we need to install systemWide packages, and
+                // 3. We are not already running as admin
+                bool needElevation = !AlreadyElevated && systemWide.Any() && SubProcessHost.IsAdmin() == false;
+
+                // Warn the user if elevation was already attempted, and we are not currently running as admin
+                if (AlreadyElevated && SubProcessHost.IsAdmin() == false)
+                {
+                    log.Warning($"Process elevation failed. Installation will continue without elevation.");
+                }
+                
+                if (needElevation)
                 {
                     RaiseProgressUpdate(20, "Installing system-wide packages.");
                     var installStep = new PackageInstallStep()
@@ -336,7 +356,8 @@ namespace OpenTap.Package
                         ForwardLogs = true,
                         MutedSources =
                         {
-                            "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan", "UpdateCheck",
+                            "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan",
+                            "UpdateCheck",
                             "Installation"
                         }
                     };

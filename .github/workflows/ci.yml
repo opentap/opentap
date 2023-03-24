@@ -779,7 +779,7 @@ jobs:
       - GetVersion
       - Package-Win
     container:
-      image: ghcr.io/opentap/smartinstaller:2.0.0-beta.29
+      image: ghcr.io/opentap/smartinstaller:2.1.0-beta.5
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -836,7 +836,7 @@ jobs:
       - GetVersion
       - Package-Linux
     container:
-      image: ghcr.io/opentap/smartinstaller:2.0.0-beta.29
+      image: ghcr.io/opentap/smartinstaller:2.1.0-beta.5
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
