@@ -139,25 +139,7 @@ namespace OpenTap.Package
                     {
                         pi.UseShellExecute = true;
 
-                        try
-                        {
-                            p = Process.Start(pi);
-                        }
-                        catch (Exception e)
-                        {
-                            // Win32Exception is when EXE was not found.
-                            // InvalidOperationException is when no file name was specified.
-                            // ArgumentException is when the file path is not valid.
-                            if (step.FailOnNoExe || !(e is Win32Exception || e is InvalidOperationException || e is ArgumentException))
-                            {
-                                throw e;
-                            }
-                            else
-                            {
-                                log.Warning($"'{step.ExeFile}' not found, skipping action.");
-                                return res;
-                            }
-                        }
+                        p = Process.Start(pi);
                     }
                     else
                     {
@@ -165,25 +147,7 @@ namespace OpenTap.Package
                         pi.RedirectStandardError = true;
                         pi.UseShellExecute = false;
 
-                        try
-                        {
-                            p = Process.Start(pi);
-                        }
-                        catch (Exception e)
-                        {
-                            // Win32Exception is when EXE was not found.
-                            // InvalidOperationException is when no file name was specified.
-                            // ArgumentException is when the file path is not valid.
-                            if (step.FailOnNoExe || !(e is Win32Exception || e is InvalidOperationException || e is ArgumentException))
-                            {
-                                throw e;
-                            }
-                            else
-                            {
-                                log.Warning($"'{step.ExeFile}' not found, skipping action.");
-                                return res;
-                            }
-                        }
+                        p = Process.Start(pi);
 
                         p.ErrorDataReceived += (s, e) =>
                         {
@@ -229,6 +193,10 @@ namespace OpenTap.Package
                 }
                 catch (Exception e)
                 {
+                    if (step.FailOnNoExe && e is Win32Exception)
+                    {
+                        log.Warning($"'{step.ExeFile}' not found, skipping action.");
+                    }
                     log.Error(sw, e.Message);
 
                     if (!force)
