@@ -191,12 +191,12 @@ namespace OpenTap.Package
 
                     log.Info(sw, $"Succesfully ran {step.ActionName} step  {stepName}. {(p.ExitCode != 0 ? $"Exitcode: {p.ExitCode}" : "")}");
                 }
+                catch (Win32Exception) when (step.FailOnNoExe == false)
+                {
+                    log.Warning($"'{step.ExeFile}' not found, skipping action.");
+                }
                 catch (Exception e)
                 {
-                    if (step.FailOnNoExe && e is Win32Exception)
-                    {
-                        log.Warning($"'{step.ExeFile}' not found, skipping action.");
-                    }
                     log.Error(sw, e.Message);
 
                     if (!force)
