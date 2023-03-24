@@ -13,6 +13,7 @@ using System.IO.Compression;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Runtime.InteropServices;
+using System.ComponentModel;
 
 namespace OpenTap.Package
 {
@@ -130,7 +131,7 @@ namespace OpenTap.Package
                 // If OPENTAP_COLOR is set, the escape symbols for colors in the child process will break the parsing of the forwarded logs.
                 // Ensure color is never set in the child process. Colors will still be set in the parent process.
                 pi.Environment["OPENTAP_COLOR"] = "never";
-
+                
                 try
                 {
                     Process p;
@@ -138,7 +139,25 @@ namespace OpenTap.Package
                     {
                         pi.UseShellExecute = true;
 
-                        p = Process.Start(pi);
+                        try
+                        {
+                            p = Process.Start(pi);
+                        }
+                        catch (Exception e)
+                        {
+                            // Win32Exception is when EXE was not found.
+                            // InvalidOperationException is when no file name was specified.
+                            // ArgumentException is when the file path is not valid.
+                            if (step.FailOnNoExe || !(e is Win32Exception || e is InvalidOperationException || e is ArgumentException))
+                            {
+                                throw e;
+                            }
+                            else
+                            {
+                                log.Warning($"'{step.ExeFile}' not found, skipping action.");
+                                return res;
+                            }
+                        }
                     }
                     else
                     {
@@ -146,7 +165,25 @@ namespace OpenTap.Package
                         pi.RedirectStandardError = true;
                         pi.UseShellExecute = false;
 
-                        p = Process.Start(pi);
+                        try
+                        {
+                            p = Process.Start(pi);
+                        }
+                        catch (Exception e)
+                        {
+                            // Win32Exception is when EXE was not found.
+                            // InvalidOperationException is when no file name was specified.
+                            // ArgumentException is when the file path is not valid.
+                            if (step.FailOnNoExe || !(e is Win32Exception || e is InvalidOperationException || e is ArgumentException))
+                            {
+                                throw e;
+                            }
+                            else
+                            {
+                                log.Warning($"'{step.ExeFile}' not found, skipping action.");
+                                return res;
+                            }
+                        }
 
                         p.ErrorDataReceived += (s, e) =>
                         {
