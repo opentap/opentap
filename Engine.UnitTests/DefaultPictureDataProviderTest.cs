@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
@@ -88,15 +89,15 @@ namespace OpenTap.UnitTests
             {
                 for (int i = 0; i < 2; i++)
                 {
-                    var client = listener.AcceptTcpClient();
-                    var stream = client.GetStream();
+                    using var client = listener.AcceptTcpClient();
+                    using var stream = client.GetStream();
                     var header = $"HTTP/1.0 200 OK\r\nContent-Length: {fileContent.Length}\r\n\r\n";
                     stream.Write(Encoding.UTF8.GetBytes(header), 0, header.Length);
                     stream.Write(fileContent, 0, fileContent.Length);
+                    // Ensure the client has finished downloading the resource before this thread's resources are disposed
+                    TapThread.Sleep(TimeSpan.FromSeconds(1));
                 }
             });
-
-
 
             var pic = new Picture() {Source = source, Description = "Test Picture"};
 
