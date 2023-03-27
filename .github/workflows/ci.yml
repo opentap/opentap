@@ -27,7 +27,7 @@ jobs:
       # The get-gitversion action installs OpenTAP and fetches with fetch-depth: 0
       - name: GitVersion
         id: gitversion
-        uses: opentap/get-gitversion@1ecd47ca05a3124a5f2479e0bfd0665f93359b2a
+        uses: opentap/get-gitversion@v1.1
 
   CheckSecrets:
     runs-on: ubuntu-latest
