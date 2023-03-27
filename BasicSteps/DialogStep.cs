@@ -17,7 +17,6 @@ namespace OpenTap.Plugins.BasicSteps
         YesNo
     }
 
-    [Obfuscation(Exclude = true, ApplyToMembers =true)]
     enum WaitForInputResult1
     {
         // The order of the results determines the order in which the buttons is shown in the dialog box.
@@ -25,7 +24,6 @@ namespace OpenTap.Plugins.BasicSteps
         No = 2, Yes = 1
     }
 
-    [Obfuscation(Exclude = true, ApplyToMembers = true)]
     enum WaitForInputResult2
     {
         // The order of the results determines the order in which the buttons is shown in the dialog box.
@@ -33,7 +31,6 @@ namespace OpenTap.Plugins.BasicSteps
         Cancel = 2, Ok = 1
     }
 
-    [Obfuscation(Exclude = true, ApplyToMembers = true)]
     class DialogRequest : IDisplayAnnotation
     {
         public DialogRequest(string Title, string Message)

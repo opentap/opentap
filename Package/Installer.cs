@@ -402,14 +402,12 @@ namespace OpenTap.Package
         }
     }
 
-    [Obfuscation(Exclude = true)]
     enum AbortOrRetryResponse
     {
         Abort,
         Retry
     }
 
-    [Obfuscation(Exclude = true)]
     class AbortOrRetryRequest
     {
         public AbortOrRetryRequest(string title, string message)
