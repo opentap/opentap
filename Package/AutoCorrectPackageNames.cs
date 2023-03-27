@@ -17,7 +17,7 @@ namespace OpenTap.Package
     {
         /// <summary>
         /// Correct each name in the string array based on the available packages in the repositories.
-        /// If a package name does not exist, and is not corrected, return false; otherwise return true
+        /// If a package name does not exist, an exception is thrown.
         /// </summary>
         /// <param name="names"></param>
         /// <param name="repositories"></param>
