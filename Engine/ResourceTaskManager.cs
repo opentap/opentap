@@ -218,23 +218,14 @@ namespace OpenTap
         public override string ToString() => "Default Resource Manager";
         private static readonly TraceSource log = Log.CreateSource("Resources");
         
-        List<ResourceNode> openedResources = new List<ResourceNode>();
-        private LockManager lockManager;
-        ConcurrentDictionary<IResource, Task> openTasks;
+        readonly List<ResourceNode> openedResources = new List<ResourceNode>();
+        readonly LockManager lockManager = new LockManager();
+        readonly ConcurrentDictionary<IResource, Task> openTasks = new ConcurrentDictionary<IResource, Task>();
 
         /// <summary>
         /// This event is triggered when a resource is opened. The event may block in which case the resource will remain open for the entire call.
         /// </summary>
         public event Action<IResource> ResourceOpened;
-
-        /// <summary>
-        /// Instantiates a new ResourceOpenTaskManager.
-        /// </summary>
-        public ResourceTaskManager()
-        {
-            lockManager = new LockManager();
-            openTasks = new ConcurrentDictionary<IResource, Task>();
-        }
 
         internal static TraceSource GetLogSource(IResource res)
         {
@@ -245,7 +236,7 @@ namespace OpenTap
         {
             await canStart;
             foreach (var dep in node.StrongDependencies)
-                await openTasks[dep];
+                openTasks[dep].Wait();
 
             Stopwatch swatch = Stopwatch.StartNew();
 
@@ -254,7 +245,7 @@ namespace OpenTap
             try
             {
                 // start a new thread to do synchronous work
-                await Task.Factory.StartNew(node.Resource.Open);
+                await TapThread.StartAwaitable(node.Resource.Open);
 
                 reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
 
@@ -330,9 +321,11 @@ namespace OpenTap
             Dictionary<IResource, Task> closeTasks = new Dictionary<IResource, Task>();
 
             foreach (var r in openedResources)
-                closeTasks[r.Resource] = new Task(o =>
+            {
+                var o = r;
+                closeTasks[r.Resource] = TapThread.StartAwaitable(() =>
                 {
-                    ResourceNode res = (ResourceNode) o;
+                    ResourceNode res = (ResourceNode)o;
 
                     // Wait for the resource to open to open before closing it.
                     // in rare cases, another instrument failing open will cause close to be called.
@@ -363,7 +356,8 @@ namespace OpenTap
 
                     if (reslog != null)
                         reslog.Info(timer, "Resource \"{0}\" closed.", res.Resource);
-                }, r);
+                });
+            }
 
             var closeTaskArray = closeTasks.Values.ToArray();
             closeTaskArray.ForEach(t => t.Start());

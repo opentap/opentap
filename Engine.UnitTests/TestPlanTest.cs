@@ -2268,6 +2268,71 @@ namespace OpenTap.Engine.UnitTests
             var run = plan.Execute(new IResultListener[] {rl});
             Assert.AreEqual(Verdict.Error, run.Verdict);
         }
+
+        public class InfiniteHangDut : Dut
+        {
+            public bool HangDuringOpen { get; set; }
+            public bool HangDuringClose { get; set; }
+            public Semaphore OpenSem = new Semaphore(0, 1);
+            public override void Open()
+            {
+                if (HangDuringOpen)
+                {
+                    OpenSem.Release();
+                    TapThread.Sleep(100000);
+                }
+                base.Open();
+            }
+
+            public override void Close()
+            {
+                if (HangDuringClose)
+                {
+                    OpenSem.Release();
+                    TapThread.Sleep(100000);
+                }
+                base.Close();
+            }
+        }
+
+        class DutStep2 : TestStep
+        {
+            public IDut Dut { get; set; }
+            
+            public override void Run(){}
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void TestBreakDuringOpen(bool OpenOrClose)
+        {
+            var dut = new InfiniteHangDut
+            {
+                HangDuringOpen = OpenOrClose,
+                HangDuringClose = !OpenOrClose
+            };
+            
+            var step = new DutStep2
+            {
+                Dut = dut
+            };
+            var plan = new TestPlan();
+            plan.Steps.Add(step);
+            Semaphore sem = new Semaphore(0, 1);
+            var trd = TapThread.Start(() =>
+            {
+                plan.Execute();
+                sem.Release();
+            });
+            dut.OpenSem.WaitOne();
+            TapThread.Sleep(100);
+            trd.Abort();
+            if (!sem.WaitOne(10000))
+            {
+                Assert.Fail();
+            }
+
+        }
     }
 
     public class TestITestStep : ValidatingObject, ITestStep
