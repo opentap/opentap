@@ -101,6 +101,7 @@ namespace OpenTap.Authentication
                     if (token.RefreshToken != null)
                     {
                         // TODO: refresh
+                        // TODO: fix todo
                     }
                 }
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
@@ -120,7 +121,7 @@ namespace OpenTap.Authentication
         public HttpClient GetClient(string domain = null, bool withRetryPolicy = false, string baseAddress = null)
         {
             if (Uri.IsWellFormedUriString(domain, UriKind.Absolute))
-                throw new ArgumentException("Domain should only be the host part of a URI and not a full absolute URI.", "domain");
+                throw new ArgumentException("Domain should only be the host part of a URI and not a full absolute URI.", nameof(domain));
             var client = new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy));
             if (baseAddress != null)
             {
@@ -130,9 +131,9 @@ namespace OpenTap.Authentication
                     if (BaseAddress != null)
                         client.BaseAddress = new Uri(new Uri(BaseAddress), baseAddress);
                     else
-                        throw new ArgumentException("Address cannot be relative when AuthenticationSettings.BaseAddress is null.", "baseAddress");
+                        throw new ArgumentException("Address cannot be relative when AuthenticationSettings.BaseAddress is null.", nameof(baseAddress));
                 else
-                    throw new ArgumentException("Address must be a well formed URL or null.", "baseAddress");
+                    throw new ArgumentException("Address must be a well formed URL or null.", nameof(baseAddress));
             }
             else if(BaseAddress != null)
                 client.BaseAddress = new Uri(BaseAddress);
@@ -161,9 +162,8 @@ namespace OpenTap.Authentication
                     }
                 }
             }
-            var callingUseAgent = userAgent;
-            var asm2 = Assembly.GetCallingAssembly(); 
-            if (asm2 != null)
+            var callingUseAgent = userAgent; 
+            if (Assembly.GetCallingAssembly() is Assembly asm2)
             {
                 var assemblyData = PluginManager.GetSearcher().Assemblies.FirstOrDefault(ad => ad.Location == asm2.Location);
                 if (assemblyData?.SemanticVersion is SemanticVersion ver)

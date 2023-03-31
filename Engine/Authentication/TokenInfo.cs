@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Xml.Serialization;
 
@@ -42,6 +43,26 @@ namespace OpenTap.Authentication
                     throw new ArgumentException("Domain should only be the host part of a URI and not a full absolute URI.");
                 domain = value;
             }
+        }
+
+        public bool IsExpired()
+        {
+            try
+            {
+                var claims = Claims;
+                if (claims.ContainsKey("exp") && int.TryParse(claims["exp"], out int exp))
+                {
+                    var expiresAt = DateTimeOffset.FromUnixTimeSeconds(exp);
+                    var now = DateTime.UtcNow;
+                    return expiresAt < now;
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+
+            return false;
         }
 
         private Dictionary<string, string> _Claims;
