@@ -323,15 +323,31 @@ namespace OpenTap.Package
                         }
                     }
                 }
+                
+                // Download the packages
+                // We divide the progress by 2 in the progress update because we assume downloading the packages
+                // accounts for half the installation progress. So when all the packages have finished downloading,
+                // we have finished 10 + (100/2)% of the installation process.
+                packagesToInstall = packagesToInstall.OrderBy(p => p.IsSystemWide()).ToList();
 
-                // System wide packages require elevated privileges. Install them in a separate elevated process.
-                var systemWide = packagesToInstall.Where(p => p.IsSystemWide()).ToArray();
+                var downloadedPackageFiles = PackageActionHelpers.DownloadPackages(
+                    PackageCacheHelper.PackageCacheDirectory, packagesToInstall,
+                    progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg),
+                    ignoreCache: NoCache);
+                
+                // The downloaded package files will arrive in the same order as the packagesToInstall list.
+                // We need to split the list into two parts, one for regular packages and one for systemwide packages.
+                var cutoff = packagesToInstall.FindIndex(p => p.IsSystemWide());
+                if (cutoff == -1) cutoff = packagesToInstall.Count;
+
+                var regularPackages = downloadedPackageFiles.Take(cutoff).ToList();
+                var systemwidePackages = downloadedPackageFiles.Skip(cutoff).ToArray();
 
                 // We need to elevate if 
                 // 1. Elevation was not already attempted, and
                 // 2. we need to install systemWide packages, and
                 // 3. We are not already running as admin
-                bool needElevation = !AlreadyElevated && systemWide.Any() && SubProcessHost.IsAdmin() == false;
+                bool needElevation = !AlreadyElevated && systemwidePackages.Any() && SubProcessHost.IsAdmin() == false;
 
                 // Warn the user if elevation was already attempted, and we are not currently running as admin
                 if (AlreadyElevated && SubProcessHost.IsAdmin() == false)
@@ -344,8 +360,8 @@ namespace OpenTap.Package
                     RaiseProgressUpdate(20, "Installing system-wide packages.");
                     var installStep = new PackageInstallStep()
                     {
-                        Packages = systemWide,
-                        Repositories = repositories.Select(r => r.Url).ToArray(),
+                        Packages = systemwidePackages,
+                        Repositories = Array.Empty<string>(),
                         Target = PackageDef.SystemWideInstallationDirectory,
                         Force = Force,
                         SystemWideOnly = true
@@ -370,23 +386,11 @@ namespace OpenTap.Package
                         RaiseError(ex);
                     }
 
-                    var pct = ((double)systemWide.Length / systemWide.Length + packagesToInstall.Count) * 100;
+                    var pct = ((double)systemwidePackages.Length / systemwidePackages.Length + packagesToInstall.Count) * 100;
                     RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
-                    // And remove the system wide packages from the list
-                    packagesToInstall = packagesToInstall.Except(p => p.IsSystemWide()).ToList();
                 }
 
-                // Download the packages
-                // We divide the progress by 2 in the progress update because we assume downloading the packages
-                // accounts for half the installation progress. So when all the packages have finished downloading,
-                // we have finished 10 + (100/2)% of the installation process.
-
-                var downloadedPackageFiles = PackageActionHelpers.DownloadPackages(
-                    PackageCacheHelper.PackageCacheDirectory, packagesToInstall,
-                    progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg),
-                    ignoreCache: NoCache);
-
-                installer.PackagePaths.AddRange(downloadedPackageFiles);
+                installer.PackagePaths.AddRange(regularPackages);
             }
             catch (OperationCanceledException e)
             {

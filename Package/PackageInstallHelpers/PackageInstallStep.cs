@@ -1,6 +1,5 @@
 ﻿using System;
 using System.ComponentModel;
-using System.Linq;
 using System.Threading;
 
 namespace OpenTap.Package.PackageInstallHelpers
@@ -9,7 +8,7 @@ namespace OpenTap.Package.PackageInstallHelpers
     class PackageInstallStep : TestStep
     {
         public string Target { get; set; }
-        public PackageDef[] Packages { get; set; }
+        public string[] Packages { get; set; }
         public bool Force { get; set; }
         public string[] Repositories { get; set; }
         
@@ -22,9 +21,7 @@ namespace OpenTap.Package.PackageInstallHelpers
                 InstallDependencies = false,
                 NonInteractive = true,
                 Force = Force,
-                PackageReferences = Packages.Select(p => new PackageSpecifier(p.Name,
-                        new VersionSpecifier(p.Version, VersionMatchBehavior.Exact), p.Architecture, p.OS))
-                    .ToArray(),
+                Packages = Packages,
                 Target = Target,
                 Repository = Repositories,
                 SystemWideOnly = SystemWideOnly,
