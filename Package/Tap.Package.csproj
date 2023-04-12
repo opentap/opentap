@@ -40,5 +40,10 @@
   <ItemGroup>
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Keysight.OpenTap.Repository.Client">
+      <HintPath>..\deps\Keysight.OpenTap.Repository.Client.dll</HintPath>
+    </Reference>
+  </ItemGroup>
   <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />
 </Project>

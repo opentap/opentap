@@ -283,6 +283,7 @@ namespace OpenTap.Package
         /// Get the URL of the repository
         /// </summary>
         public string Url { get; set; }
+        private string defaultUrl => Url;
 
         private RepoClient RepoClient { get; }
 
@@ -564,8 +565,8 @@ namespace OpenTap.Package
         /// </summary>
         /// <param name="query">A GraphQL query string</param>
         /// <returns>A JSON string containing the GraphQL response</returns>
-        public string QueryGraphQL(string query) =>
-            downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
+        public string QueryGraphQL(string query) => downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
+        internal string QueryGraphQL4(string query) => downloadPackagesString($"/4.0/query", query, "application/json", "application/json");
         
         /// <summary>  Creates a display friendly string of this. </summary>
         public override string ToString() =>  $"[HttpPackageRepository: {Url}]";

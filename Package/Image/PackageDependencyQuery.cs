@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -17,7 +18,7 @@ namespace OpenTap.Package
     {
         static string GraphQueryPackages(string os, CpuArchitecture arch, string version, string name) =>
             @"query Query { 
-                packages(version: ""__VERSION__"", type:""tappackage"", os:""__OS__"", architecture:""__ARCH__"" __NAME_QUERY__) {
+                packages(directory: ""/Packages/"", version: ""__VERSION__"", type:""tappackage"", os:""__OS__"", architecture:""__ARCH__"" __NAME_QUERY__) {
                   name version dependencies { 
                    name version
         }}}".Replace("__OS__", os)
@@ -54,7 +55,7 @@ namespace OpenTap.Package
             {
                 // query the package dependency graph as GZip compressed JSON code.
                 
-                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, repoUrl + "/3.1/Query");
+                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Post, repoUrl + "/4.0/Query");
                 request.Content = new StringContent(qs, Encoding.UTF8);
                 request.Headers.Add("Accept", "application/json");
                 // request a gzip compressed response - otherwise it will be several MB.

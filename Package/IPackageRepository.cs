@@ -163,7 +163,7 @@ namespace OpenTap.Package
             var version = id.Version == VersionSpecifier.AnyRelease ? "" : id.Version.ToString();
             string query =
                 @"query Query {
-                            packages(distinctName:true" +
+                            packages(directory: ""/Packages/"", distinctName:true" +
                 (id != null ? $",version:\"{version}\",os:\"{id.OS}\",architecture:\"{id.Architecture}\"" : "") +
                 @") {
                             name
@@ -176,7 +176,7 @@ namespace OpenTap.Package
                 if (repo is HttpPackageRepository httprepo && httprepo.Version != null &&
                     RequiredApiVersion.IsCompatible(httprepo.Version))
                 {
-                    var jsonString = httprepo.QueryGraphQL(query);
+                    var jsonString = httprepo.QueryGraphQL4(query);
                     var json = JObject.Parse(jsonString);
                     lock (list)
                     {
