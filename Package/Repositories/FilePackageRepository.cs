@@ -217,7 +217,7 @@ namespace OpenTap.Package
                 using (var writeStream = File.OpenWrite(tmpDestination))
                 {
                     var task = Task.Run(() => readStream.CopyTo(writeStream));
-                    ConsoleUtils.ReportProgressTillEnd(task, "Downloading",
+                    ConsoleUtils.ReportProgressTillEnd(task, $"Copying {source} to {destination}",
                         () => writeStream.Position,
                         () => readStream.Length,
                         (header, pos, len) =>

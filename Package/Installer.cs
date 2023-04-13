@@ -66,6 +66,8 @@ namespace OpenTap.Package
                 {
                     try
                     {
+                        progressPercent += 30 / PackagePaths.Count();
+
                         log.Info($"Installing {fileName}");
                         OnProgressUpdate(progressPercent, "Installing " + Path.GetFileNameWithoutExtension(fileName));
                         Stopwatch timer = Stopwatch.StartNew();
@@ -73,7 +75,6 @@ namespace OpenTap.Package
 
                         log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
 
-                        progressPercent += 30 / PackagePaths.Count();
 
                         if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
                         {

@@ -8,6 +8,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using OpenTap.Cli;
 using Tap.Shared;
 
 namespace OpenTap.Package
@@ -137,7 +138,7 @@ namespace OpenTap.Package
             if (Cached)
                 return;
             foreach (var package in Packages)
-                Download(package, TapThread.Current.AbortToken);
+                Download(package, null, TapThread.Current.AbortToken);
         }
 
         private static void Deploy(Installation currentInstallation, List<PackageDef> dependencies,
@@ -191,22 +192,38 @@ namespace OpenTap.Package
         private static void Install(IEnumerable<PackageDef> modifyOrAdd, string target,
             ProgressUpdateDelegate progress, CancellationToken cancellationToken)
         {
-            Installer installer = new Installer(target, cancellationToken) { DoSleep = false };
-            installer.ProgressUpdate += (percent, message) => progress?.Invoke(percent, message); 
+            progress ??= (percent, message) => { };
             var packagesInOrder = OrderPackagesForInstallation(modifyOrAdd);
-            List<string> paths = new List<string>();
-            foreach (var package in packagesInOrder)
+            
+            var cnt = packagesInOrder.Count;
+            var downloaded = 0;
+            
+            // Download progress is the cumulative download progress divided by 2 
+            void downloadProgress(int percent, string message)
             {
+                var completed = Percent(downloaded + (double)percent/100, cnt);
+                progress(completed / 2, message);
+            }
+
+            List<string> paths = new List<string>();
+            for (var i = 0; i < cnt; i++)
+            {
+                var package = packagesInOrder[i];
                 if (CachedLocation(package) is string cachedLocation)
                     log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
                 else
-                    Download(package, cancellationToken);
-                    
+                    Download(package, downloadProgress, cancellationToken);
+
                 paths.Add(CachedLocation(package));
+                downloaded = i + 1;
+                downloadProgress(Percent(downloaded, cnt), $"Downloaded {package.Name}");
             }
+
+            // installProgress already accounts for packages that were already downloaded, so the 
+            Installer installer = new Installer(target, cancellationToken) { DoSleep = false };
+            installer.ProgressUpdate += (percent, message) => progress(percent, message);   
             installer.PackagePaths.Clear();
             installer.PackagePaths.AddRange(paths);
-
 
             List<Exception> installErrors = new List<Exception>();
             installer.Error += ex => installErrors.Add(ex);
@@ -265,8 +282,15 @@ namespace OpenTap.Package
             return toInstall;
         }
 
-        private static void Download(PackageDef package, CancellationToken token)
+        private static int Percent(double n, double of)
         {
+            return (int)(n / of * 100);
+        }
+
+        private static void Download(PackageDef package, ProgressUpdateDelegate progress,
+            CancellationToken token)
+        {
+            progress ??= (percent, message) => { };
             if (CachedLocation(package) is string cachedLocation)
             {
                 log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
@@ -283,6 +307,13 @@ namespace OpenTap.Package
             else if (package.PackageSource is IRepositoryPackageDefSource repoSource)
             {
                 IPackageRepository rm = PackageRepositoryHelpers.DetermineRepositoryType(repoSource.RepositoryUrl);
+                if (rm is IPackageDownloadProgress p)
+                {
+                    p.OnProgressUpdate += (message, pos, len) =>
+                    {
+                        progress(Percent(pos, len), message);
+                    };
+                }
                 log.Info($"Downloading {package.Name} version {package.Version} from {rm.Url}");
                 rm.DownloadPackage(package, filename, token);
             }
