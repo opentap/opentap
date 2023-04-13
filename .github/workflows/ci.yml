@@ -717,6 +717,9 @@ jobs:
           #Remove-Item ./nuget/build/payload/tap.dll
           #Remove-Item ./nuget/build/payload/tap.runtimeconfig.json
 
+          New-Item -Force nuget/build/payload/Packages -ItemType Directory | Out-Null
+          Move-Item ./bin/Release/OpenTap.Plugins.BasicSteps.dll ./nuget/build/payload/Packages/OpenTap.Plugins.BasicSteps.dll
+          Move-Item ./bin/Release/OpenTap.Plugins.BasicSteps.xml ./nuget/build/payload/Packages/OpenTap.Plugins.BasicSteps.xml
           Move-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
           Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
           Push-Location ./nuget/build/payload

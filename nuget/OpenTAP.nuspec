@@ -14,6 +14,8 @@
     <tags>OpenTAP</tags>
     <references>
     	<reference file="OpenTap.dll"/>
+    	<reference file="OpenTap.Package.dll"/>
+    	<reference file="OpenTap.Plugins.BasicSteps.dll"/>
     </references>
     <license type="expression">MPL-2.0</license>
   </metadata>
@@ -22,7 +24,8 @@
     <file src="build/payload/OpenTap.xml" target="lib/netstandard2.0" />
     <file src="build/payload/OpenTap.Package.dll" target="lib/netstandard2.0" />
     <file src="build/payload/OpenTap.Package.xml" target="lib/netstandard2.0" />
-    
+    <file src="build/payload/Packages/OpenTap.Plugins.BasicSteps.dll" target="lib/netstandard2.0" />
+    <file src="build/payload/Packages/OpenTap.Plugins.BasicSteps.xml" target="lib/netstandard2.0" />
     <file src="build/**/*" exclude="**\.*"/>
   </files>
 </package>

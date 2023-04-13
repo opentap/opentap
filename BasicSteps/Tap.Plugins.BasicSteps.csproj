@@ -2,6 +2,7 @@
   <PropertyGroup>
     <AssemblyName>OpenTap.Plugins.BasicSteps</AssemblyName>
     <RootNamespace>OpenTap.Plugins.BasicSteps</RootNamespace>
+    <DocumentationFile>$(OutputPath)\OpenTap.Plugins.BasicSteps.xml</DocumentationFile>
   </PropertyGroup>
 
   <!-- Comment this out for now, until we can get to adding all the missing XML comments
