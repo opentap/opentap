@@ -18,7 +18,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
-using Keysight.OpenTap.Repository.Client;
+using OpenTap.Repository.Client;
 using OpenTap.Authentication;
 using Tap.Shared;
 
@@ -83,9 +83,10 @@ namespace OpenTap.Package
                 var domain = uri.Authority;
                 foreach (var token in AuthenticationSettings.Current.Tokens)
                 {
-                    if (token.Domain == domain && !token.IsExpired())
+                    if (token.Domain == domain)
                     {
                         RepoClient.AddAuthentication(new BearerTokenAuthentication(token.AccessToken));
+                        break;
                     }
                 }
             }

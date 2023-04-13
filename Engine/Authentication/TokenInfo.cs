@@ -45,26 +45,6 @@ namespace OpenTap.Authentication
             }
         }
 
-        public bool IsExpired()
-        {
-            try
-            {
-                var claims = Claims;
-                if (claims.ContainsKey("exp") && int.TryParse(claims["exp"], out int exp))
-                {
-                    var expiresAt = DateTimeOffset.FromUnixTimeSeconds(exp);
-                    var now = DateTime.UtcNow;
-                    return expiresAt < now;
-                }
-            }
-            catch
-            {
-                // ignore
-            }
-
-            return false;
-        }
-
         private Dictionary<string, string> _Claims;
         /// <summary>
         /// Claims contained in the <see cref="AccessToken"/>.

@@ -36,14 +36,10 @@
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
+    <PackageReference Include="OpenTAP.Repository.Client" Version="4.17.0-beta.2"/>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <Reference Include="Keysight.OpenTap.Repository.Client">
-      <HintPath>..\deps\Keysight.OpenTap.Repository.Client.dll</HintPath>
-    </Reference>
   </ItemGroup>
   <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />
 </Project>
