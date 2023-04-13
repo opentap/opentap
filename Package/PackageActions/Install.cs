@@ -86,7 +86,7 @@ namespace OpenTap.Package
 
 
         private string DefaultOs;
-        
+
         /// <summary>
         /// This will be set only if the install action was started by <see cref="PackageInstallStep"/>
         /// This is supposed to solve an issue where OpenTAP fails to detect that the process was elevated.
@@ -169,7 +169,7 @@ namespace OpenTap.Package
                         targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
                         InstallDependencies, Force, askToInstallDependencies, NoDowngrade);
                 }
-                catch (ImageResolveException ex)
+                catch (ImageResolveException ex) when (ex.Result is FailedImageResolution fir)
                 {
                     // If the problem is exactly that we failed to resolve a compatible release version of a package,
                     // ask the user to retry the resolution with a pre-release instead.
@@ -178,7 +178,6 @@ namespace OpenTap.Package
                     // A beta version strikes a good middle ground. It is pretty likely to resolve, and probably won't be too unstable.
                     if (NonInteractiveUserInputInterface.IsSet()) throw;
                     if (Packages.Length != 1) throw;
-                    if (false == (ex.Result is FailedImageResolution fir)) throw;
                     if (fir.resolveProblems.Count != 1) throw;
 
                     var problem = fir.resolveProblems[0];
@@ -186,15 +185,26 @@ namespace OpenTap.Package
                     // Only show the beta option if the resolution problem was with the package we are trying to install
                     if (problem.Name != Packages[0]) throw;
 
-                    var req = new AskAboutPrerelease($"Package '{problem.Name}' has no compatible release version. Try a beta version instead?");
-                    UserInput.Request(req);
+                    // Try to resolve a beta version instead, but only offer the beta version if the user wants it
+                    try
+                    {
+                        packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
+                            targetInstallation, PackageReferences, Packages, "beta", Architecture, OS, repositories, Force,
+                            InstallDependencies, Force, askToInstallDependencies, NoDowngrade);
+                    }
+                    catch
+                    {
+                        // throw original exception if beta resolution fails
+                        throw ex;
+                    }
 
+                    // If the beta resolution succeeded, ask the user if they want to install the beta version
+                    var betaVersion = packagesToInstall.First(p => p.Name == problem.Name).Version;
+
+                    var req = new AskAboutPrerelease($"Package '{problem.Name}' has no compatible release version, but the beta version '{betaVersion.ToString(4)}' is compatible.\nInstall this version instead?");
+                    UserInput.Request(req);
                     if (req.Response == UseBetaQuestion.No) throw;
 
-                    Version = "beta";
-                    packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
-                        targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
-                        InstallDependencies, Force, askToInstallDependencies, NoDowngrade);
                 }
 
                 if (SystemWideOnly)
@@ -338,7 +348,7 @@ namespace OpenTap.Package
                 {
                     log.Warning($"Process elevation failed. Installation will continue without elevation.");
                 }
-                
+
                 if (needElevation)
                 {
                     RaiseProgressUpdate(20, "Installing system-wide packages.");
@@ -397,9 +407,9 @@ namespace OpenTap.Package
             {
                 if (Packages != null && Packages.Length > 0)
                 {
-                    Log.Error("Could not resolve {0}{1}", 
+                    Log.Error("Could not resolve {0}{1}",
                         string.Join(", ", Packages.Select(x => $"{x}")),
-                        string.IsNullOrWhiteSpace(Version) ? "" : $" v{Version}");    
+                        string.IsNullOrWhiteSpace(Version) ? "" : $" v{Version}");
                 }
                 else
                 {
