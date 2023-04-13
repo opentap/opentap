@@ -241,11 +241,11 @@ namespace OpenTap
             return Log.GetOwnedSource(res) ?? Log.CreateSource(res.Name ?? "Resource");
         }
         
-        async Task OpenResource(ResourceNode node, Task canStart)
+        void OpenResource(ResourceNode node, WaitHandle canStart)
         {
-            await canStart;
-            foreach (var dep in node.StrongDependencies)
-                await openTasks[dep];
+            canStart.WaitOne();
+            var taskArray = node.StrongDependencies.Select(dep => openTasks[dep]).ToArray();
+            Task.WaitAll(taskArray);
 
             Stopwatch swatch = Stopwatch.StartNew();
 
@@ -254,12 +254,12 @@ namespace OpenTap
             try
             {
                 // start a new thread to do synchronous work
-                await Task.Factory.StartNew(node.Resource.Open);
+                TapThread.Start(node.Resource.Open);
 
                 reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
 
-                foreach (var dep in node.WeakDependencies)
-                    await openTasks[dep];
+                var weakDeps = node.WeakDependencies.Select(dep => openTasks[dep]).ToArray();
+                Task.WaitAll(weakDeps);
 
                 ResourceOpened?.Invoke(node.Resource);
             }
@@ -421,7 +421,7 @@ namespace OpenTap
             else
             {
                 // Open all resources asynchronously
-                Task wait = new Task(() => { }); // This task is not started yet, so it's used as an awaitable semaphore.
+                var wait = new ManualResetEventSlim(false);
                 foreach (ResourceNode r in resources)
                 {
                     if (openTasks.ContainsKey(r.Resource)) continue;
@@ -429,9 +429,9 @@ namespace OpenTap
                     openedResources.Add(r);
 
                     // async used to avoid blocking the thread while waiting for tasks.
-                    openTasks[r.Resource] = OpenResource(r, wait);
+                    openTasks[r.Resource] = TapThread.StartAwaitable(() => OpenResource(r, wait.WaitHandle));
                 }
-                wait.Start();
+                wait.Set();
             }
         }
 
