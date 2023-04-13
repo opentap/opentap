@@ -566,13 +566,13 @@ namespace OpenTap
                     return ReferenceCount > 0;
             }
 
-            async Task OpenResource(LazyResourceManager requester, CancellationToken cancellationToken)
+            void OpenResource(LazyResourceManager requester, CancellationToken cancellationToken)
             {
                 var node = ResourceNode;
                 foreach (var dep in node.StrongDependencies)
                 {
                     if (dep == null) continue;
-                    await requester.RequestResourceOpen(dep, cancellationToken);
+                    requester.RequestResourceOpen(dep, cancellationToken).Wait(cancellationToken);
                 }
 
                 Stopwatch swatch = Stopwatch.StartNew();
@@ -584,7 +584,7 @@ namespace OpenTap
                     try
                     {
                         // start a new thread to do synchronous work
-                        await Task.Factory.StartNew(node.Resource.Open);
+                        node.Resource.Open();
         
                         reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
 
@@ -599,7 +599,7 @@ namespace OpenTap
                     foreach (var dep in node.WeakDependencies)
                     {
                         if (dep == null) continue;
-                        await requester.RequestResourceOpen(dep, cancellationToken);
+                        requester.RequestResourceOpen(dep, cancellationToken).Wait(cancellationToken);
                     }
                 }
                 catch (Exception ex)
@@ -621,7 +621,8 @@ namespace OpenTap
                         case ResourceState.Reset:
                             state = ResourceState.Opening;
 
-                            return OpenTask = OpenResource(requester, cancellationToken);
+                            return OpenTask =
+                                TapThread.StartAwaitable(() => OpenResource(requester, cancellationToken));
                         case ResourceState.Opening:
                             return OpenTask;
                         case ResourceState.Open:
@@ -651,7 +652,7 @@ namespace OpenTap
                                 {
                                     state = ResourceState.Closing;
 
-                                    return CloseTask = Task.Factory.StartNew(() =>
+                                    return CloseTask = TapThread.StartAwaitable(() =>
                                     {
                                         try
                                         {
