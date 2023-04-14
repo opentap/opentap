@@ -254,7 +254,7 @@ namespace OpenTap
             try
             {
                 // start a new thread to do synchronous work
-                TapThread.Start(node.Resource.Open);
+                node.Resource.Open();
 
                 reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
 

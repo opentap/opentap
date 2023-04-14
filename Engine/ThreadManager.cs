@@ -335,10 +335,11 @@ namespace OpenTap
         {
             return StartAwaitable(action, null, name);
         }
-        
+
         internal static Task StartAwaitable(Action action, CancellationToken? token, string name = "")
         {
             var wait = new ManualResetEventSlim(false);
+            Exception ex = null;
             Start(() =>
             {
                 try
@@ -348,8 +349,15 @@ namespace OpenTap
                         var trd = TapThread.Current;
                         using (token.Value.Register(() => trd.Abort()))
                             action();
-                    }else
+                    }
+                    else
+                    {
                         action();
+                    }
+                }
+                catch (Exception inner)
+                {
+                    ex = inner;
                 }
                 finally
                 {
@@ -357,7 +365,10 @@ namespace OpenTap
                 }
             }, null, name);
             var awaiter = new Awaitable(wait);
-            return Task.Factory.FromAsync(awaiter, x => { });
+            return Task.Factory.FromAsync(awaiter, x =>
+            {
+                if (ex != null) throw ex;
+            });
         }
 
         /// <summary> Starts a new Tap Thread.</summary>
