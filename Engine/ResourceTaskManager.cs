@@ -583,11 +583,8 @@ namespace OpenTap
                 {
                     try
                     {
-                        // start a new thread to do synchronous work
                         node.Resource.Open();
-        
                         reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
-
                     }
                     finally
                     {

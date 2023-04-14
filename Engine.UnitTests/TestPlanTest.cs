@@ -2001,7 +2001,7 @@ namespace OpenTap.Engine.UnitTests
                 isopening = true;
 
                 if(OpenWait)
-                    TapThread.Sleep(20);
+                    Thread.Sleep(20);
                 
                 isopening = false;
                 
@@ -2115,6 +2115,7 @@ namespace OpenTap.Engine.UnitTests
         }
         
         [Test]
+        [Repeat(10)]
         public void OpenCloseOrderLazyRM()
         {
             var lastrm = EngineSettings.Current.ResourceManagerType;
