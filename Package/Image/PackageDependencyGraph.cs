@@ -17,19 +17,19 @@ namespace OpenTap.Package
         readonly List<string> nameLookup = new List<string>();
         readonly List<SemanticVersion> versionLookup = new List<SemanticVersion>();
         readonly List<VersionSpecifier> versionSpecifierLookup = new List<VersionSpecifier>();
-     
+
         // lookup of X to id, ID being the index in the above tables.
-        readonly Dictionary<string, int> name2Id = new Dictionary<string, int>(); 
+        readonly Dictionary<string, int> name2Id = new Dictionary<string, int>();
         readonly Dictionary<SemanticVersion, int> version2Id = new Dictionary<SemanticVersion, int>();
         readonly Dictionary<VersionSpecifier, int> versionSpecifier2Id = new Dictionary<VersionSpecifier, int>();
-        
+
         // Data structures for hosting versions.
         readonly Dictionary<string, SemanticVersion> stringToVersion = new Dictionary<string, SemanticVersion>();
         readonly Dictionary<string, VersionSpecifier> stringToVersionSpecifier = new Dictionary<string, VersionSpecifier>();
-        
+
         // versions contains all versions of a given name. Eg all versions of OpenTAP/
         readonly Dictionary<int, HashSet<int>> versions = new Dictionary<int, HashSet<int>>();
-        
+
         // Dependencies for a given version 
         readonly Dictionary<(int packageNameId, int packageVersion), (int packageNameId, int versionSpecifierId)[]> dependencies = new Dictionary<(int, int), (int, int)[]>();
 
@@ -54,7 +54,7 @@ namespace OpenTap.Package
 
             return id;
         }
-        
+
         int GetVersionId(SemanticVersion v)
         {
             if (!version2Id.TryGetValue(v, out var id))
@@ -64,7 +64,7 @@ namespace OpenTap.Package
             }
             return id;
         }
-        
+
         int GetVersionId(string v2)
         {
             var v = stringToVersion.GetOrCreateValue(v2, SemanticVersion.Parse);
@@ -76,13 +76,13 @@ namespace OpenTap.Package
             var v = stringToVersionSpecifier.GetOrCreateValue(v2, VersionSpecifier.Parse);
             return GetVersionSpecifier(v);
         }
-        
+
         int GetVersionSpecifier(VersionSpecifier v)
         {
             if (!versionSpecifier2Id.TryGetValue(v, out var id))
             {
                 versionSpecifier2Id[v] = id = versionSpecifierLookup.Count;
-                versionSpecifierLookup.Add(v);    
+                versionSpecifierLookup.Add(v);
             }
             return id;
         }
@@ -93,16 +93,16 @@ namespace OpenTap.Package
             foreach (var elem in packages.ToArray())
             {
                 var name = elem.Name;
-                var version = elem.Version ?? new SemanticVersion(0, 1, 0 , null, null);
-                
+                var version = elem.Version ?? new SemanticVersion(0, 1, 0, null, null);
+
                 var id = GetNameId(name);
                 var thisVersions = versions[id];
                 if (thisVersions.Add(GetVersionId(version)))
                     addPackages += 1;
-                if(elem.Dependencies.Count > 0)
+                if (elem.Dependencies.Count > 0)
                 {
-                    var deps = new (int id, int y)[ elem.Dependencies.Count];
-                    
+                    var deps = new (int id, int y)[elem.Dependencies.Count];
+
                     for (int i = 0; i < deps.Length; i++)
                     {
                         var dep = elem.Dependencies[i];
@@ -135,13 +135,13 @@ namespace OpenTap.Package
                 if (!thisVersions.Add(GetVersionId(version)))
                     continue; // package already added.
                 addPackages += 1;
-                if(elem.TryGetProperty("dependencies", out var obj))
+                if (elem.TryGetProperty("dependencies", out var obj))
                 {
                     var l = obj.GetArrayLength();
                     if (l != 0)
                     {
                         var deps = new (int id, int y)[l];
-                        int i = 0; 
+                        int i = 0;
                         foreach (var dep in obj.EnumerateArray())
                         {
                             var depname = dep.GetProperty("name").GetString();
@@ -153,15 +153,12 @@ namespace OpenTap.Package
 
                         dependencies[(id, GetVersionId(version))] = deps;
                     }
-                    
+
                 }
             }
         }
 
-        // tracks currently fetched pre-releases. This is an optimization to avoid having to 
-        // pull absolutely all packages from the repository.
-        readonly Dictionary<string, string> currentPreReleases = new Dictionary<string, string>();
-        public IEnumerable<SemanticVersion> PackagesSatisfying(PackageSpecifier packageSpecifier)
+        public bool EnsurePreReleasesCached(PackageSpecifier packageSpecifier)
         {
             if (!string.IsNullOrWhiteSpace(packageSpecifier.Version.PreRelease) || packageSpecifier.Version.MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
             {
@@ -175,14 +172,27 @@ namespace OpenTap.Package
                     newPreRelease = packageSpecifier.Version.PreRelease.Split('.')[0];
                 }
 
-                if (!currentPreReleases.TryGetValue(packageSpecifier.Name, out var currentPrerelease) || newPreRelease.CompareTo(currentPrerelease) > 0 )
+                // If the pre-release level has not been downloaded, or if its a higher prerelease than the current
+                // for example, if current pre-release is rc, but a beta is asked for, we need to update the graph.
+                if (!currentPreReleases.TryGetValue(packageSpecifier.Name, out var currentPrerelease) || newPreRelease.CompareTo(currentPrerelease) < 0)
                 {
                     currentPreReleases[packageSpecifier.Name] = newPreRelease;
                     // update the package dependency graph.
                     if (UpdatePrerelease != null)
                         UpdatePrerelease(packageSpecifier.Name, newPreRelease);
+                    return true;
+
                 }
             }
+            return false;
+        }
+
+        // tracks currently fetched pre-releases. This is an optimization to avoid having to 
+        // pull absolutely all packages from the repository.
+        readonly Dictionary<string, string> currentPreReleases = new Dictionary<string, string>();
+        public IEnumerable<SemanticVersion> PackagesSatisfying(PackageSpecifier packageSpecifier)
+        {
+            EnsurePreReleasesCached(packageSpecifier);
             if (name2Id.TryGetValue(packageSpecifier.Name, out var Id))
             {
                 var thisVersions = versions[Id];
@@ -193,9 +203,10 @@ namespace OpenTap.Package
                         if (packageSpecifier.Version == VersionSpecifier.Any)
                         {
                             yield return semv;
-                        }else if (packageSpecifier.Version.IsCompatible(semv))
+                        }
+                        else if (packageSpecifier.Version.IsCompatible(semv))
                             yield return semv;
-                        
+
                     }
                 }
             }
@@ -208,7 +219,7 @@ namespace OpenTap.Package
         /// <returns></returns>
         public IEnumerable<PackageDef> PackageSpecifiers()
         {
-            
+
             foreach (var thing in versions)
             {
                 var pkgName = nameLookup[thing.Key];
@@ -246,20 +257,20 @@ namespace OpenTap.Package
                 foreach (var dep in deps)
                 {
                     var depVersion = versionSpecifierLookup[dep.Item2];
-                    
+
                     var ps = new PackageSpecifier(nameLookup[dep.Item1], depVersion);
                     var o = others.FirstOrDefault(x => x.Name == ps.Name);
                     if (o == null)
                         continue;
                     if (ps.Version.IsSatisfiedBy(o.Version) == false && o.Version.IsSatisfiedBy(ps.Version) == false)
                         return false;
-                    
+
                     var o2 = fixedPackages.FirstOrDefault(x => x.Name == ps.Name);
                     if (o2 == null)
                         continue;
                     if (ps.Version.IsSatisfiedBy(o.Version) == false && o2.Version.IsSatisfiedBy(ps.Version) == false)
                         return false;
-                    
+
                     // todo protect from circular dependencies here.
                     if (!CouldSatisfy(ps.Name, depVersion, others, Array.Empty<PackageSpecifier>()))
                         return false;
@@ -271,6 +282,41 @@ namespace OpenTap.Package
             return true;
         }
 
+        /// <summary>
+        /// Gets all the dependencies for multiples versions of multiple packages.
+        /// Since many of them share specific dependencies, this makes certain queries faster.
+        /// </summary>
+        IEnumerable<PackageSpecifier> GetAllDependencies(IEnumerable<(string, IEnumerable<SemanticVersion>)> allPackages)
+        {
+            var lookup = new HashSet<(int packageId, int versionId)>();
+
+            foreach (var (pkgName, versions) in allPackages)
+            {
+                if (name2Id.TryGetValue(pkgName, out var Id))
+                {
+                    foreach (var version in versions)
+                    {
+                        if (dependencies.TryGetValue((Id, GetVersionId(version)), out var deps))
+                        {
+                            foreach (var dep in deps)
+                            {
+                                lookup.Add(dep);
+                            }
+                        }
+                    }
+                }
+            }
+            if (lookup.Count == 0)
+                return Array.Empty<PackageSpecifier>();
+
+            return lookup.Select(dep 
+                => new PackageSpecifier(nameLookup[dep.packageId], versionSpecifierLookup[dep.versionId]));
+        }
+
+
+        /// <summary>
+        /// Gets the dependencies for a specific package version.
+        /// </summary>
         public IEnumerable<PackageSpecifier> GetDependencies(string pkgName, SemanticVersion version)
         {
             if (name2Id.TryGetValue(pkgName, out var Id))
@@ -299,6 +345,25 @@ namespace OpenTap.Package
         public void Absorb(PackageDependencyGraph graph)
         {
             LoadFromPackageDefs(graph.PackageSpecifiers());
+        }
+        
+        public void EnsurePackagePreReleasesCached(List<PackageSpecifier> packages)
+        {
+            var pkgNamesAndVersions = packages
+                .Select(x => (x.Name, PackagesSatisfying(x)));
+            var allDependencies = GetAllDependencies(pkgNamesAndVersions);
+            bool retry;
+            do
+            {
+                retry = false;
+                foreach (var dep in allDependencies)
+                {
+                    // if new packages are cached, it means the search space could have expanded.
+                    // it is a bit unlikely to happen, but edge but it could happen if
+                    // dependencies looks like: A:beta -> B:beta -> C:beta -> D:beta
+                    retry |= EnsurePreReleasesCached(dep);
+                }
+            } while (retry);
         }
     }
 }
