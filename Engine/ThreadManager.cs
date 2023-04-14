@@ -367,7 +367,9 @@ namespace OpenTap
             var awaiter = new Awaitable(wait);
             return Task.Factory.FromAsync(awaiter, x =>
             {
-                if (ex != null) throw ex;
+                // rethrow the exception if there was one.
+                // The Rethrow extension method preserves the original stacktrace.
+                ex?.Rethrow();
             });
         }
 

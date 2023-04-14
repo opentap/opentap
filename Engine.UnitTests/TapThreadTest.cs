@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace OpenTap.UnitTests
@@ -94,6 +95,36 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(hierarchyCompletedCallbackCalled.Wait(30 * 1000), "onHierarchyCompleted callback not called.");
             Assert.IsTrue(level1CompletedBeforeHierarchyCompletedCallback, "Child thread did not complete before onHierarchyCompleted callback.");
             Assert.IsTrue(level2CompletedBeforeHierarchyCompletedCallback, "Second level child thread did not complete before onHierarchyCompleted callback.");
+        }
+
+        [Test]
+        public async Task TestAwaitedThreadThrows([Values(true, false)] bool throws)
+        {
+            void callback()
+            {
+                if (throws)
+                    throw new Exception("Throws");
+            }
+
+            var trd = TapThread.StartAwaitable(callback);
+
+            if (throws)
+            {
+                try
+                {
+                    await trd;
+                    Assert.Fail("This should have thrown.");
+                }
+                catch (Exception ex)
+                {
+                    StringAssert.Contains("Throws", ex.Message);
+                }
+            }
+            else
+            {
+                await trd;
+                Assert.Pass();
+            }
         }
 
         /// <summary>
