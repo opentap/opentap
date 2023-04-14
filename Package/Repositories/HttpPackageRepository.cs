@@ -76,20 +76,7 @@ namespace OpenTap.Package
             Url = url.TrimEnd('/');
             UpdateId = Installation.Current.Id;
             RepoClient = new RepoClient(Url);
-            
-            if (Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out var uri) &&
-                !string.IsNullOrWhiteSpace(uri.Authority))
-            {
-                var domain = uri.Authority;
-                foreach (var token in AuthenticationSettings.Current.Tokens)
-                {
-                    if (token.Domain == domain)
-                    {
-                        RepoClient.AddAuthentication(new BearerTokenAuthentication(token.AccessToken));
-                        break;
-                    }
-                }
-            }
+            Auth();
         }
 
         Action<string, long, long> IPackageDownloadProgress.OnProgressUpdate { get; set; }
@@ -337,21 +324,16 @@ namespace OpenTap.Package
         private void Auth()
         {
             if (!Uri.TryCreate(Url, UriKind.RelativeOrAbsolute, out var uri)) return;
-            if (uri.IsAbsoluteUri)
+            bool predicate(string domain)
             {
-                var domain = uri.Authority;
-                foreach (var token in AuthenticationSettings.Current.Tokens)
-                {
-
-                    if (token.Domain == domain)
-                    {
-                        RepoClient.AddAuthentication(new BearerTokenAuthentication(token.AccessToken));
-                    }
-                }
+                // If we are using a relative url, we assume that the domain is the same as the repo url.
+                if (uri.IsAbsoluteUri == false) return true;
+                return domain == uri.Authority;
             }
-            else
+
+            foreach (var token in AuthenticationSettings.Current.Tokens)
             {
-                foreach (var token in AuthenticationSettings.Current.Tokens)
+                if (predicate(token.Domain))
                 {
                     RepoClient.AddAuthentication(new BearerTokenAuthentication(token.AccessToken));
                 }
