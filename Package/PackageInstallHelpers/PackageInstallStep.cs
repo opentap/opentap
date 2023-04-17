@@ -35,6 +35,7 @@ namespace OpenTap.Package.PackageInstallHelpers
             }
             catch(Exception e)
             {
+                Log.Error(e.Message);
                 Log.Debug(e);
                 UpgradeVerdict(Verdict.Error);
             }
