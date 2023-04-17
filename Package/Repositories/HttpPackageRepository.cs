@@ -148,7 +148,7 @@ namespace OpenTap.Package
                                     throw new HttpRequestException($"The download request failed with {response.StatusCode}.");
 
                                 var task = responseStream.CopyToAsync(fileStream, _DefaultCopyBufferSize, cancellationToken);
-                                await ConsoleUtils.ReportProgressTillEndAsync(task, "Downloading",
+                                await ConsoleUtils.ReportProgressTillEndAsync(task, $"Downloading {package.Name}",
                                     () => fileStream.Position,
                                     () => totalSize,
                                     (header, pos, len) =>
