@@ -33,8 +33,6 @@ namespace OpenTap.Package
         private const int _DefaultCopyBufferSize = 81920;
 
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
-        private const string ApiVersion = "3.0";
-        private VersionSpecifier MinRepoVersion = new VersionSpecifier(3, 0, 0, "", "", VersionMatchBehavior.AnyPrerelease | VersionMatchBehavior.Compatible);
         private HttpClient client;
         private HttpClient HttpClient => client ??= GetHttpClient(Url);
         private static HttpClient GetHttpClient(string url)
@@ -75,10 +73,30 @@ namespace OpenTap.Package
         {
             Url = url.TrimEnd('/');
             UpdateId = Installation.Current.Id;
-            RepoClient = new RepoClient(Url);
-            Auth();
+            RepoClient = GetAuthenticatedClient(Url);
         }
 
+        internal static RepoClient GetAuthenticatedClient(string url)
+        {
+            var repoClient = new RepoClient(url);
+            if (!Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out var uri)) return repoClient;
+            bool predicate(string domain)
+            {
+                // If we are using a relative url, we assume that the domain is the same as the repo url.
+                if (uri.IsAbsoluteUri == false) return true;
+                return domain == uri.Authority;
+            }
+
+            foreach (var token in AuthenticationSettings.Current.Tokens)
+            {
+                if (predicate(token.Domain))
+                {
+                    repoClient.AddAuthentication(new BearerTokenAuthentication(token.AccessToken));
+                }
+            }
+
+            return repoClient;
+        }
         Action<string, long, long> IPackageDownloadProgress.OnProgressUpdate { get; set; }
 
         async Task DoDownloadPackage(PackageDef package, FileStream fileStream, CancellationToken cancellationToken)
@@ -179,11 +197,8 @@ namespace OpenTap.Package
                 try
                 {
                     var version = RepoClient.Version(CancellationToken.None);
-                    if (SemanticVersion.TryParse(version, out _version) &&
-                        MinRepoVersion.IsCompatible(_version) == false)
-                        throw new NotSupportedException($"The repository '{defaultUrl}' is not supported.",
-                            new Exception(
-                                $"Repository version '{Version}' is not compatible with min required version '{MinRepoVersion}'."));
+                    if (SemanticVersion.TryParse(version, out _version))
+                        throw new NotSupportedException($"The repository '{defaultUrl}' is not supported.");
                 }
                 catch
                 {
@@ -193,24 +208,22 @@ namespace OpenTap.Package
             }
         }
 
-        PackageDef[] packagesFromXml(string xmlText)
+        PackageDef[] PackagesFromXml(string xmlText)
         {
             try
             {
                 if (string.IsNullOrEmpty(xmlText) || xmlText == "null") return Array.Empty<PackageDef>();
-                using (var stream = new MemoryStream(Encoding.UTF8.GetBytes(xmlText)))
+                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xmlText));
+                var packages = PackageDef.ManyFromXml(stream).ToArray();
+                packages.ForEach(p =>
                 {
-                    var packages = PackageDef.ManyFromXml(stream).ToArray();
-                    packages.ForEach(p =>
+                    p.PackageSource = new HttpRepositoryPackageDefSource
                     {
-                        p.PackageSource = new HttpRepositoryPackageDefSource
-                        {
-                            RepositoryUrl = Url
-                        };
-                    });
+                        RepositoryUrl = Url
+                    };
+                });
 
-                    return packages;
-                }
+                return packages;
             }
             catch (XmlException ex)
             {
@@ -321,25 +334,6 @@ namespace OpenTap.Package
             }
         }
 
-        private void Auth()
-        {
-            if (!Uri.TryCreate(Url, UriKind.RelativeOrAbsolute, out var uri)) return;
-            bool predicate(string domain)
-            {
-                // If we are using a relative url, we assume that the domain is the same as the repo url.
-                if (uri.IsAbsoluteUri == false) return true;
-                return domain == uri.Authority;
-            }
-
-            foreach (var token in AuthenticationSettings.Current.Tokens)
-            {
-                if (predicate(token.Domain))
-                {
-                    RepoClient.AddAuthentication(new BearerTokenAuthentication(token.AccessToken));
-                }
-            }
-        }
-
         /// <summary>
         /// Get the names of the available packages in the repository
         /// </summary>
@@ -372,7 +366,7 @@ namespace OpenTap.Package
             if (IsInError()) return Array.Empty<string>();
             var parameters = new Dictionary<string, object>()
             {
-                ["type"] = @class,
+                ["class"] = @class,
                 ["distinctName"] = true,
                 ["directory"] = "/Packages/",
             };
@@ -510,13 +504,13 @@ namespace OpenTap.Package
                     stream.Seek(0, 0);
                     string data = new StreamReader(stream).ReadToEnd();
 
-                    string arg = $"/{ApiVersion}/CheckForUpdates?name={UpdateId}";
+                    string arg = $"/3.0/CheckForUpdates?name={UpdateId}";
                     response = downloadPackagesString(arg, data);
                     cancellationToken.ThrowIfCancellationRequested();
                 }
 
                 if (response != null)
-                    latestPackages = packagesFromXml(response).ToList();
+                    latestPackages = PackagesFromXml(response).ToList();
 
                 cancellationToken.ThrowIfCancellationRequested();
             }
@@ -535,7 +529,7 @@ namespace OpenTap.Package
         /// </summary>
         /// <param name="query">A GraphQL query string</param>
         /// <returns>A JObject containing the GraphQL response</returns>
-        [Obsolete("Please use SendQuery or SendQueryAsync instead.")]
+        [Obsolete("Please use https://www.nuget.org/packages/OpenTAP.Repository.Client instead. This will be removed in 9.22.0")]
         public JObject Query(string query)
         {
             var response = downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
@@ -548,8 +542,8 @@ namespace OpenTap.Package
         /// </summary>
         /// <param name="query">A GraphQL query string</param>
         /// <returns>A JSON string containing the GraphQL response</returns>
+        [Obsolete("Please use https://www.nuget.org/packages/OpenTAP.Repository.Client instead. This will be removed in 9.22.0")]
         public string QueryGraphQL(string query) => downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
-        internal string QueryGraphQL4(string query) => downloadPackagesString($"/4.0/query", query, "application/json", "application/json");
         
         /// <summary>  Creates a display friendly string of this. </summary>
         public override string ToString() =>  $"[HttpPackageRepository: {Url}]";

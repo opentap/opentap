@@ -101,7 +101,6 @@ namespace OpenTap.Authentication
                     if (token.RefreshToken != null)
                     {
                         // TODO: refresh
-                        // TODO: fix todo
                     }
                 }
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);

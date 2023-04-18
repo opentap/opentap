@@ -118,6 +118,40 @@ namespace OpenTap.Package
 
         }
 
+        public void LoadFromDictionaries(List<Dictionary<string, object>> dicts)
+        {
+            foreach (var d in dicts)
+            {
+                var name = d["name"] as string;
+                var version = d["version"] as string;
+                if (!SemanticVersion.TryParse(version, out var v))
+                    continue;
+                var id = GetNameId(name);
+                var thisVersion = versions[id];
+                if (!thisVersion.Add(GetVersionId(version)))
+                    continue; // package already added.
+                var depMap = d["dependencies"] as List<Dictionary<string, object>>;
+                if (depMap == null || depMap.Count == 0) continue;
+                
+                var deps = new (int id, int y)[depMap.Count];
+                int i = 0; 
+                foreach (var dep in depMap)
+                {
+                    var depname = dep["name"] as string;
+                    var depid = GetNameId(depname);
+                    var depver = dep["version"] as string;
+                    deps[i] = (depid, GetVersionSpecifier(depver));
+                    i++;
+                }
+
+                dependencies[(id, GetVersionId(version))] = deps;
+            }
+        }
+        
+        /// <summary>
+        /// This is only used in unittests. It works for respones from the 3.1/query API, but not the 4.0/query API.
+        /// </summary>
+        /// <param name="json"></param>
         public void LoadFromJson(JsonDocument json)
         {
             var packages = json.RootElement.GetProperty("packages");
