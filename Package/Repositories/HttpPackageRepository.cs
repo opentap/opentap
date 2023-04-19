@@ -131,7 +131,7 @@ namespace OpenTap.Package
                     if (totalSize < 0) totalSize = responseStream.Length;
 
                     var task = responseStream.CopyToAsync(fileStream, _DefaultCopyBufferSize, cancellationToken);
-                    await ConsoleUtils.ReportProgressTillEndAsync(task, "Downloading",
+                    await ConsoleUtils.ReportProgressTillEndAsync(task, $"Downloading {package.Name}",
                         () => fileStream.Position,
                         () => totalSize,
                         (header, pos, len) =>
@@ -139,7 +139,6 @@ namespace OpenTap.Package
                             ConsoleUtils.printProgress(header, pos, len);
                             (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
                         });
-
                     break;
                 }
                 catch (Exception ex) when (ex is IOException || ex is HttpRequestException || transient)
