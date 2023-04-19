@@ -175,7 +175,7 @@ namespace OpenTap.Package
                         ["architecture"] = id.Architecture.ToString()
                     };
                     
-                    var repoClient = HttpPackageRepository.GetAuthenticatedClient(httprepo.Url);
+                    var repoClient = HttpPackageRepository.GetAuthenticatedClient(new Uri(httprepo.Url, UriKind.Absolute));
                     var result = repoClient.Query(parameters, CancellationToken.None, "name", "version");
 
                     var packages = result.Select(p => new PackageDef()

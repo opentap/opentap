@@ -34,7 +34,7 @@ namespace OpenTap.Package
             CpuArchitecture deploymentInstallationArchitecture, string preRelease = "", string name = null)
         {
             var sw = Stopwatch.StartNew();
-            var repoClient = HttpPackageRepository.GetAuthenticatedClient(repoUrl);
+            var repoClient = HttpPackageRepository.GetAuthenticatedClient(new Uri(repoUrl, UriKind.Absolute));
             var parameters = new Dictionary<string, object>()
             {
                 ["type"] = "TapPackage",

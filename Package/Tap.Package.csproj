@@ -36,7 +36,7 @@
     <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
-    <PackageReference Include="OpenTAP.Repository.Client" Version="4.17.0-beta.2"/>
+    <PackageReference Include="OpenTAP.Repository.Client" Version="4.17.0-beta.8"/>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />

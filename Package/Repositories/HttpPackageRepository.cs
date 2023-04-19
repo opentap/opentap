@@ -73,23 +73,28 @@ namespace OpenTap.Package
         {
             Url = url.TrimEnd('/');
             UpdateId = Installation.Current.Id;
-            RepoClient = GetAuthenticatedClient(Url);
+            RepoClient = GetAuthenticatedClient(new Uri(Url, UriKind.Absolute));
         }
 
-        internal static RepoClient GetAuthenticatedClient(string url)
+        internal static RepoClient GetAuthenticatedClient(Uri uri)
         {
-            var repoClient = new RepoClient(url);
-            if (!Uri.TryCreate(url, UriKind.RelativeOrAbsolute, out var uri)) return repoClient;
-            bool predicate(string domain)
+            // In case of relative URLs, it should have been resolved to an absolute URI in DetermineRepositoryType.
+            // As of writing this comment, there are no execution paths where this is not an absolute URI.
+            if (!uri.IsAbsoluteUri) throw new Exception($"Uri must be absolute");
+            var repoClient = new RepoClient(uri.AbsoluteUri);
+
+            // This is kind of a hack. AuthenticationSettings does some work to set up User-Agent headers.
+            // Here we just copy the headers from the authentication client to the repo client.
+            var httpClient = AuthenticationSettings.Current.GetClient();
+            foreach (var agent in httpClient.DefaultRequestHeaders.GetValues("User-Agent"))
             {
-                // If we are using a relative url, we assume that the domain is the same as the repo url.
-                if (uri.IsAbsoluteUri == false) return true;
-                return domain == uri.Authority;
+                repoClient.HttpClient.DefaultRequestHeaders.Add("User-Agent", agent);
             }
 
+            // Manually transfer any bearer tokens from the authentication client to the repo client.
             foreach (var token in AuthenticationSettings.Current.Tokens)
             {
-                if (predicate(token.Domain))
+                if (token.Domain == uri.Authority)
                 {
                     repoClient.AddAuthentication(new BearerTokenAuthentication(token.AccessToken));
                 }
@@ -97,6 +102,7 @@ namespace OpenTap.Package
 
             return repoClient;
         }
+
         Action<string, long, long> IPackageDownloadProgress.OnProgressUpdate { get; set; }
 
         async Task DoDownloadPackage(PackageDef package, FileStream fileStream, CancellationToken cancellationToken)
@@ -197,7 +203,7 @@ namespace OpenTap.Package
                 try
                 {
                     var version = RepoClient.Version(CancellationToken.None);
-                    if (SemanticVersion.TryParse(version, out _version))
+                    if (SemanticVersion.TryParse(version, out _version) == false)
                         throw new NotSupportedException($"The repository '{defaultUrl}' is not supported.");
                 }
                 catch
@@ -385,7 +391,7 @@ namespace OpenTap.Package
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             // force update version to check for errors.
-            Version?.ToString();
+            CheckRepoApiVersion();
             if (IsInError()) return Array.Empty<PackageVersion>();
 
             var parameters = new Dictionary<string, object>()
@@ -404,7 +410,14 @@ namespace OpenTap.Package
                 var version = SemanticVersion.Parse(p["Version"] as string);
                 var os = p["OS"] as string;
                 var date = (DateTime)p["Date"];
-                var licenses = new List<string>() { p["LicenseRequired"] as string };
+                var licenses = new List<string>();
+                if (p.TryGetValue("LicenseRequired", out var licenseRequired))
+                {
+                    if (licenseRequired is string license)
+                        licenses.Add(license);
+                    else if (licenseRequired is string[] licenseArray)
+                        licenses.AddRange(licenseArray);
+                }
                 return new PackageVersion(name, version, os, arch, date, licenses);
 
             }).ToArray();
@@ -451,6 +464,7 @@ namespace OpenTap.Package
                     {
                         // The repository can return a FilePackageDefSource instead of a HttpRepositoryPackageDefSource.
                         // We need to overwrite the incorrect information in order to be able to download the package.
+                        // Todo: Check if this has been fixed in the latest version of the repository.
                         pkg.PackageSource = new HttpRepositoryPackageDefSource { RepositoryUrl = Url };
                     }
 
