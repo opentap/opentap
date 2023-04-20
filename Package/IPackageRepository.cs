@@ -138,7 +138,6 @@ namespace OpenTap.Package
     internal class PackageRepositoryHelpers
     {
         private static TraceSource log = Log.CreateSource("PackageRepository");
-        private static VersionSpecifier RequiredApiVersion = new VersionSpecifier(3, 1, 0, "", "", VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease); // Required for GraphQL
 
         static void ParallelTryForEach<TSource>(IEnumerable<TSource> source, Action<TSource> body)
         {
@@ -161,32 +160,34 @@ namespace OpenTap.Package
         {
             var list = new List<PackageDef>();
             var version = id.Version == VersionSpecifier.AnyRelease ? "" : id.Version.ToString();
-            string query =
-                @"query Query {
-                            packages(distinctName:true" +
-                (id != null ? $",version:\"{version}\",os:\"{id.OS}\",architecture:\"{id.Architecture}\"" : "") +
-                @") {
-                            name
-                            version
-                        }
-                    }";
 
             ParallelTryForEach(repositories, repo =>
             {
-                if (repo is HttpPackageRepository httprepo && httprepo.Version != null &&
-                    RequiredApiVersion.IsCompatible(httprepo.Version))
+                if (repo is HttpPackageRepository httprepo)
                 {
-                    var jsonString = httprepo.QueryGraphQL(query);
-                    var json = JObject.Parse(jsonString);
+                    var parameters = new Dictionary<string, object>()
+                    {
+                        ["type"] = "TapPackage",
+                        ["distinctName"] = true,
+                        ["directory"] = "/Packages/",
+                        ["version"] = version,
+                        ["os"] = id.OS,
+                        ["architecture"] = id.Architecture.ToString()
+                    };
+                    
+                    var repoClient = HttpPackageRepository.GetAuthenticatedClient(new Uri(httprepo.Url, UriKind.Absolute));
+                    var result = repoClient.Query(parameters, CancellationToken.None, "name", "version");
+
+                    var packages = result.Select(p => new PackageDef()
+                    {
+                        Name = p["name"] as string,
+                        Version = SemanticVersion.Parse(p["version"] as string),
+                        PackageSource = new HttpRepositoryPackageDefSource() { RepositoryUrl = httprepo.Url }
+                    });
+
                     lock (list)
                     {
-                        foreach (var item in json["packages"])
-                            list.Add(new PackageDef()
-                            {
-                                Name = item["name"].ToString(),
-                                Version = SemanticVersion.Parse(item["version"].ToString()),
-                                PackageSource = new HttpRepositoryPackageDefSource() { RepositoryUrl = httprepo.Url }
-                            });
+                        list.AddRange(packages);
                     }
                 }
                 else
