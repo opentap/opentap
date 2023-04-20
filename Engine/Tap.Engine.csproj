@@ -18,7 +18,7 @@
     <PackageReference Include="System.Security.Principal.Windows" Version="5.0.0" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
-    <PackageReference Include="System.Text.Json" Version="4.3.0" />
+    <PackageReference Include="System.Text.Json" Version="4.7.0" />
     <PackageReference Include="Microsoft.CodeAnalysis" Version="2.10">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
