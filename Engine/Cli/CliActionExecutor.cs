@@ -123,11 +123,25 @@ namespace OpenTap.Cli
         }
     }
 
+    /// <summary>
+    /// Used to override a CLI action with a new CLI action.
+    /// Adding this attribute, removes the old CLI action, and adds a new one in its place.
+    /// </summary>
     [AttributeUsage(AttributeTargets.Class)]
     public class OverrideCliActionAttribute : Attribute
     {
+        /// <summary>
+        /// The type to override.
+        /// </summary>
         public Type OverrideType { get; set; }
 
+        /// <summary>
+        /// Used to override a CLI action with a new CLI action.
+        /// Adding this attribute, removes the old CLI action, and adds a new one in its place.
+        /// </summary>
+        /// <param name="overrideType">
+        /// The type to override.
+        /// </param>
         public OverrideCliActionAttribute(Type overrideType)
         {
             OverrideType = overrideType;
