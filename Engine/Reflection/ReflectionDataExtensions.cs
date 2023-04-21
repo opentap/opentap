@@ -97,7 +97,7 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Returns true if a reflection ifno has an attribute of type T.
+        /// Returns true if a reflection info has an attribute of type T.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="mem"></param>

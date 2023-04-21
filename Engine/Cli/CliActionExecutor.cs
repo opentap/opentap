@@ -31,13 +31,25 @@ namespace OpenTap.Cli
                 .Where(t => t.CanCreateInstance && t.GetDisplayAttribute() != null).ToList();
             Name = "tap";
             Root = this;
+
+            HashSet<ITypeData> overridenTypes = commands.Where(c => c.HasAttribute<OverrideCliActionAttribute>())
+                .Select(c => TypeData.FromType(c.GetAttribute<OverrideCliActionAttribute>().OverrideType))
+                .Cast<ITypeData>()
+                .ToHashSet();
+
             foreach (var item in commands)
-                ParseCommand(item, item.GetDisplayAttribute().Group, Root);
+            {
+                if (!overridenTypes.Contains(item))
+                {
+                    ParseCommand(item, item.GetDisplayAttribute().Group, Root);
+                }
+            }
         }
 
         CliActionTree(CliActionTree parent, string name)
         {
             Name = name;
+            Root = parent.Root;
         }
 
         private static void ParseCommand(ITypeData type, string[] group, CliActionTree command)
@@ -108,6 +120,17 @@ namespace OpenTap.Cli
                     x = length;
             }
             return x + initial;
+        }
+    }
+
+    [AttributeUsage(AttributeTargets.Class)]
+    public class OverrideCliActionAttribute : Attribute
+    {
+        public Type OverrideType { get; set; }
+
+        public OverrideCliActionAttribute(Type overrideType)
+        {
+            OverrideType = overrideType;
         }
     }
 
