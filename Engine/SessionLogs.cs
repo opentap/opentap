@@ -22,7 +22,7 @@ namespace OpenTap
     /// </summary>
     public static class SessionLogs
     {
-        [DllImport("Kernel32.dll", CharSet = CharSet.Unicode, EntryPoint = "CreateHardlink")]
+        [DllImport("Kernel32.dll", CharSet = CharSet.Unicode, EntryPoint = "CreateHardLink")]
         static extern bool CreateHardLinkWin(
           string lpFileName,
           string lpExistingFileName,
