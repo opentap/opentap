@@ -31,7 +31,7 @@ namespace OpenTap.Package
                 if (repos[graph] is HttpPackageRepository http)
                 {
                     var graph2 =
-                        PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, version, name).Result;
+                        PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, version, name);
                     graph.Absorb(graph2);
                     Graph.Absorb(graph2);
                 }
@@ -80,8 +80,7 @@ namespace OpenTap.Package
             
                 if (repo is HttpPackageRepository http)
                 {
-                  return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, "")
-                          .Result;  
+                  return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, "");  
                 } 
                 
                 if (repo is FilePackageRepository fpkg)

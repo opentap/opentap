@@ -36,7 +36,9 @@ namespace OpenTap.Package
                 return (int) ExitCodes.ArgumentError;
             }
 
-            Packages = AutoCorrectPackageNames.Correct(Packages, Array.Empty<IPackageRepository>());
+            // Skip auto-correction if ignore-missing is specified
+            if (!IgnoreMissing) 
+                Packages = AutoCorrectPackageNames.Correct(Packages, Array.Empty<IPackageRepository>());
 
             Installer installer = new Installer(Target, cancellationToken) {DoSleep = false};
             installer.ProgressUpdate += RaiseProgressUpdate;
@@ -216,7 +218,6 @@ namespace OpenTap.Package
         }
     }
 
-    [Obfuscation(Exclude = true)]
     enum ContinueResponse
     {
         [Display("Remove all the packages")]
@@ -231,7 +232,6 @@ namespace OpenTap.Package
 
     }
 
-    [Obfuscation(Exclude = true)]
     class ContinueRequest
     {
         [Browsable(true)]
@@ -245,14 +245,12 @@ namespace OpenTap.Package
         public ContinueResponse Response { get; set; }
     }
 
-    [Obfuscation(Exclude = true)]
     enum UninstallResponse
     {
         No,
         Yes,
     }
 
-    [Obfuscation(Exclude = true)]
     [Display("Uninstall bundled package?")]
     class UninstallRequest
     {

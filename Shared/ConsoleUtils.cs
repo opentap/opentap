@@ -48,7 +48,7 @@ namespace OpenTap
         public static async Task ReportProgressTillEndAsync(Task task, string header, Func<long> pos, Func<long> len,
             Action<string, long, long> updateProgress, int updateDelayMs = 1000)
         {
-            updateProgress = updateProgress ?? ((h, p, l) => { });
+            updateProgress ??= ((h, p, l) => { });
 
             if (task == await Task.WhenAny(task, Task.Delay(updateDelayMs)))
                 return;
