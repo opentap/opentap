@@ -117,7 +117,7 @@ namespace OpenTap.Package
 
                 if (All)
                 {
-                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name).Distinct().ToList();
+                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name).Where(v => v.IsUnlisted == false).Distinct().ToList();
                     var versionsCount = versions.Count;
                     if (versionsCount == 0) // No versions
                     {
@@ -140,13 +140,13 @@ namespace OpenTap.Package
                 else
                 {
                     var opentap = new Installation(Target).GetOpenTapPackage();
-                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name, opentap).Distinct().ToList();
+                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name, opentap).Where(v => v.IsUnlisted == false).Distinct().ToList();
 
-                    versions = versions.Where(s => s.IsPlatformCompatible(Architecture, OS)).ToList();
+                    versions = versions.Where(s => s.IsUnlisted == false && s.IsPlatformCompatible(Architecture, OS)).ToList();
 
                     if (versions.Any() == false) // No compatible versions
                     {
-                        versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name).ToList();
+                        versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name).Where(v => v.IsUnlisted == false).ToList();
                         if (versions.Any())
                         {
                             log.Warning($"There are no compatible versions of '{Name}'.");

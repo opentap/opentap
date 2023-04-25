@@ -36,8 +36,8 @@ namespace OpenTap.Package
             var sw = Stopwatch.StartNew();
             var repoClient = HttpPackageRepository.GetAuthenticatedClient(new Uri(repoUrl, UriKind.Absolute));
             
-            var parameters = HttpPackageRepository.GetQueryParameters(version: preRelease, os: os,
-                architecture: deploymentInstallationArchitecture.ToString(), name: name);
+            var parameters = HttpPackageRepository.GetQueryParameters(version: VersionSpecifier.TryParse(preRelease, out var spec) ? spec : VersionSpecifier.AnyRelease, os: os,
+                architecture: deploymentInstallationArchitecture, name: name);
             
             var result = repoClient.Query(parameters, CancellationToken.None, "name", "version",
                 new QuerySelection("dependencies", new List<QuerySelection>() { "name", "version" }));

@@ -74,6 +74,29 @@ namespace OpenTap.Package
     [DebuggerDisplay("{Name} : {Version.ToString()}")]
     public class PackageVersion : PackageIdentifier, IEquatable<PackageVersion>
     {
+        internal bool IsUnlisted { get; private set; }
+        internal static PackageVersion FromDictionary(Dictionary<string, object> dict)
+        {
+            var name = dict["Name"] as string;
+            Enum.TryParse(dict["Architecture"] as string, out CpuArchitecture arch);
+            var version = SemanticVersion.Parse(dict["Version"] as string);
+            var os = dict["OS"] as string;
+            var date = (DateTime)dict["Date"];
+            var licenses = new List<string>();
+            if (dict.TryGetValue("LicenseRequired", out var licenseRequired))
+            {
+                if (licenseRequired is string license)
+                    licenses.Add(license);
+                else if (licenseRequired is string[] licenseArray)
+                    licenses.AddRange(licenseArray);
+            }
+
+            return new PackageVersion(name, version, os, arch, date, licenses)
+            {
+                IsUnlisted = dict.TryGetValue("IsUnlisted", out var unlisted) && unlisted is bool b && b
+            };
+        }
+        
         /// <summary>
         /// Initializes a new instance of a PackageVersion.
         /// </summary>
@@ -159,14 +182,13 @@ namespace OpenTap.Package
             PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
         {
             var list = new List<PackageDef>();
-            var version = id.Version == VersionSpecifier.AnyRelease ? "" : id.Version.ToString();
 
             ParallelTryForEach(repositories, repo =>
             {
                 if (repo is HttpPackageRepository httprepo)
                 {
-                    var parameters = HttpPackageRepository.GetQueryParameters(version: version, os: id.OS,
-                        architecture: id.Architecture.ToString(), distinctName: true);
+                    var parameters = HttpPackageRepository.GetQueryParameters(version: id.Version, os: id.OS,
+                        architecture: id.Architecture, distinctName: true);
                     
                     var repoClient = HttpPackageRepository.GetAuthenticatedClient(new Uri(httprepo.Url, UriKind.Absolute));
                     var result = repoClient.Query(parameters, CancellationToken.None, "name", "version");
