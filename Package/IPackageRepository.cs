@@ -165,15 +165,8 @@ namespace OpenTap.Package
             {
                 if (repo is HttpPackageRepository httprepo)
                 {
-                    var parameters = new Dictionary<string, object>()
-                    {
-                        ["type"] = "TapPackage",
-                        ["distinctName"] = true,
-                        ["directory"] = "/Packages/",
-                        ["version"] = version,
-                        ["os"] = id.OS,
-                        ["architecture"] = id.Architecture.ToString()
-                    };
+                    var parameters = HttpPackageRepository.GetQueryParameters(version: version, os: id.OS,
+                        architecture: id.Architecture.ToString(), distinctName: true);
                     
                     var repoClient = HttpPackageRepository.GetAuthenticatedClient(new Uri(httprepo.Url, UriKind.Absolute));
                     var result = repoClient.Query(parameters, CancellationToken.None, "name", "version");

@@ -350,15 +350,35 @@ namespace OpenTap.Package
         {
             if (IsInError()) return Array.Empty<string>();
 
-            var parameters = new Dictionary<string, object>()
-            {
-                ["type"] = "TapPackage",
-                ["distinctName"] = true,
-                ["directory"] = "/Packages/",
-            };
-
+            var parameters = GetQueryParameters();
             var packages = RepoClient.Query(parameters, cancellationToken, "Name");
             return packages.Select(p => p["Name"] as string).ToArray();
+        }
+
+        internal static Dictionary<string, object> GetQueryParameters(string type = "TapPackage", string directory = "/Packages/", bool? isUnlisted = false, string name = null, string version = null, string architecture = null, string os = null, string @class = null, bool? distinctName = null)
+        {
+            var parameters = new Dictionary<string, object>();
+            
+            if (type != null)
+                parameters["type"] = type;
+            if (directory != null)
+                parameters["directory"] = directory;
+            if (isUnlisted.HasValue)
+                parameters["IsUnlisted"] = isUnlisted.Value;
+            if (name != null)
+                parameters["name"] = name;
+            if (version != null)
+                parameters["version"] = version;
+            if (architecture != null)
+                parameters["architecture"] = architecture;
+            if (os != null)
+                parameters["os"] = os;
+            if (@class != null)
+                parameters["class"] = @class;
+            if (distinctName.HasValue)
+                parameters["distinctName"] = distinctName.Value;
+
+            return parameters;
         }
 
         /// <summary>
@@ -369,12 +389,7 @@ namespace OpenTap.Package
         public string[] GetPackageNames(string @class, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             if (IsInError()) return Array.Empty<string>();
-            var parameters = new Dictionary<string, object>()
-            {
-                ["class"] = @class,
-                ["distinctName"] = true,
-                ["directory"] = "/Packages/",
-            };
+            var parameters = GetQueryParameters(@class: @class, distinctName: true);
 
             var packages = RepoClient.Query(parameters, cancellationToken, "Name");
             return packages.Select(p => p["Name"] as string).ToArray();
@@ -393,12 +408,7 @@ namespace OpenTap.Package
             CheckRepoApiVersion();
             if (IsInError()) return Array.Empty<PackageVersion>();
 
-            var parameters = new Dictionary<string, object>()
-            {
-                ["type"] = "TapPackage",
-                ["name"] = packageName,
-                ["directory"] = "/Packages/",
-            };
+            var parameters = GetQueryParameters(name: packageName);
 
             var packageVersions = RepoClient.Query(parameters, cancellationToken, "Name", "Version", "OS", "Architecture", "LicenseRequired", "Date");
 
@@ -434,12 +444,7 @@ namespace OpenTap.Package
         {
             if (IsInError()) return Array.Empty<PackageDef>();
 
-            var parameters = new Dictionary<string, object>()
-            {
-                ["type"] = "TapPackage",
-                ["directory"] = "/Packages/",
-                ["distinctName"] = true,
-            };
+            var parameters = GetQueryParameters();
 
             if (!string.IsNullOrWhiteSpace(package.Name))
             {
