@@ -15,6 +15,7 @@ using System.Runtime.Loader;
 using System.Xml;
 using OpenTap.Cli;
 using OpenTap.Engine.UnitTests.TestTestSteps;
+using OpenTap.Sdk.New.GitVersion;
 using static OpenTap.Package.PackageDefExt;
 
 namespace OpenTap.Package.UnitTests

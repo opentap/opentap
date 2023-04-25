@@ -9,16 +9,18 @@ using LibGit2Sharp;
 using System.Linq;
 using System.Collections.Generic;
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.Globalization;
+using OpenTap.Package;
 using Tap.Shared;
 
-namespace OpenTap.Package
+namespace OpenTap.Sdk.New.GitVersion
 {
     /// <summary>
     /// Calculates the version number of a commit in a git repository
     /// </summary>
-    internal class GitVersionCalulator : IDisposable
+    public class GitVersionCalulator : IDisposable, ITapPlugin
     {
         private static readonly TraceSource log = Log.CreateSource("GitVersion");
         private const string configFileName = ".gitversion";
@@ -128,7 +130,7 @@ namespace OpenTap.Package
         void ensureLibgit2Present()
         {
             string libgit2name;
-
+            
             if (OperatingSystem.Current == OperatingSystem.Windows)
                 libgit2name = $"git2-{GIT_HASH}.dll";
             else if (OperatingSystem.Current == OperatingSystem.Linux)
@@ -294,6 +296,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Calculates the version number of the current HEAD of the git repository
         /// </summary>
+        [Browsable(true)]
         public SemanticVersion GetVersion()
         {
             if (!repo.Commits.Any())
