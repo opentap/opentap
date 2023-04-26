@@ -431,6 +431,14 @@ namespace OpenTap.Package
                     var packageCandidates = new Dictionary<PackageDef, int>();
                     foreach (var f in installed)
                     {
+                        // Check if the package depends on the package being built.
+                        // Circular dependencies are not supported, so don't add it.
+                        // in the best of worlds, we'd recurse to find if there is a dependency
+                        // further up the tree, but that seems like a very unlikely situation, so 
+                        // we skip that for now.
+                        if (f.Dependencies.Any(dep => dep.Name == pkg.Name))
+                            continue;
+                        
                         var candidateAsms = searcher.GetPackageAssemblies(f)
                             .Where(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name))).ToList();
 
@@ -480,6 +488,12 @@ namespace OpenTap.Package
                         }
                         if (foundNew)
                         {
+                            // Check if a circular dependency gets added into the package.
+                            // This should only happen in case of an error. Continuing will cause undefined behavior.
+                            var circularDependency = candidatePkg.Dependencies.FirstOrDefault(x => x.Name == pkg.Name);
+                            if (circularDependency != null)
+                                throw new Exception("A package cannot depend on another package that depends on it. Circular dependencies are not supported.");
+
                             log.Info("Adding dependency on package '{0}' version {1}", candidatePkg.Name, candidatePkg.Version);
 
                             PackageDependency pd = new PackageDependency(candidatePkg.Name, new VersionSpecifier(candidatePkg.Version, VersionMatchBehavior.Compatible));

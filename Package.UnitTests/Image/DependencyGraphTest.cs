@@ -33,7 +33,7 @@ namespace OpenTap.Image.Tests
         [Test]
         public void TestQueryGraph()
         {
-            var graph = PackageDependencyQuery.QueryGraph("https://packages.opentap.io", "Windows", CpuArchitecture.x64, "").Result;
+            var graph = PackageDependencyQuery.QueryGraph("https://packages.opentap.io", "Windows", CpuArchitecture.x64, "");
         }
 
         [Test]
@@ -45,7 +45,7 @@ namespace OpenTap.Image.Tests
             {
                 if (repo is HttpPackageRepository http)
                 {
-                    var graph = PackageDependencyQuery.QueryGraph(http.Url, "Windows", CpuArchitecture.x64,"").Result;
+                    var graph = PackageDependencyQuery.QueryGraph(http.Url, "Windows", CpuArchitecture.x64,"");
                     graph0.Absorb(graph);
                 }
 

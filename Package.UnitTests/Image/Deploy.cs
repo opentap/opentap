@@ -5,10 +5,53 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using OpenTap.Cli;
 using OpenTap.Diagnostic;
 
 namespace OpenTap.Image.Tests
 {
+    [Display("DeployProgress", Description: "Test progress update events", "Image")]
+    public class TestDeplopyProgress : ICliAction
+    {
+        private static TraceSource log = Log.CreateSource(nameof(TestDeplopyProgress));
+        public int Execute(CancellationToken cancellationToken)
+        {
+            var listeners = Log.GetListeners().ToArray();
+            foreach (var l in listeners)
+            {
+                Log.RemoveListener(l);
+            }
+            
+            var imageSpecifier = ImageSpecifier.FromString("OpenTAP,CSV,Runner,Demonstration");
+            imageSpecifier.Repositories = PackageManagerSettings.Current.Repositories
+                .Where(x => x.IsEnabled)
+                .Select(x => x.Url)
+                .ToList();
+
+            // Install once without cache, and once with cache
+            for (int i = 0; i < 2; i++)
+            {
+                var img = imageSpecifier.Resolve(cancellationToken);
+
+                img.ProgressUpdate += (percent, message) =>
+                {
+                    Console.WriteLine($"{message} ({percent}%)");
+                };
+                var tmp = Path.Combine(Path.GetTempPath(), $"MyDeployerTarget{i}");
+                if (Directory.Exists(tmp))
+                {
+                    Directory.Delete(tmp, true);
+                }
+
+                Directory.CreateDirectory(tmp);
+                img.Deploy(tmp, cancellationToken);
+            }
+
+            PackageCacheHelper.ClearCache();
+            return 0;
+        }
+    }
+    
     /// <summary>
     /// This is a helper for creating temprary OpenTAP installations that will clean up after itself
     /// </summary>

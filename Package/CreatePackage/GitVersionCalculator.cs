@@ -186,7 +186,7 @@ namespace OpenTap.Package
             RepoDir = RepoDir.Substring(repositoryDir.Length);
 
             ensureLibgit2Present();
-            repo = new Repository(repositoryDir);
+            repo = new LibGit2Sharp.Repository(repositoryDir);
         }
 
         public void Dispose()

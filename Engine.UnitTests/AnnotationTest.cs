@@ -1943,6 +1943,36 @@ namespace OpenTap.UnitTests
             annotation.Write();
             Assert.IsTrue(obj.Values.SequenceEqual(new int[] {1, 2, 3, 4}));
         }
+        
+        [Test]
+        public void WriteMergedAnnotationTest()
+        {
+            var names = new[] { "name1", "name1", "name2" };
+            var delaySteps = new DelayStep[3];
+            for (int i = 0; i < 3; i++)
+            {
+                var delay = new DelayStep() { Name = names[i] };
+                delaySteps[i] = delay;
+            }
+
+            var a = AnnotationCollection.Annotate(delaySteps);
+            { // verify merge fails
+                var mem = a.GetMember(nameof(DelayStep.Name));
+                var name = mem.Get<MergedValueAnnotation>();
+                Assert.AreEqual(null, name.Value);
+            }
+            { // Verify collection is not modified on write
+                a.Write();
+                CollectionAssert.AreEqual(names, delaySteps.Select(d => d.Name));   
+            }
+            { // Verify merge succeeds 
+                delaySteps[2].Name = "name1";
+                a.Read();   
+                var mem = a.GetMember(nameof(DelayStep.Name));
+                var name = mem.Get<MergedValueAnnotation>();
+                Assert.AreEqual("name1", name.Value);
+            }
+        }
 
         [Test]
         public void AvailableValuesUpdateTest()

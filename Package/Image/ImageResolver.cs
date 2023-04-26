@@ -105,16 +105,18 @@ namespace OpenTap.Package
                 }
             }
 
+            graph.EnsurePackagePreReleasesCached(packages);
+
             List<SemanticVersion[]> allVersions = new List<SemanticVersion[]>();
 
             // 3. foreach package specifier get all the available versions
             for (int i = 0; i < packages.Count; i++)
             {
                 var pkg = packages[i];
-                var pkgs = graph.PackagesSatisfying(pkg).ToArray();
-               allVersions.Add(pkgs);
+                var versions = graph.PackagesSatisfying(pkg).ToArray();
+               allVersions.Add(versions);
             }
-
+            
             // 4. prune away the versions which dependencies conflict with the required packages.
             // ok, now we know the results is some pair-wise combination of allVersions.
             // now let's try pruning them a bit
