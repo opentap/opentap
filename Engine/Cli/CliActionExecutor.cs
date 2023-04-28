@@ -65,23 +65,21 @@ namespace OpenTap.Cli
             }
         }
 
-        public CliActionTree GetSubCommand(string[] args)
+        public CliActionTree GetSubCommand(IEnumerable<string> args)
         {
-            if (args.Length == 0)
-                return null;
+            if (!args.Any())
+                return this;
 
             foreach (var item in SubCommands)
             {
-                if (item.Name == args[0])
+                if (item.Name == args.First())
                 {
-                    if (args.Length == 1 || item.SubCommands.Any() == false)
-                       return item;
-                    var subCmd = item.GetSubCommand(args.Skip(1).ToArray());
-                    return subCmd ?? item;
+                    var subCmd = item.GetSubCommand(args.Skip(1));
+                    return subCmd;
                 }
             }
 
-            return null;
+            return this;
         }
 
         /// <summary>
