@@ -316,6 +316,34 @@ jobs:
           cd bin/Release
           dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TreatNoTestsAsError=true
 
+  TestInstallWithoutIsolationWindows:
+    runs-on: windows-2022
+    needs: Build-Win
+    strategy:
+      matrix:
+        x: [ 0, 1, 2, 3 ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: win-x64-bin
+          path: bin/Release/
+      - name: Test
+        working-directory: bin/Release
+        run: |
+          mkdir ../CleanInstall
+          ./tap package install OpenTap.Debug.TapPackage -t ../CleanInstall
+          cd ../CleanInstall
+          ./tap package install SDK
+          ./tap sdk gitversion
+
   TestWindowsPlan:
     runs-on: windows-2022
     needs: Build-Win
@@ -336,8 +364,8 @@ jobs:
           name: win-x64-bin
           path: bin/Release/
       - name: Test
+        working-directory: bin/Release
         run: |
-          cd bin/Release
           ./tap.exe run ../../tests/regression.TapPlan --verbose --color
       - uses: actions/upload-artifact@v2
         if: ${{ failure() }}
@@ -345,6 +373,36 @@ jobs:
           name: regression-files
           path: |
             NewProj*/**
+
+  TestInstallWithoutIsolationLinux:
+    runs-on: ubuntu-20.04
+    needs: Build-Linux
+    strategy:
+      matrix:
+        x: [ 0, 1, 2, 3 ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: linux-x64-bin
+          path: bin/Release/
+      - name: Test
+        working-directory: bin/Release
+        run: |
+          chmod +x ./tap
+          mkdir ../CleanInstall
+          ./tap package install dbg.zip --force --target ../CleanInstall
+          cd ../CleanInstall
+          ./tap package install SDK
+          ./tap sdk gitversion
 
   TestLinuxPlan:
     runs-on: ubuntu-20.04
