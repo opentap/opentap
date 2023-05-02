@@ -198,12 +198,12 @@ namespace OpenTap
         public ExecutorClient()
         {
             var pipename = Environment.GetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.TpmInteropPipeName);
-            if (pipename != null)
-            {
-                var pipe2 = new NamedPipeClientStream(".", pipename, PipeDirection.Out, PipeOptions.WriteThrough);
-                pipeConnect = pipe2.ConnectAsync();
-                pipe = pipe2;
-            }
+            if (pipename == null)
+                throw new Exception($"Environment variable {ExecutorSubProcess.EnvVarNames.TpmInteropPipeName} was not set. " +
+                        "This indicates that an executor client was instantiated in a non-isolated process.");
+            var pipe2 = new NamedPipeClientStream(".", pipename, PipeDirection.Out, PipeOptions.WriteThrough);
+            pipeConnect = pipe2.ConnectAsync();
+            pipe = pipe2;
         }
 
         public void Dispose()
