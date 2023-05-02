@@ -316,12 +316,12 @@ jobs:
           cd bin/Release
           dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TreatNoTestsAsError=true
 
-  TestInstallWithoutIsolationWindows:
+  TestIsolationWindows:
     runs-on: windows-2022
     needs: Build-Win
     strategy:
       matrix:
-        x: [ 0, 1, 2, 3 ]
+        retries: [ 0, 1, 2, 3 ]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -339,9 +339,9 @@ jobs:
         working-directory: bin/Release
         run: |
           mkdir ../CleanInstall
-          ./tap package install OpenTap.Debug.TapPackage -t ../CleanInstall
+          ./tap package install OpenTap.Debug.TapPackage -t ../CleanInstall -v
           cd ../CleanInstall
-          ./tap package install SDK
+          ./tap package install SDK -v
           ./tap sdk gitversion
 
   TestWindowsPlan:
@@ -374,12 +374,12 @@ jobs:
           path: |
             NewProj*/**
 
-  TestInstallWithoutIsolationLinux:
+  TestIsolationLinux:
     runs-on: ubuntu-20.04
     needs: Build-Linux
     strategy:
       matrix:
-        x: [ 0, 1, 2, 3 ]
+        retries: [ 0, 1, 2, 3 ]
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -399,9 +399,9 @@ jobs:
         run: |
           chmod +x ./tap
           mkdir ../CleanInstall
-          ./tap package install dbg.zip --force --target ../CleanInstall
+          ./tap package install dbg.zip --force --target ../CleanInstall -v
           cd ../CleanInstall
-          ./tap package install SDK
+          ./tap package install SDK -v
           ./tap sdk gitversion
 
   TestLinuxPlan:
