@@ -15,6 +15,10 @@ namespace OpenTap
     [DebuggerDisplay("{Name} ({Location})")]
     public class AssemblyData : ITypeDataSource
     {
+        internal TargetFramework? targetFramework = null;
+        // If the target framework was not resolved during load, just assume it's something netstandard compatible
+        internal TargetFramework TargetFramework => targetFramework ?? TargetFramework.Netstandard;
+        
         private static readonly TraceSource log = Log.CreateSource("AssemblyData");
         /// <summary>
         /// The name of the assembly. This is the same as the filename without extension
@@ -227,5 +231,16 @@ namespace OpenTap
 
         /// <summary> Returns name and version as a string. </summary>
         public override string ToString() =>  $"{Name}, {RawVersion}";
+    }
+
+    internal enum TargetFramework
+    {
+        Netstandard,
+        // .NETCore 2.x or 3.x -- We assume that these versions are roughly compatible with .NetFramework
+        // because we have done so in the past, and the assemblies can be loaded without error
+        Net,
+        // .NET 5 or newer
+        NetCoreApp,  
+        NetFramework,
     }
 }

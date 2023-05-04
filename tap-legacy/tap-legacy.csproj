@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>Exe</OutputType>
+        <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
+        <ApplicationIcon>../Installer/Assets/opentap.ico</ApplicationIcon>
+        <TargetFramework>net472</TargetFramework>
+    </PropertyGroup>
+</Project>
