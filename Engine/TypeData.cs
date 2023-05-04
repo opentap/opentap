@@ -17,6 +17,7 @@ namespace OpenTap
     [DebuggerDisplay("{Name}")]
     public class TypeData : ITypeData
     {
+        internal TargetFramework TargetFramework => Assembly.TargetFramework;
         // Used to mark when no display attribute is present.
         static readonly DisplayAttribute noDisplayAttribute = new DisplayAttribute("<<Null>>");
 
@@ -332,6 +333,11 @@ namespace OpenTap
                 failedLoad = true;
                 log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", Name, Assembly.Location,
                     ex.Message);
+                if (PluginSearcher.CurrentRuntime == TargetFramework.Net && TargetFramework == TargetFramework.NetFramework)
+                {
+                    log.Error(
+                        $"This may be due to a runtime mismatch. The current runtime is .NET, but {Name} was compiled against .NET Framework.");
+                }
                 log.Debug(ex);
             }
 

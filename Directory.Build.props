@@ -13,11 +13,6 @@
     <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
     <TargetFrameworkVersion></TargetFrameworkVersion>
   </PropertyGroup>
-
-  <PropertyGroup Condition="'$(OS)' != 'Unix'">
-    <!-- .net462 revert: on windows we build -->   
-    <OpenTapAppTargetFramework>net472</OpenTapAppTargetFramework>
-  </PropertyGroup>
   
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <IsDebug>true</IsDebug>

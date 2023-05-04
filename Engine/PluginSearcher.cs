@@ -203,6 +203,84 @@ namespace OpenTap
             private ILookup<string, string> nameToFileMap;
             HashSet<AssemblyRef> UnfoundAssemblies; // for assemblies that are not in the files.
 
+            private static TargetFramework? ProbeCompilationTarget(MetadataReader reader,
+                AssemblyDefinition def)
+            {
+                const string attributeName = "System.Runtime.Versioning.TargetFrameworkAttribute";
+                
+                TargetFramework? fromName(string name, Version v)
+                {
+                    switch (name)
+                    {
+                        case "mscorlib":
+                            return TargetFramework.NetFramework;
+                        case "netstandard":
+                            return TargetFramework.Netstandard;
+                        case "System.Runtime":
+                            return v.Major >= 5 ? TargetFramework.Net : TargetFramework.NetCoreApp;
+                    }
+
+                    return null;
+                }
+
+                // This covers the special case for the actual mscorlib / system.runtime / netstandard assemblies
+                if (fromName(reader.GetString(def.Name), def.Version) is TargetFramework t)
+                    return t;
+                
+                foreach (var h in def.GetCustomAttributes())
+                {
+                    var attr = reader.GetCustomAttribute(h);
+                    if (attr.Constructor.Kind != HandleKind.MemberReference)
+                        continue;
+                    var mr = reader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
+                    var fullname = GetFullName(reader, mr.Parent);
+                    if (fullname == attributeName)
+                    {
+                        var blobReader = reader.GetBlobReader(attr.Value);
+                        if (blobReader.ReadUInt16() == 1)
+                        {
+                            var s = blobReader.ReadSerializedString();
+                            if (s.StartsWith(".NETFramework")) 
+                                return TargetFramework.NetFramework;
+                            if (s.StartsWith(".NETStandard")) 
+                                return TargetFramework.Netstandard;
+                            if (s.StartsWith(".NETCore")) 
+                                return TargetFramework.Net;
+                            else
+                            {
+                                // ignore this case and continue to fallback logic.
+                                // other options can be e.g. .NETPortable
+                                // The portability of such DLLs is overstated.
+                                // The primary purpose of this check is to determine compatibility.
+                                // The fallback logic may find better hints about how viable this assembly is.
+                            }
+                        }
+                    }
+                }
+
+                foreach (var h in reader.AssemblyReferences)
+                {
+                    var r = reader.GetAssemblyReference(h);
+                    if (fromName(reader.GetString(r.Name), r.Version) is TargetFramework t2)
+                        return t2;
+                }
+
+                return null;
+            }
+
+            private static bool ReferencesOpenTap(MetadataReader reader)
+            {
+                foreach (var h in reader.AssemblyReferences)
+                {
+                    var r = reader.GetAssemblyReference(h);
+                    var name = reader.GetString(r.Name);
+                    if (name == "OpenTap") 
+                        return true;
+                }
+
+                return false;
+            }
+
             /// <summary> Manually analyze and add an assembly file. </summary>
             internal AssemblyData AddAssemblyInfo(string file, Assembly loadedAssembly = null)
             {
@@ -231,14 +309,23 @@ namespace OpenTap
 
                             MetadataReader metadata = header.GetMetadataReader();
                             AssemblyDefinition def = metadata.GetAssemblyDefinition();
+                            thisAssembly.Name = metadata.GetString(def.Name);
+                            
+                            // Here we try to detect the target framework as early as possible.
+                            // We may need to handle .NETFramework plugins in a compatibility mode.
+                            thisAssembly.targetFramework = ProbeCompilationTarget(metadata, def);
+                            if (CurrentRuntime == TargetFramework.NetFramework &&
+                                thisAssembly.targetFramework == TargetFramework.Net)
+                            {
+                                log.Warning("Skipping assembly '{0}'. {1}", thisAssembly.Name, "Incompatible target framework.");
+                                return null;
+                            }
 
                             // if we were asked to only provide distinct assembly names and 
                             // this assembly name has already been encountered, just return that.
                             var fileIdentifier = Option.HasFlag(Options.IncludeSameAssemblies) ? file : def.GetAssemblyName().FullName;
                             if (asmNameToAsmData.TryGetValue(fileIdentifier, out AssemblyData data))
                                 return data;
-
-                            thisAssembly.Name = metadata.GetString(def.Name);
 
                             if (string.Compare(thisAssembly.Name, Path.GetFileNameWithoutExtension(file), true) != 0)
                                 throw new Exception("Assembly name does not match the file name.");
@@ -402,6 +489,13 @@ namespace OpenTap
             }
             return PluginTypes;
         }
+        
+        private static TargetFramework? currentRuntime;
+        internal static TargetFramework CurrentRuntime => currentRuntime ??= System.Runtime
+            .InteropServices.RuntimeInformation
+            .FrameworkDescription.StartsWith(".NET Framework")
+            ? TargetFramework.NetFramework
+            : TargetFramework.Net;
 
         internal readonly TypeData PluginMarkerType = new TypeData(typeof(ITapPlugin).FullName);
 
