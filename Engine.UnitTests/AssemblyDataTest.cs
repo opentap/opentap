@@ -41,6 +41,7 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        [Ignore("This is the expected behavior in .NET Framework. Sideloading works differently in .NET Core.")]
         public void ConflictingAssemblyVersionTest()
         {
             var s = PluginManager.GetSearcher();
