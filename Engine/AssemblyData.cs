@@ -236,10 +236,11 @@ namespace OpenTap
     internal enum TargetFramework
     {
         Netstandard,
-        // .NETCore 2.x or 3.x -- We assume that these versions are roughly compatible with .NetFramework
-        // because we have done so in the past, and the assemblies can be loaded without error
-        Net,
         // .NET 5 or newer
+        Net,
+        // .NETCore 2.x or 3.x -- We assume that these versions are roughly compatible with .NetFramework
+        // because we have done so in the past, and the assemblies can be loaded without error.
+        // e.g. LibGit2Sharp is compiled against NetCoreApp 3.1, and we have not had issues with this.
         NetCoreApp,  
         NetFramework,
     }
