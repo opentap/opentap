@@ -450,6 +450,10 @@ jobs:
         env: 
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
         run:  echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
+      - name: Newtonsoft Hack
+        working-directory: bin/Release-${{ matrix.Architecture }}
+        # Manually copy the correct newtonsoft dll here since it was overwritten by a unittest
+        run: cp ../../Installer/Assets/Newtonsoft.Json.dll .
       - name: Create Package
         working-directory: bin/Release-${{ matrix.Architecture }}
         env: 
