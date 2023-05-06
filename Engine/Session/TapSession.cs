@@ -21,6 +21,12 @@ namespace OpenTap
         OverlayComponentSettings = 1,
         /// <summary> Log messages written in Sessions that redirect logging only go to LogListeners that are added in that session. </summary>
         RedirectLogging = 2,
+        /// <summary>
+        /// When this option is specified, assemblies that were loaded in the scope of this session will be unloaded
+        /// after the session is disposed. Note that assemblies cannot be unloaded if any types that were not already
+        /// loaded cannot be garbage collected.
+        /// </summary>
+        OverlayLoadContext = 4,
         ///// <summary>
         ///// When this option is specified, the thread context will not be a child of the calling context. 
         ///// Instead the session will be the root of a new separate context.
@@ -59,6 +65,17 @@ namespace OpenTap
                 return default;
             }
             set => Session.Current.sessionLocals[this] = value;
+        }
+
+        /// <summary>
+        /// Returns true if the given session local is a member of the current session.
+        /// </summary>
+        /// <param name="l"></param>
+        /// <typeparam name="T2"></typeparam>
+        /// <returns></returns>
+        internal bool IsCurrent()
+        {
+            return Session.Current.sessionLocals.TryGetValue(this, out _);
         }
 
 
