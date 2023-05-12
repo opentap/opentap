@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Threading;
+using Microsoft.Win32.SafeHandles;
 
 namespace OpenTap.Diagnostic
 {
@@ -70,7 +71,7 @@ namespace OpenTap.Diagnostic
             return new LogContext(false);
         }
 
-        readonly AutoResetEvent newEventOccured = new AutoResetEvent(false);
+        readonly ManualResetEventSlim newEventOccured = new ManualResetEventSlim(false);
 
         void ProcessLog()
         {
@@ -78,7 +79,17 @@ namespace OpenTap.Diagnostic
             Event[] bunch = new Event[0];
             while (isDisposed == false)
             {
-                newEventOccured.WaitOne();
+                var idx = WaitHandle.WaitAny(new[]
+                    { newEventOccured.WaitHandle, TapThread.Current.AbortToken.WaitHandle });
+                if (idx == 1)
+                {
+                    // Dispose sets newEventOcurred, so the waithandle should trigger immediately
+                    Dispose();
+                }
+                else
+                {
+                    newEventOccured.Reset();
+                }
                 flushBarrier.WaitOne(100); // let things queue up unless flush is called.
                 int count = LogQueue.DequeueBunch(ref bunch);
 

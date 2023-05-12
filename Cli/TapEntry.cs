@@ -167,23 +167,23 @@ namespace OpenTap.Cli
 
         }
 
-        private static void goInProcess()
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static void loadCommandLine()
         {
             var start = DateTime.Now;
-            void loadCommandLine()
-            {
-                var args = Environment.GetCommandLineArgs();
-                bool isVerbose = args.Contains("--verbose") || args.Contains("-v");
-                bool isQuiet = args.Contains("--quiet") || args.Contains("-q"); ;
-                ConsoleTraceListener.SetStartupTime(start);
-                var cliTraceListener = new ConsoleTraceListener(isVerbose, isQuiet, IsColor());
-                Log.AddListener(cliTraceListener);
-                cliTraceListener.TraceEvents(TapInitializer.InitTraceListener.Instance.AllEvents.ToArray());
-                TapInitializer.InitTraceListener.Instance.AllEvents.Clear();
-                AppDomain.CurrentDomain.ProcessExit += (s, e) => cliTraceListener.Flush();
+            var args = Environment.GetCommandLineArgs();
+            bool isVerbose = args.Contains("--verbose") || args.Contains("-v");
+            bool isQuiet = args.Contains("--quiet") || args.Contains("-q"); ;
+            ConsoleTraceListener.SetStartupTime(start);
+            var cliTraceListener = new ConsoleTraceListener(isVerbose, isQuiet, IsColor());
+            Log.AddListener(cliTraceListener);
+            cliTraceListener.TraceEvents(TapInitializer.InitTraceListener.Instance.AllEvents.ToArray());
+            TapInitializer.InitTraceListener.Instance.AllEvents.Clear();
+            // AppDomain.CurrentDomain.ProcessExit += (s, e) => cliTraceListener.Flush();
 
-            }
-
+        }
+        private static void goInProcess()
+        {
             TapInitializer.Initialize(); // This will dynamically load OpenTap.dll
             // loadCommandLine has to be called after Initialize 
             // to ensure that we are able to load OpenTap.dll
@@ -198,6 +198,10 @@ namespace OpenTap.Cli
             CliActionExecutor.Execute();
         }
 
+        public static void Go2()
+        {
+            Console.WriteLine("Hello, {s} world!");
+        }
         public static void Go()
         {
             if (ExecutorClient.IsExecutorMode)

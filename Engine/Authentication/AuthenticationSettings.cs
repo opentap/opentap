@@ -36,7 +36,7 @@ namespace OpenTap.Authentication
             {
                 foreach (var wait in waits)
                 {
-                    await Task.Delay(wait, cancellationToken);
+                    TapThread.Sleep(wait);
                     var result = await base.SendAsync(request, cancellationToken);
                     if (result.IsSuccessStatusCode == false && HttpUtils.TransientStatusCode(result.StatusCode) && wait != waits.Last())
                         continue;

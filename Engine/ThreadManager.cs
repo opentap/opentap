@@ -295,6 +295,11 @@ namespace OpenTap
             Abort(null);
         }
 
+        internal void AbortManager()
+        {
+            manager?.Dispose();
+        }
+
         /// <summary>
         /// Aborts the execution of this current instance of the <see cref="TapThread">TapThread</see> with a
         /// specified reason.
@@ -535,7 +540,7 @@ namespace OpenTap
         /// <summary> Creates a new ThreadManager. </summary>
         internal ThreadManager()
         {
-            var threadManagerThread = new Thread(threadManagerWork) { Name = "Thread Manager", IsBackground = true, Priority = ThreadPriority.Normal };
+            threadManagerThread = new Thread(threadManagerWork) { Name = "Thread Manager", IsBackground = true, Priority = ThreadPriority.Normal };
             threadManagerThread.Start();
             //ThreadPool.GetMaxThreads(out MaxWorkerThreads, out int _);
         }
@@ -591,6 +596,9 @@ namespace OpenTap
         // this avoids the threads shutting down just because of this.
         static readonly int timeout = 5 * 60 * 1000; // 5 minutes
         int threads = 0;
+
+        private Thread threadManagerThread;
+
         // This method can be processed by many threads at once.
         void processQueue()
         {
@@ -670,6 +678,7 @@ namespace OpenTap
             cancelSrc.Cancel();
             while (threads > 0)
                 Thread.Sleep(10);
+            threadManagerThread?.Abort();
         }
     }
 

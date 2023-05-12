@@ -22,4 +22,8 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
+  </ItemGroup>
+
 </Project>
