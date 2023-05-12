@@ -29,20 +29,22 @@ namespace OpenTap
           IntPtr lpSecurityAttributes
         );
 
-        [DllImport("libc", EntryPoint = "symlink")]
+        [DllImport("libc", EntryPoint = "link")]
         static unsafe extern bool CreateHardLinkLin(
             char *target,
             char *linkpath
         );
-
+        
         static unsafe void CreateHardLink(string targetFile, string linkName)
         {
             if (OperatingSystem.Current == OperatingSystem.Windows)
             {
+                Console.WriteLine("");
                 CreateHardLinkWin(linkName, targetFile, IntPtr.Zero);
             }
             else if (OperatingSystem.Current == OperatingSystem.Linux)
             {
+                Console.WriteLine("Linux");
                 IntPtr target = Marshal.StringToCoTaskMemAnsi(targetFile);
                 IntPtr link = Marshal.StringToCoTaskMemAnsi(linkName);
                 CreateHardLinkLin((char*)target, (char*)link);
