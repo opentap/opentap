@@ -18,8 +18,8 @@ namespace OpenTap.UnitTests
         public void CliActionTreeTest()
         {
             var root = new CliActionTree();
-            Assert.IsTrue(root.GetSubCommand(Array.Empty<string>()) == null);
-            Assert.IsTrue(root.GetSubCommand("".Split(' ')) == null);
+            Assert.IsTrue(root.GetSubCommand(Array.Empty<string>()).First() == root);
+            Assert.IsTrue(root.GetSubCommand("".Split(' ')).First() == root);
             Assert.IsTrue(root.GetSubCommand("test".Split(' ')).First().Name == "test");
             Assert.IsTrue(root.GetSubCommand("test action".Split(' ')).First().Name == "action");
             Assert.IsTrue(root.GetSubCommand("test action testaction".Split(' ')).First().Name == "testaction");
