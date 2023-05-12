@@ -340,7 +340,7 @@ namespace OpenTap.Package
         }
 
         /// <summary>
-        /// Get the names of the available packages in the repository
+        /// Get the names of the available packages in the repository. Unlisted packages are not included
         /// </summary>
         /// <param name="cancellationToken"></param>
         /// <param name="compatibleWith"></param>
@@ -350,15 +350,44 @@ namespace OpenTap.Package
         {
             if (IsInError()) return Array.Empty<string>();
 
-            var parameters = new Dictionary<string, object>()
-            {
-                ["type"] = "TapPackage",
-                ["distinctName"] = true,
-                ["directory"] = "/Packages/",
-            };
-
+            var parameters = GetQueryParameters(includeUnlisted: false);
             var packages = RepoClient.Query(parameters, cancellationToken, "Name");
             return packages.Select(p => p["Name"] as string).ToArray();
+        }
+
+        internal static Dictionary<string, object> GetQueryParameters(
+            string type = "TapPackage", 
+            string directory = "/Packages/", 
+            string name = null, 
+            string os = null, 
+            string @class = null, 
+            bool distinctName = false, 
+            bool includeUnlisted = true, 
+            VersionSpecifier version = null, 
+            CpuArchitecture architecture = CpuArchitecture.Unspecified)
+        {
+            var parameters = new Dictionary<string, object>();
+            
+            if (type != null)
+                parameters["type"] = type;
+            if (directory != null)
+                parameters["directory"] = directory;
+            if (includeUnlisted == false)
+                parameters["IsUnlisted"] = false;
+            if (name != null)
+                parameters["name"] = name;
+            if (version != null && version != VersionSpecifier.AnyRelease)
+                parameters["version"] = version.ToString();
+            if (architecture != CpuArchitecture.Unspecified && architecture != CpuArchitecture.AnyCPU)
+                parameters["architecture"] = architecture.ToString();
+            if (os != null)
+                parameters["os"] = os;
+            if (@class != null)
+                parameters["class"] = @class;
+            if (distinctName)
+                parameters["distinctName"] = true;
+
+            return parameters;
         }
 
         /// <summary>
@@ -369,12 +398,7 @@ namespace OpenTap.Package
         public string[] GetPackageNames(string @class, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             if (IsInError()) return Array.Empty<string>();
-            var parameters = new Dictionary<string, object>()
-            {
-                ["class"] = @class,
-                ["distinctName"] = true,
-                ["directory"] = "/Packages/",
-            };
+            var parameters = GetQueryParameters(@class: @class, distinctName: true);
 
             var packages = RepoClient.Query(parameters, cancellationToken, "Name");
             return packages.Select(p => p["Name"] as string).ToArray();
@@ -393,33 +417,11 @@ namespace OpenTap.Package
             CheckRepoApiVersion();
             if (IsInError()) return Array.Empty<PackageVersion>();
 
-            var parameters = new Dictionary<string, object>()
-            {
-                ["type"] = "TapPackage",
-                ["name"] = packageName,
-                ["directory"] = "/Packages/",
-            };
+            var parameters = GetQueryParameters(name: packageName);
 
-            var packageVersions = RepoClient.Query(parameters, cancellationToken, "Name", "Version", "OS", "Architecture", "LicenseRequired", "Date");
+            var packageVersions = RepoClient.Query(parameters, cancellationToken, "Name", "IsUnlisted", "Version", "OS", "Architecture", "LicenseRequired", "Date");
 
-            return packageVersions.Select(p =>
-            {
-                var name = p["Name"] as string;
-                Enum.TryParse(p["Architecture"] as string, out CpuArchitecture arch);
-                var version = SemanticVersion.Parse(p["Version"] as string);
-                var os = p["OS"] as string;
-                var date = (DateTime)p["Date"];
-                var licenses = new List<string>();
-                if (p.TryGetValue("LicenseRequired", out var licenseRequired))
-                {
-                    if (licenseRequired is string license)
-                        licenses.Add(license);
-                    else if (licenseRequired is string[] licenseArray)
-                        licenses.AddRange(licenseArray);
-                }
-                return new PackageVersion(name, version, os, arch, date, licenses);
-
-            }).ToArray();
+            return packageVersions.Select(PackageVersion.FromDictionary).ToArray();
         }
 
         /// <summary>
@@ -434,24 +436,8 @@ namespace OpenTap.Package
         {
             if (IsInError()) return Array.Empty<PackageDef>();
 
-            var parameters = new Dictionary<string, object>()
-            {
-                ["type"] = "TapPackage",
-                ["directory"] = "/Packages/",
-                ["distinctName"] = true,
-            };
-
-            if (!string.IsNullOrWhiteSpace(package.Name))
-            {
-                parameters["name"] = package.Name;
-            }
-
-            if (package.Version != VersionSpecifier.AnyRelease)
-                parameters["version"] = package.Version.ToString();
-            if (!string.IsNullOrWhiteSpace(package.OS))
-                parameters["os"] = package.OS;
-            if (package.Architecture != CpuArchitecture.AnyCPU)
-                parameters["architecture"] = package.Architecture.ToString();
+            var parameters = GetQueryParameters(name: package.Name, version: package.Version, os: package.OS,
+                architecture: package.Architecture);
 
             var packages = RepoClient.Query(parameters, cancellationToken, "PackageDef");
             return packages.Select(p => p["PackageDef"] as string).Where(xml => !string.IsNullOrWhiteSpace(xml))

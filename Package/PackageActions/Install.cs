@@ -167,7 +167,7 @@ namespace OpenTap.Package
                 {
                     packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                         targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
-                        InstallDependencies, Force, askToInstallDependencies, NoDowngrade);
+                        NoDowngrade);
                 }
                 catch (ImageResolveException ex) when (ex.Result is FailedImageResolution fir)
                 {
@@ -189,8 +189,8 @@ namespace OpenTap.Package
                     try
                     {
                         packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
-                            targetInstallation, PackageReferences, Packages, "beta", Architecture, OS, repositories, Force,
-                            InstallDependencies, Force, askToInstallDependencies, NoDowngrade);
+                            targetInstallation, PackageReferences, Packages, "beta", Architecture, OS, repositories,
+                            Force, NoDowngrade);
                     }
                     catch
                     {
