@@ -183,7 +183,7 @@ namespace OpenTap.Cli
                 AppDomain.CurrentDomain.ProcessExit += (s, e) => cliTraceListener.Flush();
             }
 
-            if (!TapInitializer.AcquireInstallationLock())
+            if (!TapInitializer.CanAcquireInstallationLock())
             {
                 Console.Error.WriteLine($"Unable to acquire a lock on the installation.");
                 Environment.ExitCode = (int)ExitCodes.FailedToAcquireLockError;

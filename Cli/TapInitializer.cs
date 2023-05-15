@@ -15,7 +15,7 @@ namespace OpenTap
 {
     internal static class TapInitializer
     {
-        internal static bool AcquireInstallationLock()
+        internal static bool CanAcquireInstallationLock()
         {
             // Check if the lock for the current installation can be acquired
             var target = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
