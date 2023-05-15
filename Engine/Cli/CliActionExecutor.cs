@@ -303,37 +303,10 @@ namespace OpenTap.Cli
                     return (int)ExitCodes.ArgumentParseError;
             }
 
-            { // Check if the lock for the current installation can be acquired
-                var target = ExecutorClient.ExeDir;
-                var lockfile = Path.Combine(target, ".lock");
-                FileSystemHelper.EnsureDirectoryOf(lockfile);
-                const int limit = 30;
-                bool taken = false;
-                
-                for (int i = 0; i < limit; i++)
-                {
-                    using var fileLock = FileLock.Create(lockfile);
-                    try
-                    {
-                        taken = fileLock.WaitOne(TimeSpan.FromSeconds(1));
-                    }
-                    catch (AbandonedMutexException)
-                    {
-                        // ignore -- this happens if the mutex is disposed in another process.
-                        // In this case we will most likely acquire the lock in the next iteration.
-                        continue;
-                    }
-
-                    // the lock is released during dispose
-                    if (taken) break;
-                    log.Info(
-                        $"{target} is locked by a locking package action. Waiting for it to become unlocked... ({i + 1} / {limit})");
-                }
-
-                if (!taken)
-                {
-                    throw new Exception($"Unable to acquire a lock on the installation.");
-                }
+            if (!AcquireInstallationLock(ExecutorClient.ExeDir))
+            {
+                log.Error($"Unable to acquire a lock on the installation.");
+                return (int)ExitCodes.FailedToAcquireLockError;
             }
 
             if (SelectedAction != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
@@ -399,6 +372,33 @@ namespace OpenTap.Cli
             {
                 Log.Flush();
             }
+        }
+
+        private static bool AcquireInstallationLock(string target)
+        {
+            // Check if the lock for the current installation can be acquired
+            var lockfile = Path.Combine(target, ".lock");
+            FileSystemHelper.EnsureDirectoryOf(lockfile);
+            const int limit = 30;
+
+            for (int i = 0; i < limit; i++)
+            {
+                using var fileLock = FileLock.Create(lockfile);
+                try
+                {
+                    if (fileLock.WaitOne(TimeSpan.FromSeconds(1)))
+                        return true;
+                }
+                catch (AbandonedMutexException)
+                {
+                    // ignore -- this happens if the mutex is disposed in another process.
+                    // In this case we will most likely acquire the lock in the next iteration.
+                    continue;
+                }
+                Console.WriteLine($"{target} is locked by a locking package action. Waiting for it to become unlocked... ({i + 1} / {limit})");
+            }
+
+            return false;
         }
     }
 }
