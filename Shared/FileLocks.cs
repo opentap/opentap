@@ -65,7 +65,7 @@ namespace OpenTap
                 {
                     var remaining = timeout - sw.Elapsed;
                     if (remaining.TotalMilliseconds > 1)
-                        TapThread.Sleep(1);
+                        Thread.Sleep(1);
                     else Thread.Yield();
                 }
                 // Otherwise, create the file, thereby claiming the mutex
@@ -170,7 +170,7 @@ namespace OpenTap
 
                 var remaining = timeout - sw.Elapsed;
                 if (remaining.TotalMilliseconds > 1)
-                    TapThread.Sleep(1);
+                    Thread.Sleep(1);
                 else Thread.Yield();
             } while (sw.Elapsed < timeout);
 
