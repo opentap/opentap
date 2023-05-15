@@ -4,7 +4,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace OpenTap.Package.PackageInstallHelpers
+namespace OpenTap
 {
     internal interface IFileLock : IDisposable
     {
