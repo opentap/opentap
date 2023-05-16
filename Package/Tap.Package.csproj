@@ -3,6 +3,7 @@
     <AssemblyName>OpenTap.Package</AssemblyName>
     <RootNamespace>OpenTap.Package</RootNamespace>
     <DocumentationFile>$(OutputPath)\OpenTap.Package.xml</DocumentationFile>
+    <LangVersion>9</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>

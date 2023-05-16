@@ -64,6 +64,7 @@ namespace OpenTap.Package.UnitTests
         [TestCase("PackageCache", "file:///{CurrentDirectory}/PackageCache")]
         [TestCase("PackageCache/", "file:///{CurrentDirectory}/PackageCache")]
         [TestCase(@"\\wsl.localhost\arch\packages\", "file://wsl.localhost/arch/packages")]
+        [TestCase(@"\\192.168.0.100\some\directory\", "file://192.168.0.100/some/directory")]
         public void FileRepositoryUrls(string input, string expectedUrl, string os = "Windows,Linux")
         {
             if (!os.Contains(OperatingSystem.Current.ToString()))
