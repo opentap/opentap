@@ -528,7 +528,7 @@ namespace OpenTap.Package
         /// </summary>
         /// <param name="query">A GraphQL query string</param>
         /// <returns>A JObject containing the GraphQL response</returns>
-        [Obsolete("Please use https://www.nuget.org/packages/OpenTAP.Repository.Client instead. This will be removed in 9.22.0")]
+        [Obsolete("Please use the repository client instead: https://www.nuget.org/packages/OpenTAP.Repository.Client")]
         public JObject Query(string query)
         {
             var response = downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
@@ -541,7 +541,7 @@ namespace OpenTap.Package
         /// </summary>
         /// <param name="query">A GraphQL query string</param>
         /// <returns>A JSON string containing the GraphQL response</returns>
-        [Obsolete("Please use https://www.nuget.org/packages/OpenTAP.Repository.Client instead. This will be removed in 9.22.0")]
+        [Obsolete("Please use the repository client instead: https://www.nuget.org/packages/OpenTAP.Repository.Client")]
         public string QueryGraphQL(string query) => downloadPackagesString($"/3.1/query", query, "application/json", "application/json");
         
         /// <summary>  Creates a display friendly string of this. </summary>
