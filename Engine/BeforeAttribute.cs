@@ -5,7 +5,7 @@ namespace OpenTap
     /// Ordering constraint for plugin types. This should be used 'before' something else.
     /// This is currently only support by implementations of IStringConvertProvider.
     /// </summary>
-    [AttributeUsage(AttributeTargets.Class)]
+    [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
     public class BeforeAttribute: Attribute
     {
         readonly ITypeData type;
