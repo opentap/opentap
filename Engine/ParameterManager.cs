@@ -91,18 +91,13 @@ namespace OpenTap
             {
                 foreach (var scope in GetScopes(owners))
                 {
-                    if (scope is ITestStep parent)
+                    if (scope is ITestStepParent parent)
                     {
                         var forwardedMembers = TypeData.GetTypeData(scope)
                             .GetMembers().OfType<IParameterMemberData>();
                         var f = forwardedMembers.FirstOrDefault(x => owners.All(y => x.ContainsMember((y, member))));
                         if(f != null)
                             return (parent, f);
-                    }
-                    else if (scope is TestPlan plan)
-                    {
-                        if(owners.All(step => plan.ExternalParameters.Find((ITestStep)step, member) != null))
-                            return (plan, null);
                     }
                 }
 
@@ -566,26 +561,37 @@ namespace OpenTap
         
         public static void Unparameterize(ITestStepMenuModel data)
         {
+            List<ITestStepParent> targets = new List<ITestStepParent>();
             using (WithSanityCheckDelayed())
             {
                 foreach (var src in data.Source)
                 {
+                    IMemberData property;
                     var (scope, member) = ScopeMember.GetScope(new[] {src}, data.Member);
-                    IMemberData property = data.Member;
-                    
-                    if (scope is ITestStep)
+                    if (scope == null || member == null)
                     {
-                        property.Unparameterize((ParameterMemberData) member, src);
+                        // this may occur if src does not actually have the right member, but just a member with the same name.
+                        // in this case we just extract the member with the right name and use that.
+                        property = TypeData.GetTypeData(src).GetMember(data.Member.Name);
+                        (scope, member) = ScopeMember.GetScope(new[]
+                        {
+                            src
+                        }, property);
                     }
-                    else if (scope is TestPlan plan)
+                    else
                     {
-                        if (property != null)
-                            plan.ExternalParameters.Remove(src as ITestStep, property);
+                        property = data.Member;
+                    }
+                    
+                    if (scope is ITestStepParent p)
+                    {
+                        targets.Add(p);
+                        property.Unparameterize((ParameterMemberData) member, src);
                     }
                 }
             }
 
-            foreach (var src in data.Source)
+            foreach (var src in data.Source.Concat(targets))
             {
                 checkParameterSanity(src);
             }
