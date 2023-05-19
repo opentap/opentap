@@ -261,7 +261,7 @@ namespace OpenTap
             searcher = null;
             ChangeID++;
             TapThread.Start(Search);  
-            return Task.Run(() => GetSearcher());
+            return TapThread.StartAwaitable(() => GetSearcher());
         }
         
         ///<summary>Searches for plugins.</summary>
@@ -289,6 +289,7 @@ namespace OpenTap
 
         static bool isLoaded = false;
         static object loadLock = new object();
+
         /// <summary> Sets up the PluginManager assembly resolution systems. Under normal circumstances it is not needed to call this method directly.</summary>
         internal static void Load()
         {
@@ -300,24 +301,44 @@ namespace OpenTap
                 SessionLogs.Initialize();
 
                 string tapEnginePath = Assembly.GetExecutingAssembly().Location;
-                if(String.IsNullOrEmpty(tapEnginePath))
+                if (String.IsNullOrEmpty(tapEnginePath))
                 {
                     // if OpenTap.dll was loaded from memory/bytes instead of from a file, it does not have a location.
                     // This is the case if the process was launched through tap.exe. 
                     // In that case just use the location of tap.exe, it is the same
                     tapEnginePath = Assembly.GetEntryAssembly().Location;
                 }
+
                 DirectoriesToSearch = new List<string> { Path.GetDirectoryName(tapEnginePath) };
                 assemblyResolver = new TapAssemblyResolver(DirectoriesToSearch);
 
+                var domain = AppDomain.CurrentDomain;
+                domain.GetAssemblies().ToList().ForEach(assemblyResolver.AddAssembly);
+
                 // Custom Assembly resolvers.
-                AppDomain.CurrentDomain.GetAssemblies().ToList().ForEach(assemblyResolver.AddAssembly);
-                AppDomain.CurrentDomain.AssemblyLoad += (s, args) => assemblyResolver.AddAssembly(args.LoadedAssembly);
-                AppDomain.CurrentDomain.AssemblyResolve += (s, args) => assemblyResolver.Resolve(args.Name, false);
-                AppDomain.CurrentDomain.ReflectionOnlyAssemblyResolve += (s, args) => assemblyResolver.Resolve(args.Name, true);
+                void load(object s, AssemblyLoadEventArgs args) => assemblyResolver.AddAssembly(args.LoadedAssembly);
+                Assembly resolve(object s, ResolveEventArgs args) => assemblyResolver.Resolve(args.Name, false);
+                
+                domain.AssemblyLoad += load;
+                domain.AssemblyResolve += resolve;
+                domain.ReflectionOnlyAssemblyResolve += resolve;
+
+                // If we are running inside of an assembly load context, that load context will be unloadable
+                // if it currently holds references to anything outside of the load context.
+                // The domain from AppDomain.CurrentDomain is a global domain to this process, and is not isolated
+                // per load context. We should therefore unhook any delegates, and clear the assembly resolver
+                // so everything can be garbage collected.
+                TapThread.Current.AbortToken.Register(() =>
+                    {
+                        domain.AssemblyLoad -= load;
+                        domain.AssemblyResolve -= resolve;
+                        domain.ReflectionOnlyAssemblyResolve -= resolve;
+                        assemblyResolver = null;
+                    }
+                );
             }
         }
-        
+
         /// <summary> Calls PluginManager.Load </summary>
         static PluginManager()
         {

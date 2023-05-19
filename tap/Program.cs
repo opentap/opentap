@@ -59,46 +59,13 @@ namespace tap
             var method = type.GetMethod("Go", BindingFlags.Static | BindingFlags.Public);
             method.Invoke(null, Array.Empty<object>());
         }
-        
 
-        public static void CancelTapThreads(AssemblyLoadContext ctx)
-        {
-            var mainthread = TapThread.Current;
-            while (mainthread.Parent != null)
-                mainthread = mainthread.Parent;
-            ctx.Unloading += context =>
-            {
-                try
-                {
-                    mainthread.Abort("Context unloaded.");
-                }
-                catch
-                {
-                    // ignore -- Abort is supposed to throw
-                }
-
-                try
-                {
-                    mainthread.AbortManager();
-                }
-                catch
-                {
-                    // this shouldn't throw but let's be safe
-                }
-            };
-        }
-        
         [MethodImpl(MethodImplOptions.NoInlining)]
         static void ExecuteAndUnload(string assemblyPath, out WeakReference alcWeakRef)
         {
             string appDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
             var alc = new TestAssemblyLoadContext(appDir);
             Assembly a = alc.LoadFromAssemblyPath(assemblyPath);
-            var thisasm = alc.LoadFromAssemblyPath(Assembly.GetExecutingAssembly().Location);
-            var program = thisasm.GetType("tap.Program");
-            var cancelTapThread = program!.GetMethod("CancelTapThreads", BindingFlags.Static | BindingFlags.Public)!;
-            cancelTapThread.Invoke(null, new object[] { alc });
-            
 
             alcWeakRef = new WeakReference(alc, trackResurrection: true);
             
@@ -116,18 +83,18 @@ namespace tap
 
             if (args.Contains("test"))
             {
-                for (int i = 0; testAlcWeakRef.IsAlive && (i < 10); i++)
+                for (int i = 0; testAlcWeakRef.IsAlive && i < 1000; i++)
                 {
                     Console.WriteLine($"Waiting for context to be collected: {i}.");
                     GC.Collect();
                     GC.WaitForPendingFinalizers();
+                    Thread.Sleep(100);
                 }
 
                 if (testAlcWeakRef.IsAlive)
                     Console.WriteLine($"Failed to collect context.");
                 else
                     Console.WriteLine($"Context was collected.");
-                Console.ReadKey();
             }
         }
     }

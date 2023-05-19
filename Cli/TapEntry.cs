@@ -194,14 +194,25 @@ namespace OpenTap.Cli
         [MethodImpl(MethodImplOptions.NoInlining)]
         static void wrapGoInProcess()
         {
-            DebuggerAttacher.TryAttach();
-            CliActionExecutor.Execute();
+            try
+            {
+                DebuggerAttacher.TryAttach();
+                CliActionExecutor.Execute();
+            }
+            finally
+            {
+                try
+                {
+                    // Aborting the main tap thread signals that various OpenTAP components should shut down and clean up
+                    TapThread.Current.Abort();
+                }
+                catch (OperationCanceledException)
+                {
+                    // expected
+                }
+            }
         }
 
-        public static void Go2()
-        {
-            Console.WriteLine("Hello, {s} world!");
-        }
         public static void Go()
         {
             if (ExecutorClient.IsExecutorMode)

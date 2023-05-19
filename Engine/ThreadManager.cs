@@ -295,11 +295,6 @@ namespace OpenTap
             Abort(null);
         }
 
-        internal void AbortManager()
-        {
-            manager?.Dispose();
-        }
-
         /// <summary>
         /// Aborts the execution of this current instance of the <see cref="TapThread">TapThread</see> with a
         /// specified reason.
