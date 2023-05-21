@@ -197,6 +197,17 @@ namespace OpenTap
             }
         }
 
+        internal static TapThread Root
+        {
+            get
+            {
+                var current = Current;
+                while (current.Parent != null)
+                    current = current.Parent;
+                return current;
+            }
+        }
+
         /// <summary> Pretends that the current thread is a different thread while evaluating 'action'. 
         /// This affects the functionality of ThreadHierarchyLocals and TapThread.Current. 
         /// This overload also specifies which parent thread should be used.</summary>
@@ -292,7 +303,26 @@ namespace OpenTap
         /// </summary>
         public void Abort()
         {
-            Abort(null);
+            try
+            {
+                Abort(null);
+            }
+            finally
+            {
+                if (this.Parent == null) AbortThreadManager();
+            }
+        }
+
+        private void AbortThreadManager()
+        {
+            try
+            {
+                manager?.Dispose();
+            }
+            catch (PlatformNotSupportedException)
+            {
+                // ignore
+            }
         }
 
         /// <summary>

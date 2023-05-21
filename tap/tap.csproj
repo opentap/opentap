@@ -6,6 +6,7 @@
     <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
     <ApplicationIcon>../Installer/Assets/opentap.ico</ApplicationIcon>
     <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
+    <LangVersion>10</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>

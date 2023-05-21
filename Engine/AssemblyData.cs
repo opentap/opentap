@@ -144,7 +144,11 @@ namespace OpenTap
                         }
                         else
                         {
-                            assembly = Assembly.LoadFrom(Path.GetFullPath(this.Location));
+                            // Ensure that this assembly is loaded inside the correct load context.
+                            // Otherwise we will leak assemblies into the parent context.
+                            // This will cause runtime errors due to type mismatches when the same assembly is loaded
+                            // in different contexts.
+                            assembly = PluginManager.loadFrom(this.Location);
                         }
                     }
                      

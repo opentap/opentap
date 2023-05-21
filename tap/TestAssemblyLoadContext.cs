@@ -1,26 +1,62 @@
-﻿using System.Reflection;
+﻿using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 
-namespace complex
+namespace tap;
+
+static class LoadHookInstaller
 {
-    class TestAssemblyLoadContext : AssemblyLoadContext
+    public static void InstallLoadHook()
     {
-        private AssemblyDependencyResolver _resolver;
+        AssemblyLoadContext.GetLoadContext(Assembly.GetExecutingAssembly());
+    }
+}
 
-        public TestAssemblyLoadContext(string mainAssemblyToLoadPath) : base(isCollectible: true)
+class TestAssemblyLoadContext : AssemblyLoadContext
+{
+    private Assembly engine;
+    private object assemblyResolver;
+    private Type assemblyResolverType;
+    private MethodInfo resolveMethod;
+    private FieldInfo loadFromField;
+
+    public TestAssemblyLoadContext() : base(isCollectible: true)
+    {
+        AddLoadHook();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    void AddLoadHook()
+    {
+        var location = GetType().Assembly.Location!;
+        var opentap = Path.Combine(Path.GetDirectoryName(location)!, "OpenTap.dll");
+        engine = base.LoadFromAssemblyPath(opentap);
+        var pluginManager = engine.GetType("OpenTap.PluginManager")!;
+        var assemblyResolverField = pluginManager.GetField("assemblyResolver", BindingFlags.NonPublic | BindingFlags.Static)!;
+        assemblyResolver = assemblyResolverField.GetValue(null)!;
+        assemblyResolverType = assemblyResolver.GetType();
+        resolveMethod = assemblyResolverType.GetMethod("Resolve", BindingFlags.Instance | BindingFlags.Public)!;
+
+        Assembly loadFrom(string filename, bool reflectionOnly)
         {
-            _resolver = new AssemblyDependencyResolver(mainAssemblyToLoadPath);
+            return LoadFromAssemblyPath(filename);
         }
 
-        protected override Assembly? Load(AssemblyName name)
-        {
-            string? assemblyPath = _resolver.ResolveAssemblyToPath(name);
-            if (assemblyPath != null)
-            {
-                return LoadFromAssemblyPath(assemblyPath);
-            }
+        Func<string, bool, Assembly> f = loadFrom;
+        
+        // internal Func<string, bool, Assembly> loadFrom;
+        loadFromField = assemblyResolverType.GetField("loadFrom", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        loadFromField.SetValue(assemblyResolver, f);
+    }
 
-            return null;
-        }
+    protected override Assembly? Load(AssemblyName name)
+    {
+        if (name.Name == "netstandard") return null;
+        if (name.Name == "OpenTap") return engine;
+        var asm = resolveMethod.Invoke(assemblyResolver, new object[] { name.FullName, false }) as Assembly;
+        return asm;
     }
 }

@@ -41,8 +41,9 @@ namespace OpenTap
         {
             // This current assembly looks for the opentap DLL in the wrong location.
             // we know that we are going to load it, so let's just load it as the first thing.
-            if(File.Exists(OpenTapLocation))
-                Assembly.LoadFrom(OpenTapLocation);
+            if (AppDomain.CurrentDomain.GetAssemblies().Any(a => a.FullName.Contains("OpenTap")) == false)
+                if (File.Exists(OpenTapLocation))
+                    Assembly.LoadFrom(OpenTapLocation);
             
             ContinueInitialization();
         }

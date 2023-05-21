@@ -289,6 +289,7 @@ namespace OpenTap
 
         static bool isLoaded = false;
         static object loadLock = new object();
+        internal static Assembly loadFrom(string path) => assemblyResolver.loadFrom(path, false);
 
         /// <summary> Sets up the PluginManager assembly resolution systems. Under normal circumstances it is not needed to call this method directly.</summary>
         internal static void Load()
@@ -328,12 +329,13 @@ namespace OpenTap
                 // The domain from AppDomain.CurrentDomain is a global domain to this process, and is not isolated
                 // per load context. We should therefore unhook any delegates, and clear the assembly resolver
                 // so everything can be garbage collected.
-                TapThread.Current.AbortToken.Register(() =>
+                TapThread.Root.AbortToken.Register(() =>
                     {
                         domain.AssemblyLoad -= load;
                         domain.AssemblyResolve -= resolve;
                         domain.ReflectionOnlyAssemblyResolve -= resolve;
                         assemblyResolver = null;
+                        searcher = null;
                     }
                 );
             }
@@ -571,6 +573,7 @@ namespace OpenTap
                 MaxNumberOfElements = 10000,
                 CylicInvokeResponse = Memorizer.CyclicInvokeMode.ReturnDefaultValue
             };
+            loadFrom = defaultLoadFrom;
         }
 
         /// <summary>
@@ -601,7 +604,24 @@ namespace OpenTap
                 return name;
             }
         }
+        
+        Assembly defaultLoadFrom(string loadFilename, bool reflectionOnly)
+        {
+            try
+            {
+                if (!reflectionOnly)
+                    return Assembly.LoadFrom(loadFilename);
+                else
+                    return Assembly.ReflectionOnlyLoadFrom(loadFilename);
+            }
+            catch(Exception ex)
+            {
+                log.Debug("Unable to load {0}. {1}", loadFilename, ex.Message);
+                return null;
+            }
+        }
 
+        internal Func<string, bool, Assembly> loadFrom;
         Assembly resolveAssembly(string name, bool reflectionOnly)
         {
             if (name.Contains(".XmlSerializers"))
@@ -610,27 +630,11 @@ namespace OpenTap
                 return null;
             try
             {
-                Assembly loadFrom(string loadFilename)
-                {
-                    try
-                    {
-                        if (!reflectionOnly)
-                            return Assembly.LoadFrom(loadFilename);
-                        else
-                            return Assembly.ReflectionOnlyLoadFrom(loadFilename);
-                    }
-                    catch(Exception ex)
-                    {
-                        log.Debug("Unable to load {0}. {1}", loadFilename, ex.Message);
-                        return null;
-                    }
-                }
-
                 string filename;
                 if (asmLookup.TryGetValue(name, out filename))
                 {
                     log.Debug("Found match for {0} in {1}", name , filename);
-                    return loadFrom(filename);
+                    return loadFrom(filename, reflectionOnly);
                 }
                 var requestedAsmName = new AssemblyName(name);
                 var requestedStrongNameToken = requestedAsmName.GetPublicKeyToken();
@@ -646,7 +650,7 @@ namespace OpenTap
                         {
                             var path = Path.GetFullPath(filePath);
                             log.Debug("Found match for {0} in {1}", name, path);
-                            return loadFrom(path);
+                            return loadFrom(path, reflectionOnly);
                         }
                         catch (Exception)
                         {
@@ -693,7 +697,7 @@ namespace OpenTap
                     if (asmLookup.TryGetValue(asmName, out filename))
                     {
                         log.Debug("Found match for {0} in {1}", name, filename);
-                        var asm = loadFrom(filename);
+                        var asm = loadFrom(filename, reflectionOnly);
                         if (asm != null)
                         {
                             if (requestedStrongNameToken != null && requestedStrongNameToken.Length == 8)

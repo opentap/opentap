@@ -4,14 +4,12 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.Loader;
 using System.Threading;
-using complex;
 using OpenTap;
 using OpenTap.Cli;
 
@@ -64,7 +62,7 @@ namespace tap
         static void ExecuteAndUnload(string assemblyPath, out WeakReference alcWeakRef)
         {
             string appDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-            var alc = new TestAssemblyLoadContext(appDir);
+            var alc = new TestAssemblyLoadContext();
             Assembly a = alc.LoadFromAssemblyPath(assemblyPath);
 
             alcWeakRef = new WeakReference(alc, trackResurrection: true);
@@ -75,26 +73,44 @@ namespace tap
 
             alc.Unload();
         }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static void PrintAssemblies()
+        {
+            var bannedwords = new[] { "system", "microsoft", "jetbrains" };
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies().OrderBy(a => a.FullName))
+            {
+                var fn = asm.FullName;
+                if (fn == null) continue;
+                if (bannedwords.Any(b => fn.Contains(b, StringComparison.OrdinalIgnoreCase))) continue;
+                Console.WriteLine(fn);
+            }
+        }
+
         static void Main(string[] args)
         {
-            string appDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-            var asmPath = Path.Combine(appDir, "OpenTap.Cli.dll");
-            ExecuteAndUnload(asmPath, out var testAlcWeakRef);
-
-            if (args.Contains("test"))
+            for (int k = 0; k < 1; k++)
             {
-                for (int i = 0; testAlcWeakRef.IsAlive && i < 1000; i++)
-                {
-                    Console.WriteLine($"Waiting for context to be collected: {i}.");
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
-                    Thread.Sleep(100);
-                }
+                string appDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+                var asmPath = Path.Combine(appDir, "OpenTap.Cli.dll");
+                ExecuteAndUnload(asmPath, out var testAlcWeakRef);
 
-                if (testAlcWeakRef.IsAlive)
-                    Console.WriteLine($"Failed to collect context.");
-                else
-                    Console.WriteLine($"Context was collected.");
+                // if (args.Contains("test"))
+                {
+                    for (int i = 0; testAlcWeakRef.IsAlive && i < 100; i++)
+                    {
+                        Console.WriteLine($"Waiting for context to be collected: {i}.");
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                        Thread.Yield();
+                    }
+                    
+                    if (testAlcWeakRef.IsAlive)
+                        Console.WriteLine($"Failed to collect context.");
+                    else
+                        Console.WriteLine($"Context was collected.");
+                    Console.ReadKey();
+                }
             }
         }
     }
