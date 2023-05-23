@@ -470,6 +470,47 @@ namespace OpenTap.UnitTests
 
             public void NotifyChanged(object obj, string property) { }
         }
+
+        [Test]
+        public void TestReparameterize()
+        {
+            var testplan = new TestPlan();
+            var seq = new SequenceStep();
+            var delay = new DelayStep();
+            seq.ChildTestSteps.Add(delay);
+            testplan.ChildTestSteps.Add(seq);
+            seq.ChildTestSteps.Add(new VerdictStep() { Verdict = Verdict.Pass });
+
+            var timeDelay = AnnotationCollection.Annotate(delay).GetMember("DelaySecs");
+            var menu = timeDelay.Get<MenuAnnotation>();
+            var icons = menu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+
+            var parameterize = icons[IconNames.ParameterizeOnParent].First();
+            var unparameterize = icons[IconNames.Unparameterize].First();
+
+            void invoke(AnnotationCollection a)
+            {
+                a.Get<IMethodAnnotation>().Invoke();
+            }
+            
+            void run()
+            {
+                var planRun = testplan.Execute();
+                Assert.AreEqual(Verdict.Pass, planRun.Verdict);
+            }
+
+            { // Verify nothing breaks when parameterizing, unparameterizing, and reparameterizing
+                run();
+                invoke(parameterize);
+                run();
+                invoke(unparameterize);
+                run();
+                invoke(parameterize);
+                run();
+                invoke(unparameterize);
+                run();
+            }
+        }
         
         [Test]
         public void MenuAnnotationTest()
