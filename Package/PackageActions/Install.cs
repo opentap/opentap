@@ -385,7 +385,10 @@ namespace OpenTap.Package
                             "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan",
                             "UpdateCheck",
                             "Installation"
-                        }
+                        },
+                        // The current install action is a locking package action.
+                        // Setting this flag lets the child process bypass the lock on the installation.
+                        Unlocked = true,
                     };
 
                     var result = processRunner.Run(installStep, true, cancellationToken);

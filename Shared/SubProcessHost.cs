@@ -22,6 +22,7 @@ namespace OpenTap
     {
         public bool ForwardLogs { get; set; } 
         public string LogHeader { get; set; } = "";
+        public bool Unlocked { get; set; } = false;
         public HashSet<string> MutedSources { get; } = new HashSet<string>();
 
         public static bool IsAdmin()
@@ -141,6 +142,9 @@ namespace OpenTap
                 RedirectStandardError = true,
                 UseShellExecute = false,
             };
+
+            if (Unlocked)
+                pInfo.Environment[FileLock.InstallationLockOverride] = "1";
 
             if (elevate)
             {

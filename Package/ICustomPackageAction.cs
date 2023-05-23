@@ -100,23 +100,33 @@ namespace OpenTap.Package
             }
 
             log.Debug($"Available custom actions for '{stage.ToString().ToLower()}' stage. ({customActions.Count} actions: {string.Join(", ", customActions.Select(s => s.ToString()))})");
-
-            foreach (ICustomPackageAction action in customActions)
+            
+            var current = Environment.GetEnvironmentVariable(FileLock.InstallationLockOverride, EnvironmentVariableTarget.User);
+            try
             {
-                Stopwatch timer = Stopwatch.StartNew();
-                try
+                // Allow child processes to bypass the lock on the installation which is held by this process.
+                Environment.SetEnvironmentVariable(FileLock.InstallationLockOverride, "1", EnvironmentVariableTarget.User);
+                foreach (ICustomPackageAction action in customActions)
                 {
-                    if (action.Execute(package, args))
+                    Stopwatch timer = Stopwatch.StartNew();
+                    try
                     {
-                        log.Info(timer, $"Package action {action.GetType().Name} completed");
-                        continue;
+                        if (action.Execute(package, args))
+                        {
+                            log.Info(timer, $"Package action {action.GetType().Name} completed");
+                            continue;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Warning(timer, $"Package action {action.ToString()} failed", ex);
+                        throw;
                     }
                 }
-                catch (Exception ex)
-                {
-                    log.Warning(timer, $"Package action {action.ToString()} failed", ex);
-                    throw;
-                }
+            }
+            finally
+            {
+                Environment.SetEnvironmentVariable(FileLock.InstallationLockOverride, current, EnvironmentVariableTarget.User);
             }
         }
 

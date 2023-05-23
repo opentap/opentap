@@ -17,6 +17,11 @@ namespace OpenTap
     {
         internal static bool CanAcquireInstallationLock()
         {
+            // We need to be able to override the installation lock in certain scenarios, e.g. package install actions
+            // that need to invoke `tap.exe ...` in the installation during install / uninstall.
+            var env = Environment.GetEnvironmentVariable(FileLock.InstallationLockOverride, EnvironmentVariableTarget.Process);
+            if (env != null) return true;
+            
             // Check if the lock for the current installation can be acquired
             var target = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
             var lockfile = Path.Combine(target, ".lock");

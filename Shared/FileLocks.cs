@@ -17,6 +17,7 @@ namespace OpenTap
 
     internal static class FileLock
     {
+        internal const string InstallationLockOverride = "OPENTAP_INSTALLATION_LOCK_OVERRIDE";
         public static IFileLock Create(string file)
         {
             if (OperatingSystem.Current == OperatingSystem.Windows) return new Win32FileLock(file);
