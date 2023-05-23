@@ -9,6 +9,7 @@ using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace OpenTap
 {
@@ -414,6 +415,322 @@ namespace OpenTap
         public ICombinedNumberSequence CastTo(Type elemType)
         {
             return (ICombinedNumberSequence)Activator.CreateInstance(typeof(CombinedNumberSequences<>).MakeGenericType(elemType), Sequences);
+        }
+    }
+
+    internal static class ExpressionParser
+    {
+        internal enum TokenType
+        {
+            Plus,
+            Minus,
+            Multiply,
+            Divide,
+            Power,
+            ParenthesisStart,
+            ParenthesisEnd,
+            Number,
+        }
+
+        internal class Token
+        {
+            public TokenType Type { get; }
+            public string Match { get; }
+            public int Index { get; }
+
+            public Token(TokenType type, string match, int index)
+            {
+                Type = type;
+                Match = match;
+                Index = index;
+            }
+
+            public override string ToString()
+            {
+                return Index + " : " + (string.IsNullOrWhiteSpace(Match) ? Type.ToString() : Match);
+            }
+        }
+
+        internal interface IExpressionNode
+        {
+        }
+
+        internal abstract class BinaryNode : IExpressionNode
+        {
+            public IExpressionNode Left { get; }
+            public IExpressionNode Right { get; }
+
+            protected BinaryNode(IExpressionNode left, IExpressionNode right)
+            {
+                Left = left;
+                Right = right;
+            }
+        }
+
+        internal abstract class UnaryNode : IExpressionNode
+        {
+            public IExpressionNode Child { get; }
+
+            protected UnaryNode(IExpressionNode child)
+            {
+                Child = child;
+            }
+        }
+
+        internal class PlusNode : BinaryNode
+        {
+            public PlusNode(IExpressionNode left, IExpressionNode right) : base(left, right)
+            {
+            }
+        }
+
+        internal class SubtractNode : BinaryNode
+        {
+            public SubtractNode(IExpressionNode left, IExpressionNode right) : base(left, right)
+            {
+            }
+        }
+
+        internal class MultiplyNode : BinaryNode
+        {
+            public MultiplyNode(IExpressionNode left, IExpressionNode right) : base(left, right)
+            {
+            }
+        }
+
+        internal class DivideNode : BinaryNode
+        {
+            public DivideNode(IExpressionNode left, IExpressionNode right) : base(left, right)
+            {
+            }
+        }
+
+        internal class PowerNode : BinaryNode
+        {
+            public PowerNode(IExpressionNode left, IExpressionNode right) : base(left, right)
+            {
+            }
+        }
+
+        internal class PositiveNode : UnaryNode
+        {
+            public PositiveNode(IExpressionNode child) : base(child)
+            {
+            }
+        }
+
+        internal class NegativeNode : UnaryNode
+        {
+            public NegativeNode(IExpressionNode child) : base(child)
+            {
+            }
+        }
+
+        internal class NumberNode : IExpressionNode
+        {
+            public BigFloat Value { get; }
+
+            public NumberNode(BigFloat value)
+            {
+                Value = value;
+            }
+        }
+
+        internal static BigFloat Calculate(string str)
+        {
+            IExpressionNode root = ParseAst(str);
+            return Visit(root);
+
+            static BigFloat Visit(IExpressionNode node)
+            {
+                return node switch
+                {
+                    PlusNode plus => Visit(plus.Left) + Visit(plus.Right),
+                    SubtractNode subtract => Visit(subtract.Left) - Visit(subtract.Right),
+                    MultiplyNode multiply => Visit(multiply.Left) * Visit(multiply.Right),
+                    DivideNode divide => Visit(divide.Left) / Visit(divide.Right),
+                    NegativeNode negative => -Visit(negative),
+                    PositiveNode positive => Visit(positive),
+                    NumberNode number => number.Value,
+                    PowerNode power => throw new NotImplementedException("Unknown operator ^"),
+                    _ => throw new NotImplementedException(),
+                };
+            }
+        }
+
+        internal static IExpressionNode ParseAst(string str)
+        {
+            List<Token> tokens = Tokenize(str);
+            return ParseExpression(0, tokens.Count - 1);
+
+            IExpressionNode ParseExpression(int start, int end)
+            {
+                // Look for the last binary plus or minus token.
+                int index = GetLastIndex(start, end, t => t.Type == TokenType.Plus || t.Type == TokenType.Minus);
+                while (index > start &&
+                    (tokens[index - 1].Type == TokenType.Plus || tokens[index - 1].Type == TokenType.Minus))
+                {
+                    index -= 1;
+                }
+
+                if (index == start || index == -1)
+                {
+                    // The token found was from a unary operation at the beginnining of the expression.
+                    return ParseTerm(start, end);
+                }
+
+                Token token = tokens[index];
+                IExpressionNode left = ParseExpression(start, index - 1);
+                IExpressionNode right = ParseTerm(index + 1, end);
+                if (token.Type == TokenType.Plus)
+                {
+                    return new PlusNode(left, right);
+                }
+                else
+                {
+                    return new SubtractNode(left, right);
+                }
+            }
+
+            IExpressionNode ParseTerm(int start, int end)
+            {
+                int index = GetLastIndex(start, end, t => t.Type == TokenType.Multiply || t.Type == TokenType.Divide);
+                if (index == -1)
+                {
+                    return ParseFactor(start, end);
+                }
+
+                Token token = tokens[index];
+                IExpressionNode left = ParseTerm(start, index - 1);
+                IExpressionNode right = ParseFactor(index + 1, end);
+                if (token.Type == TokenType.Multiply)
+                {
+                    return new MultiplyNode(left, right);
+                }
+                else
+                {
+                    return new DivideNode(left, right);
+                }
+            }
+
+            IExpressionNode ParseFactor(int start, int end)
+            {
+                int index = GetLastIndex(start, end, t => t.Type == TokenType.Power);
+                if (index == -1)
+                {
+                    return ParseUnary(start, end);
+                }
+
+                Token token = tokens[index];
+                IExpressionNode left = ParseFactor(start, index - 1);
+                IExpressionNode right = ParseUnary(index + 1, end);
+                return new PowerNode(left, right);
+            }
+
+            IExpressionNode ParseUnary(int start, int end)
+            {
+                Token firstToken = tokens[start];
+                switch (firstToken.Type)
+                {
+                    case TokenType.Number:
+                        return ParseNumber(start, end);
+                    case TokenType.Plus:
+                        return new PositiveNode(ParseUnary(start, end));
+                    case TokenType.Minus:
+                        return new NegativeNode(ParseUnary(start, end));
+                    case TokenType.ParenthesisStart when tokens[end].Type == TokenType.ParenthesisEnd:
+                        return ParseExpression(start + 1, end -1);
+                    default:
+                        throw new Exception($"Unexpected token '{firstToken.Type}' at position {firstToken.Index}\nIn expression "); //TODO: Insert expression.
+                }
+            }
+
+            IExpressionNode ParseNumber(int start, int end)
+            {
+                if (start == end)
+                {
+                    string str = tokens[start].Match;
+                    BigFloat value = UnitFormatter.Parse(str, "", "", CultureInfo.CurrentCulture);
+                    return new NumberNode(value);
+                }
+
+                if (tokens[start].Type != TokenType.Number)
+                {
+                    throw new Exception($"Unexpected token '{tokens[start].Type}' expected '{TokenType.Number}'");
+                }
+                throw new Exception($"Unexpected token '{tokens[end].Type}' at {start}");
+            }
+
+            int GetLastIndex(int start, int end, Predicate<Token> predicate)
+            {
+                int scope = 0;
+                for (int i = end; i >= start; i--)
+                {
+                    if (tokens[i].Type == TokenType.ParenthesisStart)
+                    {
+                        scope += 1;
+                    }
+                    else if (tokens[i].Type == TokenType.ParenthesisEnd)
+                    {
+                        scope--;
+                    }
+                    else if (scope == 0 && predicate(tokens[i]))
+                    {
+                        return i;
+                    }
+                }
+                return -1;
+            }
+        }
+
+        private static readonly Regex _numberRegex = new Regex("^[0-9]");
+
+        internal static List<Token> Tokenize(string str)
+        {
+            List<Token> tokens = new List<Token>();
+            
+            for (int i = 0; i < str.Length; i++)
+            {
+                switch (str[i])
+                {
+                    case '+':
+                        tokens.Add(new Token(TokenType.Plus, string.Empty, i));
+                        break;
+                    case '-':
+                        tokens.Add(new Token(TokenType.Minus, string.Empty, i));
+                        break;
+                    case '*':
+                        tokens.Add(new Token(TokenType.Multiply, string.Empty, i));
+                        break;
+                    case '/':
+                        tokens.Add(new Token(TokenType.Divide, string.Empty, i));
+                        break;
+                    //case '^':
+                    //    tokens.Add(new Token(TokenType.Power, string.Empty, i));
+                    //    break;
+                    case '(':
+                        tokens.Add(new Token(TokenType.ParenthesisStart, string.Empty, i));
+                        break;
+                    case ')':
+                        tokens.Add(new Token(TokenType.ParenthesisEnd, string.Empty, i));
+                        break;
+                    default:
+                        if (char.IsWhiteSpace(str[i]))
+                        {
+                            break;
+                        }
+
+                        Match match = _numberRegex.Match(str.Substring(i));
+                        if (match.Success)
+                        {
+                            tokens.Add(new Token(TokenType.Number, match.Groups[0].Value, i));
+                            break;
+                        }
+                        throw new FormatException($"Unrecognized character {str[i]} at index {i}, {str}");
+                }
+            }
+
+            return tokens;
         }
     }
 
