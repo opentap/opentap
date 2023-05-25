@@ -100,12 +100,17 @@ namespace OpenTap.Package
             }
 
             log.Debug($"Available custom actions for '{stage.ToString().ToLower()}' stage. ({customActions.Count} actions: {string.Join(", ", customActions.Select(s => s.ToString()))})");
-            
-            var current = Environment.GetEnvironmentVariable(FileLock.InstallationLockOverride, EnvironmentVariableTarget.User);
+
             try
             {
                 // Allow child processes to bypass the lock on the installation which is held by this process.
-                Environment.SetEnvironmentVariable(FileLock.InstallationLockOverride, "1", EnvironmentVariableTarget.User);
+                // We need to set this on the User level instead of the Process level because there are plugins predating
+                // the locking feature that depend on this behavior, such as 'OSIntegration'.
+                // OSIntegration starts a 'tap.exe' subprocess with the 'runas' verb on order to run as administrator.
+                // When a process is started with the 'runas' verb, the initiating process' environment is not inherited.
+                Environment.SetEnvironmentVariable(FileLock.InstallationLockEnv, "1", EnvironmentVariableTarget.User);
+                // Also set it on the process to avoid potential edgecases with other platforms that don't have three different environments.
+                Environment.SetEnvironmentVariable(FileLock.InstallationLockEnv, "1", EnvironmentVariableTarget.Process);
                 foreach (ICustomPackageAction action in customActions)
                 {
                     Stopwatch timer = Stopwatch.StartNew();
@@ -126,7 +131,8 @@ namespace OpenTap.Package
             }
             finally
             {
-                Environment.SetEnvironmentVariable(FileLock.InstallationLockOverride, current, EnvironmentVariableTarget.User);
+                Environment.SetEnvironmentVariable(FileLock.InstallationLockEnv, null, EnvironmentVariableTarget.User);
+                Environment.SetEnvironmentVariable(FileLock.InstallationLockEnv, null, EnvironmentVariableTarget.Process);
             }
         }
 

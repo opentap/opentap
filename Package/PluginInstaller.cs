@@ -131,7 +131,7 @@ namespace OpenTap.Package
                 // Ensure color is never set in the child process. Colors will still be set in the parent process.
                 pi.Environment["OPENTAP_COLOR"] = "never";
                 // Allow child processes to bypass the lock on the installation which is held by this process.
-                pi.Environment[FileLock.InstallationLockOverride] = "1";
+                pi.Environment[FileLock.InstallationLockEnv] = "1";
 
                 try
                 {

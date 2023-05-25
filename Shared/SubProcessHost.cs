@@ -144,7 +144,7 @@ namespace OpenTap
             };
 
             if (Unlocked)
-                pInfo.Environment[FileLock.InstallationLockOverride] = "1";
+                pInfo.Environment[FileLock.InstallationLockEnv] = "1";
 
             if (elevate)
             {
