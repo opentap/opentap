@@ -7,14 +7,6 @@ using System.Runtime.Loader;
 
 namespace tap;
 
-static class LoadHookInstaller
-{
-    public static void InstallLoadHook()
-    {
-        AssemblyLoadContext.GetLoadContext(Assembly.GetExecutingAssembly());
-    }
-}
-
 class TestAssemblyLoadContext : AssemblyLoadContext
 {
     private Assembly engine;
@@ -26,6 +18,19 @@ class TestAssemblyLoadContext : AssemblyLoadContext
     public TestAssemblyLoadContext() : base(isCollectible: true)
     {
         AddLoadHook();
+        this.Unloading += context =>
+        {
+            engine = null;
+            assemblyResolver = null;
+            assemblyResolverType = null;
+            resolveMethod = null;
+            loadFromField = null;
+        };
+    }
+    
+    Assembly loadFrom(string filename, bool reflectionOnly)
+    {
+        return LoadFromAssemblyPath(filename);
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -40,11 +45,6 @@ class TestAssemblyLoadContext : AssemblyLoadContext
         assemblyResolverType = assemblyResolver.GetType();
         resolveMethod = assemblyResolverType.GetMethod("Resolve", BindingFlags.Instance | BindingFlags.Public)!;
 
-        Assembly loadFrom(string filename, bool reflectionOnly)
-        {
-            return LoadFromAssemblyPath(filename);
-        }
-
         Func<string, bool, Assembly> f = loadFrom;
         
         // internal Func<string, bool, Assembly> loadFrom;
@@ -58,5 +58,11 @@ class TestAssemblyLoadContext : AssemblyLoadContext
         if (name.Name == "OpenTap") return engine;
         var asm = resolveMethod.Invoke(assemblyResolver, new object[] { name.FullName, false }) as Assembly;
         return asm;
+    }
+
+    protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
+    {
+        
+        return base.LoadUnmanagedDll(unmanagedDllName);
     }
 }

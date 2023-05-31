@@ -128,13 +128,41 @@ namespace OpenTap.Cli
                 log.Flush();
             }
         }
-        
+
         /// <summary> 
         /// Used as command line interface of OpenTAP (PluginManager must have searched for assemblies before this method is called).
         /// This calls Execute with commandline arguments given to this environment and sets Environment.ExitCode. 
         /// </summary>
-        public static void Execute(){
-            Environment.ExitCode = Execute(Environment.GetCommandLineArgs().Skip(1).ToArray());
+        public static void Execute()
+        {
+            try
+            {
+                // Turn off the default system behavior when CTRL+C is pressed. 
+                // When Console.TreatControlCAsInput is false, CTRL+C is treated as an interrupt instead of as input.
+                Console.TreatControlCAsInput = false;
+            }
+            catch
+            {
+            }
+
+            var execThread = TapThread.Current;
+            void cancelHandler(object s, ConsoleCancelEventArgs e)
+            {
+                e.Cancel = true;
+                execThread.Abort();
+            }
+
+            try
+            {
+                Console.CancelKeyPress += cancelHandler;
+                AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+                Environment.ExitCode = Execute(Environment.GetCommandLineArgs().Skip(1).ToArray());
+            }
+            finally
+            {
+                Console.CancelKeyPress -= cancelHandler;
+                AppDomain.CurrentDomain.UnhandledException -= CurrentDomain_UnhandledException;
+            }
         }
 
         /// <summary>
@@ -145,30 +173,9 @@ namespace OpenTap.Cli
         {
             // Set TapMutex to ensure any installers know about running OpenTAP processes.
             ReflectionHelper.SetTapMutex();
-            
-            try
-            {
-                // Turn off the default system behavior when CTRL+C is pressed. 
-                // When Console.TreatControlCAsInput is false, CTRL+C is treated as an interrupt instead of as input.
-                Console.TreatControlCAsInput = false; 
-            }
-            catch { }
-            try
-            {
-                var execThread = TapThread.Current;
-                Console.CancelKeyPress += (s, e) =>
-                {
-                    e.Cancel = true;
-                    execThread.Abort();
-                };
-
-            }
-            catch { }
 
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-
-            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
             // Find the called action
             if(!TypeData.GetDerivedTypes<ICliAction>().Any())

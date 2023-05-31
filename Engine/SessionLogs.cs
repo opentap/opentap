@@ -139,10 +139,9 @@ namespace OpenTap
                     // this ensures that System.Runtime.InteropServices.RuntimeInformation.dll is loaded. (issue #4000).
                     .StartNew(PluginManager.Load)
                     // then get the system info on a separate thread (it takes ~1s)
-                    .ContinueWith(tsk => SystemInfo()); 
+                    .ContinueWith(tsk => SystemInfo());
 
-                AppDomain.CurrentDomain.ProcessExit += FlushOnExit;
-                AppDomain.CurrentDomain.UnhandledException += FlushOnExit;
+                TapThread.Root.AbortToken.Register(() => FlushOnExit(null, null));
             }
             else
             {
