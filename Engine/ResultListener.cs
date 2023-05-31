@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Collections;
 using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace OpenTap
 {
@@ -283,7 +282,7 @@ namespace OpenTap
 
         IEnumerator IEnumerable.GetEnumerator() =>  GetEnumerator();
     }
-    
+
     /// <summary>
     /// A collection of parameters related to the results.
     /// </summary>
@@ -488,15 +487,22 @@ namespace OpenTap
             output.Add( new ResultParameter(group, parentName, val, metadata));
         }
 
-        static ConditionalWeakTable<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
-            metadata)[]> propertiesLookup =
-            new ConditionalWeakTable<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
-                metadata)[]>();
+        static ThreadField<Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
+            metadata)[]>> propertiesLookup =
+            new ThreadField<Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute metadata)[]>>(ThreadFieldMode.Cached);
 
         static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] GetParametersMap(
-            ITypeData type) => propertiesLookup.GetValue(type, getParametersMap);
+            ITypeData type)
+        {
+            var val = propertiesLookup.Value;
+            if (val == null)
+            {
+                propertiesLookup.Value = val = new Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute metadata)[]>();
+            }
+            return val.GetOrCreateValue(type, getParametersMap);
+        }
 
-        static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] getParametersMap(
+    static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] getParametersMap(
             ITypeData type)
         {
             var lst = new List<(IMemberData member, string group, string name, MetaDataAttribute metadata)>();

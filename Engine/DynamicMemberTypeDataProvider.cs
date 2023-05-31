@@ -134,9 +134,14 @@ namespace OpenTap
         object source;
         IMemberData member;
         HashSet<(object Source, IMemberData Member)> additionalMembers;
-        
+
         /// <summary>  Gets the value of this member. </summary>
-        public object GetValue(object owner) =>  member.GetValue(source);
+        public object GetValue(object owner)
+        {
+            if (source == null) 
+                throw new Exception("Using deleted parameter member data");
+            return member.GetValue(source);
+        } 
 
         /// <summary> Sets the value of this member on the owner. </summary>
         public void SetValue(object owner, object value)

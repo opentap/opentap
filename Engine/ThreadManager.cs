@@ -53,7 +53,11 @@ namespace OpenTap
         /// <summary>  Cached-mode ThreadFields are a bit faster as they dont need to iterate for finding commonly used values.
         /// A value found in the parent thread is upgraded to local cache. Changes in parent thread thread-field values has no effect after it has
         /// been cached the first time.</summary>
-        Cached = 1
+        Cached = 1,
+        /// <summary>
+        /// A flat is a kind of cache that is local to the current thread only. It never iterates to the parent to get a default value.
+        /// </summary>
+        Flat = 2
     }
     
     /// <summary>
@@ -106,7 +110,11 @@ namespace OpenTap
                     }
                     return (T)found;
                 }
-
+                
+                if ((mode & (int)ThreadFieldMode.Flat) > 0)
+                {
+                    return default;
+                }
                 thread = thread.Parent;
                 isParent = true;
             }
