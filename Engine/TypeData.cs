@@ -217,6 +217,13 @@ namespace OpenTap
 
         static readonly TraceSource log = Log.CreateSource("PluginManager");
         static ImmutableArray<ITypeDataSearcher> searchers = ImmutableArray<ITypeDataSearcher>.Empty;
+        static TypeData()
+        {
+            TapThread.Root.AbortToken.Register(() =>
+            {
+                searchers = ImmutableArray<ITypeDataSearcher>.Empty;
+            });
+        }
 
         static readonly ConcurrentDictionary<ITypeData, ITypeData[]> derivedTypesCache =
             new ConcurrentDictionary<ITypeData, ITypeData[]>();
@@ -778,6 +785,7 @@ namespace OpenTap
                 foreach (var type in caches)
                     type.LoadCache();
                 cache.Value = new ConcurrentDictionary<object, ITypeData>();
+                TapThread.Root.AbortToken.Register(Dispose);
             }
             
             public void Dispose()

@@ -84,7 +84,7 @@ class Program
             Console.WriteLine($"Waiting for context to be collected: {i}.");
             GC.Collect();
             GC.WaitForPendingFinalizers();
-            Thread.Yield();
+            Thread.Sleep(10);
         }
 
         if (testAlcWeakRef.IsAlive)
