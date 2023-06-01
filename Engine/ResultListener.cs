@@ -479,30 +479,28 @@ namespace OpenTap
             IConvertible val;
             if (value == null)
                 val = null;
-            else if (value is IConvertible)
-                val = value as IConvertible;
+            else if (value is IConvertible conv)
+                val = conv;
             else if((val = StringConvertProvider.GetString(value)) == null)
                 val = value.ToString();
 
             output.Add( new ResultParameter(group, parentName, val, metadata));
         }
 
-        static ThreadField<Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
+        static readonly ThreadField<Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
             metadata)[]>> propertiesLookup =
-            new ThreadField<Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute metadata)[]>>(ThreadFieldMode.Cached);
+            new ThreadField<Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute metadata)[]>>(ThreadFieldMode.Flat);
 
         static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] GetParametersMap(
             ITypeData type)
         {
             var val = propertiesLookup.Value;
             if (val == null)
-            {
                 propertiesLookup.Value = val = new Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute metadata)[]>();
-            }
             return val.GetOrCreateValue(type, getParametersMap);
         }
 
-    static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] getParametersMap(
+        static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] getParametersMap(
             ITypeData type)
         {
             var lst = new List<(IMemberData member, string group, string name, MetaDataAttribute metadata)>();
@@ -552,7 +550,7 @@ namespace OpenTap
             return lst.ToArray();
         }
         
-        private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false)
+        static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false)
         {
             if (obj == null)
                 return;

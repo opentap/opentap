@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
@@ -138,8 +139,7 @@ namespace OpenTap
         /// <summary>  Gets the value of this member. </summary>
         public object GetValue(object owner)
         {
-            if (source == null) 
-                throw new Exception("Using deleted parameter member data");
+            Debug.Assert(source != null, "Using deleted parameter member data.");
             return member.GetValue(source);
         } 
 
