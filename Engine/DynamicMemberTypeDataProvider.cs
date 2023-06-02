@@ -608,7 +608,7 @@ namespace OpenTap
             public string Name => BaseType.Name;
             public ITypeData BaseType { get; }
 
-            IDictionary<string,IMemberData> GetDynamicMembers()
+            IDictionary<string, IMemberData> GetDynamicMembers()
             {
                 var dynamicMembers = (IDictionary<string,IMemberData>) TestStepTypeData.DynamicMembers.GetValue(target);
                 // dynamicMembers can be null after the last element is removed.
