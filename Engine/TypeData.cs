@@ -219,10 +219,12 @@ namespace OpenTap
         static ImmutableArray<ITypeDataSearcher> searchers = ImmutableArray<ITypeDataSearcher>.Empty;
         static TypeData()
         {
-            TapThread.Root.AbortToken.Register(() =>
-            {
-                searchers = ImmutableArray<ITypeDataSearcher>.Empty;
-            });
+            TapThread.Root.AbortToken.Register(UnsetSearchers);
+        }
+
+        static void UnsetSearchers()
+        {
+            searchers = ImmutableArray<ITypeDataSearcher>.Empty;
         }
 
         static readonly ConcurrentDictionary<ITypeData, ITypeData[]> derivedTypesCache =

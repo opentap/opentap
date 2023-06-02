@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -17,15 +18,6 @@ class TestAssemblyLoadContext : AssemblyLoadContext
 
     public TestAssemblyLoadContext() : base(isCollectible: true)
     {
-        AddLoadHook();
-        this.Unloading += context =>
-        {
-            engine = null;
-            assemblyResolver = null;
-            assemblyResolverType = null;
-            resolveMethod = null;
-            loadFromField = null;
-        };
     }
     
     Assembly loadFrom(string filename, bool reflectionOnly)
@@ -34,7 +26,7 @@ class TestAssemblyLoadContext : AssemblyLoadContext
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    void AddLoadHook()
+    public void InitializeTapResolver()
     {
         var location = GetType().Assembly.Location!;
         var opentap = Path.Combine(Path.GetDirectoryName(location)!, "OpenTap.dll");
@@ -52,12 +44,58 @@ class TestAssemblyLoadContext : AssemblyLoadContext
         loadFromField.SetValue(assemblyResolver, f);
     }
 
+    private static string? runtimeDirectory = null;
+    private static Dictionary<string, string>? fileCache = null;
+
     protected override Assembly? Load(AssemblyName name)
     {
-        if (name.Name == "netstandard") return null;
-        if (name.Name == "OpenTap") return engine;
-        var asm = resolveMethod.Invoke(assemblyResolver, new object[] { name.FullName, false }) as Assembly;
-        return asm;
+        try
+        {
+            if (name.Name == "netstandard")
+            {
+                return null;
+            }
+            if (name.Name == "OpenTap") return engine;
+            if (resolveMethod == null)
+            {
+                runtimeDirectory ??= Path.GetDirectoryName(AppDomain.CurrentDomain.GetAssemblies()
+                    .FirstOrDefault(a => a.GetName().Name == "System.Runtime")!.Location)!;
+                if (runtimeDirectory != null)
+                {
+                    if (fileCache == null)
+                    {
+                        fileCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        var files = Directory.GetFiles(runtimeDirectory, "*.dll", SearchOption.TopDirectoryOnly);
+                        files = Directory.GetFiles(Path.GetDirectoryName(Assembly.GetExecutingAssembly()!.Location)!,
+                            "*.dll",
+                            SearchOption.AllDirectories).Concat(files).ToArray();
+                        foreach (var f in files)
+                        {
+                            var n = Path.GetFileNameWithoutExtension(f);
+                            if (fileCache.ContainsKey(n) == false)
+                                fileCache[n] = f;
+                        }
+                    }
+
+                    if (fileCache.TryGetValue(name.Name!, out var path))
+                        return LoadFromAssemblyPath(path);
+                }
+
+                return null;
+            }
+
+            var asm = resolveMethod.Invoke(assemblyResolver, new object[] { name.FullName, false }) as Assembly;
+            if (asm == null)
+            {
+
+            }
+
+            return asm;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)

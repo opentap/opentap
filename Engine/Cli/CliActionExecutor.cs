@@ -116,7 +116,7 @@ namespace OpenTap.Cli
     /// </summary>
     public class CliActionExecutor
     {
-        internal static ITypeData SelectedAction = null;
+        internal static WeakReference<ITypeData> SelectedAction = null;
         internal static readonly int LevelPadding = 3;
         private static TraceSource log = Log.CreateSource("tap");
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -205,11 +205,15 @@ namespace OpenTap.Cli
                 log.Debug(e);
             }
 
+            ITypeData selectedAction = null;
+
             // Find selected command
             var actionTree = new CliActionTree();
             var selectedcmd = actionTree.GetSubCommand(args);
             if (selectedcmd?.Type != null && selectedcmd?.SubCommands.Any() != true)
-                SelectedAction = selectedcmd.Type;
+                selectedAction = selectedcmd.Type;
+            SelectedAction = new WeakReference<ITypeData>(selectedAction);
+            
 
             // Run check for update
             TapThread.Start(() =>
@@ -221,7 +225,7 @@ namespace OpenTap.Cli
                     {
                         var checkUpdatesCommands = actionTree.GetSubCommand(new[] {"package", "check-updates"});
                         var checkUpdateAction = checkUpdatesCommands?.Type?.CreateInstance() as ICliAction;
-                        if (SelectedAction != checkUpdatesCommands?.Type)
+                        if (selectedAction != checkUpdatesCommands?.Type)
                             checkUpdateAction?.PerformExecute(new[] {"--startup"});
                     }
                     catch (Exception e)
@@ -257,7 +261,7 @@ namespace OpenTap.Cli
             }
             
             // Print default info
-            if (SelectedAction == null)
+            if (selectedAction == null)
             {
                 string getVersion()
                 {
@@ -309,27 +313,27 @@ namespace OpenTap.Cli
                     return (int)ExitCodes.ArgumentParseError;
             }
 
-            if (SelectedAction != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
+            if (selectedAction != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
                 CliUserInputInterface.Load();
             
             ICliAction packageAction = null;
             try{
-                packageAction = (ICliAction)SelectedAction.CreateInstance();
+                packageAction = (ICliAction)selectedAction.CreateInstance();
             }catch(TargetInvocationException e1) when (e1.InnerException is System.ComponentModel.LicenseException e){
-                log.Error("Unable to load CLI Action '{0}'", SelectedAction.GetDisplayAttribute().GetFullName());
+                log.Error("Unable to load CLI Action '{0}'", selectedAction.GetDisplayAttribute().GetFullName());
                 log.Info("{0}", e.Message);
                 return (int)ExitCodes.UnknownCliAction;
             }
             
             if (packageAction == null)
             {
-                Console.WriteLine("Error instantiating command {0}", SelectedAction.Name);
+                Console.WriteLine("Error instantiating command {0}", selectedAction.Name);
                 return (int)ExitCodes.UnknownCliAction;
             }
 
             try
             {
-                int skip = SelectedAction.GetDisplayAttribute().Group.Length + 1; // If the selected command has a group, it takes two arguments to use the command. E.g. "package create". If not, it only takes 1 argument, E.g. "restapi".
+                int skip = selectedAction.GetDisplayAttribute().Group.Length + 1; // If the selected command has a group, it takes two arguments to use the command. E.g. "package create". If not, it only takes 1 argument, E.g. "restapi".
                 return packageAction.Execute(args.Skip(skip).ToArray());
             }
             catch (ExitCodeException ec)

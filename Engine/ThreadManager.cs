@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -140,9 +141,9 @@ namespace OpenTap
     public class TapThread
     {
         #region fields
-        static readonly ThreadManager manager = new ThreadManager();
+        private static ThreadManager manager = new ThreadManager();
         
-        static readonly SessionLocal<ThreadManager> sessionThreadManager = new SessionLocal<ThreadManager>(manager);
+        private static  SessionLocal<ThreadManager> sessionThreadManager = new SessionLocal<ThreadManager>(manager);
         Action action;
  
         CancellationTokenSource _abortTokenSource;
@@ -309,12 +310,35 @@ namespace OpenTap
             }
             finally
             {
-                if (this.Parent == null) AbortThreadManager();
+                if (this.Parent == null)
+                {
+                    try
+                    {
+                        AbortThreadManager(out var test);
+                    }
+                    catch
+                    {
+                        
+                    }
+
+                    try
+                    {
+                        sessionThreadManager.Value = null;
+                        sessionThreadManager = null;
+                        Session.RootSession.Dispose();
+                    }
+                    catch
+                    {
+                        
+                    }
+                }
             }
         }
 
-        private void AbortThreadManager()
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void AbortThreadManager(out WeakReference test)
         {
+            test = new WeakReference(manager, trackResurrection: true);
             try
             {
                 manager?.Dispose();
@@ -322,6 +346,11 @@ namespace OpenTap
             catch (PlatformNotSupportedException)
             {
                 // ignore
+            }
+            finally
+            {
+                manager = null;
+                sessionThreadManager.Value = null;
             }
         }
 
@@ -565,6 +594,7 @@ namespace OpenTap
         /// <summary> Creates a new ThreadManager. </summary>
         internal ThreadManager()
         {
+            // var lc = Type.GetType("System.Runtime.Loader.AssemblyLoadContext")!.GetMethod("GetLoadContext", BindingFlags.Public | BindingFlags.Static)!.Invoke(null, new object[] { Assembly.GetExecutingAssembly() });
             threadManagerThread = new Thread(threadManagerWork) { Name = "Thread Manager", IsBackground = true, Priority = ThreadPriority.Normal };
             threadManagerThread.Start();
             //ThreadPool.GetMaxThreads(out MaxWorkerThreads, out int _);

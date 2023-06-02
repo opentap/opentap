@@ -141,7 +141,7 @@ namespace OpenTap.Authentication
             {
                 userAgent = $"OpenTAP/{PluginManager.GetOpenTapAssembly().SemanticVersion}";
 
-                if (Cli.CliActionExecutor.SelectedAction is ITypeData td)
+                if (Cli.CliActionExecutor.SelectedAction.TryGetTarget(out var tdr) && tdr is ITypeData td)
                 {
                     // We are running a CLI Action. Add it's name and version to the User-Agent header
                     var source = TypeData.GetTypeDataSource(td);
