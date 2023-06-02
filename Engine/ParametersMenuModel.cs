@@ -349,6 +349,27 @@ namespace OpenTap
             foreach(var src in source)
                 DynamicMember.RemovedDynamicMember(src, member);
         }
+
+        [Display("Define a new expression")]
+        class AssignExpressionRequest
+        {
+            
+            public string Expression { get; set; }
+        }
+
+        [Browsable(true)]
+        [Display("Assign / Modify Expression", "Assign an expression to this property.")]
+        [IconAnnotation(IconNames.AssignExpression)]
+        public void AssignExpression()
+        {
+            var req = new AssignExpressionRequest()
+            {
+                Expression = ExpressionManager.GetExpression(source[0], member) ?? ""
+            };
+            
+            UserInput.Request(req);
+        }
+        
     }
     
     class TestStepMenuItemsModelFactory : IMenuModelFactory
