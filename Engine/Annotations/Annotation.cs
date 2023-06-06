@@ -737,7 +737,8 @@ namespace OpenTap
                     {
                         var x = merged[i];
                         var thisVal = x.Get<IObjectValueAnnotation>().Value;
-                        if (thisVal == selectedValue) return selectedValue;
+                        if (thisVal == selectedValue) 
+                            continue;
                         if (selectedValue is IEnumerable ie1 && !(selectedValue is string))
                         {
                             // if the two lists has the same content it is fine to just return one of them.
@@ -746,7 +747,7 @@ namespace OpenTap
                             if (thisVal is IEnumerable ie2)
                             {
                                 if (ie2.Cast<object>().SequenceEqual(ie1.Cast<object>()))
-                                    return selectedValue;
+                                    continue;
                             }
 
                             return null;

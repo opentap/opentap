@@ -8,12 +8,40 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using OpenTap.Diagnostic;
 
 namespace OpenTap
 {
     internal static class TapInitializer
     {
+        internal static bool CanAcquireInstallationLock()
+        {
+            // Check if the lock for the current installation can be acquired
+            var target = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+            var lockfile = Path.Combine(target, ".lock");
+            FileSystemHelper.EnsureDirectoryOf(lockfile);
+            const int limit = 30;
+
+            for (int i = 0; i < limit; i++)
+            {
+                using var fileLock = FileLock.Create(lockfile);
+                try
+                {
+                    if (fileLock.WaitOne(TimeSpan.FromSeconds(1)))
+                        return true;
+                }
+                catch (AbandonedMutexException)
+                {
+                    // ignore -- this happens if the mutex is disposed in another process.
+                    // In this case we will most likely acquire the lock in the next iteration.
+                    continue;
+                }
+                Console.WriteLine($"{target} is locked by a locking package action. Waiting for it to become unlocked... ({i + 1} / {limit})");
+            }
+
+            return false;
+        }
 
         public class InitTraceListener : ILogListener {
             public readonly List<Event> AllEvents = new List<Event>();

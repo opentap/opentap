@@ -10,6 +10,7 @@ using System.Linq;
 using System.IO;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Xml.Linq;
 
 namespace OpenTap.Cli

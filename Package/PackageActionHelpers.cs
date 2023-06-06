@@ -50,8 +50,8 @@ namespace OpenTap.Package
         }
         
         
-        internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories,
-            bool force, bool includeDependencies, bool ignoreDependencies, bool askToIncludeDependencies, bool noDowngrade)
+        internal static List<PackageDef> GatherPackagesAndDependencyDefs(Installation installation, PackageSpecifier[] pkgRefs, string[] packageNames, 
+            string Version, CpuArchitecture arch, string OS, List<IPackageRepository> repositories, bool force, bool noDowngrade)
         {
             List<PackageDef> directlyReferencesPackages = new List<PackageDef>();
             
@@ -162,6 +162,8 @@ namespace OpenTap.Package
             }
 
             var img = ImageSpecifier.FromAddedPackages(installation, packages);
+            if (!string.IsNullOrWhiteSpace(OS))
+                img.OS = OS;
             if (noDowngrade)
             {
                 img.InstalledPackages = installation.GetPackages().ToImmutableArray();
