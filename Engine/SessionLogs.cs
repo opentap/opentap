@@ -34,17 +34,15 @@ namespace OpenTap
             char *target,
             char *linkpath
         );
-        
+
         static unsafe void CreateHardLink(string targetFile, string linkName)
         {
             if (OperatingSystem.Current == OperatingSystem.Windows)
             {
-                Console.WriteLine("");
                 CreateHardLinkWin(linkName, targetFile, IntPtr.Zero);
             }
             else if (OperatingSystem.Current == OperatingSystem.Linux)
             {
-                Console.WriteLine("Linux");
                 IntPtr target = Marshal.StringToCoTaskMemAnsi(targetFile);
                 IntPtr link = Marshal.StringToCoTaskMemAnsi(linkName);
                 CreateHardLinkLin((char*)target, (char*)link);
