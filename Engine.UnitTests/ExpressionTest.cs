@@ -47,6 +47,7 @@ namespace OpenTap.UnitTests
         [TestCase("{{123abc}}{5 + 10}{{123}}", "{123abc}15{123}")]
         [TestCase("{5}", "5")]
         [TestCase("{5+4+1}", "10")]
+        [TestCase("a b {$\"c {1 + 5}\"} e f g", "a b c 6 e f g")]
         public void StringExpressionBasicTest(string expression, string expectedResult)
         {
             var builder = new ExpressionCodeBuilder();
