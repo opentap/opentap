@@ -1891,7 +1891,25 @@ namespace OpenTap
         /// <returns></returns>
         public static TimeSpan FromSeconds(double seconds)
         {
-            return TimeSpan.FromTicks((long)(seconds * 1E7));
+            try
+            {
+                checked
+                {
+                    // if the multiplication here creates a number greater than
+                    // long.Max (or overflows negatively), we just return
+                    // TimeSpan.MaxValue/MinValue.
+                    long ticks = (long)(seconds * 1e7);
+                    return TimeSpan.FromTicks(ticks);
+                }
+            }
+            catch (OverflowException)
+            {
+                if (seconds < 0)
+                    return TimeSpan.MinValue;
+                return TimeSpan.MaxValue;
+            }
+            
+
         }
     }
 

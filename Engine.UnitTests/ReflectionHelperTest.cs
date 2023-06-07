@@ -375,5 +375,14 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(inv1.SequenceEqual(inv2));
             Assert.AreEqual(4, exceptionsCaught);
         }
+
+        [Test]
+        public void TestTime()
+        {
+            Assert.AreEqual(TimeSpan.Zero, Time.FromSeconds(0));
+            Assert.AreEqual(TimeSpan.MaxValue, Time.FromSeconds(double.PositiveInfinity));
+            Assert.AreEqual(TimeSpan.MaxValue, Time.FromSeconds(1000000000000000000000000000.0));
+            Assert.AreEqual(TimeSpan.MinValue, Time.FromSeconds(-1000000000000000000000000000.0));
+        }
     }
 }
