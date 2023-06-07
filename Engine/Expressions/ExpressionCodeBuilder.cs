@@ -9,12 +9,8 @@ namespace OpenTap.Expressions
         public string[] KnownSymbols { get; set; }
         IEnumerable<IMemberData> GetMembers(object obj)
         {
-            var members = TypeData.GetTypeData(obj)
-                .GetMembers()
-                .Where(mem => mem.Readable && mem.IsBrowsable() && (mem.HasAttribute<SettingsIgnoreAttribute>() == false))
-                
-                //.Where(mem => mem.TypeDescriptor.IsPrimitive() || mem.TypeDescriptor.DescendsTo(typeof(string)))
-                .ToArray();
+            IMemberData[] members = new IMemberData[10];
+            GetMembers(obj, ref members);
 
             return members;
         }
@@ -43,6 +39,11 @@ namespace OpenTap.Expressions
                     i++;
                 }
             }
+            if (array.Length > i)
+            {
+                Array.Resize(ref array, i);
+                changed = true;
+            }
             return changed;
         }
 
@@ -58,12 +59,6 @@ namespace OpenTap.Expressions
         public void UpdateParameterMembers(object obj, ref IMemberData[] members, out bool updated)
         {
             updated = GetMembers(obj, ref members);
-            var values = new object[members.Length];
-            long hash = 0;
-            for (int i = 0; i < members.Length; i++)
-            {
-                values[i] = members[i].GetValue(obj);   
-            }
         }
 
         public Delegate GenerateLambda(AstNode ast, ParameterExpression[] parameters, Type targetType)
@@ -200,37 +195,58 @@ namespace OpenTap.Expressions
             return ParseStringInterpolation(ref str2);
         }
 
-        public void FindUsedParameters(AstNode node, HashSet<string> parameterName)
-        {
-            
-        }
-
+        /// <summary>
+        /// Builds an AstNode for string interpolation. e.g "This is the result: {FrequencyMeasurement} Hz".
+        /// </summary>
+        /// <param name="str"></param>
+        /// <returns></returns>
         public AstNode ParseStringInterpolation(ref ReadOnlySpan<char> str)
         {
-            AstNode node2 = null;
+            // This node will be continously built upon.
+            AstNode returnNode = null;
+            
+            // For building a string of chars.
             List<char> read = new List<char>();
             while (str.Length > 0)
             {
+                
+                if (str[0] == '}')
+                {
+                    // handle escaped '}}'.
+                    if (str.Length > 1 && str[1] == '}')
+                    {
+                        str = str.Slice(2);
+                        read.Add('}');
+                        continue;
+                    }
+                }
+                
                 if (str[0] == '{')
                 {
+                    // handle escaped {{.
                     if (str.Length > 1 && str[1] == '{')
                     {
                         str = str.Slice(2);
                         read.Add('{');
                         continue;
                     }
+                    // this '{' denotes the start of an expression.
+                    // now read until the end of the expression and parse the
+                    // inner stuff as one whole expression.
+                    
+                    // but first, add what came before as a string.
                     if (read.Count > 0)
                     {
                         var newNode = new ObjectNode(new String(read.ToArray()))
                         {
                             IsString = true
                         };
-                        if (node2 == null) node2 = newNode;
+                        if (returnNode == null) returnNode = newNode;
                         else
                         {
-                            node2 = new BinaryExpression
+                            returnNode = new BinaryExpression
                             {
-                                Left = node2,
+                                Left = returnNode,
                                 Operator = Operators.StrCombineOperator,
                                 Right = new ObjectNode(new String(read.ToArray()))
                                 {
@@ -243,6 +259,7 @@ namespace OpenTap.Expressions
                     str = str.Slice(1);
                     var start = str;
                     var len = 0;
+                    // read until the enclosing '}'.
                     while (str.Length > 0)
                     {
                         if (str[0] == '}')
@@ -255,15 +272,15 @@ namespace OpenTap.Expressions
                     }
                     var subExpr = start.Slice(0, len);
                     var node = Parse(ref subExpr);
-                    if (node2 == null)
+                    if (returnNode == null)
                     {
-                        node2 = node;
+                        returnNode = node;
                     }
                     else
                     {
-                        node2 = new BinaryExpression
+                        returnNode = new BinaryExpression
                         {
-                            Left = node2,
+                            Left = returnNode,
                             Operator = Operators.StrCombineOperator,
                             Right = node
                         };
@@ -279,12 +296,12 @@ namespace OpenTap.Expressions
                 {
                     IsString = true
                 };
-                if (node2 == null) node2 = newNode;
+                if (returnNode == null) returnNode = newNode;
                 else
                 {
-                    node2 = new BinaryExpression
+                    returnNode = new BinaryExpression
                     {
-                        Left = node2,
+                        Left = returnNode,
                         Operator = Operators.StrCombineOperator,
                         Right = new ObjectNode(new String(read.ToArray()))
                         {
@@ -293,7 +310,7 @@ namespace OpenTap.Expressions
                     };
                 }
             }
-            return node2 ?? new ObjectNode(""){IsString = true};
+            return returnNode ?? new ObjectNode(""){IsString = true};
         }
 
         public AstNode Parse(string str)
@@ -430,13 +447,6 @@ namespace OpenTap.Expressions
                 str = str.Slice(1);
             }
         }
-        
-
-        
-        #region Operators
-        
-        
-        #endregion
     }
 
 }

@@ -40,14 +40,20 @@ namespace OpenTap.UnitTests
             Assert.AreEqual("The result is: 3", step.LogMessage);
         }
 
-        [Test]
-        public void StringExpressionBasicTest()
+        [TestCase("The number is {1 + 2}.", "The number is 3.")]
+        [TestCase("{1 - 2}. {4}. {10 /5}.", "-1. 4. 2.")]
+        [TestCase("", "")]
+        [TestCase("123abc", "123abc")]
+        [TestCase("{{123abc}}{5 + 10}{{123}}", "{123abc}15{123}")]
+        [TestCase("{5}", "5")]
+        [TestCase("{5+4+1}", "10")]
+        public void StringExpressionBasicTest(string expression, string expectedResult)
         {
             var builder = new ExpressionCodeBuilder();
-            var ast = builder.ParseStringInterpolation("The number is {1 + 2}.");
+            var ast = builder.ParseStringInterpolation(expression);
             var lmb = builder.GenerateLambda(ast, Array.Empty<ParameterExpression>(), typeof(string));
             var result = lmb.DynamicInvoke();
-            Assert.AreEqual("The number is 3.", result);
+            Assert.AreEqual(expectedResult, result);
         }
 
         [Test]
