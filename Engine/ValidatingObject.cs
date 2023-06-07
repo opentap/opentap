@@ -101,6 +101,7 @@ namespace OpenTap
         /// <summary>
         /// Gets the error messages for each invalid rule and joins them with a newline.
         /// </summary>
+        [SettingsIgnore]
         public string Error => GetError(null);
 
         /// <summary>
