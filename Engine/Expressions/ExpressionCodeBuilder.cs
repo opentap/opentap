@@ -415,21 +415,31 @@ namespace OpenTap.Expressions
 
                 // The content can either be an identifier or an operator.
                 // numbers and other constants are also identifiers.
-                var ident = ParseObject(ref str, x =>  char.IsLetterOrDigit(x) || x == '.');
+                var strBackup = str;
+                var ident = ParseObject(ref str, x =>  char.IsLetterOrDigit(x) || x == '.' || x == '-');
+                
                 if (ident != null)
                 {
-                    if (expressionList.Count > 0)
+                    if (ident.Data == "-")
                     {
-                        var lst = expressionList.Last();
-                        if (lst is ObjectNode on)
-                        {
-                            on.Data = on.Data + " " + ident.Data;
-                            continue;
-                        }
+                        str = strBackup;
+                        ident = null;
                     }
-                    // if it is an identifier
-                    expressionList.Add(ident);
-                    continue;
+                    else
+                    {
+                        if (expressionList.Count > 0)
+                        {
+                            var lst = expressionList.Last();
+                            if (lst is ObjectNode on)
+                            {
+                                on.Data = on.Data + " " + ident.Data;
+                                continue;
+                            }
+                        }
+                        // if it is an identifier
+                        expressionList.Add(ident);
+                        continue;
+                    }
                 }
 
                 // operators are sorted by-length to avoid that '==' gets mistaken for '='.
