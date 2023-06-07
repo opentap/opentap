@@ -136,7 +136,7 @@ namespace OpenTap.Expressions
              
             
             builder.UpdateParameterMembers(step, ref expressions.members, out bool updated);
-            if (updated)
+            if (updated || expressions.Any(x => x.Lambda == null))
             {
                 ParameterExpression[] parameters = builder.GetParameters(step);;
                 expressions.buffer = new object[expressions.members.Length];
