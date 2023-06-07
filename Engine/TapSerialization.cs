@@ -435,6 +435,10 @@ namespace OpenTap
             }
         }
 
+        internal static XmlOf<T> SerializeToXml<T>(T obj) => new XmlOf<T> { Xml = new TapSerializer().SerializeToString(obj) };
+        internal static T DeserializeFromXml<T>(string xml) => (T)new TapSerializer().DeserializeFromString(xml);
+        internal static T DeserializeFromXml<T>(XmlOf<T> xml) => (T)new TapSerializer().DeserializeFromString(xml.Xml);
+
         /// <summary>
         /// Serializes an object to XML.
         /// </summary>
@@ -618,6 +622,17 @@ namespace OpenTap
         internal XName PropertyXmlName(string subPropName) => xmlPropertyNames.GetOrCreateValue(subPropName, name => XmlConvert.EncodeLocalName(name));
 
 
+    }
+
+    /// <summary>
+    /// This class marks some Xml code as being the XML of some type.
+    /// </summary>
+    struct XmlOf<T>
+    {
+        public string Xml;
+        public override string ToString() => Xml;
+
+        public T Deserialize() => TapSerializer.DeserializeFromXml(this);
     }
 }
 

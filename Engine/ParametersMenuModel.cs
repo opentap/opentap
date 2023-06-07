@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
+using OpenTap.Expressions;
 
 namespace OpenTap
 {
@@ -245,7 +247,7 @@ namespace OpenTap
             // send the user request
             UserInput.Request(r);
             
-            if (r.Submit == AddDynamicPropertyRequest.OkCancel.Cancel)
+            if (r.Submit == OkCancel.Cancel)
                 return; // cancel
             
             var attributes = new List<object>();
@@ -291,15 +293,17 @@ namespace OpenTap
                 DynamicMember.AddDynamicMember(src, newMem);
             }
         }
+        
+        public enum OkCancel
+        {
+            OK,
+            Cancel
+        }
 
         [Display("Define the new property")]
         class AddDynamicPropertyRequest
         {
-            public enum OkCancel
-            {
-                OK,
-                Cancel
-            }
+
             
             [Display("Name")]
             public string PropertyName { get; set; }
@@ -353,8 +357,11 @@ namespace OpenTap
         [Display("Define a new expression")]
         class AssignExpressionRequest
         {
-            
             public string Expression { get; set; }
+            
+            [Submit]
+            [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+            public OkCancel Submit { get; set; }
         }
 
         [Browsable(true)]
@@ -368,6 +375,18 @@ namespace OpenTap
             };
             
             UserInput.Request(req);
+            if (req.Submit == OkCancel.Cancel) return;
+            foreach (var step in source)
+            {
+                var actual_member = TypeData.GetTypeData(step).GetMember(member.Name);
+                
+                // if the source length is 1, the member should always be the same as the actual member.
+                Debug.Assert(source.Length != 1 || actual_member == member);
+                ExpressionManager.SetExpression(step, actual_member, req.Expression);
+            }
+            
+            
+
         }
         
     }

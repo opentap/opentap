@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
+using OpenTap.Expressions;
 
 namespace OpenTap
 {
@@ -291,6 +293,7 @@ namespace OpenTap
         public string Name { get; set; }
         
         /// <summary>  The type which defines this member. Usually just a TestStep. </summary>
+        [XmlIgnore]
         public ITypeData DeclaringType { get; set; }
         /// <summary> The type of the member. </summary>
         public ITypeData TypeDescriptor { get; set; }
@@ -325,6 +328,7 @@ namespace OpenTap
         /// <summary> Sets the value. </summary>
         public virtual void SetValue(object owner, object value)
         {
+            Debug.Assert(TypeData.GetTypeData(value).DescendsTo(TypeDescriptor));
             if (owner is IDynamicMemberValue dmv)
             {
                 dmv.SetValue(this, value);
@@ -353,6 +357,10 @@ namespace OpenTap
         /// <summary> Adds a dynamic member to an object. </summary>
         public static void AddDynamicMember(object target, IMemberData member)
         {
+            if (member is UserDefinedDynamicMember ud && ud.DeclaringType == null)
+            {
+                ud.DeclaringType = TypeData.GetTypeData(target);
+            }
             var members =
                 (Dictionary<string, IMemberData>) DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
             if (members == null)
@@ -743,12 +751,12 @@ namespace OpenTap
                 Name = "ForwardedMembers",
                 DefaultValue = null,
                 DeclaringType = TypeData.FromType((typeof(TestStepTypeData))),
-                Attributes = new Attribute[]{new XmlIgnoreAttribute(), new AnnotationIgnoreAttribute()},
+                Attributes = new Attribute[]{new XmlIgnoreAttribute(), new AnnotationIgnoreAttribute(), 
+                    new BrowsableAttribute(false)},
                 Writable = true,
                 Readable = true,
                 TypeDescriptor = TypeData.FromType(typeof((Object,IMemberData)[]))
             };
-            
             // This holds a list of user defined members.
             internal static readonly DynamicMember UserDefinedDynamicMembers = new UserMembersMember()
             {
@@ -757,14 +765,15 @@ namespace OpenTap
                 DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
                 Attributes = new Attribute[]{
                     new DefaultValueAttribute(null), 
-                    new AnnotationIgnoreAttribute()
+                    new AnnotationIgnoreAttribute(), 
+                    new BrowsableAttribute(false)
                 },
                 Writable = true,
                 Readable = true,
-                TypeDescriptor = TypeData.FromType(typeof(UserDefinedDynamicMember[]))
+                TypeDescriptor = TypeData.FromType(typeof(UserDefinedDynamicMember[])),
             };
-
-            static readonly IMemberData[] extraTestStepMembers = {BreakConditions, DynamicMembers, ChildItemVisibility.VisibilityProperty, UserDefinedDynamicMembers};
+            
+            static readonly IMemberData[] extraTestStepMembers = {BreakConditions, DynamicMembers, ChildItemVisibility.VisibilityProperty, ExpressionManager.ExpressionsMember, UserDefinedDynamicMembers};
             static readonly IMemberData[] extraTestPlanMembers = {TestPlanBreakConditions, DynamicMembers, UserDefinedDynamicMembers};
             
             readonly IMemberData[] members;
@@ -819,6 +828,7 @@ namespace OpenTap
                 if (name == DynamicMembers.Name) return DynamicMembers;
                 if (descriptionMember != null && name == descriptionMember.Name) return descriptionMember;
                 if (name == UserDefinedDynamicMembers.Name) return UserDefinedDynamicMembers;
+                if (name == ExpressionManager.ExpressionsMember.Name) return ExpressionManager.ExpressionsMember; 
                 return innerType.GetMember(name);
             }
 

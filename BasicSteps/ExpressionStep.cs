@@ -1,6 +1,5 @@
-using System;
+﻿using System;
 using System.ComponentModel;
-using System.Linq;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -54,48 +53,47 @@ namespace OpenTap.Plugins.BasicSteps
         [DefaultValue(IfBehaviorType.RunChildTestSteps)]
         [EnabledIf(nameof(Mode), ModeType.If, HideIfDisabled = true)]
         public IfBehaviorType IfBehavior { get; set; } = IfBehaviorType.RunChildTestSteps;
-        static readonly ExpressionCodeBuilder codeBuilder = new ExpressionCodeBuilder();
         public override void Run()
         {
-            var members = TypeData.GetTypeData(this).GetMembers()
-                .OfType<UserDefinedDynamicMember>()
-                .ToArray();
+            //var members = TypeData.GetTypeData(this).GetMembers()
+            //    .OfType<UserDefinedDynamicMember>()
+            //    .ToArray();
             
             // parameters for the expression are the member variables.
-            var parameters = members
-                .Select(x => Expr.Parameter(x.TypeDescriptor.AsTypeData().Type, x.Name))
-                .ToArray();
+            //var parameters = members
+            //    .Select(x => Expr.Parameter(x.TypeDescriptor.AsTypeData().Type, x.Name))
+            //    .ToArray();
             
             // parse the expression and get an Abstract Syntax Tree.
-            ReadOnlySpan<char> toParse = Expression.ToArray();
-            var ast = codeBuilder.Parse(ref toParse);
+            //ReadOnlySpan<char> toParse = Expression.ToArray();
+            //var ast = codeBuilder.Parse(ref toParse);
             
             // generate the expression tree.
-            var expr = codeBuilder.GenerateCode(ast, parameters);
+            //var expr = codeBuilder.GenerateCode(ast, parameters);
             
             // if the mode is Evaluate, then generate the code for returning the value of
             // all the parameters (as an object[]), so if needed, they can be updated.
-            if(Mode == ModeType.Evaluate)
-                expr = Expr.Block(expr, Expr.NewArrayInit(typeof(object), 
-                    parameters.Select(x => Expr.Convert(x, typeof(object)))));
+            //if(Mode == ModeType.Evaluate)
+            //    expr = Expr.Block(expr, Expr.NewArrayInit(typeof(object), 
+            //        parameters.Select(x => Expr.Convert(x, typeof(object)))));
             
             // compile the expression tree as a lambda expression.
-            var lmb = Expr.Lambda(expr, false, parameters);
-            var d= lmb.Compile();
+            //var lmb = Expr.Lambda(expr, false, parameters);
+            //var d= lmb.Compile();
             
             // invoke it dynamically.
-            var result = d.DynamicInvoke(members.Select(x => x.GetValue(this))
-                .ToArray());
+            var result = Expression;//d.DynamicInvoke(members.Select(x => x.GetValue(this))
+               // .ToArray());
 
             if (Mode == ModeType.Evaluate)
             {
                 // if it is Evaluation mode, set the values according to what is evaluated.
                 // e.g A = X
-                var newValues = (object[]) result;
-                foreach (var set in newValues.Pairwise(members))
-                {
-                    set.Item2.SetValue(this, set.Item1);
-                }
+                //var newValues = (object[]) result;
+                //foreach (var set in newValues.Pairwise(members))
+                //{
+                //    set.Item2.SetValue(this, set.Item1);
+                //}
             }
             else if (Mode == ModeType.If)
             {

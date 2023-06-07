@@ -700,11 +700,25 @@ namespace OpenTap
             "This overload of GetTypeData should not be used: To get TypeData representing a type use TypeData.FromType. Otherwise cast 'type' to an 'object' first.",
             true)]
         [EditorBrowsable(EditorBrowsableState.Never)]
-        static public ITypeData GetTypeData(Type _)
+        public static ITypeData GetTypeData(Type _)
         {
             throw new NotSupportedException(
                 @"Ambiguous call to GetTypeData: To get TypeData representing a type use TypeData.FromType."
                 + "Otherwise cast 'type' to an 'object' first.");
+        }
+        
+        /// <summary>
+        /// This throws an exception due to the ambiguousness of TypeData.FromType. 
+        /// Otherwise cast 'type' to an 'object' first.
+        /// </summary>
+        [Obsolete(
+            "Getting the type of a type instance is not supported due to ambiguity issues. If this is truely what you intended, cast the type to an 'object' first.",
+            true)]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public static ITypeData GetTypeData(ITypeData _)
+        {
+            throw new NotSupportedException(
+                @"Ambiguous call to GetTypeData. Cast 'type' to an 'object' first if this was intentional");
         }
 
         /// <summary> Creates a new TypeData object to represent a dotnet type. </summary>
