@@ -219,6 +219,19 @@ namespace OpenTap.Expressions
                         read.Add('}');
                         continue;
                     }
+                    break;
+                }
+
+                if (str[0] == '"')
+                {
+                    if (str.Length > 1 && str[1] == '"')
+                    {
+                        str = str.Slice(2);
+                        read.Add('"');
+                        continue;
+                    }
+                    str = str.Slice(1);
+                    break; // probably end of string.
                 }
                 
                 if (str[0] == '{')
@@ -257,21 +270,17 @@ namespace OpenTap.Expressions
                     }
                     read.Clear();
                     str = str.Slice(1);
-                    var start = str;
-                    var len = 0;
-                    // read until the enclosing '}'.
-                    while (str.Length > 0)
+                    
+                    var node = Parse(ref str);
+                    // the next should be '}'.
+                    SkipWhitespace(ref str);
+                    if (str.Length == 0 || str[0] != '}')
                     {
-                        if (str[0] == '}')
-                        {
-                            str = str.Slice(1);
-                            break;
-                        }
-                        len += 1;
-                        str = str.Slice(1);
+                        throw new FormatException("Invalid formed expression");
                     }
-                    var subExpr = start.Slice(0, len);
-                    var node = Parse(ref subExpr);
+                    str = str.Slice(1);
+
+                    
                     if (returnNode == null)
                     {
                         returnNode = node;
@@ -318,7 +327,35 @@ namespace OpenTap.Expressions
             ReadOnlySpan<char> str2 = str.ToArray();
             return Parse(ref str2);
         }
-        
+
+        AstNode ParseString(ref ReadOnlySpan<char> str)
+        {
+            List<char> stringContent = new List<char>();
+            var str2 = str.Slice(1);
+            
+            while (str2.Length > 0)
+            {
+                if (str2[0] == '"')
+                {
+                    // escaped quote.
+                    if (str2.Length > 1 && str2[1] == '"')
+                    {
+                        stringContent.Add('"');
+                        str2 = str2.Slice(2);
+                        continue;
+                    }
+                    break;
+                }
+                stringContent.Add(str2[0]);
+                str2 = str2.Slice(1);
+            }
+            str2 = str2.Slice(1);
+            str = str2;
+            return new ObjectNode(new String(stringContent.ToArray()))
+            {
+                IsString = true
+            };
+        }
         public AstNode Parse(ref ReadOnlySpan<char> str)
         {
             var expressionList = new List<AstNode>();
@@ -347,6 +384,32 @@ namespace OpenTap.Expressions
                 {
                     // done with parsing a sub-expression.
                     str = str.Slice(1);
+                    break;
+                }
+
+                // interpolated string?
+                if (str[0] == '$')
+                {
+                    if (str.Length <= 2 || str[1] != '"')
+                        throw new Exception("Invalid format");
+
+                    str = str.Slice(2);
+                    var ast = ParseStringInterpolation(ref str);
+                    expressionList.Add(ast);
+                    continue;
+                }
+                
+                // normal string?
+                if (str[0] == '\"')
+                {
+                    var ast = ParseString(ref str);
+                    expressionList.Add(ast);
+                    continue;
+                }
+
+                // End of an enclosing expression.
+                if (str[0] == '}')
+                {
                     break;
                 }
 
