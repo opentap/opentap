@@ -162,6 +162,8 @@ namespace OpenTap.Package
             }
 
             var img = ImageSpecifier.FromAddedPackages(installation, packages);
+            if (!string.IsNullOrWhiteSpace(OS))
+                img.OS = OS;
             if (noDowngrade)
             {
                 img.InstalledPackages = installation.GetPackages().ToImmutableArray();

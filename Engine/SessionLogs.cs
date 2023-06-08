@@ -29,7 +29,7 @@ namespace OpenTap
           IntPtr lpSecurityAttributes
         );
 
-        [DllImport("libc", EntryPoint = "symlink")]
+        [DllImport("libc", EntryPoint = "link")]
         static unsafe extern bool CreateHardLinkLin(
             char *target,
             char *linkpath
