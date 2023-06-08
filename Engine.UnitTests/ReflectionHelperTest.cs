@@ -377,10 +377,11 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        public void TestTime()
+        public void TestTimeFromSeconds()
         {
             Assert.AreEqual(TimeSpan.Zero, Time.FromSeconds(0));
             Assert.AreEqual(TimeSpan.MaxValue, Time.FromSeconds(double.PositiveInfinity));
+            Assert.Throws<ArithmeticException>(() => Time.FromSeconds(double.NaN));
             Assert.AreEqual(TimeSpan.MaxValue, Time.FromSeconds(1000000000000000000000000000.0));
             Assert.AreEqual(TimeSpan.MinValue, Time.FromSeconds(-1000000000000000000000000000.0));
         }

@@ -1885,7 +1885,7 @@ namespace OpenTap
     internal class Time
     {
         /// <summary>
-        /// A TimeSpan from seconds that does not truncate at milliseconds.
+        /// A TimeSpan from seconds that does not round to nearest millisecond. (TimeSpan.FromSeconds does that).
         /// </summary>
         /// <param name="seconds"></param>
         /// <returns></returns>
@@ -1904,6 +1904,8 @@ namespace OpenTap
             }
             catch (OverflowException)
             {
+                if (double.IsNaN(seconds))
+                    throw new ArithmeticException("Nan is not a supported time value.");
                 if (seconds < 0)
                     return TimeSpan.MinValue;
                 return TimeSpan.MaxValue;
