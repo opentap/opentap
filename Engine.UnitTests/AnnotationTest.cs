@@ -1359,6 +1359,7 @@ namespace OpenTap.UnitTests
             }   
         }
 
+        
         [Test]
         public void MultiSelectParameterize()
         {
@@ -1436,6 +1437,62 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(elapsed3.TotalSeconds < 4);
         }
 
+        public class InstrumentStep1 : TestStep
+        {
+            public Instrument Instrument { get; set; }
+            public override void Run()
+            {
+            }
+        }
+        
+        public class InstrumentStep2 : TestStep
+        {
+            public Instrument Instrument { get; set; }
+            public override void Run()
+            {
+            }
+        }
+
+        [Test]
+        public void MultiSelectUnparameterize()
+        {
+            var step1 = new InstrumentStep1();
+            var step2 = new InstrumentStep2();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step1);
+            plan.ChildTestSteps.Add(step2);
+
+            {
+                // 1. parameterize them
+                var a = AnnotationCollection.Annotate(new ITestStep[]
+                {
+                    step1, step2
+                });
+
+                var member = a.GetMember(nameof(step1.Instrument));
+                member.GetIcon(IconNames.ParameterizeOnTestPlan).Get<IMethodAnnotation>()?.Invoke();
+            }
+
+            // 2. check.
+            Assert.IsNotEmpty(TypeData.GetTypeData(plan).GetMembers().OfType<IParameterMemberData>());
+            
+            {
+                // 3. unparameterize them
+                var a = AnnotationCollection.Annotate(new ITestStep[]
+                {
+                    step1, step2
+                });
+
+                var member = a.GetMember(nameof(step1.Instrument));
+                member.GetIcon(IconNames.Unparameterize).Get<IMethodAnnotation>()?
+                    .Invoke();
+            }
+            
+            // 4. check.
+            Assert.IsEmpty(TypeData.GetTypeData(plan).GetMembers().OfType<IParameterMemberData>());
+        }
+        
+        
         [Test]
         public void MultiSelectList()
         {
