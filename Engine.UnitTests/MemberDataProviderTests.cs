@@ -1675,7 +1675,53 @@ namespace OpenTap.Engine.UnitTests
                 ifAnnotations.Read();
             }
         }
+        
+        public class ParmObj1: ValidatingObject
+        {
+            public int MyValue { get; set;}
+        }
 
+        public class StepWithRulesOnEmbeddedProperties : TestStep
+        {
+            public bool CheckValue()
+            {
+                return Obj1.MyValue > 0 && Obj1.MyValue < 100;
+            }
+            public StepWithRulesOnEmbeddedProperties()
+            {
+                Rules.Add(CheckValue, "MyValue must be in range 0 to 100", $"{nameof(Obj1)}.{nameof(Obj1.MyValue)}");
+            }
+            [EmbedProperties]
+            public ParmObj1 Obj1 { get; set; } =  new ParmObj1();
+
+            public override void Run()
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        [Test]
+        public void TestRulesOnEmbeddedProperties()
+        {
+            var step = new StepWithRulesOnEmbeddedProperties();
+
+            { // no errors
+                step.Obj1.MyValue = 1;
+                Assert.That(string.IsNullOrWhiteSpace(step.Error));
+                var a = AnnotationCollection.Annotate(step);
+                var mem = a.GetMember("Obj1.MyValue");
+                var err = mem.GetAll<IErrorAnnotation>().SelectMany(e => e.Errors).ToArray();
+                Assert.That(err.Length == 0);
+            }
+            { // errors
+                step.Obj1.MyValue = 0;
+                Assert.That(step.Error == "MyValue must be in range 0 to 100");
+                var a = AnnotationCollection.Annotate(step);
+                var mem = a.GetMember("Obj1.MyValue");
+                var err = mem.GetAll<IErrorAnnotation>().SelectMany(e => e.Errors).ToArray();
+                Assert.That(err.Length == 1);
+            }
+        }
 
         public class EmbeddedTest
         {
@@ -1721,26 +1767,39 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(500, obj.EmbeddedThings.SimpleNumber);
         }
 
-        public class EmbA
+        public class EmbA: ValidatingObject
         {
             public double X { get; set; }
+
+            public EmbA()
+            {
+                Rules.Add(() => X >= 0, "X < 0", nameof(X));
+            }
         }
 
-        public class EmbB
+        public class EmbB : ValidatingObject
         {
             [EmbedProperties(PrefixPropertyName = false)]
             public EmbA A { get; set; } = new EmbA();
 
             [EmbedProperties(Prefix = "A")]
             public EmbA A2 { get; set; } = new EmbA();
+            
+            public double Y { get; set; }
+
+            public EmbB()
+            {
+                Rules.Add(()=> Y >= 0, "Y < 0", nameof(Y));
+            }
         }
 
         public class EmbC
         {
             [EmbedProperties]
             public EmbB B { get; set; } = new EmbB();
+            
         }
-
+        
         [Test]
         public void NestedEmbeddedTest()
         {
@@ -1750,7 +1809,6 @@ namespace OpenTap.Engine.UnitTests
             var embc_type = TypeData.GetTypeData(c);
 
             var members = embc_type.GetMembers();
-            Assert.AreEqual(2, members.Count());
 
             var mem = embc_type.GetMember("B.A.X");
             
@@ -1767,6 +1825,19 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreNotEqual(c, c2);
             Assert.AreEqual(c.B.A.X, c2.B.A.X);
 
+            Assert.IsTrue(true == string.IsNullOrWhiteSpace(c.B.A2.Error));
+            c.B.Y = -5;
+            
+            var a = AnnotationCollection.Annotate(c);
+            var mem_b_y = a.GetMember("B.Y");
+            var err1 = mem_b_y.GetAll<IErrorAnnotation>().SelectMany(x => x.Errors).FirstOrDefault();
+            Assert.IsTrue(string.IsNullOrWhiteSpace(err1) == false);
+            c.B.Y = 5;
+            c.B.A2.X = -5;
+            var mem_b_a2_x = a.GetMember("A.X");
+            var err2 = mem_b_a2_x.GetAll<IErrorAnnotation>().SelectMany(x => x.Errors).FirstOrDefault();
+            Assert.IsTrue(string.IsNullOrWhiteSpace(err2) == false);
+            
         }
 
         public class EmbD
