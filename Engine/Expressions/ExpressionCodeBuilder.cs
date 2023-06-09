@@ -225,6 +225,7 @@ namespace OpenTap.Expressions
         /// Builds an AstNode for string interpolation. e.g "This is the result: {FrequencyMeasurement} Hz".
         /// </summary>
         /// <param name="str"></param>
+        /// <param name="isSubString">This should end on a quote</param>
         /// <returns></returns>
         public AstNode ParseStringInterpolation(ref ReadOnlySpan<char> str, bool isSubString = false)
         {
