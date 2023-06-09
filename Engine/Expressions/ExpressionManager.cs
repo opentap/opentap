@@ -238,7 +238,7 @@ namespace OpenTap.Expressions
                     {
                         var buffer2 = members.Select(mem => mem.GetValue(step)).ToArray();
                         return (bool)lambda.DynamicInvoke(buffer2);
-                    }, attr.Expression, member.Name));
+                    }, string.IsNullOrEmpty(attr.Message) ? attr.Expression : attr.Message, member.Name));
                 }
             }
 
