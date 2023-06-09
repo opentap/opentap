@@ -1675,7 +1675,53 @@ namespace OpenTap.Engine.UnitTests
                 ifAnnotations.Read();
             }
         }
+        
+        public class ParmObj1: ValidatingObject
+        {
+            public int MyValue { get; set;}
+        }
 
+        public class StepWithRulesOnEmbeddedProperties : TestStep
+        {
+            public bool CheckValue()
+            {
+                return Obj1.MyValue > 0 && Obj1.MyValue < 100;
+            }
+            public StepWithRulesOnEmbeddedProperties()
+            {
+                Rules.Add(CheckValue, "MyValue must be in range 0 to 100", $"{nameof(Obj1)}.{nameof(Obj1.MyValue)}");
+            }
+            [EmbedProperties]
+            public ParmObj1 Obj1 { get; set; } =  new ParmObj1();
+
+            public override void Run()
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        [Test]
+        public void TestRulesOnEmbeddedProperties()
+        {
+            var step = new StepWithRulesOnEmbeddedProperties();
+
+            { // no errors
+                step.Obj1.MyValue = 1;
+                Assert.That(string.IsNullOrWhiteSpace(step.Error));
+                var a = AnnotationCollection.Annotate(step);
+                var mem = a.GetMember("Obj1.MyValue");
+                var err = mem.GetAll<IErrorAnnotation>().SelectMany(e => e.Errors).ToArray();
+                Assert.That(err.Length == 0);
+            }
+            { // errors
+                step.Obj1.MyValue = 0;
+                Assert.That(step.Error == "MyValue must be in range 0 to 100");
+                var a = AnnotationCollection.Annotate(step);
+                var mem = a.GetMember("Obj1.MyValue");
+                var err = mem.GetAll<IErrorAnnotation>().SelectMany(e => e.Errors).ToArray();
+                Assert.That(err.Length == 1);
+            }
+        }
 
         public class EmbeddedTest
         {
