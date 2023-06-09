@@ -5,10 +5,11 @@ namespace OpenTap.Expressions
     class Operators
     {
         // operators are defined by a string an precedence.
+        public static readonly OperatorNode CommaOp = new OperatorNode(",", 1.6);
         public static readonly OperatorNode AdditionOp = new OperatorNode("+", 3);
         public static readonly OperatorNode DivideOp = new OperatorNode("/", 4);
-        public static readonly OperatorNode MultiplyOp = new OperatorNode("*", 5);
-        public static readonly OperatorNode SubtractOp = new OperatorNode("-", 2);
+        public static readonly OperatorNode MultiplyOp = new OperatorNode("*", 4);
+        public static readonly OperatorNode SubtractOp = new OperatorNode("-", 3);
         public static readonly OperatorNode AssignmentOp = new OperatorNode("=", 1.5);
         public static readonly OperatorNode StatementOperator = new OperatorNode(";", 1);
         public static readonly OperatorNode LessOperator = new OperatorNode("<", 1.8);

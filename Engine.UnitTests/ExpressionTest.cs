@@ -169,5 +169,23 @@ namespace OpenTap.UnitTests
             ExpressionManager.Update(step);
             Assert.AreEqual("The result is 17.", step.LogMessage);
         }
+
+        [Test]
+        public void ExpressionAnnotationTest()
+        {
+            var delayStep = new DelayStep();
+            var a = AnnotationCollection.Annotate(delayStep);
+            var member = a.GetMember("DelaySecs");
+            var sv = member.Get<IStringValueAnnotation>();
+            sv.Value = "1 + 2";
+            a.Write();
+            Assert.AreEqual(3.0, delayStep.DelaySecs);
+            
+            a = AnnotationCollection.Annotate(delayStep);
+            member = a.GetMember("DelaySecs");
+            var sv2 = member.Get<IStringValueAnnotation>();
+            var currentValue = sv2.Value;
+            Assert.AreEqual("1 + 2", currentValue);
+        }
     }
 }

@@ -58,6 +58,35 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual("Derived error", test.Error);
         }
 
+        public class StepWithValidationAttribute : TestStep
+        {
+            [Validation("X > 0")]
+            [Validation("X < 10")]
+            public double X { get; set; }
+            
+            [Validation("Y < 100")]
+            public double Y { get; set; }
+
+            public override void Run()
+            {
+                
+            }
+        }
+        
+        [Test]
+        public void ValidationAttributeTest()
+        {
+            var step = new StepWithValidationAttribute();
+            Assert.AreEqual("X > 0", step.Error);
+            step.X = 12;
+            Assert.AreEqual("X < 10", step.Error);
+            step.X = 5;
+            Assert.AreEqual("", step.Error);
+            step.Y = 200;
+            Assert.AreEqual("Y < 100", step.Error);
+        }
+        
+
         #region CallOrderTest
         private class CallOrderTestObject : ValidatingObject
         {

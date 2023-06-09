@@ -112,6 +112,7 @@ namespace OpenTap.Expressions
             if (string.IsNullOrEmpty(expression))
             {
                 lookup.Remove(member.Name);
+                return;
             }
 
             if (!lookup.TryGetValue(member.Name, out var expr))
@@ -124,8 +125,6 @@ namespace OpenTap.Expressions
                 lookup[member.Name] = expr;
             }
             expr.Expression = expression;
-
-
         }
 
         public static void Update(ITestStepParent step)
@@ -133,7 +132,6 @@ namespace OpenTap.Expressions
             var expressions = ExpressionsMember.GetValue(step) as ExpressionList;
             if (expressions == null || expressions.Count == 0) return;
             var td = TypeData.GetTypeData(step);
-             
             
             builder.UpdateParameterMembers(step, ref expressions.members, out bool updated);
             if (updated || expressions.Any(x => x.Lambda == null))
@@ -189,5 +187,63 @@ namespace OpenTap.Expressions
                 }
             }
         }
+
+        public static void UpdateVerdicts(ITestStep step, IList<IMemberData> verdictMembers)
+        {
+            var members = builder.GetMembers(step);
+            var parameters = builder.GetParameters(step);
+            var parameterValues = members.Select(x => x.GetValue(step)).ToArray();
+            foreach (var verdictMember in verdictMembers)
+            {
+                foreach (var attr in verdictMember.GetAttributes<VerdictAttribute>())
+                {
+                    var expr = attr.Expression;
+                    var ast = builder.Parse(expr);
+                    var lambda = builder.GenerateLambda(ast, parameters, typeof(bool));
+                    object result = lambda.DynamicInvoke(parameterValues);
+                    if (result is bool t)
+                    {
+                        if(t)
+                            step.UpgradeVerdict(attr.Verdict);
+                    }
+                    else
+                    {
+                        throw new Exception("Unsupported return type from verdict attribute");
+                    }
+                }
+            }
+        }
+
+        public static ValidationRule[] GetValidationRules(object step)
+        {
+            List<ValidationRule> rules = null;
+            
+            var members2 = TypeData.GetTypeData(step)
+                .GetMembers()
+                .Where(x => x.Readable && x.IsBrowsable());
+
+            foreach (var member in members2)
+            {
+                foreach (var attr in member.GetAttributes<ValidationAttribute>())
+                {
+                    rules ??= new List<ValidationRule>();
+                    
+                    var expression = attr.Expression;
+                    var ast = builder.Parse(expression);
+                    var builder2 = new ExpressionCodeBuilder();
+                    var members = members2.ToArray();
+                    var lambda = builder2.GenerateLambdaCompact(ast, ref members, typeof(bool));
+                    
+                    rules.Add(new ValidationRule(() =>
+                    {
+                        var buffer2 = members.Select(mem => mem.GetValue(step)).ToArray();
+                        return (bool)lambda.DynamicInvoke(buffer2);
+                    }, attr.Expression, member.Name));
+                }
+            }
+
+            return rules?.ToArray() ?? Array.Empty<ValidationRule>();
+        } 
+        
     }
 }

@@ -7,7 +7,7 @@ namespace OpenTap.Expressions
     class ExpressionCodeBuilder
     {
         public string[] KnownSymbols { get; set; }
-        IEnumerable<IMemberData> GetMembers(object obj)
+        internal IEnumerable<IMemberData> GetMembers(object obj)
         {
             IMemberData[] members = new IMemberData[10];
             GetMembers(obj, ref members);
@@ -64,6 +64,32 @@ namespace OpenTap.Expressions
         public Delegate GenerateLambda(AstNode ast, ParameterExpression[] parameters, Type targetType)
         {
             var expr = GenerateCode(ast, parameters);
+            
+            if (expr.Type != targetType)
+            {
+                if (targetType == typeof(string))
+                {
+                    expr = Expression.Call(expr, typeof(object).GetMethod("ToString"));
+                }
+                else
+                {
+                    expr = Expression.Convert(expr, targetType);
+                }
+            }
+            var lmb = Expression.Lambda(expr, false, parameters);
+            var d = lmb.Compile();
+            return d;
+        }
+        
+        public Delegate GenerateLambdaCompact(AstNode ast, ref IMemberData[] members, Type targetType)
+        {
+            var parameters = members
+                .Select(x => Expression.Parameter(x.TypeDescriptor.AsTypeData().Type, x.Name))
+                .ToArray();
+            var expr = GenerateCode(ast, parameters);
+            
+            members = members.Where(p => UsedParameters.Contains(p.Name)).ToArray();
+            parameters = parameters.Where(p => UsedParameters.Contains(p.Name)).ToArray();
             if (expr.Type != targetType)
             {
                 if (targetType == typeof(string))
@@ -189,10 +215,10 @@ namespace OpenTap.Expressions
         }
         public HashSet<string> UsedParameters { get; } = new HashSet<string>();
 
-        public AstNode ParseStringInterpolation(string str)
+        public AstNode ParseStringInterpolation(string str, bool isSubString = false)
         {
             ReadOnlySpan<char> str2 = str.ToArray();
-            return ParseStringInterpolation(ref str2);
+            return ParseStringInterpolation(ref str2, isSubString);
         }
 
         /// <summary>
@@ -200,7 +226,7 @@ namespace OpenTap.Expressions
         /// </summary>
         /// <param name="str"></param>
         /// <returns></returns>
-        public AstNode ParseStringInterpolation(ref ReadOnlySpan<char> str)
+        public AstNode ParseStringInterpolation(ref ReadOnlySpan<char> str, bool isSubString = false)
         {
             // This node will be continously built upon.
             AstNode returnNode = null;
@@ -230,7 +256,10 @@ namespace OpenTap.Expressions
                         read.Add('"');
                         continue;
                     }
+                    if (!isSubString)
+                        throw new FormatException("Unexpected \" character");
                     str = str.Slice(1);
+                    
                     break; // probably end of string.
                 }
                 
@@ -322,11 +351,6 @@ namespace OpenTap.Expressions
             return returnNode ?? new ObjectNode(""){IsString = true};
         }
 
-        public AstNode Parse(string str)
-        {
-            ReadOnlySpan<char> str2 = str.ToArray();
-            return Parse(ref str2);
-        }
 
         AstNode ParseString(ref ReadOnlySpan<char> str)
         {
@@ -356,7 +380,14 @@ namespace OpenTap.Expressions
                 IsString = true
             };
         }
-        public AstNode Parse(ref ReadOnlySpan<char> str)
+
+        public AstNode Parse(string str)
+        {
+            
+            ReadOnlySpan<char> str2 = str.ToArray();
+            return Parse(ref str2);
+        }
+        public AstNode Parse(ref ReadOnlySpan<char> str, bool subExpression = false)
         {
             var expressionList = new List<AstNode>();
             
@@ -375,18 +406,22 @@ namespace OpenTap.Expressions
                 if (str[0] == '(')
                 {
                     str = str.Slice(1);
-                    var node = Parse(ref str);
+                    var node = Parse(ref str, true);
                     expressionList.Add(node);
                 }
 
                 // end of sub expression?
                 if (str[0] == ')')
                 {
+                    if (!subExpression)
+                        throw new FormatException("Unexpected symbol ')'");
+                        
                     // done with parsing a sub-expression.
                     str = str.Slice(1);
                     break;
                 }
 
+                
                 // interpolated string?
                 if (str[0] == '$')
                 {
@@ -394,7 +429,7 @@ namespace OpenTap.Expressions
                         throw new Exception("Invalid format");
 
                     str = str.Slice(2);
-                    var ast = ParseStringInterpolation(ref str);
+                    var ast = ParseStringInterpolation(ref str, true);
                     expressionList.Add(ast);
                     continue;
                 }
