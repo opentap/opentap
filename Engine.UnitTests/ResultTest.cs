@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using NUnit.Framework;
+using OpenTap.Expressions;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -259,6 +260,67 @@ namespace OpenTap.UnitTests
                 }
             }
         }
+
+        public class ResultAttributeTestStep : TestStep
+        {
+            
+            [Result]
+            public double X { get; set; }
+            
+            [Result]
+            [Verdict("Y > 1")]
+            [Verdict("Y < 0", Verdict.Fail)]
+            public double Y { get; set; }
+
+            public override void Run()
+            {
+                
+            }
+        }
         
+        [Test]
+        public void ResultAttributeTest()
+        {
+            var rl = new RecordAllResultListener();
+            var step = new ResultAttributeTestStep();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+            var run = plan.Execute(new[]
+            {
+                rl
+            });
+            Assert.AreEqual(1, rl.Results.Count);
+            Assert.AreEqual(1, rl.Results[0].Rows);
+            Assert.AreEqual(0.0, rl.Results[0].Columns[0].Data.GetValue(0));
+            Assert.AreEqual(0.0, rl.Results[0].Columns[1].Data.GetValue(0));
+            Assert.AreEqual(Verdict.NotSet, run.Verdict);
+            
+            ExpressionManager.SetExpression(step, TypeData.GetTypeData(step).GetMember(nameof(step.Y)), "X * 2.0");
+            step.X = 1.0;
+            rl = new RecordAllResultListener();
+            run = plan.Execute(new[]
+            {
+                rl
+            });
+            
+            Assert.AreEqual(1, rl.Results.Count);
+            Assert.AreEqual(1, rl.Results[0].Rows);
+            Assert.AreEqual(1.0, rl.Results[0].GetColumn("X").Data.GetValue(0));
+            Assert.AreEqual(2.0, rl.Results[0].GetColumn("Y").Data.GetValue(0));
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
+            
+            step.X = -1.0;
+            rl = new RecordAllResultListener();
+            run = plan.Execute(new[]
+            {
+                rl
+            });
+            
+            Assert.AreEqual(1, rl.Results.Count);
+            Assert.AreEqual(1, rl.Results[0].Rows);
+            Assert.AreEqual(-1.0, rl.Results[0].GetColumn("X").Data.GetValue(0));
+            Assert.AreEqual(-2.0, rl.Results[0].GetColumn("Y").Data.GetValue(0));
+            Assert.AreEqual(Verdict.Fail, run.Verdict);
+        }
     }
 }

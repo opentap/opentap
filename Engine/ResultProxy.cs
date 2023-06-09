@@ -216,6 +216,7 @@ namespace OpenTap
         }
 
         internal ResultTable WithName(string newName) => new ResultTable(newName, Columns, Parameters);
+        internal ResultColumn GetColumn(string columnName) => Columns.FirstOrDefault(column => columnName == column.Name);
     }
 
     /// <summary>

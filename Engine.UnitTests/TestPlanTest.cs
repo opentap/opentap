@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using OpenTap.EngineUnitTestUtils;
 using OpenTap.Plugins.BasicSteps;
 using System.ComponentModel;
+using System.Linq.Expressions;
 using System.Threading;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using System.Text;
@@ -1918,10 +1919,38 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        class ValidationRuleAttribute : Attribute
+        {
+            public ValidationRuleAttribute(string rule)
+            {
+                
+            }
+
+            public ValidationRuleAttribute(Expression<Func<double, bool>> x)
+            {
+                
+            }
+        }
+        
+        class VerdictAttribute : Attribute
+        {
+            public VerdictAttribute(Verdict v, string rule)
+            {
+                
+            }
+        }
         public class ValidationStep : TestStep
         {
+            const string rule = "10 < " + nameof(Voltage) + " < 100";
+            
+            public double LowerLimit { get; set; }
+            [Verdict(Verdict.Pass, "LowerLimit < Voltage < 90")]
+            [Result]
+            public double Voltage { get; set; }
+            
             public override void PrePlanRun()
             {
+                new ValidationRuleAttribute((voltage) => 10 < voltage);
                 Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Open]);
                 Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Execute]);
                 Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.PrePlanRun]);

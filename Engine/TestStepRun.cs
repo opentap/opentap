@@ -10,6 +10,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Xml.Serialization;
+using OpenTap.Expressions;
 
 namespace OpenTap
 {
@@ -271,7 +272,7 @@ namespace OpenTap
         public TestStepRun(ITestStep step, Guid parent, IEnumerable<ResultParameter> attachedParameters = null)
         {
             TestStepId = step.Id;
-            TestStepName = step.GetFormattedName();
+            TestStepName = step.Name;
             TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
             Parameters = ResultParameters.GetParams(step);
             Verdict = Verdict.NotSet;
@@ -282,7 +283,7 @@ namespace OpenTap
         internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters = null)
         {
             TestStepId = step.Id;
-            TestStepName = step.GetFormattedName();
+            TestStepName = step.Name;
             TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
             Parameters = ResultParameters.GetParams(step);
             Verdict = Verdict.NotSet;
@@ -371,19 +372,40 @@ namespace OpenTap
         
         internal void AfterRun(ITestStep step)
         {
-            var resultMembers = TypeData.GetTypeData(step)
-                .GetMembers()
-                .Where(member => member.HasAttribute<ResultAttribute>())
-                .ToArray();
+            List<IMemberData> resultMembers = null;
+            List<IMemberData> primitiveMembers = null;
+            List<IMemberData> verdictMembers = null;
+            foreach (var member in TypeData.GetTypeData(step).GetMembers())
+            {
+                if (member.HasAttribute<ResultAttribute>())
+                {
+                    if (member.TypeDescriptor.IsPrimitive())
+                    {
+                        primitiveMembers ??= new List<IMemberData>();
+                        primitiveMembers.Add(member);
+                    }
+                    else
+                    {
+                        resultMembers ??= new List<IMemberData>();
+                        resultMembers.Add(member);
+                    }
+                }
+                if (member.HasAttribute<VerdictAttribute>())
+                {
+                    verdictMembers ??= new List<IMemberData>();
+                    verdictMembers.Add(member);
+                }
+            }
+            
+            if(verdictMembers != null)
+                ExpressionManager.UpdateVerdicts(step, verdictMembers);
+            
 
             void publishResults()
             {
-                var primitiveMembers = resultMembers
-                    .Where(x => x.TypeDescriptor.IsPrimitive())
-                    .ToArray();
                 // primitive members are collapsed into one row with several columns with the step
                 // name as a result name, and each (primitive) property as a column.
-                if (primitiveMembers.Length > 0)
+                if (primitiveMembers != null)
                 {
                     var arrays = primitiveMembers.Select(r =>
                     {
@@ -396,25 +418,27 @@ namespace OpenTap
                     var names = primitiveMembers.Select(r => r.GetDisplayAttribute().Name).ToList();
                     ((ResultSource)ResultSource).PublishTable(step.StepRun.TestStepName, names, arrays);
                 }
-                
-                // handle the non-primitive members normally.
-                foreach (var r in resultMembers)
+                if (resultMembers != null)
                 {
-                    if (r.TypeDescriptor.IsPrimitive())
-                        continue;
-                    var name = r.GetDisplayAttribute().Name;
-                    var value = r.GetValue(step);
-                    ((ResultSource)ResultSource).Publish(name, value);
-                }    
+                    // handle the non-primitive members normally.
+                    foreach (var r in resultMembers)
+                    {
+                        if (r.TypeDescriptor.IsPrimitive())
+                            continue;
+                        var name = r.GetDisplayAttribute().Name;
+                        var value = r.GetValue(step);
+                        ((ResultSource)ResultSource).Publish(name, value);
+                    }
+                }
             }
 
             // ResultSource may be null.
-            if (ResultSource is ResultSource)
+            if (ResultSource != null && (resultMembers != null || primitiveMembers != null))
             {
                 if (WasDeferred)
                     ResultSource.Defer(publishResults);
                 else
-                    publishResults();
+                    publishResults();   
             }
 
             runDone.Set();

@@ -34,7 +34,10 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Groups As Columns", "Each regex group is treated as a separate column.")]
         GroupsAsDimensions,
         [Display("Groups As Rows", "Each regex group is treated as a separate row, with one column.")]
-        GroupsAsResults
+        GroupsAsResults,
+        [Display("Matches to variables", "Each regex group is treated as a separate row, with one column.")]
+        MatchesToVariables,
+
     }
 
     public abstract class RegexOutputStep : TestStep
@@ -122,7 +125,10 @@ namespace OpenTap.Plugins.BasicSteps
 
             if (ResultRegularExpressionPattern.IsEnabled)
             {
-                var Matches = Regex.Matches(Output, ResultRegularExpressionPattern.Value);
+                var reg = new Regex(ResultRegularExpressionPattern.Value);
+                
+
+                var Matches = reg.Matches(Output);
 
                 foreach (Match Match in Matches)
                 {
@@ -148,23 +154,46 @@ namespace OpenTap.Plugins.BasicSteps
                                 break;
                             }
                         case SCPIRegexBehavior.GroupsAsResults:
+                        {
+                            var Name = ResultName;
+                            var titles = DimensionTitles.Split(',').ToList();
+
+                            if (titles.Count != 1)
                             {
-                                var Name = ResultName;
-                                var titles = DimensionTitles.Split(',').ToList();
-
-                                if (titles.Count != 1)
-                                {
-                                    Log.Error("Number of Column Names ({0}) does not match number of results (1).", titles.Count);
-                                    UpgradeVerdict(Verdict.Error);
-                                    return;
-                                }
-
-                                for (int i = 1; i < Match.Groups.Count; i++)
-                                {
-                                    Results.Publish(Name, titles, Match.Groups[i].Value);
-                                }
-                                break;
+                                Log.Error("Number of Column Names ({0}) does not match number of results (1).", titles.Count);
+                                UpgradeVerdict(Verdict.Error);
+                                return;
                             }
+
+                            for (int i = 1; i < Match.Groups.Count; i++)
+                            {
+                                Results.Publish(Name, titles, Match.Groups[i].Value);
+                            }
+                            break;
+                        }
+                        case SCPIRegexBehavior.MatchesToVariables:
+                        {
+                            var td = TypeData.GetTypeData(this);
+                            var names = reg.GetGroupNames();
+                            
+                            for(int i = 0; i < names.Length; i++)
+                            {
+                                var name = names[i];
+                                var group2 = Match.Groups[name];
+                                if(group2 is System.Text.RegularExpressions.Group grp && grp.Success)
+                                {
+                                    var member = td.GetMember(name);
+                                    if (member == null)
+                                    {
+                                        continue;
+                                    }
+                                    var value2 = StringConvertProvider.FromString(grp.Value, member.TypeDescriptor, this);
+                                    member.SetValue(this, value2);
+                                }
+                            }
+
+                            break;
+                        }
                     }
                 }
             }

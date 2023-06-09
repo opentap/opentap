@@ -66,5 +66,52 @@ namespace OpenTap.UnitTests
             var result = plan.Execute();
             Assert.AreEqual(expectedVerdict, result.Verdict);
         }
+        
+        [Test]
+        public void ProcessStepSetEnvironmentVariables2()
+        {
+            var plan = new TestPlan();
+            var processStep = new ProcessStep()
+            {
+                Application = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "tap.exe"),
+                WorkingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                Arguments = "test envvariables print",
+                ResultRegularExpressionPattern = new Enabled<string>()
+                {
+                    IsEnabled = true,
+                    Value = "\\s*VarA\\s=\\s(?<A>[0-9]*)\\s*VarB\\s=\\s(?<B2>[0-9]*)"
+                },
+                Behavior = SCPIRegexBehavior.MatchesToVariables
+            };
+            processStep.EnvironmentVariables.Add(new ProcessStep.EnvironmentVariable { Name = "VarA", Value = "1" });
+            processStep.EnvironmentVariables.Add(new ProcessStep.EnvironmentVariable { Name = "VarB", Value = "2" });
+            var Amem = new UserDefinedDynamicMember
+            {
+                TypeDescriptor = TypeData.FromType(typeof(double)),
+                Name = "A",
+                Readable = true,
+                Writable = true,
+                DeclaringType = TypeData.FromType(typeof(TestStep))
+            };
+            var Bmem = new UserDefinedDynamicMember
+            {
+                TypeDescriptor = TypeData.FromType(typeof(double)),
+                Name = "B2",
+                Readable = true,
+                Writable = true,
+                DeclaringType = TypeData.FromType(typeof(TestStep))
+            };
+            DynamicMember.AddDynamicMember(processStep, Amem);
+            DynamicMember.AddDynamicMember(processStep, Bmem);
+            Amem.SetValue(processStep, 0.0);
+            Bmem.SetValue(processStep, 0.0);
+            plan.Steps.Add(processStep);
+
+            var result = plan.Execute();
+
+            Assert.AreEqual(1.0, Amem.GetValue(processStep));
+            Assert.AreEqual(2.0, Bmem.GetValue(processStep));
+
+        }
     }
 }

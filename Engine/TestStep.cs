@@ -168,6 +168,7 @@ namespace OpenTap
         /// Version of this test step.
         /// </summary>
         [XmlIgnore]
+        [Browsable(false)]
         public string Version
         {
             get => CalcVersion();
@@ -890,7 +891,7 @@ namespace OpenTap
 
         internal static string GetStepPath(this ITestStep Step)
         {
-            var name = Step.GetFormattedName();
+            var name = Step.Name;
 
             StringBuilder sb = new StringBuilder();
             sb.Append('"');
@@ -900,7 +901,7 @@ namespace OpenTap
                 if (step.Parent is ITestStep parent2)
                     getParentNames(parent2);
 
-                sb.Append(step.GetFormattedName());
+                sb.Append(step.Name);
                 sb.Append(" \\ ");
             }
 
