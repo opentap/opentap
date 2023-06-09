@@ -429,7 +429,30 @@ namespace OpenTap
         {
             var source = this.source;
             var mem = this.mem.Member;
+
+            var sb = new StringBuilder();
+
+            void appendErrors(object source, IMemberData mem)
+            {
+                if (source is IDataErrorInfo dataErrorInfo)
+                {
+                    string error = null;
+                    try
+                    {
+                        error = dataErrorInfo[mem.Name];
+                    }
+                    catch (Exception e)
+                    {
+                        error = e.Message;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(error))
+                        sb.AppendLine(error);
+                }
+            }
             
+            appendErrors(source, mem);
+
             // Special case to add support for EmbeddedMemberData.
             // The embedded member may be nested in multiple layers
             // of embeddings normally it is just one level though.
@@ -439,20 +462,10 @@ namespace OpenTap
                 if (source == null) return;
                 source = m2.OwnerMember.GetValue(source);
                 mem = m2.InnerMember;
+                appendErrors(source, mem);
             }
 
-            if (source is IDataErrorInfo dataErrorInfo)
-            {
-                try
-                {
-                    error = dataErrorInfo[mem.Name];
-                }
-                catch (Exception e)
-                {
-                    error = e.Message;
-                }
-                // set source to null to signal that errors has been read this time.
-            }
+            error = sb.ToString();
             this.source = null; 
         }
 
