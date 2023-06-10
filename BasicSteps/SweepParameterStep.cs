@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -31,6 +32,11 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
 
+        public AnnotationCollection annotations;
+
+        [FilePath(fileExtension: "csv")]
+        [Display("Import Sweep Values", "Import sweep values from a .csv file", "Import", 2, Collapsed: true)]
+        public string csvSweepValues { get; set; }
 
         /// <summary>
         /// This property declares to the Resource Manager which resources are declared by this test step. 
@@ -224,11 +230,41 @@ namespace OpenTap.Plugins.BasicSteps
             base.PrePlanRun();
             iteration = 0;
 
+            if (csvSweepValues != null && csvSweepValues != "")
+            {
+                // Populates sweep tables with csv from import path
+                var timer = System.Diagnostics.Stopwatch.StartNew();
+                Type plugin = PluginManager.GetPlugins<ITableImport>().First();
+                var fileHandler = (ITableImport)Activator.CreateInstance(plugin);
+
+                var newValues = fileHandler.ImportTableValues(csvSweepValues);
+
+                try
+                {
+                    annotations = AnnotationCollection.Annotate(SweepValues);
+                    var tab = new TableView(annotations);
+                    if (tab.SetMatrix(newValues, null, true))
+                    {
+                        tab = new TableView(annotations);
+                        tab.SetMatrix(newValues, null, false);
+                    }
+                    annotations.Write();
+                }
+                catch (Exception ex)
+                {
+                    annotations.Read();
+                    throw new ArgumentException($"Error while importing '{csvSweepValues}': {ex.Message}");
+
+                }
+                Log.Info(timer, "Values imported successfully from {0}", csvSweepValues);
+            }
+
             if (SelectedParameters.Count <= 0)
                 throw new InvalidOperationException("No parameters selected to sweep");
 
             if (SweepValues.Count <= 0 || SweepValues.All(x => x.Enabled == false))
                 throw new InvalidOperationException("No values selected to sweep");
+
         }
 
         public override void PostPlanRun()
