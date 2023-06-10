@@ -211,7 +211,7 @@ namespace OpenTap.Plugins.BasicSteps
         ExpandedTypeData getExpandedTypeData(TestPlanReference step)
         {
             var expDesc = new ExpandedTypeData();
-            expDesc.InnerDescriptor = TypeData.FromType(typeof(TestPlanReference));
+            expDesc.InnerDescriptor = TypeData.FromType(step.GetType());
             expDesc.Object = step;
             return expDesc;
         }

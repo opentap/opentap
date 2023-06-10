@@ -51,7 +51,7 @@ namespace OpenTap.Plugins.BasicSteps
         [FilePath(FilePathAttribute.BehaviorChoice.Open, "TapPlan")]
         [DeserializeOrder(1.0)]
         [Unsweepable]
-        public MacroString Filepath
+        public virtual MacroString Filepath
         {
             get => filepath; 
             set {
@@ -137,61 +137,13 @@ namespace OpenTap.Plugins.BasicSteps
                 LoadTestPlan();
             }
             if (loadedPlanPath != expandedPath)
-                throw new OperationCanceledException(string.Format("Execution aborted by {0}. Test plan not loaded.", Name));
+                throw new OperationCanceledException($"Execution aborted by {Name}. Test plan not loaded.");
         }
 
-        class SubPlanResultListener : ResultListener
-        {
-            readonly ResultSource proxy;
-            public SubPlanResultListener(ResultSource proxy) => this.proxy = proxy;
-
-            public override void OnResultPublished(Guid stepRunId, ResultTable result)
-            {
-                base.OnResultPublished(stepRunId, result);
-                proxy.PublishTable(result);
-            }
-        }
-
-        class LogForwardingTraceListener : ILogListener
-        {
-            readonly ILogContext2 forwardTo;
-            public LogForwardingTraceListener(ILogContext2 forwardTo) => this.forwardTo = forwardTo;
-            public void EventsLogged(IEnumerable<Event> Events)
-            {
-                foreach (var evt in Events)
-                {
-                    if (evt.Source == "TestPlan" || evt.Source == "N/A")
-                        if(evt.EventType != (int)LogEventType.Error)
-                        continue;
-                    forwardTo.AddEvent(evt);
-                }
-            }
-
-            public void Flush() { }
-        }
         public override void Run()
         {
-            if (HideSteps)
-            {
-                LogForwardingTraceListener forwarder = null;
-                var xml = plan.SerializeToString();
-                if(OpenTap.Log.Context is ILogContext2 ctx2)
-                    forwarder = new LogForwardingTraceListener(ctx2);
-                using (Session.Create())
-                {   
-                    var plan2 = Utils.DeserializeFromString<TestPlan>(xml);
-                    plan2.PrintTestPlanRunSummary = false;
-                    if(forwarder != null)
-                        OpenTap.Log.AddListener(forwarder);
-                    var subRun = plan2.Execute(new IResultListener[] {new SubPlanResultListener(Results)});
-                    UpgradeVerdict(subRun.Verdict);
-                }
-            }
-            else
-            {
-                foreach (var run in RunChildSteps())
-                    UpgradeVerdict(run.Verdict);
-            }
+            foreach (var run in RunChildSteps())
+                UpgradeVerdict(run.Verdict);
         }
 
         [ThreadStatic] static List<GuidMapping> CurrentMappings;
