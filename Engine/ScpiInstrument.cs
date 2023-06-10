@@ -317,7 +317,7 @@ namespace OpenTap
                         throw;
                 }
 
-                Thread.Sleep(TimeSpan.FromSeconds(lockHoldoff));
+                TapThread.Sleep(TimeSpan.FromSeconds(lockHoldoff));
             }
             while (Retry++ < lockRetries);
 
@@ -341,7 +341,8 @@ namespace OpenTap
                         throw;
                 }
 
-                Thread.Sleep(TimeSpan.FromSeconds(lockHoldoff));
+                // Wait using TapThread so an exception is thrown if the execution context is aborted
+                TapThread.Sleep(TimeSpan.FromSeconds(lockHoldoff));
             }
             while (Retry++ < lockRetries);
 
@@ -410,7 +411,8 @@ namespace OpenTap
                     switch (ex.ErrorCode)
                     {
                         case Visa.VI_ERROR_RSRC_LOCKED:
-                            if (retry < lockRetries) Thread.Sleep(TimeSpan.FromSeconds(lockHoldoff));
+                            if (retry < lockRetries)
+                                TapThread.Sleep(TimeSpan.FromSeconds(lockHoldoff));
                             break;
                         default:
                             string errorMsg = String.Format("Cannot connect to instrument on address '{0}'.", VisaAddress);
@@ -975,7 +977,6 @@ namespace OpenTap
                 throw new IOException("Not connected.");
 
             OnActivity();
-            //TapThread.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
             try
             {
                 Stopwatch timer = Stopwatch.StartNew();
@@ -1021,7 +1022,6 @@ namespace OpenTap
             if (!IsConnected)
                 throw new IOException("Not connected.");
             OnActivity();
-            //TapThread.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
             try
             {
                 Stopwatch timer = Stopwatch.StartNew();
@@ -1068,7 +1068,6 @@ namespace OpenTap
             if (!IsConnected)
                 throw new IOException("Not connected.");
             OnActivity();
-            //TapThread.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
             try
             {
 

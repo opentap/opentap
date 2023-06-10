@@ -98,6 +98,7 @@ namespace OpenTap
         /// </summary>
         public void OnActivity()
         {
+            TapThread.ThrowIfAborted();
             if (Activity != null)
             {
                 Activity.Invoke(this, new EventArgs());
