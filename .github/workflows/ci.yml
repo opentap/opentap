@@ -456,7 +456,7 @@ jobs:
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
-          Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}          
+          Sign: true
           Platform: "Windows"
           Architecture:  "${{ matrix.Architecture }}"
         run: ..\Release-x64\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.${{ matrix.Architecture }}.Windows.TapPackage          
@@ -531,7 +531,7 @@ jobs:
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
-          Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}
+          Sign: true
       - uses: actions/upload-artifact@v2
         with:
           name: linux-x64-package

@@ -273,7 +273,6 @@ namespace OpenTap.Package
         /// <returns></returns>
         internal static List<string> FilesInPackage(string packagePath)
         {
-            List<string> files = new List<string>();
             string fileType = Path.GetExtension(packagePath);
             if (fileType == ".xml")
             {
@@ -281,26 +280,42 @@ namespace OpenTap.Package
                 return pkg.Files.Select(f => f.FileName).ToList();
             }
 
-            try
-            {
-                using var fileStream = new FileStream(packagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                using var zip = new ZipArchive(fileStream, ZipArchiveMode.Read);
-                foreach (var part in zip.Entries)
-                {
-                    if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
-                        continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
+            const int tries = 2;
+            int numTries = 0;
 
-                    string path = Uri.UnescapeDataString(part.FullName);
-                    files.Add(path);
+            // This can fail in rare cases if the TapPackage has finished downloading, but is not yet 
+            // readable for some reason. Here we allow retrying once after a second has passed and hope for the best.
+            while (true)
+            {
+                numTries++;
+                var files = new List<string>();
+                try
+                {
+                    using var fileStream = new FileStream(packagePath, FileMode.Open, FileAccess.Read,
+                        FileShare.ReadWrite | FileShare.Delete);
+                    using var zip = new ZipArchive(fileStream, ZipArchiveMode.Read);
+                    foreach (var part in zip.Entries)
+                    {
+                        if (part.Name == "[Content_Types].xml" || part.Name == ".rels" ||
+                            part.FullName.StartsWith("package/services/metadata/core-properties"))
+                            continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
+
+                        string path = Uri.UnescapeDataString(part.FullName);
+                        files.Add(path);
+                    }
+                    return files;
+                }
+                catch (InvalidDataException)
+                {
+                    if (numTries == tries)
+                    {
+                        log.Error($"Could not unpack '{packagePath}'.");
+                        throw;
+                    }
+                    log.Warning($"Failed to unpack '{packagePath}'. Retrying in one second.");
+                    TapThread.Sleep(TimeSpan.FromSeconds(1));
                 }
             }
-            catch (InvalidDataException)
-            {
-                log.Error($"Could not unpack '{packagePath}'.");
-                throw;
-            }
-            return files;
-
         }
 
         /// <summary>
