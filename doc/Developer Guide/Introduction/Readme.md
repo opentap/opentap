@@ -10,9 +10,10 @@ Together with OpenTAP it is recommended to use a Graphical User Interface. Keysi
 
 Development requires the following software:
 
-- Visual Studio 2017 or 2019
-- OpenTAP 
-- Keysight Test Automation Developer's System (Community or Enterprise Edition)
+- [.NET 6 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/6.0) and your favorite C# IDE (Visual Studio, Rider, VS Code, ...)
+- [OpenTAP](opentap.io/download)
 
-## Suggested Resources
-VISA driver e.g. Keysight I/O libraries for instrument communication
+Recommended Resources:
+
+- Keysight Test Automation Developer's System (Community or Enterprise Edition)
+- VISA driver e.g. Keysight I/O libraries for instrument communication
