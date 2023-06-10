@@ -56,4 +56,15 @@
     <File Path="Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/RunTestPlan.Api.csproj"/>
     <File Path="Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/Properties/AssemblyInfo.cs"/>
   </Files>
+  <!-- libgit dependencies-->
+  <Files>
+    <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll.$(Architecture)"/>
+    <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.source" SourcePath="libgit2-b7bad55.source"/>
+    <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so"/>
+    <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.x64"/>
+    <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.arm64"/>
+    <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.source" SourcePath="libgit2-b7bad55.source"/>
+    <File Path="Dependencies/LibGit2Sharp.0.27.0.0/LICENSE.txt"
+          SourcePath="libgit2sharp.license.md"/>
+  </Files>
 </Package>

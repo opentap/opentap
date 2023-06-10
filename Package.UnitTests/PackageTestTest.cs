@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Xml;
 using NUnit.Framework;
+using OpenTap.Sdk.New.GitVersion;
 
 namespace OpenTap.Package.UnitTests
 {

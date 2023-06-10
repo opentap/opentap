@@ -1,0 +1,173 @@
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+
+namespace OpenTap.Sdk.New.GitVersion
+{
+    internal static class Ext
+    {
+        /// <summary>
+        /// Creates a HashSet from an IEnumerable.
+        /// </summary>
+        public static HashSet<T> ToHashSet<T>(this IEnumerable<T> source)
+        {
+            return new HashSet<T>(source);
+        }
+        
+        /// <summary>
+        /// Skips last N items.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="source"></param>
+        /// <param name="n">n last items to skip.</param>
+        /// <returns></returns>
+        public static IEnumerable<T> SkipLastN<T>(this IEnumerable<T> source, int n)
+        {
+            var list = source.ToList();
+            if ((list.Count - n) > 0)
+                return list.Take(list.Count - n);
+            else
+                return Enumerable.Empty<T>();
+        }
+    }
+    internal class PathUtils
+    {
+        public class PathComparer : IEqualityComparer<string>
+        {
+            public bool Equals(string x, string y)
+            {
+                return NormalizePath(x) == NormalizePath(y);
+            }
+
+            public int GetHashCode(string obj)
+            {
+                return NormalizePath(obj).GetHashCode();
+            }
+        }
+
+        public static string NormalizePath(string path)
+        {
+            var newPath = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            switch (Environment.OSVersion.Platform)
+            {
+                case PlatformID.Win32NT:
+                case PlatformID.Win32S:
+                case PlatformID.Win32Windows:
+                case PlatformID.WinCE:
+                    return newPath.ToUpperInvariant();
+            }
+
+            return newPath;
+        }
+
+        public static bool AreEqual(string path1, string path2)
+        {
+            return NormalizePath(path1) == NormalizePath(path2);
+        }
+
+        /// <summary>
+        /// Similar to Directory.EnumerateFiles but will ignore any UnauthorizedAccessException or PathTooLongException that occur while walking the directory tree.
+        /// </summary>
+        public static IEnumerable<string> IterateDirectories(string rootPath, string patternMatch, SearchOption searchOption)
+        {
+            if (searchOption == SearchOption.AllDirectories)
+            {
+                IEnumerable<string> subDirs = Array.Empty<string>();
+                try
+                {
+                    subDirs = Directory.EnumerateDirectories(rootPath);
+                }
+                catch (UnauthorizedAccessException) { }
+                catch (PathTooLongException) { }
+
+                foreach (var dir in subDirs)
+                {
+                    foreach (var f in IterateDirectories(dir, patternMatch, searchOption))
+                        yield return f;
+                }
+            }
+
+            IEnumerable<string> files = Array.Empty<string>();
+            try
+            {
+                files = Directory.EnumerateFiles(rootPath, patternMatch);
+            }
+            catch (UnauthorizedAccessException) { }
+
+            foreach (var file in files)
+                yield return file;
+        }
+
+        static bool compareFileStreams(FileStream f1, FileStream f2)
+        {
+            if (f1.Length != f2.Length) return false;
+            const int bufferSize = 4096;
+            const int u64len1 = bufferSize / 8;
+            byte[] buffer1 = new byte[bufferSize];
+            byte[] buffer2 = new byte[bufferSize];
+            while (true)
+            {
+                int count = f1.Read(buffer1, 0, bufferSize);
+                if (count == 0) return true;
+                f2.Read(buffer2, 0, bufferSize);
+
+                int u64len = u64len1;
+                if (count < bufferSize)
+                    u64len = (count / 8 + 1);
+
+                for (int i = 0; i < u64len; i++)
+                {
+                    if (BitConverter.ToInt64(buffer1, i * 8) != BitConverter.ToInt64(buffer2, i * 8))
+                        return false;
+                }
+            }
+        }
+
+        public static bool CompareFiles(string file1, string file2)
+        {
+            if (PathUtils.AreEqual(file1, file2))
+                return true;
+            try
+            {
+                using (var f1 = File.Open(file1, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var f2 = File.Open(file2, FileMode.Open, FileAccess.Read, FileShare.Read))
+                    return compareFileStreams(f1, f2);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+
+        static string openTapLocation = null;
+        /// <summary> Get the location of OpenTAP (OpenTAP.dll) </summary>
+        public static string OpenTapDir =>
+            openTapLocation ?? (openTapLocation = Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
+
+        public static string GetTempFileName(string extension)
+        {
+            if (!extension.StartsWith(".")) extension = "." + extension;
+            //use instead of Path.GetTempFileName()
+            return Path.Combine(Path.GetTempPath(), Path.GetRandomFileName() + extension);
+        }
+
+        /// <summary>
+        /// Checks if the relative path has any ".OpenTapIgnore" file in parent directory chain. Throws argument error eventually if input is an absolute path and no ".OpenTapIgnore" file is present in parent directory chain.
+        /// </summary>
+        /// <param name="location">Relative path of file</param>
+        /// <returns>Whether an .OpenTapIgnore file exists in folders.</returns>
+        internal static bool DecendsFromOpenTapIgnore(string location)
+        {
+            string dir = Path.GetDirectoryName(location);
+            if (File.Exists(Path.Combine(dir, ".OpenTapIgnore")))
+                return true;
+            if (string.IsNullOrWhiteSpace(dir))
+                return false;
+            else
+                return DecendsFromOpenTapIgnore(dir);
+        }
+    }
+}

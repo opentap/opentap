@@ -8,6 +8,7 @@ using OpenTap.Package;
 using LibGit2Sharp;
 using System.IO;
 using System.Diagnostics;
+using OpenTap.Sdk.New.GitVersion;
 
 namespace OpenTap.Package.UnitTests
 {

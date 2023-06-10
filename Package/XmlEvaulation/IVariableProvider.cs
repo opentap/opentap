@@ -238,8 +238,14 @@ namespace OpenTap.Package
                 {
                     try
                     {
-                        var calc = new GitVersionCalulator(ProjectDir);
-                        cachedVersion = calc.GetVersion().ToString(fieldCount);
+                        var td = TypeData.GetTypeData("GitVersionCalulator");
+                        if (td == null) return;
+                        var calc = td.CreateInstance(new object[] { ProjectDir });
+                        if (calc == null) return;
+                        var getVersion = td.GetMembers();
+                        if (getVersion == null) return;
+                        // var calc = new GitVersionCalulator(ProjectDir);
+                        // cachedVersion = calc.GetVersion().ToString(fieldCount);
                         log.Info("Package {1} is {0}", cachedVersion, versionName);
                     }
                     catch (Exception ex)
