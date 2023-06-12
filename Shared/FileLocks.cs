@@ -1,7 +1,10 @@
 using System;
+using System.Buffers.Text;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 
 namespace OpenTap
@@ -17,6 +20,17 @@ namespace OpenTap
 
     internal static class FileLock
     {
+        internal static string InstallationLockEnv =>
+            Convert.ToBase64String(Encoding.UTF8.GetBytes(DefaultLockFile())).Replace("=", "");
+
+        internal static string DefaultLockFile()
+        {
+            // Check if the lock for the current installation can be acquired
+            var target = ExecutorClient.ExeDir;
+            var lockfile = Path.Combine(target, ".lock");
+            return lockfile;
+        }
+        
         public static IFileLock Create(string file)
         {
             if (OperatingSystem.Current == OperatingSystem.Windows) return new Win32FileLock(file);
