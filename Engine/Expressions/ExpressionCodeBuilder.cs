@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 namespace OpenTap.Expressions
 {
     class ExpressionCodeBuilder
@@ -105,6 +106,22 @@ namespace OpenTap.Expressions
             var d = lmb.Compile();
             return d;
         }
+
+        IExpressionFunctionProvider[] providers;
+        MethodInfo GetMethod(string name, Type[] types)
+        {
+            if (providers == null)
+            {
+                providers = TypeData.GetDerivedTypes<IExpressionFunctionProvider>().Where(x => x.CanCreateInstance).Select(x => x.CreateInstanceSafe())
+                    .OfType<IExpressionFunctionProvider>().ToArray();
+            }
+            foreach (var p in providers)
+            {
+                var m = p.GetMethod(name, types);
+                if (m != null) return m;
+            }
+            return null;
+        }
         
         /// <summary> Compiles the AST into a tree of concrete expressions.
         /// This will throw an exception if the types does not match up. e.g "X" + 3 (undefined operation) </summary>
@@ -114,6 +131,36 @@ namespace OpenTap.Expressions
             {
                 case BinaryExpression b:
                 {
+                    var op = b.Operator;
+
+                    if (op == Operators.CallOperator)
+                    {
+                        // call was invoked.
+                        // left side is the name of the method to call.
+                        // right side is a comma separated (comma operator) list of values.
+                        
+                        List<Expression> expressions = new List<Expression>();
+                        var right2 = b.Right;
+                        while (right2 is BinaryExpression b2 && b2.Operator == Operators.CommaOp)
+                        {
+                            expressions.Add(GenerateCode(b2.Left, parameterExpressions));
+                            right2 = b2.Right;
+                        }
+                        if (right2 != null)
+                        {
+                            expressions.Add(GenerateCode(right2, parameterExpressions));
+                            right2 = null;
+                        }
+                        
+                        var fname = ((ObjectNode)b.Left).Data;
+                        
+                        MethodInfo method = GetMethod(fname, expressions.Select(x => x.Type).ToArray());
+                        if(method == null)
+                            throw new Exception($"No such method: {fname}");
+                        
+                        return Expression.Call(method, expressions.ToArray());
+                    }
+                    
                     var left = GenerateCode(b.Left, parameterExpressions);
                     var right = GenerateCode(b.Right, parameterExpressions);
 
@@ -130,7 +177,6 @@ namespace OpenTap.Expressions
                         // otherwise just hope for the best and let .NET throw an exception if necessary.
                     }
 
-                    var op = b.Operator;
                     if (op == Operators.AdditionOp)
                         return Expression.Add(left, right);
                     if (op == Operators.MultiplyOp)
@@ -387,6 +433,7 @@ namespace OpenTap.Expressions
             
             ReadOnlySpan<char> str2 = str.ToArray();
             return Parse(ref str2);
+            
         }
         public AstNode Parse(ref ReadOnlySpan<char> str, bool subExpression = false)
         {
@@ -402,13 +449,48 @@ namespace OpenTap.Expressions
                 // maybe we've read the last whitespace.
                 if (str.Length == 0) 
                     break;
-                
+                if (str[0] == ',')
+                {
+                    str = str.Slice(1);
+                    var subVal = Parse(ref str, subExpression);
+                    expressionList.Add(Operators.CommaOp);
+                    expressionList.Add(subVal);
+                    break;
+                }
                 // start parsing a sub-expression? (recursively).
                 if (str[0] == '(')
                 {
-                    str = str.Slice(1);
-                    var node = Parse(ref str, true);
-                    expressionList.Add(node);
+                    var prevNode = expressionList.LastOrDefault();
+                    
+                    if (prevNode is ObjectNode objectNode)
+                    { 
+                        // if this is the case it means a symbol is right next to parenthesis.
+                        // e.g symbolname(parameters).
+                        // parameters are separated by the comma operator, but comma is not used for anything else.
+                        
+                        str = str.Slice(1);
+                        var node = Parse(ref str, true);
+                        
+                        var expr = new BinaryExpression {Left = objectNode, Operator = Operators.CallOperator, Right = node};
+                        if(node != null && !(node is BinaryExpression b &&  b.Operator == Operators.CommaOp))
+                        {
+                            expr.Right = new BinaryExpression
+                            {
+                                Left = node,
+                                Operator = Operators.CommaOp,
+                                Right = null
+                            };
+                        }
+                        expressionList[expressionList.Count - 1] = expr;
+                        continue;
+                    }
+                    else
+                    {
+                        str = str.Slice(1);
+                        var node = Parse(ref str, true);
+                        expressionList.Add(node);
+                        continue;
+                    }
                 }
 
                 // end of sub expression?
@@ -525,7 +607,8 @@ namespace OpenTap.Expressions
                 expressionList.Insert(index - 1, new BinaryExpression {Left = left, Operator = (OperatorNode) @operator, Right = right});
                 
             }
-
+            if (expressionList.Count == 0)
+                return null;
             // now there should only be one element left. Return it.
             if (expressionList.Count != 1)
                 throw new Exception("Invalid expression");

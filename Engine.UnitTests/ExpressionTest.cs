@@ -50,8 +50,17 @@ namespace OpenTap.UnitTests
         [TestCase("{-5+-4+-1}", "-10")]
         [TestCase("{-5+4+1}", "0")]
         [TestCase("a b {$\"c {1 + 5}\"} e f g", "a b c 6 e f g")]
+        
+        [TestCase("{Math.Floor(3.5)}", "3")]
+        
+        [TestCase("{Math.Ceiling(3.5 + 0.6)}", "5")]
+        [TestCase("{Math.Ceiling(3.5 + 0.6) + Math.Floor(-1.5)}", "3")]
+        [TestCase("{Math.Round(1.11111111, 2)}", "1.11")]
+        [TestCase(@"{Match(""A(?<B>\d*)"", ""B"", ""A112233"")}", "112233")]
+        [TestCase("{Match(\"A\\d*\", \"A112233\nB1234\nA111\")}", "A112233")]
         public void StringExpressionBasicTest(string expression, string expectedResult)
         {
+            
             var builder = new ExpressionCodeBuilder();
             var ast = builder.ParseStringInterpolation(expression);
             var lmb = builder.GenerateLambda(ast, Array.Empty<ParameterExpression>(), typeof(string));

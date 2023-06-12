@@ -21,6 +21,7 @@ namespace OpenTap.Expressions
         public static readonly OperatorNode AndOperator = new OperatorNode("&&", 1.7);
         public static readonly OperatorNode OrOperator = new OperatorNode("||", 1.7);
         public static readonly OperatorNode StrCombineOperator = new OperatorNode("..", 1.7);
+        public static readonly OperatorNode CallOperator = new OperatorNode("[call]", 1.7);
         
         static OperatorNode[] operators;
         public static OperatorNode[] GetOperators()
