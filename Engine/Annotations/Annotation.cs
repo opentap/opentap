@@ -417,50 +417,48 @@ namespace OpenTap
         {
             get
             {
-                doRead();
+                DoRead();
                 if (string.IsNullOrWhiteSpace(error) == false)
                     return new[] { error };
                 return Array.Empty<string>();
             }
         }
 
-        private IDataErrorInfo source;
-        void doRead()
+        object source;
+        void DoRead()
         {
             var source = this.source;
             var mem = this.mem.Member;
             
-            if (mem is EmbeddedMemberData m2)
-            {   // Special case to add support for EmbeddedMemberData.
+            // Special case to add support for EmbeddedMemberData.
+            // The embedded member may be nested in multiple layers
+            // of embeddings normally it is just one level though.
+            // iterate to grab the innermost source and member.
+            while (mem is EmbeddedMemberData m2)
+            {   
                 if (source == null) return;
-                source = m2.OwnerMember.GetValue(source) as IDataErrorInfo;
+                source = m2.OwnerMember.GetValue(source);
                 mem = m2.InnerMember;
             }
 
-            if (source == null) return;
+            if (source is IDataErrorInfo dataErrorInfo)
             {
                 try
                 {
-                    error = source[mem.Name];
+                    error = dataErrorInfo[mem.Name];
                 }
                 catch (Exception e)
                 {
                     error = e.Message;
                 }
                 // set source to null to signal that errors has been read this time.
-                this.source = null; 
             }
+            this.source = null; 
         }
 
-        public void Read(object source)
-        {
-            this.source = source as IDataErrorInfo;
-        }
+        public void Read(object source) => this.source = source;
 
-        public void Write(object source)
-        {
-
-        }
+        public void Write(object source) { }
     }
 
 
@@ -2748,16 +2746,32 @@ namespace OpenTap
 
             if (mem != null)
             {
-                if (mem.Member.DeclaringType.DescendsTo(typeof(IValidatingObject)))
+                var member = mem.Member;
+                if (member.DeclaringType.DescendsTo(typeof(IValidatingObject)))
                 {
                     annotation.Add(new ValidationErrorAnnotation(mem));
                 }
+                else if (member is EmbeddedMemberData emb)
+                {
+                    // if the member is not part of a validating object, but
+                    // it comes from an embedded property which is, then the annotation
+                    // should also be added.
+                    while (emb != null)
+                    {
+                        if (emb.InnerMember.DeclaringType.DescendsTo(typeof(IValidatingObject)))
+                        {
+                            annotation.Add(new ValidationErrorAnnotation(mem));
+                            break;
+                        }
+                        emb = emb.InnerMember as EmbeddedMemberData;
+                    }
+                }
 
-                if (mem.Member.HasAttribute<EnabledIfAttribute>())
+                if (member.HasAttribute<EnabledIfAttribute>())
                 {
                     annotation.Add(new EnabledIfAnnotation(mem));
                 }
-                if (mem.Member.Writable == false)
+                if (member.Writable == false)
                 {
                     annotation.Add(new ReadOnlyMemberAnnotation());
                 }
@@ -3742,8 +3756,18 @@ namespace OpenTap
         public static AnnotationCollection GetMember(this AnnotationCollection col, string name)
         {
             var name2 = name;
-            var sub = col.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == name2);
-            return sub;
+            foreach (var mem in col.Get<IMembersAnnotation>().Members)
+            {
+                var memberName = mem.Get<IMemberAnnotation>()?.Member.Name;
+                var found = memberName == name2;
+                if (found) return mem;
+            }
+            foreach (var mem in col.Get<IMembersAnnotation>().Members)
+            {
+                if (mem.Name == name)
+                    return mem;
+            }
+            return null;
         }
 
         /// <summary>  helper method to get the icon annotation collection. Will return null if the item could not be found. </summary>
