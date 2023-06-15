@@ -72,19 +72,21 @@
           <SetAssemblyInfo Attributes="Version"/>
           <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
-        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll.$(Architecture)"/>
-        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.source" SourcePath="libgit2-b7bad55.source"/>        
         <File Path="OpenTapApiReference.chm"
               SourcePath="../../Help/OpenTapApiReference.chm"
               Condition="$(Debug) == false"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll.$(Architecture)"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.source" SourcePath="libgit2-b7bad55.source"/>
     </Files>
-    <!-- Linux / MacOS files -->
-    <Files Condition="$(Platform) != Windows">
+    <!-- Linux files -->
+    <Files Condition="$(Platform) == Linux">
         <File Path="tap" SourcePath="tap.sh"/>
-        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so"/>
-        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.x64"/>
-        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.arm64"/>        
-        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.source" SourcePath="libgit2-b7bad55.source"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so.$(Architecture)"/>
+    </Files>
+    <!-- MacOS files -->
+    <Files Condition="$(Platform) == MacOS">
+<!--        <File Path="tap" SourcePath="tap.sh"/>-->
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.$(Architecture)"/>
     </Files>
     <!-- License Texts -->
     <Files>

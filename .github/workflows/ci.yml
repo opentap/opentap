@@ -184,7 +184,7 @@ jobs:
       - name: Upload binaries
         uses: actions/upload-artifact@v2
         with:
-          name: linux-x64-bin
+          name: Linux-bin
           retention-days: 5
           path: |
             bin/Release/publish/*
@@ -261,7 +261,7 @@ jobs:
       - name: Upload binaries
         uses: actions/upload-artifact@v2
         with:
-          name: macos-bin
+          name: MacOS-bin
           retention-days: 5
           path: |
             bin/Release/publish/*
@@ -362,7 +362,7 @@ jobs:
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
-          name: linux-x64-bin
+          name: Linux-bin
           path: bin/Release/
       - name: Test
         run: |
@@ -385,7 +385,7 @@ jobs:
       - name: Download binaries
         uses: actions/download-artifact@v2
         with:
-          name: macos-bin
+          name: MacOS-bin
           path: bin/Release/
       - name: Test
         run: |
@@ -473,6 +473,7 @@ jobs:
     environment: sign
     needs:
       - CheckSecrets
+      - Build-Linux
       - Build-MacOS
       - Build-ApiDoc
       - GetVersion
@@ -498,17 +499,24 @@ jobs:
       - name: Download linux binaries
         uses: actions/download-artifact@v2
         with:
-          name: linux-x64-bin
-          path: bin/linux-x64/
+          name: Linux-bin
+          path: bin/Linux-x64/
+      - name: Download binaries
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ matrix.os }}-bin
+          path: bin/output/
       - name: Download API Reference
         uses: actions/download-artifact@v2
         with:
           name: doc-api-chm
           path: Help/
+      - name: Set execute permissions
+        run: chmod +x bin/Linux-x64/tap
       - name: Package
-        working-directory: bin\macos-x64\
+        working-directory: bin/output/
         run: |
-          ..\Release\tap package create -v -c ../../package.xml -o Packages/OpenTAP.$Pathform.$Architecture.TapPackage
+          ../Linux-x64/tap package create -v -c ../../package.xml -o Packages/OpenTAP.$Pathform.$Architecture.TapPackage
           cp Packages/OpenTAP.$Pathform.$Architecture.TapPackage ../../OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.$Pathform.$Architecture.TapPackage
         env:
           Platform: ${{ matrix.os }}
@@ -732,39 +740,7 @@ jobs:
           path: |
             *.nupkg
 
-  Installer-Linux:
-    runs-on: windows-2022
-    needs:
-      - Package-Cross
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 0
-      - name: Fix tags
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
-      - name: Download Linux package
-        uses: actions/download-artifact@v2
-        with:
-          name: linux-x64-package
-          path: .
-      - name: Package
-        run: |
-          $path=(get-item -path "./").Fullname
-          $str=[IO.File]::ReadAllText($path + "/LinuxInstall/INSTALL.sh") -replace "`r`n", "`n"
-          ([IO.File]::WriteAllText($path + "/INSTALL.sh", $str))
-
-          $str=[IO.File]::ReadAllText($path + "/LinuxInstall/README") -replace "`r`n", "`n"
-          ([IO.File]::WriteAllText($path + "/README", $str))
-
-          cmd /C '"C:\Windows\System32\tar.exe" -cf "OpenTAP.tar" OpenTAP.*.Linux.TapPackage INSTALL.sh README'
-      - uses: actions/upload-artifact@v2
-        with:
-          name: installer-linux
-          retention-days: 14
-          path: OpenTAP.tar
-
+  
   Build-Installer-Windows:
     runs-on: ubuntu-latest
     environment: sign
@@ -823,11 +799,12 @@ jobs:
                -H "Auth-Key: $REPO_WWW_PASS" \
                --form 'file=@"'$(pwd)'/OpenTAP.exe"'
 
+
   Build-Installer-Linux:
     runs-on: ubuntu-latest
     needs:
       - GetVersion
-      - Package-Linux
+      - Package-Cross
     container:
       image: ghcr.io/opentap/smartinstaller:2.1.0-beta.5
       credentials:
@@ -839,7 +816,7 @@ jobs:
       - name: Download Linux package
         uses: actions/download-artifact@v2
         with:
-          name: linux-x64-package
+          name: Linux-x64-package
           path: .
       - run: mv OpenTAP.*.Linux.TapPackage Installer/Assets/OpenTAP.TapPackage
         name: Rename package
@@ -876,29 +853,6 @@ jobs:
                --form 'file=@"'$(pwd)'/OpenTAP"'
 
 
-  Test-Installer-Linux:
-    runs-on: ubuntu-20.04
-    needs:
-      - Installer-Linux
-    steps:
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v1
-        with:
-          dotnet-version: '6.0.x'
-      - name: Download Linux Installer
-        uses: actions/download-artifact@v2
-        with:
-          name: installer-linux
-      - name: Install OpenTAP
-        run: |
-          tar xf OpenTAP.tar
-          chmod +x ./INSTALL.sh
-          echo 'y' | ./INSTALL.sh
-      - name: Test OpenTAP
-        run: |
-          $HOME/bin/tap -h
-          $HOME/bin/tap package list -v -c
-
   Docker-Linux:
     runs-on: ubuntu-20.04
     environment: sign
@@ -920,7 +874,7 @@ jobs:
       - name: Download Linux package
         uses: actions/download-artifact@v2
         with:
-          name: linux-x64-package
+          name: Linux-x64-package
           path: .
       - name: Prepare
         run: |
@@ -964,7 +918,7 @@ jobs:
       - name: Download Linux package
         uses: actions/download-artifact@v2
         with:
-          name: linux-x64-package
+          name: Linux-x64-package
           path: .
       - name: Create Debian Package
         run: |
