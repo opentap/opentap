@@ -46,7 +46,7 @@ jobs:
         password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - run: |
           mkdir Help API
           ver=$(grep ^version .gitversion | sed 's/version[ ]*=[ ]*//' | cut -d. -f 1-2)
@@ -59,13 +59,13 @@ jobs:
           mv OpenTapApiReference.chm $rootdir/Help/
           cp -r . $rootdir/API/
       - name: Upload binaries (CHM)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: doc-api-chm
           retention-days: 5
           path: Help/OpenTapApiReference.chm
       - name: Upload binaries (HTML)
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: doc-api-html
           retention-days: 5
@@ -77,11 +77,11 @@ jobs:
       - Build-ApiDoc
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Prepare
         run: rm 'doc/User Guide/Readme.md' 'doc/Developer Guide/Readme.md'
       - name: Download API Artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: doc-api-html
           path: API
