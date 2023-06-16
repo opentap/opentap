@@ -511,13 +511,13 @@ jobs:
         with:
           name: doc-api-chm
           path: Help/
+      - name: Manually copy the correct newtonsoft dll here since it was overwritten by a unittest
+        run: cp Installer/Assets/Newtonsoft.Json.dll bin/output/
       - name: Set execute permissions
         run: chmod +x bin/Linux-x64/tap
       - name: Package
         working-directory: bin/output/
-        run: |
-          ../Linux-x64/tap package create -v -c ../../package.xml -o Packages/OpenTAP.$Pathform.$Architecture.TapPackage
-          cp Packages/OpenTAP.$Pathform.$Architecture.TapPackage ../../OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.$Pathform.$Architecture.TapPackage
+        run: ../Linux-x64/tap package create -v -c ../../package.xml -o Packages/OpenTAP.${{ matrix.os }}.${{ matrix.arch }}.TapPackage
         env:
           Platform: ${{ matrix.os }}
           Architecture: ${{ matrix.arch }}
@@ -525,6 +525,8 @@ jobs:
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
           Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}
+      - name: Rename package
+        run: cp bin/output/Packages/OpenTAP.${{ matrix.os }}.${{ matrix.arch }}.TapPackage OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.${{ matrix.os }}.${{ matrix.arch }}.TapPackage
       - uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.os }}-${{ matrix.arch }}-package
@@ -626,17 +628,6 @@ jobs:
 
   Package-Diff:
     runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        include:
-          - os: MacOS
-            arch: arm64
-          - os: Linux
-            arch: x64
-          - os: Linux
-            arch: arm
-          - os: Linux
-            arch: arm64
     needs:
       - Package-Win
       - Package-Cross
@@ -644,7 +635,7 @@ jobs:
       - name: Download package
         uses: actions/download-artifact@v3
         with:
-          name: ${{ matrix.os }}-${{ matrix.arch }}-package
+          name: Linux-x64-package
           path: .
       - name: Install OpenTAP
         run: |
@@ -694,7 +685,7 @@ jobs:
       - name: Download Linux package
         uses: actions/download-artifact@v3
         with:
-          name: linux-x64-package
+          name: Linux-x64-package
           path: .
       - name: Package
         run: |
@@ -705,7 +696,7 @@ jobs:
           # Expand-Archive will only extract .zip extensions    
           Move-Item OpenTAP.*.x86.Windows.TapPackage OpenTAP.x86.zip 
           Move-Item OpenTAP.*.x64.Windows.TapPackage OpenTAP.x64.zip
-          Move-Item OpenTAP.*.Linux.TapPackage OpenTAP.Linux.zip
+          Move-Item OpenTAP.*.Linux.*.TapPackage OpenTAP.Linux.zip
 
           Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
           Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
@@ -818,7 +809,7 @@ jobs:
         with:
           name: Linux-x64-package
           path: .
-      - run: mv OpenTAP.*.Linux.TapPackage Installer/Assets/OpenTAP.TapPackage
+      - run: mv OpenTAP.*.Linux.*.TapPackage Installer/Assets/OpenTAP.TapPackage
         name: Rename package
       - run: tap installer create "opentap.installer.linux.xml" -v --target-os linux
         working-directory: Installer/Assets
@@ -878,7 +869,7 @@ jobs:
           path: .
       - name: Prepare
         run: |
-          mv OpenTAP.*.Linux.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
+          mv OpenTAP.*.Linux.*.TapPackage docker/Linux/OpenTAP.Linux.TapPackage
           echo "TAG_NAME=alpha" >> $GITHUB_ENV
       - name: Set tag (beta)
         if: github.ref == 'refs/heads/main'
@@ -898,39 +889,6 @@ jobs:
           target: ${{ matrix.target }}
           tag: ${{env.TAG_NAME}}${{ matrix.tag-suffix }}
           path: docker/Linux
-
-  Package-Deb:
-    runs-on: ubuntu-20.04
-    needs:
-      - Package-Cross
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-      - name: Fix tags
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v3. See https://github.com/actions/checkout/issues/290
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v1
-        with:
-          dotnet-version: '6.0.x'
-      - name: Download Linux package
-        uses: actions/download-artifact@v3
-        with:
-          name: Linux-x64-package
-          path: .
-      - name: Create Debian Package
-        run: |
-          cd  LinuxInstall/package
-          mv ../../OpenTAP*.TapPackage OpenTAP.TapPackage
-          cd Debian
-          bash create-deb
-      - uses: actions/upload-artifact@v3
-        with:
-          name: package-deb
-          retention-days: 14
-          path: LinuxInstall/package/opentap.deb
 
   ###############
   ### Publish ###

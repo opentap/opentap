@@ -85,7 +85,8 @@
     </Files>
     <!-- MacOS files -->
     <Files Condition="$(Platform) == MacOS">
-<!--        <File Path="tap" SourcePath="tap.sh"/>-->
+        <File Path="tap" SourcePath="tap.sh"/>
+<!--        <File Path="tap"/>-->
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.$(Architecture)"/>
     </Files>
     <!-- License Texts -->
