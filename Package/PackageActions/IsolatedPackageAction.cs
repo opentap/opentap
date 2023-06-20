@@ -62,8 +62,8 @@ namespace OpenTap.Package
                     // Detected Executor, try to run running isolated...
                     try
                     {
-                        RunIsolated(target: Target, isolatedAction: this);
-                        return (int)ExitCodes.Success; // we succeeded in "recursively" running everything isolated from a different process, we are done now.
+                        return (int)RunIsolated(target: Target, isolatedAction: this);
+                        // we succeeded in "recursively" running everything isolated from a different process, we are done now.
                     }
                     catch (Exception ex)
                     {
@@ -116,7 +116,7 @@ namespace OpenTap.Package
         }
 
 
-        internal static void RunIsolated(string application = null, string target = null, IsolatedPackageAction isolatedAction = null)
+        internal static ExitCodes RunIsolated(string application = null, string target = null, IsolatedPackageAction isolatedAction = null)
         {
             using (var tpmClient = new ExecutorClient())
             {
@@ -254,9 +254,11 @@ namespace OpenTap.Package
                     if (target != null)
                         newname = $"{newname} --target \"{target}\"";
 
+                    log.Info($"Sending command to isolated process: run '{newname}'.");
                     tpmClient.MessageServer("run " + newname);
                 }
             }
+            return ExitCodes.Success;
         }
     }
 
