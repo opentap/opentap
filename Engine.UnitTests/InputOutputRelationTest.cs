@@ -71,6 +71,16 @@ namespace OpenTap.UnitTests
 
             public override string ToString() => $"{Name}";
         }
+        
+
+        public class IntInputStep : TestStep
+        {
+            public int IntInput { get; set; }
+            public override void Run()
+            {
+                
+            }
+        }
 
         [Test]
         public void TestInputOutputRelationsInTestPlan()
@@ -103,7 +113,28 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(Verdict.Pass, run.Verdict);
             }
         }
-        
+
+        [Test]
+        public void TestConvertOnInput()
+        {
+            var step1 = new OutputInput {Output = 5, Input = 5, Name = "Step 1"};
+            var step2 = new IntInputStep {IntInput = 2, Name = "Step 2"};
+            var plan = new TestPlan();
+            plan.Steps.Add(step1);
+            plan.Steps.Add(step2);
+            InputOutputRelation.Assign(step2, TypeData.GetTypeData(step2).GetMember(nameof(step2.IntInput)),
+                step1, TypeData.GetTypeData(step1).GetMember(nameof(step1.Output)));
+            for (double i = 0; i < 2; i += 0.5)
+            {
+                step1.Input += i;
+                plan.Execute();
+                
+                // the value has been converted from double to int by Math.Round. (IConvertible.ToType).
+                Assert.IsTrue(Math.Abs(Math.Round(step1.Input) - step2.IntInput) < 0.001);
+            }
+
+        }
+
         [TestCase(1)]
         [TestCase(2)]
         [TestCase(4)]

@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using OpenTap.Expressions;
 
 namespace OpenTap
 {
@@ -31,17 +32,29 @@ namespace OpenTap
                 return _Rules;
             }
         }
-        private ValidationRuleCollection _Rules;
+        ValidationRuleCollection _Rules;
 
         // thread static to avoid locking everything and having a HashSet on each ValidationObject
         [ThreadStatic]
         static HashSet<object> traversed = null;
 
+        bool validationAttributesChecked = false;
+        internal void InvalidateAttribute()
+        {
+            validationAttributesChecked = false;
+        }
+        
         /// <summary>
         /// Return the error for a given property
         /// </summary>
         protected virtual string GetError(string propertyName = null)
         {
+            if (validationAttributesChecked == false)
+            {
+                var rules = ExpressionManager.GetValidationRules(this);
+                Rules.AddRange(rules);
+                validationAttributesChecked = true;
+            }
             List<string> errors = null;
             void pushError(string error)
             {
@@ -101,6 +114,7 @@ namespace OpenTap
         /// <summary>
         /// Gets the error messages for each invalid rule and joins them with a newline.
         /// </summary>
+        [SettingsIgnore]
         public string Error => GetError(null);
 
         /// <summary>

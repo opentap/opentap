@@ -365,12 +365,16 @@ namespace OpenTap
             }
         }
 
-        /// <summary>
-        /// Returns true if a type is numeric.
-        /// </summary>
+        /// <summary> Returns true if a type is numeric. </summary>
         public static bool IsNumeric(this ITypeData t)
         {
             return t.AsTypeData()?.Type.IsNumeric() == true;
+        }
+        
+        /// <summary> Returns true if a type is a C# primitive. </summary>
+        public static bool IsPrimitive(this ITypeData t)
+        {
+            return t.AsTypeData()?.Type.IsPrimitive ?? false;
         }
 
         /// <summary> Creates an instance of t with no constructor arguments. </summary>
@@ -1856,6 +1860,13 @@ namespace OpenTap
             int preLen = array.Length;
             Array.Resize(ref array, array.Length + appendage.Length);
             Array.Copy(appendage, 0, array, preLen, appendage.Length);
+        }
+
+        public static T PopAt<T>(this IList<T> list, int index)
+        {
+            var value = list[index];
+            list.RemoveAt(index);
+            return value;
         }
         
         public static IEnumerable<T2> TrySelect<T, T2>(this IEnumerable<T> src, Func<T, T2> f,

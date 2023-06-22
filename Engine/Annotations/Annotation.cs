@@ -10,6 +10,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using OpenTap.Expressions;
 
 namespace OpenTap
 {
@@ -461,15 +462,23 @@ namespace OpenTap
         public void Write(object source) { }
     }
 
-
-    class NumberAnnotation : IStringValueAnnotation, IErrorAnnotation, ICopyStringValueAnnotation
+    class NumberAnnotation : IStringValueAnnotation, IErrorAnnotation, ICopyStringValueAnnotation, IOwnedAnnotation
     {
+        static readonly ExpressionCodeBuilder builder = new ExpressionCodeBuilder();
+        
         public Type NullableType { get; set; }
         string currentError;
         public string Value
         {
             get
             {
+                if (sourceParent != null)
+                {
+                    var member = annotation.Get<IMemberAnnotation>()?.Member;
+                    var current = ExpressionManager.GetExpression(sourceParent, member);
+                    if (current != null)
+                        return current;
+                }
                 var value = annotation.Get<IObjectValueAnnotation>();
                 if (value != null)
                 {
@@ -490,6 +499,32 @@ namespace OpenTap
                     return;
                 }
 
+                if (sourceParent != null)
+                {
+                    try
+                    {
+                        var member = annotation.Get<IMemberAnnotation>()?.Member;
+
+                        var ast = builder.Parse(value);
+                        if (ast is ObjectNode onode && !double.TryParse(onode.Data, out _))
+                        {
+                            ExpressionManager.SetExpression(sourceParent, member, null);
+                        }
+                        else
+                        {
+                            ExpressionManager.SetExpression(sourceParent, member, value);
+                            ExpressionManager.Update(sourceParent);
+                            return;
+                        }
+
+                    }
+                    catch
+                    {
+                        // this is fine.
+
+                    }
+                }
+
                 currentError = null;
                 var unit = annotation.Get<UnitAttribute>();
                 if (annotation.Get<IReflectionAnnotation>()?.ReflectionInfo is TypeData cst)
@@ -497,7 +532,8 @@ namespace OpenTap
                     object number = null;
                     try
                     {
-                        number = new NumberFormatter(CultureInfo.CurrentCulture, unit).ParseNumber(value, NullableType ?? cst.Type);
+                        number = new NumberFormatter(CultureInfo.CurrentCulture, unit)
+                            .ParseNumber(value, NullableType ?? cst.Type);
                     }
                     catch (Exception e)
                     {
@@ -524,6 +560,15 @@ namespace OpenTap
         }
 
         public IEnumerable<string> Errors => currentError == null ? Array.Empty<string>() : new[] { currentError };
+        ITestStepParent sourceParent;
+        public void Read(object source)
+        {
+            sourceParent = source as ITestStepParent;
+        }
+        public void Write(object source)
+        {
+            
+        }
     }
 
     class TimeSpanAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation
@@ -1629,18 +1674,74 @@ namespace OpenTap
             }
         }
 
-        class StringValueAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation
+        class StringValueAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation, IOwnedAnnotation
         {
+            static ExpressionCodeBuilder builder = new ExpressionCodeBuilder();
             public string Value
             {
-                get => (string)annotation.Get<IObjectValueAnnotation>().Value;
-                set => annotation.Get<IObjectValueAnnotation>().Value = value;
+                get
+                {
+                    if (sourceParent != null)
+                    {
+                        var member = annotation.Get<IMemberAnnotation>()?.Member;
+                        if (member != null)
+                        {
+                            var expr = ExpressionManager.GetExpression(sourceParent, member);
+                            if (expr != null)
+                            {
+                                return expr;
+                            }
+                        }
+                    }
+                    return (string)annotation.Get<IObjectValueAnnotation>().Value;
+                }
+                set
+                {
+                    if (sourceParent != null)
+                    {
+                        var member = annotation.Get<IMemberAnnotation>()?.Member;
+                        if (member != null && value != null && value.Contains("{"))
+                        {
+                            try
+                            {
+                                var ast = builder.ParseStringInterpolation(value);
+                                if (ast is ObjectNode)
+                                {
+                                    ExpressionManager.SetExpression(sourceParent, member, null);    
+                                }
+                                else
+                                {
+                                    ExpressionManager.SetExpression(sourceParent, member, value);
+                                    return;
+                                }
+                            }
+                            catch
+                            {
+
+                            }
+                        }
+                        ExpressionManager.SetExpression(sourceParent, member, null);
+                    }
+                    
+                    annotation.Get<IObjectValueAnnotation>().Value = value;
+                }
             }
 
-            AnnotationCollection annotation;
+            readonly AnnotationCollection annotation;
             public StringValueAnnotation(AnnotationCollection dataAnnotation)
             {
                 annotation = dataAnnotation;
+            }
+
+            ITestStepParent sourceParent;
+            public void Read(object source)
+            {
+                sourceParent = source as ITestStepParent;
+            }
+            
+            public void Write(object source)
+            {
+                
             }
         }
 

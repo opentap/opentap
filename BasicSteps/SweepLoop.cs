@@ -337,7 +337,7 @@ namespace OpenTap.Plugins.BasicSteps
                             first = false;
                         else
                             sb.AppendLine();
-                        sb.AppendFormat("Row {2}, Step '{0}' : {1}", step.GetFormattedName(), step.Error, i + 1);
+                        sb.AppendFormat("Row {2}, Step '{0}' : {1}", step.Name, step.Error, i + 1);
                     }
                     
                 }
