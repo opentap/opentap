@@ -428,7 +428,6 @@ namespace OpenTap.Package
                 var dependentAssemblyNames = pkg.Files
                     .SelectMany(fs => fs.DependentAssemblies)
                     .Where(r => r.Name != "mscorlib") // Special case. We should not bundle the framework assemblies.
-                    .Where(r => isInDependenciesFolder(r.Location) == false) // Don't consider assemblies from the Dependencies folder
                     .Where(r => !anyOffered.Any(of => AssemblyRefUtils.IsCompatibleReference(of, r)))
                     .Distinct().Where(x => !excludeAdd.Contains(x.Name)).ToList();
 
@@ -464,6 +463,7 @@ namespace OpenTap.Package
                     {
                         foreach(AssemblyData candidateAsm in searcher.GetPackageAssemblies(candidatePkg))
                         {
+                            if (isInDependenciesFolder(candidateAsm.Location)) continue; // Don't consider assemblies from the Dependencies folder
                             var requiredAsm = dependentAssemblyNames.FirstOrDefault(dep => dep.Name == candidateAsm.Name);
                             if (requiredAsm != null)
                             {
