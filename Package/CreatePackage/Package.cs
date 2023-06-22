@@ -404,6 +404,13 @@ namespace OpenTap.Package
                 }
             }
 
+            var dependenciesFolder = Path.Combine(ExecutorClient.ExeDir, "Dependencies").ToLower();
+            bool isInDependenciesFolder(string path)
+            {
+                path = Path.GetFullPath(path).Replace('\\', '/').ToLower();
+                return path.StartsWith(dependenciesFolder);
+            }
+            
             // Find additional dependencies
             do
             {
@@ -443,7 +450,7 @@ namespace OpenTap.Package
                             .Where(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name))).ToList();
 
                         // Don't consider a package that only matches assemblies in the Dependencies subfolder
-                        candidateAsms.RemoveAll(asm => asm.Location.Contains("Dependencies")); // TODO: less lazy check for Dependencies subfolder would be good.
+                        candidateAsms.RemoveAll(asm => isInDependenciesFolder(asm.Location));
                         
                         if (candidateAsms.Count > 0)
                             packageCandidates[f] = candidateAsms.Count;
@@ -456,6 +463,7 @@ namespace OpenTap.Package
                     {
                         foreach(AssemblyData candidateAsm in searcher.GetPackageAssemblies(candidatePkg))
                         {
+                            if (isInDependenciesFolder(candidateAsm.Location)) continue; // Don't consider assemblies from the Dependencies folder
                             var requiredAsm = dependentAssemblyNames.FirstOrDefault(dep => dep.Name == candidateAsm.Name);
                             if (requiredAsm != null)
                             {
@@ -463,7 +471,9 @@ namespace OpenTap.Package
                                     throw new Exception($"Assembly {candidateAsm} version is null");
                                 if (requiredAsm.Version == null)
                                     throw new Exception($"Assembly {requiredAsm} version is null");
-							    if(OpenTap.Utils.Compatible(candidateAsm.Version, requiredAsm.Version))
+                                // Packages should be allowed to ship a newer version of an assembly shipped by OpenTAP.
+                                // Packages should also be okay with OpenTAP shipping a newer version of the same assembly.
+                                if (candidateAsm.Version.Major == requiredAsm.Version.Major)
                                 {
                                     log.Info($"Satisfying assembly reference to {requiredAsm.Name} by adding dependency on package {candidatePkg.Name}");
                                     if (candidateAsm.Version != requiredAsm.Version)
