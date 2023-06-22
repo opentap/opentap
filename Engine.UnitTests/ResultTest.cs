@@ -268,8 +268,7 @@ namespace OpenTap.UnitTests
             public double X { get; set; }
             
             [Result]
-            [Verdict("Y > 1")]
-            [Verdict("Y < 0", Verdict.Fail)]
+            [Verdict("Y > 0")]
             public double Y { get; set; }
 
             public override void Run()
@@ -293,7 +292,7 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(1, rl.Results[0].Rows);
             Assert.AreEqual(0.0, rl.Results[0].Columns[0].Data.GetValue(0));
             Assert.AreEqual(0.0, rl.Results[0].Columns[1].Data.GetValue(0));
-            Assert.AreEqual(Verdict.NotSet, run.Verdict);
+            Assert.AreEqual(Verdict.Inconclusive, run.Verdict);
             
             ExpressionManager.SetExpression(step, TypeData.GetTypeData(step).GetMember(nameof(step.Y)), "X * 2.0");
             step.X = 1.0;

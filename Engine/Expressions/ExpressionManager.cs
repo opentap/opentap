@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 namespace OpenTap.Expressions
@@ -31,6 +32,8 @@ namespace OpenTap.Expressions
         {
             public IMemberData[] members;
             public object[] buffer;
+
+            public readonly Dictionary<string, (IMemberData[], Delegate)> EnabledIfLookup = new Dictionary<string, (IMemberData[], Delegate)>();
 
             public bool TryGetValue(string memberName, out ExpressionObject o)
             {
@@ -75,7 +78,7 @@ namespace OpenTap.Expressions
         {
             Name = "OpenTap.Expressions", 
             TypeDescriptor = TypeData.FromType(typeof(ExpressionList)),
-            DeclaringType = TypeData.FromType((typeof(ExpressionManager))),
+            DeclaringType = TypeData.FromType(typeof(ExpressionManager)),
             Readable = true,
             Writable = true,
             Attributes = new object[]
@@ -127,34 +130,53 @@ namespace OpenTap.Expressions
             expr.Expression = expression;
         }
 
+        static void UpdateExpressions(object step, ExpressionList expressions)
+        {
+            builder.UpdateParameterMembers(step, ref expressions.members, out bool updated);
+            if (updated)
+            {
+                expressions.EnabledIfLookup.Clear();
+                foreach (var item in expressions)
+                {
+                    item.Lambda = null;
+                }
+            }
+        }
+
         public static void Update(ITestStepParent step)
         {
             var expressions = ExpressionsMember.GetValue(step) as ExpressionList;
             if (expressions == null || expressions.Count == 0) return;
             var td = TypeData.GetTypeData(step);
-            
-            builder.UpdateParameterMembers(step, ref expressions.members, out bool updated);
-            if (updated || expressions.Any(x => x.Lambda == null))
+
+            UpdateExpressions(step, expressions);
+            if (expressions.Any(x => x.Lambda == null))
             {
                 ParameterExpression[] parameters = builder.GetParameters(step);;
-                expressions.buffer = new object[expressions.members.Length];
+                expressions.buffer = new object[expressions.members.Length + 1];
                 foreach (var expression in expressions)
                 {
                     var mem = td.GetMember(expression.Member);
+                    var unit2 = mem.GetAttribute<UnitAttribute>();
+                    var builder2 = builder;
+                    if(unit2 != null)
+                        builder2 = builder2.WithNumberFormatter(new NumberFormatter(CultureInfo.CurrentCulture, unit2));
+
                     Debug.Assert(mem != null);
                     expression.MemberData = mem;
                     ReadOnlySpan<char> code = expression.Expression.ToArray();
+                    
                     builder.UsedParameters.Clear();
                     if (mem.TypeDescriptor.DescendsTo(typeof(string)))
                     {
-                        var ast = builder.ParseStringInterpolation(ref code);
-                        var lambda = builder.GenerateLambda(ast, parameters, mem.TypeDescriptor.AsTypeData().Type);
+                        var ast = builder2.ParseStringInterpolation(ref code);
+                        var lambda = builder2.GenerateLambda(ast, parameters, mem.TypeDescriptor.AsTypeData().Type);
                         expression.Lambda = lambda;
                     }
                     else
                     {
-                        var ast = builder.Parse(ref code);
-                        var lambda = builder.GenerateLambda(ast, parameters, mem.TypeDescriptor.AsTypeData().Type);
+                        var ast = builder2.Parse(ref code);
+                        var lambda = builder2.GenerateLambda(ast, parameters, mem.TypeDescriptor.AsTypeData().Type);
                         expression.Lambda = lambda;
                     }
                     expression.UsedParameters = builder.UsedParameters.ToArray();
@@ -165,9 +187,10 @@ namespace OpenTap.Expressions
                 // Sort the expressions so that expressions can depend on the result of other members.
                 expressions.Sort((x,y) => x.UsedParameters.Contains(y.Member) ? 1 : -1);
             }
+            expressions.buffer[0] = step;
             for (int i = 0; i < expressions.members.Length; i++)
             {
-                expressions.buffer[i] = expressions.members[i].GetValue(step);
+                expressions.buffer[i + 1] = expressions.members[i].GetValue(step);
             }
 
             foreach (var expression in expressions)
@@ -183,7 +206,7 @@ namespace OpenTap.Expressions
                 }
                 catch (Exception e)
                 {
-                    throw new Exception($"Unable to update member {expression.Member} of {step}", e);
+                    //throw new Exception($"Unable to update member {expression.Member} of {step}", e);
                 }
             }
         }
@@ -243,7 +266,30 @@ namespace OpenTap.Expressions
             }
 
             return rules?.ToArray() ?? Array.Empty<ValidationRule>();
-        } 
+        }
+
+        public static bool? EvaluateEnabledIf(object step, string expression)
+        {
+            var builder = new ExpressionCodeBuilder();
+            var ast = builder.Parse(expression);
+            if (ast == null) return null;
+                
+            var expressions = ExpressionsMember.GetValue(step) as ExpressionList;
+            if (expressions == null)
+            {
+                expressions = new ExpressionList();
+            }
+            
+            UpdateExpressions(step, expressions);
+            if (!expressions.EnabledIfLookup.TryGetValue(expression, out var x))
+            {
+                var members2 = expressions.members.ToArray();
+                var lambda = builder.GenerateLambdaCompact(ast, ref members2, typeof(bool));
+                expressions.EnabledIfLookup[expression] = x = (members2, lambda);
+            }
+            var buffer2 = x.Item1.Select(mem => mem.GetValue(step)).ToArray();
+            return (bool)x.Item2.DynamicInvoke(buffer2);
+        }
         
     }
 }

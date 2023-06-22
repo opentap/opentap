@@ -8,6 +8,11 @@ namespace OpenTap.Expressions
     {
         class Extra
         {
+            public static double sin(double phase) => Math.Sin(phase);
+            public static double cos(double phase) => Math.Cos(phase);
+            public static double tan(double phase) => Math.Tan(phase);
+            public static double atan(double phase) => Math.Atan(phase);
+            
             public static string Match(string pattern, string group, string value)
             {
                 var regex = new Regex(pattern);
@@ -37,25 +42,34 @@ namespace OpenTap.Expressions
                 {
                     if (match.Success)
                     {
-                        for (int i = 0; i < names.Length; i++)
-                        {
-                            return match.Groups[i].Value;
-                        }
+                        return match.Groups[0].Value;
                     }
                 }
                 return "";
             }
+
+            public static object Input(ITestStepParent step, string guid, string name)
+            {
+                var step2 = step.ChildTestSteps.GetStep(Guid.Parse(guid));
+                var member = TypeData.GetTypeData(step2).GetMember(name);
+                return member.GetValue(step2);
+            } 
+            
+
+            public static double Pi => π;
+            public static double π => Math.PI;
         }
         
         static MethodInfo[] methods;
         static readonly MethodInfo[] extraMethods;
+        static readonly PropertyInfo[] extraProperties;
+        
         static MathExpressionFunctionProvider()
         {
             methods = typeof(Math).GetMethods(BindingFlags.Static | BindingFlags.Public);
             extraMethods = typeof(Extra).GetMethods(BindingFlags.Static | BindingFlags.Public);
+            extraProperties = typeof(Extra).GetProperties(BindingFlags.Static | BindingFlags.Public);
         }
-
-
 
         public MethodInfo GetMethod(string name, Type[] argumentTypes)
         {
@@ -69,6 +83,10 @@ namespace OpenTap.Expressions
             
 
             return candidates.FirstOrDefault() ;
+        }
+        public PropertyInfo GetProperty(string name)
+        {
+            return extraProperties.FirstOrDefault(prop => prop.Name == name);
         }
         public string[] GetCompletions(string name)
         {

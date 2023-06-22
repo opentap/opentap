@@ -52,6 +52,7 @@ namespace OpenTap.UnitTests
         [TestCase("a b {$\"c {1 + 5}\"} e f g", "a b c 6 e f g")]
         
         [TestCase("{Math.Floor(3.5)}", "3")]
+        [TestCase("{Math.Floor(1 + 3.5)}", "4")]
         
         [TestCase("{Math.Ceiling(3.5 + 0.6)}", "5")]
         [TestCase("{Math.Ceiling(3.5 + 0.6) + Math.Floor(-1.5)}", "3")]
@@ -66,6 +67,21 @@ namespace OpenTap.UnitTests
             var lmb = builder.GenerateLambda(ast, Array.Empty<ParameterExpression>(), typeof(string));
             var result = lmb.DynamicInvoke();
             Assert.AreEqual(expectedResult, result);
+        }
+        
+        public void InputExpressionTest()
+        {
+            var step1 = new LogStep();
+            step1.LogMessage = "123";
+            var step2 = new LogStep();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step1);
+            plan.ChildTestSteps.Add(step2);
+            
+            ExpressionManager.SetExpression(step2, TypeData.GetTypeData(step2).GetMember(nameof(step2.LogMessage)), "Message is: {Input(" + step1.Id + ", \"LogMessage\")");
+            
+            ExpressionManager.Update(step2);
+            Assert.AreEqual("Message is: 123", step2.LogMessage);
         }
 
         [Test]
@@ -196,5 +212,25 @@ namespace OpenTap.UnitTests
             var currentValue = sv2.Value;
             Assert.AreEqual("1 + 2", currentValue);
         }
+        
+        [Test]
+        public void ExpressionMultiSelectAnnotationTest()
+        {
+            var step1 = new LogStep();
+            var step2 = new LogStep();
+            var steps = new[]
+            {
+                step1, step2
+            };
+            var a = AnnotationCollection.Annotate(steps);
+            var member = a.GetMember(nameof(step1.LogMessage));
+            var sv = member.Get<IStringValueAnnotation>();
+            sv.Value = "{1 + 2}";
+            a.Write();
+            Assert.AreEqual("3", step1.LogMessage);
+            Assert.AreEqual("3", step2.LogMessage);
+        }
+
+        
     }
 }

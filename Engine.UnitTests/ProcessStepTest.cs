@@ -3,13 +3,10 @@ using OpenTap.Cli;
 using OpenTap.Plugins.BasicSteps;
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
+using OpenTap.Expressions;
 
 namespace OpenTap.UnitTests
 {
@@ -76,12 +73,7 @@ namespace OpenTap.UnitTests
                 Application = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "tap.exe"),
                 WorkingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                 Arguments = "test envvariables print",
-                ResultRegularExpressionPattern = new Enabled<string>()
-                {
-                    IsEnabled = true,
-                    Value = "\\s*VarA\\s=\\s(?<A>[0-9]*)\\s*VarB\\s=\\s(?<B2>[0-9]*)"
-                },
-                Behavior = SCPIRegexBehavior.MatchesToVariables
+                Output = "0.0"
             };
             processStep.EnvironmentVariables.Add(new ProcessStep.EnvironmentVariable { Name = "VarA", Value = "1" });
             processStep.EnvironmentVariables.Add(new ProcessStep.EnvironmentVariable { Name = "VarB", Value = "2" });
@@ -105,6 +97,10 @@ namespace OpenTap.UnitTests
             DynamicMember.AddDynamicMember(processStep, Bmem);
             Amem.SetValue(processStep, 0.0);
             Bmem.SetValue(processStep, 0.0);
+            
+            ExpressionManager.SetExpression(processStep, Amem, "Match(\"VarA = (?<A>[0-9]*)\",\"A\", Output)");
+            ExpressionManager.SetExpression(processStep, Bmem, "Match(\"VarB = (?<B>[0-9]*)\",\"B\", Output)");
+            
             plan.Steps.Add(processStep);
 
             var result = plan.Execute();

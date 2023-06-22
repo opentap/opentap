@@ -755,7 +755,7 @@ namespace OpenTap
                     new BrowsableAttribute(false)},
                 Writable = true,
                 Readable = true,
-                TypeDescriptor = TypeData.FromType(typeof((Object,IMemberData)[]))
+                TypeDescriptor = TypeData.FromType(typeof(IDictionary<string, IMemberData>))
             };
             // This holds a list of user defined members.
             internal static readonly DynamicMember UserDefinedDynamicMembers = new UserMembersMember()

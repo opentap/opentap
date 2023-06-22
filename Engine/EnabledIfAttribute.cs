@@ -5,6 +5,7 @@
 using System;
 using System.Linq;
 using System.Reflection;
+using OpenTap.Expressions;
 
 namespace OpenTap
 {
@@ -28,9 +29,15 @@ namespace OpenTap
         static readonly TraceSource log = Log.CreateSource("EnabledIf");
 
         /// <summary>
-        /// Name of the property to enable. Must exactly match a name of a property in the current class. 
+        /// Name of the property to enable. Must exactly match a name of a property in the current class or an expression. 
         /// </summary>
-        public string PropertyName { get; }
+        public string PropertyNameOrExpression { get; }
+
+        /// <summary>
+        /// Name of the property to enable. Must exactly match a name of a property in the current class or an expression. 
+        /// </summary>
+        [Obsolete("Use PropertyNameOrExpression instead.")]
+        public string PropertyName => PropertyNameOrExpression;
         /// <summary>
         /// Value(s) the property must have for the item to be valid/enabled. If multiple values are specified, the item is enabled if just one value is equal. 
         /// If no values are specified, 'true' is the assumed value.
@@ -40,12 +47,12 @@ namespace OpenTap
         /// <summary>
         /// Identifies settings, properties, or methods that are only valid/enabled when another property or setting has a certain value. 
         /// </summary>
-        /// <param name="propertyName">Name of the property to enable. Must exactly match a name of a property in the current class. </param>
+        /// <param name="propertyNameOrExpression">Name of the property to enable. Must exactly match a name of a property in the current class. </param>
         /// <param name="propertyValues">Value(s) the property must have for the item to be valid/enabled. If multiple values are specified, the item is enabled if just one value is equal. 
         /// If no values are specified, 'true' is the assumed value.</param>
-        public EnabledIfAttribute(string propertyName, params object[] propertyValues)
+        public EnabledIfAttribute(string propertyNameOrExpression, params object[] propertyValues)
         {
-            PropertyName = propertyName;
+            PropertyNameOrExpression = propertyNameOrExpression;
             if ((propertyValues == null) || (propertyValues.Length <= 0))
                 PropertyValues = new IComparable[] { true };
             else
@@ -69,14 +76,25 @@ namespace OpenTap
             foreach (var at in dependencyAttrs)
             {
                 bool newEnabled = true;
-                dependentProp = instanceType.GetMember(at.PropertyName);
+                dependentProp = instanceType.GetMember(at.PropertyNameOrExpression);
 
                 if (dependentProp == null)
                 {
+                    var exprResult = ExpressionManager.EvaluateEnabledIf(instance, at.PropertyNameOrExpression);
+                    if (exprResult is bool result)
+                    {
+                        if (!result && at.HideIfDisabled)
+                            hidden = true;
+
+                        enabled &= result;
+                        continue;
+                    }
+
+
                     // We cannot be sure that the step developer has used this attribute correctly
                     // (could just be a typo in the (weakly typed) property name), thus we need to 
                     // provide a good error message that leads the developer to where the error is.
-                    log.Warning("Could not find property '{0}' on '{1}'. EnabledIfAttribute can only refer to properties of the same class as the property it is decorating.", at.PropertyName, instanceType.Name);
+                    log.Warning("Could not find property '{0}' on '{1}'. EnabledIfAttribute can only refer to properties of the same class as the property it is decorating.", at.PropertyNameOrExpression, instanceType.Name);
                     enabled = false;
                     return false;
                 }
@@ -142,14 +160,14 @@ namespace OpenTap
         /// <returns>true if property dependent property has the correct value.</returns>
         internal static bool IsEnabled(EnabledIfAttribute at, object instance)
         {
-            IMemberData dependentProp = TypeData.GetTypeData(instance).GetMember(at.PropertyName);
+            IMemberData dependentProp = TypeData.GetTypeData(instance).GetMember(at.PropertyNameOrExpression);
             if (dependentProp == null)
             {
                 // We cannot be sure that the step developer has used this attribute correctly
                 // (could just be a typo in the (weakly typed) property name), thus we need to 
                 // provide a good error message that leads the developer to where the error is.
                 log.Warning(
-                    $"Could not find property '{at.PropertyName}' on '{instance.GetType().Name}'. " +
+                    $"Could not find property '{at.PropertyNameOrExpression}' on '{instance.GetType().Name}'. " +
                     $"EnabledIfAttribute can only refer to properties of the same class as the property it is decorating.");
                 return false;
             }

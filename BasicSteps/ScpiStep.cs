@@ -34,10 +34,7 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Groups As Columns", "Each regex group is treated as a separate column.")]
         GroupsAsDimensions,
         [Display("Groups As Rows", "Each regex group is treated as a separate row, with one column.")]
-        GroupsAsResults,
-        [Display("Matches to variables", "Each regex group is treated as a separate row, with one column.")]
-        MatchesToVariables,
-
+        GroupsAsResults
     }
 
     public abstract class RegexOutputStep : TestStep
@@ -96,6 +93,8 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Column Names", Group: "Results", Order: 1.51, Collapsed: true, Description: "The name of the columns of the resulting groups. The titles must be separated by commas.")]
         public string DimensionTitles { get; set; }
 
+        public string Output { get; set; } = "";
+
         public RegexOutputStep()
         {
             RegularExpressionPattern = new Enabled<string>() { IsEnabled = false, Value = "(.*)" };
@@ -113,6 +112,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         protected void ProcessOutput(string Output)
         {
+            this.Output = Output;
             if (RegularExpressionPattern.IsEnabled)
             {
                 var Matches = Regex.Matches(Output, RegularExpressionPattern.Value);
@@ -169,29 +169,6 @@ namespace OpenTap.Plugins.BasicSteps
                             {
                                 Results.Publish(Name, titles, Match.Groups[i].Value);
                             }
-                            break;
-                        }
-                        case SCPIRegexBehavior.MatchesToVariables:
-                        {
-                            var td = TypeData.GetTypeData(this);
-                            var names = reg.GetGroupNames();
-                            
-                            for(int i = 0; i < names.Length; i++)
-                            {
-                                var name = names[i];
-                                var group2 = Match.Groups[name];
-                                if(group2 is System.Text.RegularExpressions.Group grp && grp.Success)
-                                {
-                                    var member = td.GetMember(name);
-                                    if (member == null)
-                                    {
-                                        continue;
-                                    }
-                                    var value2 = StringConvertProvider.FromString(grp.Value, member.TypeDescriptor, this);
-                                    member.SetValue(this, value2);
-                                }
-                            }
-
                             break;
                         }
                     }

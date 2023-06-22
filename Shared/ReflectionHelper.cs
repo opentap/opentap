@@ -1218,11 +1218,11 @@ namespace OpenTap
         /// <summary> As 'Select and FirstOrDefault' but skipping null values.
         /// Short hand for/more efficient version of 'Select(f).Where(x => x != null).FirstOrDefault()'
         /// </summary>
-        public static T2 FirstNonDefault<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> f) 
+        public static T2 FirstNonDefault<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> selector) 
         {
             foreach (var x in source)
             {
-                var value = f(x);
+                var value = selector(x);
                 if (Equals(value, default(T2)) == false)
                     return value;
             }

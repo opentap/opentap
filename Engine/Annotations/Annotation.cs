@@ -472,10 +472,10 @@ namespace OpenTap
         {
             get
             {
-                if (sourceParent != null)
+                if (source is ITestStepParent step)
                 {
                     var member = annotation.Get<IMemberAnnotation>()?.Member;
-                    var current = ExpressionManager.GetExpression(sourceParent, member);
+                    var current = ExpressionManager.GetExpression(step, member);
                     if (current != null)
                         return current;
                 }
@@ -498,23 +498,30 @@ namespace OpenTap
                     val.Value = null;
                     return;
                 }
+                bool expressionSet = false;
 
-                if (sourceParent != null)
+                if (source is ITestStepParent step)
                 {
                     try
                     {
                         var member = annotation.Get<IMemberAnnotation>()?.Member;
+                        var builder2 = builder;
+                        
+                        var unit2 = annotation.Get<UnitAttribute>();
+                        if(unit2 != null)
+                            builder2 = builder2.WithNumberFormatter(new NumberFormatter(CultureInfo.CurrentCulture, unit2));
 
-                        var ast = builder.Parse(value);
-                        if (ast is ObjectNode onode && !double.TryParse(onode.Data, out _))
+                        var ast = builder2.Parse(value);
+                        if (ast is ObjectNode onode && double.TryParse(onode.Data, out _))
                         {
-                            ExpressionManager.SetExpression(sourceParent, member, null);
+                            
+                            ExpressionManager.SetExpression(step, member, null);
                         }
                         else
                         {
-                            ExpressionManager.SetExpression(sourceParent, member, value);
-                            ExpressionManager.Update(sourceParent);
-                            return;
+                            ExpressionManager.SetExpression(step, member, value);
+                            ExpressionManager.Update(step);
+                            expressionSet = true;    
                         }
 
                     }
@@ -534,13 +541,25 @@ namespace OpenTap
                     {
                         number = new NumberFormatter(CultureInfo.CurrentCulture, unit)
                             .ParseNumber(value, NullableType ?? cst.Type);
+                        if (source is ITestStepParent step2)
+                        {
+                            try
+                            {
+                                var member = annotation.Get<IMemberAnnotation>()?.Member;
+                                ExpressionManager.SetExpression(step2, member, null);
+                            }
+                            catch
+                            {
+                            }
+                        }   
                     }
                     catch (Exception e)
                     {
-                        currentError = e.Message;
+                        if(!expressionSet)
+                            currentError = e.Message;
                     }
 
-                    if (number != null)
+                    if (!expressionSet && number != null)
                     {
                         var val = annotation.Get<IObjectValueAnnotation>();
                         val.Value = number;
@@ -560,10 +579,10 @@ namespace OpenTap
         }
 
         public IEnumerable<string> Errors => currentError == null ? Array.Empty<string>() : new[] { currentError };
-        ITestStepParent sourceParent;
+        object source;
         public void Read(object source)
         {
-            sourceParent = source as ITestStepParent;
+            this.source = source;
         }
         public void Write(object source)
         {
@@ -608,7 +627,7 @@ namespace OpenTap
             get
             {
                 var member = mem.Get<IObjectValueAnnotation>();
-                var value = (IEnumerable)member.Value;
+                var value = (IEnumerable) member.Value;
                 if (value == null) return "";
                 var unit = mem.Get<UnitAttribute>();
 
@@ -754,7 +773,6 @@ namespace OpenTap
             get => annotation.Get<IObjectValueAnnotation>().Value?.ToString();
             set => annotation.Get<IObjectValueAnnotation>().Value = parseBool(value);
         }
-
     }
 
     class MergedValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation
@@ -849,6 +867,45 @@ namespace OpenTap
         }
     }
 
+    class MergedStringValueAnnotation : IStringValueAnnotation
+    {
+        public IEnumerable<AnnotationCollection> Merged => merged;
+        readonly List<AnnotationCollection> merged;
+        public MergedStringValueAnnotation(List<AnnotationCollection> merged)
+        {
+            this.merged = merged;
+        }
+
+        public string Value
+        {
+            get
+            {
+                if (merged.Count == 0) return null;
+                // this getter is performance critical. Avoid doing any allocations or unnessesary operations here.
+                var first = merged[0];
+                var selectedValue = first.Get<IStringValueAnnotation>().Value;
+                if (selectedValue != null)
+                {
+                    for (int i = 1; i < merged.Count; i++)
+                    {
+                        var x = merged[i];
+                        var thisVal = x.Get<IStringValueAnnotation>().Value;
+                        if (thisVal == selectedValue) 
+                            continue;
+                        if (Equals(selectedValue, thisVal) == false)
+                            return null;
+                    }
+                }
+                return selectedValue;
+            }
+            set
+            {
+                foreach (var m in merged)
+                    m.Get<IStringValueAnnotation>().Value = value;
+            }
+        }
+    }
+
     /// <summary>
     /// Marker interface that indicates that an IAnnotation does not support multi-selecting. 
     /// When multi-selecting, the UI should not show properties annotated with this. 
@@ -934,57 +991,67 @@ namespace OpenTap
                         mergething.Add(thing2[name]);
                     }
                     if (mem == null) continue;
-                    var newa = parentAnnotation.AnnotateMember(mem, sources[0].ExtraAnnotations.Append(new MergedValueAnnotation(mergething)).ToArray());
+
+                    AnnotationCollection newAnnotation = null;
+                    if (false && mergething.All(x => x.Get<IStringValueAnnotation>() != null))
+                    {
+                        newAnnotation = parentAnnotation.AnnotateMember(mem, sources[0].ExtraAnnotations.Append(new MergedStringValueAnnotation(mergething)).ToArray());
+                    }
+                    else
+                    {
+                        newAnnotation = parentAnnotation.AnnotateMember(mem, sources[0].ExtraAnnotations.Append(new MergedValueAnnotation(mergething)).ToArray());
+                    }
+                    
                     if(parentAnnotation.Get<MergedValueAnnotation>()?.Merged.First().Get<BreakConditionsAnnotation>() is BreakConditionsAnnotation br)
                     {
                         if(br.Value.Get<IMemberAnnotation>().Member.Name == mem.Name)
-                            newa.Add(new BreakConditionsAnnotation.BreakConditionValueAnnotation(br) { valueAnnotation = newa });
+                            newAnnotation.Add(new BreakConditionsAnnotation.BreakConditionValueAnnotation(br) { valueAnnotation = newAnnotation });
                     }
 
                     var manyAccess = new ManyAccessAnnotation(mergething.SelectValues(x => x.Get<IAccessAnnotation>()).ToArray());
                     // Enabled if is not supported when multi-selecting.
-                    newa.RemoveType<EnabledIfAnnotation>();
-                    var method = newa.Get<IMethodAnnotation>();
+                    newAnnotation.RemoveType<EnabledIfAnnotation>();
+                    var method = newAnnotation.Get<IMethodAnnotation>();
                     if (method != null)
                     {
-                        newa.Add(new ManyToOneMethodAnnotation(newa));
-                        newa.Remove(method);
+                        newAnnotation.Add(new ManyToOneMethodAnnotation(newAnnotation));
+                        newAnnotation.Remove(method);
                     }
 
-                    var enabledValue = newa.Get<IEnabledValueAnnotation>();
+                    var enabledValue = newAnnotation.Get<IEnabledValueAnnotation>();
                     if (enabledValue != null)
                     {
-                        newa.Add(new ManyIEnabledValueAnnotation(newa));
-                        newa.Remove(enabledValue);
+                        newAnnotation.Add(new ManyIEnabledValueAnnotation(newAnnotation));
+                        newAnnotation.Remove(enabledValue);
                     }
                     
-                    newa.Add(manyAccess);
+                    newAnnotation.Add(manyAccess);
 
                     var enabledAnnotations = mergething.SelectValues(x => x.Get<IEnabledAnnotation>()).ToArray();
                     if (enabledAnnotations.Length > 0)
                     {
                         var manyEnabled = new ManyEnabledAnnotation(enabledAnnotations);
-                        newa.RemoveType<IEnabledAnnotation>();
-                        newa.Add(manyEnabled);
+                        newAnnotation.RemoveType<IEnabledAnnotation>();
+                        newAnnotation.Add(manyEnabled);
                     }
 
-                    newa.Read(parentAnnotation.Get<IObjectValueAnnotation>().Value);
+                    newAnnotation.Read(parentAnnotation.Get<IObjectValueAnnotation>().Value);
 
-                    if (newa.Get<IStringValueAnnotation>() is IStringValueAnnotation strValueAnnotation && (strValueAnnotation is ICopyStringValueAnnotation == false))
+                    if (newAnnotation.Get<IStringValueAnnotation>() is IStringValueAnnotation strValueAnnotation && (strValueAnnotation is ICopyStringValueAnnotation == false))
                     {
                         // see comment on ManyToOneStringValueAnnotation
-                        var merged = newa.Get<MergedValueAnnotation>();
+                        var merged = newAnnotation.Get<MergedValueAnnotation>();
                         if (merged != null)
                         {
-                            int idx = newa.IndexWhen(x => x == strValueAnnotation);
+                            int idx = newAnnotation.IndexWhen(x => x == strValueAnnotation);
                             // insert after last string value annotation.
-                            newa.Insert(idx + 1, new ManyToOneStringValueAnnotation(merged));
+                            newAnnotation.Insert(idx + 1, new ManyToOneStringValueAnnotation(merged));
                         }
                     }
 
-                    IconAnnotationHelper.AddParameter(newa, mem, newa.Source);
+                    IconAnnotationHelper.AddParameter(newAnnotation, mem, newAnnotation.Source);
                     
-                    CommonAnnotations.Add(newa);
+                    CommonAnnotations.Add(newAnnotation);
 
                 next_thing:;
                 }
@@ -1102,7 +1169,7 @@ namespace OpenTap
             if (members != null)
             {
                 foreach (var mem in members)
-                    mem.Write(source);
+                    mem.Write();
             }
         }
     }
@@ -3817,7 +3884,7 @@ namespace OpenTap
         {
             get
             {
-                var disp = Get<IDisplayAnnotation>()?.Name ?? Get<IReflectionAnnotation>().ReflectionInfo?.Name;
+                var disp = Get<IDisplayAnnotation>()?.Name ?? Get<IReflectionAnnotation>()?.ReflectionInfo?.Name;
                 return disp ?? "?";
             }
         }
