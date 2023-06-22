@@ -462,9 +462,8 @@ namespace OpenTap
         public void Write(object source) { }
     }
 
-    class NumberAnnotation : IStringValueAnnotation, IErrorAnnotation, ICopyStringValueAnnotation, IOwnedAnnotation
+    class NumberAnnotation : IStringValueAnnotation, IErrorAnnotation, ICopyStringValueAnnotation
     {
-        static readonly ExpressionCodeBuilder builder = new ExpressionCodeBuilder();
         
         public Type NullableType { get; set; }
         string currentError;
@@ -472,13 +471,6 @@ namespace OpenTap
         {
             get
             {
-                if (source is ITestStepParent step)
-                {
-                    var member = annotation.Get<IMemberAnnotation>()?.Member;
-                    var current = ExpressionManager.GetExpression(step, member);
-                    if (current != null)
-                        return current;
-                }
                 var value = annotation.Get<IObjectValueAnnotation>();
                 if (value != null)
                 {
@@ -500,38 +492,6 @@ namespace OpenTap
                 }
                 bool expressionSet = false;
 
-                if (source is ITestStepParent step)
-                {
-                    try
-                    {
-                        var member = annotation.Get<IMemberAnnotation>()?.Member;
-                        var builder2 = builder;
-                        
-                        var unit2 = annotation.Get<UnitAttribute>();
-                        if(unit2 != null)
-                            builder2 = builder2.WithNumberFormatter(new NumberFormatter(CultureInfo.CurrentCulture, unit2));
-
-                        var ast = builder2.Parse(value);
-                        if (ast is ObjectNode onode && double.TryParse(onode.Data, out _))
-                        {
-                            
-                            ExpressionManager.SetExpression(step, member, null);
-                        }
-                        else
-                        {
-                            ExpressionManager.SetExpression(step, member, value);
-                            ExpressionManager.Update(step);
-                            expressionSet = true;    
-                        }
-
-                    }
-                    catch
-                    {
-                        // this is fine.
-
-                    }
-                }
-
                 currentError = null;
                 var unit = annotation.Get<UnitAttribute>();
                 if (annotation.Get<IReflectionAnnotation>()?.ReflectionInfo is TypeData cst)
@@ -541,30 +501,17 @@ namespace OpenTap
                     {
                         number = new NumberFormatter(CultureInfo.CurrentCulture, unit)
                             .ParseNumber(value, NullableType ?? cst.Type);
-                        if (source is ITestStepParent step2)
-                        {
-                            try
-                            {
-                                var member = annotation.Get<IMemberAnnotation>()?.Member;
-                                ExpressionManager.SetExpression(step2, member, null);
-                            }
-                            catch
-                            {
-                            }
-                        }   
                     }
                     catch (Exception e)
                     {
-                        if(!expressionSet)
-                            currentError = e.Message;
+                        currentError = e.Message;
                     }
 
-                    if (!expressionSet && number != null)
+                    if (number != null)
                     {
                         var val = annotation.Get<IObjectValueAnnotation>();
                         val.Value = number;
                     }
-
                 }
                 else
                 {
@@ -572,18 +519,32 @@ namespace OpenTap
                 }
             }
         }
-        AnnotationCollection annotation;
-        public NumberAnnotation(AnnotationCollection mem)
+        readonly AnnotationCollection annotation;
+        public NumberAnnotation(AnnotationCollection annotationCollection)
         {
-            this.annotation = mem;
+            annotation = annotationCollection;
         }
 
         public IEnumerable<string> Errors => currentError == null ? Array.Empty<string>() : new[] { currentError };
+    }
+
+    class ExpressionAnnotation : IValueDescriptionAnnotation, IOwnedAnnotation
+    {
+        IMemberData member;
         object source;
+
+        public string Describe()
+        {
+            ExpressionManager.Update(source, member);
+            return member.GetValue(source)?.ToString() ?? "";
+        }
+        public ExpressionAnnotation(IMemberData member) => this.member = member;
+        
         public void Read(object source)
         {
             this.source = source;
         }
+        
         public void Write(object source)
         {
             
@@ -1741,57 +1702,12 @@ namespace OpenTap
             }
         }
 
-        class StringValueAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation, IOwnedAnnotation
+        class StringValueAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation
         {
-            static ExpressionCodeBuilder builder = new ExpressionCodeBuilder();
             public string Value
             {
-                get
-                {
-                    if (sourceParent != null)
-                    {
-                        var member = annotation.Get<IMemberAnnotation>()?.Member;
-                        if (member != null)
-                        {
-                            var expr = ExpressionManager.GetExpression(sourceParent, member);
-                            if (expr != null)
-                            {
-                                return expr;
-                            }
-                        }
-                    }
-                    return (string)annotation.Get<IObjectValueAnnotation>().Value;
-                }
-                set
-                {
-                    if (sourceParent != null)
-                    {
-                        var member = annotation.Get<IMemberAnnotation>()?.Member;
-                        if (member != null && value != null && value.Contains("{"))
-                        {
-                            try
-                            {
-                                var ast = builder.ParseStringInterpolation(value);
-                                if (ast is ObjectNode)
-                                {
-                                    ExpressionManager.SetExpression(sourceParent, member, null);    
-                                }
-                                else
-                                {
-                                    ExpressionManager.SetExpression(sourceParent, member, value);
-                                    return;
-                                }
-                            }
-                            catch
-                            {
-
-                            }
-                        }
-                        ExpressionManager.SetExpression(sourceParent, member, null);
-                    }
-                    
-                    annotation.Get<IObjectValueAnnotation>().Value = value;
-                }
+                get => (string)annotation.Get<IObjectValueAnnotation>().Value;
+                set => annotation.Get<IObjectValueAnnotation>().Value = value;
             }
 
             readonly AnnotationCollection annotation;
@@ -1800,16 +1716,6 @@ namespace OpenTap
                 annotation = dataAnnotation;
             }
 
-            ITestStepParent sourceParent;
-            public void Read(object source)
-            {
-                sourceParent = source as ITestStepParent;
-            }
-            
-            public void Write(object source)
-            {
-                
-            }
         }
 
         class MacroStringValueAnnotation : IStringValueAnnotation, IValueDescriptionAnnotation, IStringExampleValueAnnotation
@@ -2934,7 +2840,10 @@ namespace OpenTap
                         emb = emb.InnerMember as EmbeddedMemberData;
                     }
                 }
-
+                var parentType = annotation.ParentAnnotation.Get<IReflectionAnnotation>().ReflectionInfo;
+                if(parentType != null && ExpressionManager.MemberHasExpression(parentType, mem.Member))
+                    annotation.Add(new ExpressionAnnotation(mem.Member));
+                
                 if (member.HasAttribute<EnabledIfAttribute>())
                 {
                     annotation.Add(new EnabledIfAnnotation(mem));

@@ -143,7 +143,15 @@ namespace OpenTap.Expressions
             }
         }
 
-        public static void Update(ITestStepParent step)
+        public static bool MemberHasExpression(ITypeData type, IMemberData member)
+        {
+            var exprMember = type.GetMember(ExpressionsMember.Name);
+            if (exprMember != null)
+                return true;
+            return false;
+        } 
+
+        public static void Update(object step, IMemberData member = null)
         {
             var expressions = ExpressionsMember.GetValue(step) as ExpressionList;
             if (expressions == null || expressions.Count == 0) return;
@@ -197,6 +205,8 @@ namespace OpenTap.Expressions
             {
                 try
                 {
+                    if (member != null && expression.MemberData != member) 
+                        continue;
                     var result = expression.Lambda.DynamicInvoke(expressions.buffer);
                     expression.MemberData.SetValue(step, result);
                     if (expression.ParameterIndex != -1)
@@ -224,10 +234,9 @@ namespace OpenTap.Expressions
                     var ast = builder.Parse(expr);
                     var lambda = builder.GenerateLambda(ast, parameters, typeof(bool));
                     object result = lambda.DynamicInvoke(parameterValues);
-                    if (result is bool t)
+                    if (result is bool t && t)
                     {
-                        if(t)
-                            step.UpgradeVerdict(attr.Verdict);
+                        step.UpgradeVerdict(attr.Verdict);
                     }
                     else
                     {

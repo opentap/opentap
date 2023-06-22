@@ -69,20 +69,7 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(expectedResult, result);
         }
         
-        public void InputExpressionTest()
-        {
-            var step1 = new LogStep();
-            step1.LogMessage = "123";
-            var step2 = new LogStep();
-            var plan = new TestPlan();
-            plan.ChildTestSteps.Add(step1);
-            plan.ChildTestSteps.Add(step2);
-            
-            ExpressionManager.SetExpression(step2, TypeData.GetTypeData(step2).GetMember(nameof(step2.LogMessage)), "Message is: {Input(" + step1.Id + ", \"LogMessage\")");
-            
-            ExpressionManager.Update(step2);
-            Assert.AreEqual("Message is: 123", step2.LogMessage);
-        }
+
 
         [Test]
         public void ParseFancyNameTest()
@@ -230,7 +217,48 @@ namespace OpenTap.UnitTests
             Assert.AreEqual("3", step1.LogMessage);
             Assert.AreEqual("3", step2.LogMessage);
         }
+        
+        [Test]
+        public void InputExpressionTest2()
+        {
+            var step1 = new LogStep()
+            {
+                Name = "step1",
+                LogMessage = "123"
+            };
+            
+            var step2 = new LogStep();
+            
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step1);
+            plan.ChildTestSteps.Add(step2);
+            ExpressionManager.SetExpression(step2, TypeData.GetTypeData(step2).GetMember(nameof(step2.LogMessage)), "{Input(\"step1\", \"Log Message\")}4");
+            ExpressionManager.Update(step2);
 
+            Assert.AreEqual("1234", step2.LogMessage);
+
+        }
+
+        [Test]
+        public void InputExpressionTest3()
+        {
+            var step1 = new DelayStep()
+            {
+                Name = "step1",
+                DelaySecs = 0.5
+            };
+            
+            var step2 = new DelayStep();
+            
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step1);
+            plan.ChildTestSteps.Add(step2);
+            ExpressionManager.SetExpression(step2, TypeData.GetTypeData(step2).GetMember(nameof(step2.DelaySecs)), "Input(\"step1\", \"Time Delay\") * 2.0");
+            ExpressionManager.Update(step2);
+
+            Assert.AreEqual(0.5 * 2.0, step2.DelaySecs);
+
+        }
         
     }
 }

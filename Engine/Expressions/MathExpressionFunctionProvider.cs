@@ -48,11 +48,34 @@ namespace OpenTap.Expressions
                 return "";
             }
 
-            public static object Input(ITestStepParent step, string guid, string name)
+            public static object Input(ITestStepParent step, string stepName, string memberName)
             {
-                var step2 = step.ChildTestSteps.GetStep(Guid.Parse(guid));
-                var member = TypeData.GetTypeData(step2).GetMember(name);
-                return member.GetValue(step2);
+                ITestStepParent targetStep = null;
+                while (targetStep == null && step is ITestStep step2)
+                {
+                    var end = step2.Parent.ChildTestSteps.IndexOf(step2) ;
+                    for (int i = end - 1; i >= 0 ; i--)
+                    {
+                        if (step2.Parent.ChildTestSteps[i].Name == stepName)
+                        {
+                            targetStep = step2.Parent.ChildTestSteps[i];
+                            break;
+                        }
+                    }
+                    step = step2.Parent;
+                }
+
+                if (targetStep == null)
+                    throw new Exception("Unable to find target step: " + stepName);
+
+                var member = TypeData.GetTypeData(targetStep).GetMember(memberName);
+                if (member == null)
+                {
+                    member = TypeData.GetTypeData(targetStep).GetMembers().FirstOrDefault(member => member.GetAttribute<DisplayAttribute>()?.Name == memberName);
+                    if(member == null)
+                        throw new Exception("Unable to find member on target step: " + memberName);
+                }
+                return member.GetValue(targetStep);
             } 
             
 

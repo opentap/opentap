@@ -236,7 +236,7 @@ namespace OpenTap.Expressions
                                 throw new Exception($"No such method: {funcName}");
                             var thisArg = parameterExpressions.FirstOrDefault(x => x.Name == "__this__");
                             Debug.Assert(thisArg != null);
-                            return Expression.Call(method, new Expression[]
+                            return Expression.Call(method2, new Expression[]
                             {
                                 thisArg
                             }.Concat(expressions).ToArray());
@@ -245,8 +245,8 @@ namespace OpenTap.Expressions
                         return Expression.Call(method, expressions.ToArray());
                     }
                     
-                    var left = GenerateExpression(b.Left, parameterExpressions, typeof(object));
-                    var right = GenerateExpression(b.Right, parameterExpressions, typeof(object));
+                    var left = GenerateExpression(b.Left, parameterExpressions);
+                    var right = GenerateExpression(b.Right, parameterExpressions);
                     if (Error != null) return null;
 
                     // If the types of the two sides of the expression is not the same.
@@ -266,8 +266,20 @@ namespace OpenTap.Expressions
                                 right = Expression.Convert(right, left.Type);    
                             }
                         }
+                        // if one side is numeric, lets try converting the other.
+                        // maybe strings should be checked too
+                        else if (right.Type.IsNumeric() && left.Type == typeof(object))
+                        {
+                            
+                            left = Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ChangeType), new []{typeof(object), typeof(Type)}), left,  Expression.Constant(right.Type));
+                            left = Expression.Convert(left, right.Type);
+                        }else if (left.Type.IsNumeric() && left.Type == typeof(object))
+                        {
+                            right = Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ChangeType), new []{typeof(object), typeof(Type)}), right,  Expression.Constant(left.Type));
+                            right = Expression.Convert(right, left.Type);
+                        }
                         
-                        // otherwise just hope for the best and let .NET throw an exception if necessary.
+                        
                     }
 
                     if (op == Operators.AdditionOp)
@@ -311,7 +323,7 @@ namespace OpenTap.Expressions
                             right = Expression.Call(right, typeof(object).GetMethod("ToString"));
                         }
                         
-                        return Expression.Call(typeof(String).GetMethod("Concat", new Type[2]
+                        return Expression.Call(typeof(String).GetMethod("Concat", new Type[]
                         {
                             typeof(string), typeof(string)
                         }), left, right);
