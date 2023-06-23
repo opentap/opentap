@@ -101,38 +101,22 @@ namespace OpenTap.Package
 
             log.Debug($"Available custom actions for '{stage.ToString().ToLower()}' stage. ({customActions.Count} actions: {string.Join(", ", customActions.Select(s => s.ToString()))})");
 
-            try
+            foreach (ICustomPackageAction action in customActions)
             {
-                // Allow child processes to bypass the lock on the installation which is held by this process.
-                // We need to set this on the User level instead of the Process level because there are plugins predating
-                // the locking feature that depend on this behavior, such as 'OSIntegration'.
-                // OSIntegration starts a 'tap.exe' subprocess with the 'runas' verb on order to run as administrator.
-                // When a process is started with the 'runas' verb, the initiating process' environment is not inherited.
-                Environment.SetEnvironmentVariable(FileLock.InstallationLockEnv, "1", EnvironmentVariableTarget.User);
-                // Also set it on the process to avoid potential edgecases with other platforms that don't have three different environments.
-                Environment.SetEnvironmentVariable(FileLock.InstallationLockEnv, "1", EnvironmentVariableTarget.Process);
-                foreach (ICustomPackageAction action in customActions)
+                Stopwatch timer = Stopwatch.StartNew();
+                try
                 {
-                    Stopwatch timer = Stopwatch.StartNew();
-                    try
+                    if (action.Execute(package, args))
                     {
-                        if (action.Execute(package, args))
-                        {
-                            log.Info(timer, $"Package action {action.GetType().Name} completed");
-                            continue;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        log.Warning(timer, $"Package action {action.ToString()} failed", ex);
-                        throw;
+                        log.Info(timer, $"Package action {action.GetType().Name} completed");
+                        continue;
                     }
                 }
-            }
-            finally
-            {
-                Environment.SetEnvironmentVariable(FileLock.InstallationLockEnv, null, EnvironmentVariableTarget.User);
-                Environment.SetEnvironmentVariable(FileLock.InstallationLockEnv, null, EnvironmentVariableTarget.Process);
+                catch (Exception ex)
+                {
+                    log.Warning(timer, $"Package action {action.ToString()} failed", ex);
+                    throw;
+                }
             }
         }
 
