@@ -343,7 +343,17 @@ namespace OpenTap
         }
 
         public bool CanRemoveDynamicMember => member is UserDefinedDynamicMember;
-        
+        public bool HasExpression
+        {
+            get
+            {
+                foreach(var src in source)
+                    if (ExpressionManager.GetExpression(src, member) != null)
+                        return true;
+                return false;
+            } 
+        }
+
         [Display("Remove Dynamic Property", "Remove user-defined dynamic property.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.RemoveDynamicProperty)]

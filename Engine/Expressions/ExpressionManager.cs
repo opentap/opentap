@@ -214,8 +214,9 @@ namespace OpenTap.Expressions
                         expressions.buffer[expression.ParameterIndex] = result;
                     }
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
+                    // consider handling this exception.
                     //throw new Exception($"Unable to update member {expression.Member} of {step}", e);
                 }
             }

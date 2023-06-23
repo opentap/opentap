@@ -50,6 +50,20 @@ namespace OpenTap
         public string MemberName { get; set; }
     }
 
+    class HasExpressionAnnotation : IIconAnnotation, IEnabledAnnotation, IInteractiveIconAnnotation
+    {
+        readonly AnnotationCollection annotation;
+        public string IconName => IconNames.HasExpression;
+        public bool IsEnabled => false;
+        public AnnotationCollection Action => annotation.ParentAnnotation;
+        
+
+        public HasExpressionAnnotation(AnnotationCollection annotation)
+        {
+            this.annotation = annotation;
+        }
+    }
+
     class IconAnnotationHelper
     {
         public static void AddParameter(AnnotationCollection annotation, IMemberData member, object source)
@@ -73,6 +87,8 @@ namespace OpenTap
                         annotation.Add(new ParameterizedIconAnnotation());
                     }
                 }
+                if (stepModel.HasExpression)
+                    annotation.Add(new HasExpressionAnnotation(annotation));
                 if (stepModel.IsParameter)
                     annotation.Add(new ParameterIconAnnotation(annotation));
                 if (stepModel.IsOutput)

@@ -199,5 +199,6 @@ namespace OpenTap
         public const string RemoveDynamicProperty = Common + nameof(RemoveDynamicProperty);
         /// <summary> Assign an expression. </summary>
         public const string AssignExpression = Common + nameof(AssignExpression);
+        public static string HasExpression => Common + nameof(HasExpression);
     }
 }
