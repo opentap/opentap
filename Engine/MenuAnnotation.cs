@@ -200,6 +200,6 @@ namespace OpenTap
         /// <summary> Assign an expression. </summary>
         public const string AssignExpression = Common + nameof(AssignExpression);
         /// <summary> Assigned if a thing has an expression assigned. </summary>
-        public static string HasExpression => Common + nameof(HasExpression);
+        public const string HasExpression = Common + nameof(HasExpression);
     }
 }
