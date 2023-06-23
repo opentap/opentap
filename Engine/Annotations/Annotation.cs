@@ -490,8 +490,7 @@ namespace OpenTap
                     val.Value = null;
                     return;
                 }
-                bool expressionSet = false;
-
+                
                 currentError = null;
                 var unit = annotation.Get<UnitAttribute>();
                 if (annotation.Get<IReflectionAnnotation>()?.ReflectionInfo is TypeData cst)
