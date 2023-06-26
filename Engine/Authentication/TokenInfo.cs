@@ -10,10 +10,30 @@ using System.Xml.Serialization;
 namespace OpenTap.Authentication
 {
     /// <summary> 
-    /// Represents a set of Oauth2/OpenID Connect jwt tokens (access and possibly refresh token) that grants access to a given domain.
+    /// Represents a set of Oauth2/OpenID Connect tokens (access and possibly refresh token) that grants access to a given domain.
     /// </summary>
     public class TokenInfo
     {
+        /// <summary>
+        /// An enumeration of known token kinds
+        /// </summary>
+        public enum TokenKind
+        {
+            Jwt,
+            UserToken
+        }
+
+        /// <summary>
+        /// The kind of token this instance contains
+        /// </summary>
+        public TokenKind Kind => DetermineTokenKind();
+
+        private TokenKind DetermineTokenKind()
+        {
+            // Repository user tokens are guaranteed to never contain a period.
+            return AccessToken.Contains(".") ? TokenKind.Jwt : TokenKind.UserToken;
+        }
+        
         static DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
 
         /// <summary>
@@ -54,13 +74,21 @@ namespace OpenTap.Authentication
             get
             {
                 if (_Claims == null)
-                    _Claims = GetPayload().RootElement.EnumerateObject().ToDictionary(c => c.Name, c => c.Value.ToString());
+                    _Claims = getClaims();
                 return _Claims;
             }
         }
 
+        private Dictionary<string, string> getClaims()
+        {
+            if (Kind == TokenKind.Jwt)
+                return _Claims = GetPayload().RootElement.EnumerateObject().ToDictionary(c => c.Name, c => c.Value.ToString());
+            return new Dictionary<string, string>();
+        }
+
         /// <summary> Expiration date of the <see cref="AccessToken"/>. </summary>
         [XmlIgnore]
+        [Obsolete("Don't make assumptions about the kind or content of tokens.")]
         public DateTime Expiration => unixEpoch.AddSeconds(long.Parse(Claims["exp"]));
 
         JsonDocument payload;
@@ -98,7 +126,7 @@ namespace OpenTap.Authentication
         /// <summary>
         /// Default constructor from user code
         /// </summary>
-        /// <param name="access_token">The raw jwt token string for the access token</param>
+        /// <param name="access_token">The raw token string for the access token</param>
         /// <param name="refresh_token">Access, Refresh or ID type</param>
         /// <param name="domain">Domain name for which this token is valid</param>
         public TokenInfo(string access_token, string refresh_token, string domain)
