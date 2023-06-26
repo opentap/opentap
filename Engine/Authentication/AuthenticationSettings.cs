@@ -87,9 +87,6 @@ namespace OpenTap.Authentication
             }
         }
 
-        private static readonly TraceSource Log = OpenTap.Log.CreateSource("authentication");
-        private static readonly HashSet<string> Warned = new HashSet<string>();
-
         void PrepareRequest(HttpRequestMessage request, string domain, CancellationToken cancellationToken)
         {
             TokenInfo token = null;

@@ -90,7 +90,8 @@ namespace OpenTap.Authentication
         [XmlIgnore]
         [Obsolete("Expiration time is not supported. Future token types may not contain expiration information. " +
                   "Consider manually decoding the token if you know the specific format.")]
-        public DateTime Expiration => unixEpoch.AddSeconds(long.Parse(Claims["exp"]));
+        public DateTime Expiration =>
+            Kind == TokenKind.Jwt ? unixEpoch.AddSeconds(long.Parse(Claims["exp"])) : DateTime.MaxValue;
 
         JsonDocument payload;
 
