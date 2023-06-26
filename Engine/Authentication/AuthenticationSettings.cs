@@ -96,13 +96,6 @@ namespace OpenTap.Authentication
                 token = Tokens.FirstOrDefault(t => t.Domain == request.RequestUri.Host);
             if (token != null)
             {
-                if (token.Expiration < DateTime.Now.AddSeconds(10))
-                {
-                    if (token.RefreshToken != null)
-                    {
-                        // TODO: refresh
-                    }
-                }
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
             }
         }
