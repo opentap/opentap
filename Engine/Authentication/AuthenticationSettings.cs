@@ -99,20 +99,6 @@ namespace OpenTap.Authentication
                 token = Tokens.FirstOrDefault(t => t.Domain == request.RequestUri.Host);
             if (token != null)
             {
-                // If a token is known to be expired, we should not include it in the header. Doing so will cause
-                // all requests to fail against e.g. the package repository because it completely rejects failing credentials.
-                if (token.Kind == TokenInfo.TokenKind.Jwt && token.Claims.TryGetValue("exp", out var exp) && long.TryParse(exp, out var ts))
-                {
-                    var unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-                    var expiration = unixEpoch.AddSeconds(ts);
-                    if (expiration < DateTime.Now)
-                    {
-                        // Warn the user at most once if a token has expired.
-                        if (Warned.Add(token.AccessToken))
-                            Log.Warning($"The configured JWT token has expired. It will not be used for authentication.");
-                        return;
-                    }
-                }
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
             }
         }

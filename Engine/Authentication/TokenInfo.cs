@@ -17,7 +17,7 @@ namespace OpenTap.Authentication
         /// <summary>
         /// An enumeration of known token kinds
         /// </summary>
-        public enum TokenKind
+        private enum TokenKind
         {
             Jwt,
             UserToken
@@ -26,7 +26,7 @@ namespace OpenTap.Authentication
         /// <summary>
         /// The kind of token this instance contains
         /// </summary>
-        public TokenKind Kind => DetermineTokenKind();
+        private TokenKind Kind => DetermineTokenKind();
 
         private TokenKind DetermineTokenKind()
         {
@@ -74,15 +74,15 @@ namespace OpenTap.Authentication
             get
             {
                 if (_Claims == null)
-                    _Claims = getClaims();
+                    _Claims = GetClaims();
                 return _Claims;
             }
         }
 
-        private Dictionary<string, string> getClaims()
+        private Dictionary<string, string> GetClaims()
         {
             if (Kind == TokenKind.Jwt)
-                return _Claims = GetPayload().RootElement.EnumerateObject().ToDictionary(c => c.Name, c => c.Value.ToString());
+                return GetPayload().RootElement.EnumerateObject().ToDictionary(c => c.Name, c => c.Value.ToString());
             return new Dictionary<string, string>();
         }
 
