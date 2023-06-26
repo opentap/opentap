@@ -15,8 +15,9 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <PlatformEnv Condition=" '$(OS)' == 'Unix' ">Linux,Macos</PlatformEnv>
-    <PlatformEnv Condition=" '$(OS)' != 'Unix' ">Windows</PlatformEnv>
+    <PlatformEnv Condition=" '$(OS)' == 'OSX' ">MacOS</PlatformEnv>
+    <PlatformEnv Condition=" '$(OS)' == 'Unix' ">Linux</PlatformEnv>
+    <PlatformEnv Condition=" '$(OS)' == 'Windows' ">Windows</PlatformEnv>
   </PropertyGroup>
   <!-- Install OpenTAP as a package - this is necessary for most of the package cli actions to function normally.  -->
   <!-- CopyFilesToOutputDirectory is required for libgit native DLLs -->

@@ -150,6 +150,8 @@ namespace OpenTap.Package
                 sourceFile += $".{(Environment.Is64BitProcess ? CpuArchitecture.x64 : CpuArchitecture.x86)}";
             if (OperatingSystem.Current == OperatingSystem.MacOS)
                 sourceFile += $".{MacOsArchitecture.Current.Architecture}";
+            if (OperatingSystem.Current == OperatingSystem.Linux)
+                sourceFile += $".{LinuxArchitecture.Current.Architecture}";
 
             try
             {
