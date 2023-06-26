@@ -132,12 +132,6 @@ namespace OpenTap.UnitTests
                 Readable = true,
                 Writable = true,
                 DeclaringType = TypeData.FromType(typeof(TestStep)),
-                DisplayName = "A 1",
-                Description = "",
-                Group = "",
-                Output = false,
-                Order = 0,
-                Result = false
             };    
             DynamicMember.AddDynamicMember(step, newMem);
             newMem.SetValue(step, 2.0);

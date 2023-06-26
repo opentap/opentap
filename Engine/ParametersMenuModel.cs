@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OpenTap.Expressions;
 
 namespace OpenTap
@@ -228,8 +230,8 @@ namespace OpenTap
             }
         }
         
-        [Display("Add Dynamic Property", 
-            "Add a dynamic property based on the currently selected one.", 
+        [Display("Add Dynamic Setting", 
+            "Add a new dynamic setting.", 
             Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.AddDynamicProperty)]
@@ -239,9 +241,6 @@ namespace OpenTap
             {
                 // guess on a property name.
                 PropertyName = GetUniqueName(),
-                
-                // Assume the type being the same as the selected property.
-                Type = member.TypeDescriptor
             };
             
             // send the user request
@@ -252,43 +251,72 @@ namespace OpenTap
             
             var attributes = new List<object>();
             
-            { // process DisplayAttribute (if needed)
-                r.Group = r.Group?.Trim();
-                r.DisplayName = r.DisplayName?.Trim();
-                r.Description = r.DisplayName?.Trim();
-
-                if (!string.IsNullOrEmpty(r.Group) || !string.IsNullOrEmpty(r.DisplayName) || !string.IsNullOrEmpty(r.Description))
+            { 
+                var ast = CSharpSyntaxTree.ParseText(r.Attributes);
+                var root = ast.GetRoot();
+                var childNodes = root.ChildNodes()
+                    .OfType<IncompleteMemberSyntax>()
+                    .SelectMany(x => x.AttributeLists)
+                    .SelectMany(x => x.Attributes)
+                    .ToArray();
+                foreach (var node in childNodes)
                 {
-                    r.Group = r.Group ?? "";
-                    if (string.IsNullOrEmpty(r.DisplayName))
-                        r.DisplayName = r.PropertyName;
-                    r.Description = r.Description ?? "";
-                    attributes.Add(new DisplayAttribute(r.DisplayName, r.Description, r.Group, Order: r.Order));
+                    var name = node.Name.ToString();
+                    var openTapName = $"OpenTap.{name}Attribute";
+                    var attributeType = TypeData.GetTypeData(openTapName);
+                    if (attributeType == null)
+                        throw new Exception("Unable to find attribute " + openTapName);
+                    var ctors = attributeType.AsTypeData().Type.GetConstructors();
+                    foreach (var ctor in ctors)
+                    {
+                        var parameters = ctor.GetParameters();
+                        var normalArgs = node.ArgumentList?.Arguments.ToArray() ?? Array.Empty<AttributeArgumentSyntax>();
+                        var exprs = normalArgs.Select(x =>
+                            {
+                                if (x.Expression is ExpressionSyntax e)
+                                {
+                                    if (e is LiteralExpressionSyntax le)
+                                    {
+                                        return le.Token.Value;
+                                    }
+                                }
+                                
+                                return null;
+                            }
+                        ).ToArray();
+                        if (parameters.Count(x => false == (x.IsOptional|| x.CustomAttributes.OfType<ParamArrayAttribute>().Any())) <= exprs.Length)
+                        {
+                            var args = new object[parameters.Count()];
+                            for (int i = 0; i < parameters.Count(); i++)
+                            {
+                                if (exprs.Length > i)
+                                    args[i] = exprs[i];
+                                else
+                                    args[i] = parameters[i].DefaultValue;
+                            }
+                            var attr = (Attribute)ctor.Invoke(args);
+                            attributes.Add(attr);
+                            break;
+                        }
+
+
+                    }
                 }
+                
             }
             
-            var selectedType = r.Type;
-            if (selectedType == null)
-            {
-                log.Error("Invalid type selected: {0}", r.Type);
-                return;
-            }
+            var selectedType = r.GetPropertyType();
             
             foreach (var src in source)
             {
                 var newMem = new UserDefinedDynamicMember
                 {
-                    TypeDescriptor = r.Type,
+                    TypeDescriptor = TypeData.FromType(selectedType),
                     Name = r.PropertyName,
+                    Attributes = attributes,
                     Readable = true,
                     Writable = true,
                     DeclaringType = TypeData.FromType(typeof(TestStep)),
-                    DisplayName = r.DisplayName,
-                    Description = r.Description,
-                    Group = r.Group,
-                    Output = r.Output,
-                    Order = r.Order,
-                    Result = r.Result
                 };    
                 DynamicMember.AddDynamicMember(src, newMem);
             }
@@ -300,41 +328,44 @@ namespace OpenTap
             Cancel
         }
 
-        [Display("Define the new property")]
+        [Display("Define the new setting")]
         class AddDynamicPropertyRequest
         {
+            public enum PropertyType
+            {
+                [Display("Number", "A double is used as the internal format for numbers.")]
+                Number,
+                [Display("Text", "A string of text.")]
+                Text,
+                [Display("Boolean", "A boolean value. Only the values true and false can be assigned.")]
+                Boolean
+            }
+                
 
-            
             [Display("Name")]
             public string PropertyName { get; set; }
 
-            public ITypeData[] Types => new ITypeData[]
+            public PropertyType Type { get; set; } = PropertyType.Number;
+            public Type GetPropertyType() {
+                if (Type == PropertyType.Number)
+                    return typeof(double);
+                if (Type == PropertyType.Text)
+                    return typeof(string);
+                return typeof(bool);
+
+            }
+
+            [Layout(LayoutMode.FullRow, rowHeight: 5)]
+            [Display("Attributes", Order: 1)]
+            public string Attributes { get; set; } = "[Output()]";
+            
+            [Layout(LayoutMode.FullRow)]
+            [Display("Add Attribute", Order: 2)]
+            [Browsable(true)]
+            public void AddAttribute()
             {
-                TypeData.FromType(typeof(string)), 
-                TypeData.FromType(typeof(int)), 
-                TypeData.FromType(typeof(double))
-            };
-            
-            [AvailableValues(nameof(Types))]
-            public ITypeData Type { get; set; }
-            
-            [Display("Output", "Selects whether to mark this as an output.", Group: "Advanced" )]
-            public bool Output { get; set; }
-            
-            [Display("Result", "Selects whether to mark this property as an result.", Group: "Advanced" )]
-            public bool Result { get; set; }
-
-            [Display("Name", "Selects whether to mark this as an output.", Group: "Display" )]
-            public string DisplayName { get; set; }
-            
-            [Display("Description", "Selects whether to mark this as an output.", Group: "Display" )]
-            public string Description { get; set; }
-            
-            [Display("Group", "Selects whether to mark this as an output.", Group: "Display" )]
-            public string Group {get; set; }
-
-            [Display("Order", "Selects whether to mark this as an output.", Group: "Display")]
-            public double Order { get; set; } = -10000;
+                Attributes = Attributes + "\n" + "[Output()]";
+            }
             
             [Submit]
             [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
@@ -354,7 +385,7 @@ namespace OpenTap
             } 
         }
 
-        [Display("Remove Dynamic Property", "Remove user-defined dynamic property.", Order: 2.0)]
+        [Display("Remove Dynamic Setting", "Remove user-defined dynamic setting.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.RemoveDynamicProperty)]
         [EnabledIf(nameof(CanRemoveDynamicMember), true, HideIfDisabled = true)]

@@ -1,4 +1,6 @@
-﻿using NUnit.Framework;
+﻿using System;
+using System.Linq;
+using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.Engine.UnitTests
@@ -36,64 +38,62 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(10, testMemberValue2);
         }
 
-        //[Test]
-        public void ExpressionTestStepTest()
+        class UserInputTest : IUserInputInterface
         {
-            var expressionStep = new ExpressionStep();
-            var memberA = new UserDefinedDynamicMember
+            public Action<object> Func { get; set; } 
+
+            public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
             {
-                Name = "A", 
-                TypeDescriptor = TypeData.FromType(typeof(int)),
-                Readable = true,
-                Writable = true
-            };
-            var memberB = new UserDefinedDynamicMember
-            {
-                Name = "B", 
-                TypeDescriptor = TypeData.FromType(typeof(int)),
-                Readable = true,
-                Writable = true
-            };
-            var memberC = new UserDefinedDynamicMember
-            {
-                Name = "C", 
-                TypeDescriptor = TypeData.FromType(typeof(bool)),
-                Readable = true,
-                Writable = true
-            };
-            var memberD = new UserDefinedDynamicMember
-            {
-                Name = "D", 
-                TypeDescriptor = TypeData.FromType(typeof(bool)),
-                Readable = true,
-                Writable = true
-            };
-            DynamicMember.AddDynamicMember(expressionStep, memberA);
-            DynamicMember.AddDynamicMember(expressionStep, memberB);
-            DynamicMember.AddDynamicMember(expressionStep, memberC);
-            DynamicMember.AddDynamicMember(expressionStep, memberD);
-            
-            expressionStep.Expression = "A = B + (2 + 1); B = B * 2 + 1; C = B > 3; D = B == 3 || B == 7";
-            int a = 0;
-            int b = 0;
-            bool c;
-            bool d;
-            for (int i = 0; i < 10; i++)
-            {
-                expressionStep.Run();
-                a = b + (2 + 1);
-                b = b * 2 + 1;
-                c = b > 3;
-                d = b == 3 || b == 7;
-                var b1 = memberB.GetValue(expressionStep);
-                var a1 = memberA.GetValue(expressionStep);
-                var c1 = memberC.GetValue(expressionStep);
-                var d1 = memberD.GetValue(expressionStep);
-                Assert.AreEqual(a, a1);
-                Assert.AreEqual(b, b1);
-                Assert.AreEqual(c, c1);
-                Assert.AreEqual(d, d1);
+                Func(dataObject);
             }
         }
+        
+        [Test]
+        public void UserDefinedMemberAnnotationTest()
+        {
+            var user = new UserInputTest();
+            var input = UserInput.GetInterface();
+            UserInput.SetInterface(user);
+            try
+            {
+                var step = new LogStep();
+                var plan = new TestPlan();
+                plan.Steps.Add(step);
+
+                var a = AnnotationCollection.Annotate(step);
+                var member = a.GetMember(nameof(step.LogMessage));
+                var menu = member.Get<MenuAnnotation>();
+                var items = menu.MenuItems.ToArray();
+                var dyn = items.FirstOrDefault(mem => mem.Get<IIconAnnotation>().IconName == IconNames.AddDynamicProperty);
+
+                user.Func = (obj) =>
+                {
+                    var a = AnnotationCollection.Annotate(obj);
+                    var attributes = a.GetMember("Attributes");
+                    var str = attributes.Get<IStringValueAnnotation>();
+                    str.Value = "[Output()][Unit(\"Hz\")][EnabledIf(\"B>-1\")]";
+                    var memberName = a.GetMember("PropertyName");
+                    var str2 = memberName.Get<IStringValueAnnotation>();
+                    str2.Value = "B";
+
+                    a.Write();
+                };
+                    
+                dyn.Get<IMethodAnnotation>()?.Invoke();
+
+
+                var newmem = TypeData.GetTypeData(step).GetMember("B");
+                Assert.IsTrue(newmem.HasAttribute<OutputAttribute>());
+                Assert.IsTrue(newmem.GetAttribute<UnitAttribute>()?.Unit == "Hz");
+                Assert.IsTrue(newmem.HasAttribute<EnabledIfAttribute>());
+
+            }
+            finally
+            {
+                UserInput.SetInterface(input);
+            }
+
+        }
+
     }
 }
