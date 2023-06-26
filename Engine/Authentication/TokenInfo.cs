@@ -88,7 +88,8 @@ namespace OpenTap.Authentication
 
         /// <summary> Expiration date of the <see cref="AccessToken"/>. </summary>
         [XmlIgnore]
-        [Obsolete("Don't make assumptions about the kind or content of tokens.")]
+        [Obsolete("Expiration time is not supported. Future token types may not contain expiration information. " +
+                  "Consider manually decoding the token if you know the specific format.")]
         public DateTime Expiration => unixEpoch.AddSeconds(long.Parse(Claims["exp"]));
 
         JsonDocument payload;
