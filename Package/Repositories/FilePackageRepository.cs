@@ -41,25 +41,34 @@ namespace OpenTap.Package
         {
             if (Uri.TryCreate(path, UriKind.RelativeOrAbsolute, out Uri uri))
             {
-                string absolutePath = null;
-                if (uri.IsAbsoluteUri)
+                // This is true for UNC paths on Windows
+                if (uri.IsAbsoluteUri && uri.HostNameType is UriHostNameType.Dns or UriHostNameType.IPv4 or UriHostNameType.IPv6)
                 {
-                    if (uri.Scheme != Uri.UriSchemeFile)
-                        throw new NotSupportedException($"Scheme {uri.Scheme} is not supported as a file package repository ({path}).");
-                    absolutePath = uri.AbsolutePath;
+                    AbsolutePath = uri.LocalPath;
+                    Url = uri.AbsoluteUri.TrimEnd(new[] { '\\', '/' });;
                 }
                 else
                 {
-                    absolutePath = Path.GetFullPath(path);
+                    string absolutePath = null;
+                    if (uri.IsAbsoluteUri)
+                    {
+                        if (uri.Scheme != Uri.UriSchemeFile)
+                            throw new NotSupportedException($"Scheme {uri.Scheme} is not supported as a file package repository ({path}).");
+                        absolutePath = uri.AbsolutePath;
+                    }
+                    else
+                    {
+                        absolutePath = Path.GetFullPath(path);
+                    }
+
+                    if (File.Exists(absolutePath))
+                        AbsolutePath = Path.GetFullPath(Path.GetDirectoryName(absolutePath)).TrimEnd('/', '\\');
+                    else
+                        AbsolutePath = Path.GetFullPath(absolutePath).TrimEnd('/', '\\');
+                    AbsolutePath = Uri.UnescapeDataString(AbsolutePath);
+
+                    Url = new Uri(AbsolutePath).AbsoluteUri;
                 }
-
-                if (File.Exists(absolutePath))
-                    AbsolutePath = Path.GetFullPath(Path.GetDirectoryName(absolutePath)).TrimEnd('/', '\\');
-                else
-                    AbsolutePath = Path.GetFullPath(absolutePath).TrimEnd('/', '\\');
-                AbsolutePath = Uri.UnescapeDataString(AbsolutePath);
-
-                Url = new Uri(AbsolutePath).AbsoluteUri;
             }
             else
                 throw new NotSupportedException($"{path} is not supported as a file package repository.");
