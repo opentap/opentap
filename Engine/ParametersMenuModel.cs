@@ -248,63 +248,7 @@ namespace OpenTap
             
             if (r.Submit == OkCancel.Cancel)
                 return; // cancel
-            
-            var attributes = new List<object>();
-            
-            { 
-                var ast = CSharpSyntaxTree.ParseText(r.Attributes);
-                var root = ast.GetRoot();
-                var childNodes = root.ChildNodes()
-                    .OfType<IncompleteMemberSyntax>()
-                    .SelectMany(x => x.AttributeLists)
-                    .SelectMany(x => x.Attributes)
-                    .ToArray();
-                foreach (var node in childNodes)
-                {
-                    var name = node.Name.ToString();
-                    var openTapName = $"OpenTap.{name}Attribute";
-                    var attributeType = TypeData.GetTypeData(openTapName);
-                    if (attributeType == null)
-                        throw new Exception("Unable to find attribute " + openTapName);
-                    var ctors = attributeType.AsTypeData().Type.GetConstructors();
-                    foreach (var ctor in ctors)
-                    {
-                        var parameters = ctor.GetParameters();
-                        var normalArgs = node.ArgumentList?.Arguments.ToArray() ?? Array.Empty<AttributeArgumentSyntax>();
-                        var exprs = normalArgs.Select(x =>
-                            {
-                                if (x.Expression is ExpressionSyntax e)
-                                {
-                                    if (e is LiteralExpressionSyntax le)
-                                    {
-                                        return le.Token.Value;
-                                    }
-                                }
-                                
-                                return null;
-                            }
-                        ).ToArray();
-                        if (parameters.Count(x => false == (x.IsOptional|| x.CustomAttributes.OfType<ParamArrayAttribute>().Any())) <= exprs.Length)
-                        {
-                            var args = new object[parameters.Count()];
-                            for (int i = 0; i < parameters.Count(); i++)
-                            {
-                                if (exprs.Length > i)
-                                    args[i] = exprs[i];
-                                else
-                                    args[i] = parameters[i].DefaultValue;
-                            }
-                            var attr = (Attribute)ctor.Invoke(args);
-                            attributes.Add(attr);
-                            break;
-                        }
 
-
-                    }
-                }
-                
-            }
-            
             var selectedType = r.GetPropertyType();
             
             foreach (var src in source)
@@ -313,7 +257,7 @@ namespace OpenTap
                 {
                     TypeDescriptor = TypeData.FromType(selectedType),
                     Name = r.PropertyName,
-                    Attributes = attributes,
+                    AttributesCode = r.Attributes,
                     Readable = true,
                     Writable = true,
                     DeclaringType = TypeData.FromType(typeof(TestStep)),

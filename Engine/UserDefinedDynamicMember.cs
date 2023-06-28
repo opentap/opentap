@@ -9,7 +9,7 @@ namespace OpenTap
     /// <summary> Class describing a user defined member. </summary>
     public class UserDefinedDynamicMember : DynamicMember
     {
-        IEnumerable<object> attributes;
+        IEnumerable<object> attributes = Array.Empty<object>();
         /// <summary> User defined attributes. </summary>
         [XmlIgnore]
         public override IEnumerable<object> Attributes
@@ -30,6 +30,22 @@ namespace OpenTap
                        && Equals(other.TypeDescriptor, TypeDescriptor) 
                        && Equals(other.DeclaringType, DeclaringType);
             return false;
+        }
+
+        internal string internalAttributesCode;
+        /// <summary>
+        /// This contains the code for reconstructing the attributes. e.g [Unit("Hz")]
+        /// </summary>
+        [XmlElement("Attributes")]
+        public string AttributesCode
+        {
+            get => internalAttributesCode;
+            set
+            {
+                attributes = UserDefinedMemberManager.CompileAttributes(value);
+                internalAttributesCode = value;
+            }
+            
         }
 
         /// <summary> Calculate a hash code. </summary>

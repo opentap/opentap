@@ -18,8 +18,10 @@ namespace OpenTap.Engine.UnitTests
                 Name = "Test", 
                 TypeDescriptor = TypeData.FromType(typeof(int)),
                 Readable = true,
-                Writable = true
+                Writable = true,
+                AttributesCode = "[Unit(\"Hz\")]"
             };
+            
             DynamicMember.AddDynamicMember(step, member);
             var userdefined = UserDefinedDynamicMember.GetUserDefinedMembers(step);
             Assert.AreEqual(1, userdefined.Length);
@@ -36,6 +38,51 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual("", string.Join(",", serializer.Errors));
             Assert.AreEqual(10, testMemberValue);
             Assert.AreEqual(10, testMemberValue2);
+            Assert.IsTrue(member.HasAttribute<UnitAttribute>());
+        }
+
+        [Test]
+        public void UseUserDefinedParameterizedMemberData()
+        {
+            var step = new LogStep();
+            var seq = new SequenceStep();
+            var plan = new TestPlan();
+            plan.Steps.Add(seq);
+            seq.ChildTestSteps.Add(step);
+            var stepMember = new UserDefinedDynamicMember()
+            {
+                Name = "Test",
+                TypeDescriptor = TypeData.FromType(typeof(int)),
+                Readable = true,
+                Writable = true,
+                AttributesCode = "[Unit(\"Hz\")]"
+            };
+            string propName = "Z";
+            DynamicMember.AddDynamicMember(step, stepMember);
+            ParameterManager.Parameterize(seq, stepMember, new []{step}, propName);
+            var seqMember = TypeData.GetTypeData(seq).GetMember(propName);
+            seqMember.SetValue(seq, 10);
+            
+            var planXml = plan.SerializeToString();
+
+            var plan2 = TapSerializer.DeserializeFromXml<TestPlan>(planXml);
+            var seq2 = plan2.ChildTestSteps[0];
+            var step2 = seq2.ChildTestSteps[0];
+            var seq2Member = TypeData.GetTypeData(seq2).GetMember(propName);
+            var step2Member = TypeData.GetTypeData(step2).GetMember(stepMember.Name);
+            
+
+            Assert.AreEqual(10, stepMember.GetValue(step));
+            Assert.AreEqual(10, seqMember.GetValue(seq));
+            
+            Assert.AreEqual(10, step2Member.GetValue(step2));
+            Assert.AreEqual(10, seq2Member.GetValue(seq2));
+            Assert.IsTrue(stepMember.GetAttribute<UnitAttribute>().Unit == "Hz");
+            Assert.IsTrue(step2Member.GetAttribute<UnitAttribute>().Unit == "Hz");
+            Assert.IsTrue(seqMember.GetAttribute<UnitAttribute>().Unit == "Hz");
+            Assert.IsTrue(seq2Member.GetAttribute<UnitAttribute>().Unit == "Hz");
+
+
         }
 
         class UserInputTest : IUserInputInterface
@@ -92,7 +139,6 @@ namespace OpenTap.Engine.UnitTests
             {
                 UserInput.SetInterface(input);
             }
-
         }
 
     }
