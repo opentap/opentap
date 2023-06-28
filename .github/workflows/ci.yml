@@ -521,10 +521,7 @@ jobs:
         env:
           Platform: ${{ matrix.os }}
           Architecture: ${{ matrix.arch }}
-          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
-          TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
-          TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
-          Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}
+          Sign: false
       - name: Rename package
         run: cp bin/output/Packages/OpenTAP.${{ matrix.os }}.${{ matrix.arch }}.TapPackage OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.${{ matrix.os }}.${{ matrix.arch }}.TapPackage
       - uses: actions/upload-artifact@v3
