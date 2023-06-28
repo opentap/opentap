@@ -468,11 +468,8 @@ jobs:
             OpenTAP.*.Windows.TapPackage
 
   Package-Cross:
-    if: needs.CheckSecrets.outputs.sign_is_set == 'true'
     runs-on: ubuntu-latest
-    environment: sign
     needs:
-      - CheckSecrets
       - Build-Linux
       - Build-MacOS
       - Build-ApiDoc
