@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OpenTap.Expressions;
 
 namespace OpenTap
@@ -299,61 +302,159 @@ namespace OpenTap
             [Display("Attributes", Group: "Attributes", Order: 1)]
             public string Attributes { get; set; } = "";
 
-            public enum AvailableAttributes
+            
+            void SetAttribute(bool set, string name, string arg)
             {
-                None, Unit, Output, Result, Validation, 
-            }
+                var ast = CSharpSyntaxTree.ParseText(Attributes);
+                var root = (CSharpSyntaxNode)ast.GetRoot();
 
-            AvailableAttributes selectedAttribute;
-            [Display("Select Attribute", Group: "Attributes", Order: 1.1)]
-            public AvailableAttributes SelectedAttribute
-            {
-                get => selectedAttribute;
-                set
+                foreach (var elem in root.ChildNodes())
                 {
-                    if (selectedAttribute == value) return;
-                    selectedAttribute = value;
-                    if (value == AvailableAttributes.Validation)
+                    if (elem is IncompleteMemberSyntax x)
                     {
-                        if (Type == PropertyType.Text)
+                        foreach (var attributeList in x.AttributeLists)
                         {
-                            SelectedValidation = $"false == empty({PropertyName})";    
-                        }else if (Type == PropertyType.Number)
-                        {
-                            SelectedValidation = $"{PropertyName} > 0";
-                        }
-                        else
-                        {
-                            SelectedValidation = "1 == 1";
+                            foreach (var node in attributeList.Attributes)
+                            {
+                                if (node.Name.ToString() == name)
+                                {
+                                    if (!set)
+                                    {
+                                        var newList = attributeList.Attributes.Remove(node);
+                                        if (newList.Count == 0)
+                                        {
+                                            var newx = x.WithAttributeLists(x.AttributeLists.Remove(attributeList));
+
+                                            var newRoot = newx.AttributeLists.SelectMany(a => a.Attributes).Any() ? root.ReplaceNode(elem, newx) : root.RemoveNode(elem, SyntaxRemoveOptions.KeepNoTrivia);
+                                            Attributes = CSharpSyntaxTree.Create(newRoot).ToString();
+                                            return;
+                                        }
+                                        else
+                                        {
+                                            var newx = x.WithAttributeLists(x.AttributeLists.Replace(attributeList, attributeList.WithAttributes(newList)));
+
+                                            var newRoot = newx.AttributeLists.SelectMany(a => a.Attributes).Any() ? root.ReplaceNode(elem, newx) : root.RemoveNode(elem, SyntaxRemoveOptions.KeepNoTrivia);
+                                            Attributes = CSharpSyntaxTree.Create(newRoot).ToString();
+                                            return;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if (arg != null)
+                                        {
+                                            var node2 = node.WithArgumentList(node.ArgumentList.RemoveNodes(node.ArgumentList.ChildNodes(), SyntaxRemoveOptions.KeepNoTrivia));
+
+                                            node2 = node2.AddArgumentListArguments(SyntaxFactory.AttributeArgument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression)
+                                                .WithToken(SyntaxFactory.Literal(arg))));
+                                            var newList = attributeList.Attributes.Replace(node, node2);
+                                            var newx = x.WithAttributeLists(x.AttributeLists.Replace(attributeList, attributeList.WithAttributes(newList)));
+
+                                            var newRoot = newx.AttributeLists.SelectMany(a => a.Attributes).Any() ? root.ReplaceNode(elem, newx) : root.RemoveNode(elem, SyntaxRemoveOptions.KeepNoTrivia);
+                                            Attributes = CSharpSyntaxTree.Create(newRoot).ToString();
+
+                                        }
+                                        else
+                                        {
+                                            // the attribute was already there.
+                                        }
+                                        return;
+                                    }
+                                }
+                            }
+
                         }
                     }
                 }
+
+                var newAttr = SyntaxFactory.Attribute(SyntaxFactory.IdentifierName(name));
+                if(arg != null)
+                    newAttr = newAttr .WithArgumentList(SyntaxFactory.AttributeArgumentList()
+                        .AddArguments(SyntaxFactory.AttributeArgument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression)
+                        .WithToken(SyntaxFactory.Literal(arg)))));
+
+                var newMember = SyntaxFactory.IncompleteMember()
+                    .WithAttributeLists(SyntaxFactory.List<AttributeListSyntax>(new[]
+                    {
+                        SyntaxFactory.AttributeList(SyntaxFactory.SingletonSeparatedList(newAttr))
+                            .WithTrailingTrivia(SyntaxFactory.EndOfLine("\n"))
+                    }));
+                var existing = root.ChildNodes().LastOrDefault();
+                if (existing == null)
+                {
+                    Attributes = CSharpSyntaxTree.Create(newMember).ToString();   
+                }
+                else
+                {
+                    root = root.InsertNodesAfter(root.ChildNodes().LastOrDefault(), new SyntaxNode[]
+                    {
+                       newMember
+                    });
+                    Attributes = CSharpSyntaxTree.Create(root).ToString();
+                }
+            }
+            bool HasAttribute(string name)
+            {
+                var ast = CSharpSyntaxTree.ParseText(Attributes);
+                var root = (CSharpSyntaxNode)ast.GetRoot();
+                foreach (var elem in root.ChildNodes())
+                {
+                    if (elem is IncompleteMemberSyntax x)
+                    {
+                        foreach (var attributeList in x.AttributeLists)
+                        {
+                            foreach (var node in attributeList.Attributes)
+                            {
+                                if (node.Name.ToString() == name)
+                                {
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+            string AttributeString(string name)
+            {
+                var ast = CSharpSyntaxTree.ParseText(Attributes);
+                var root = (CSharpSyntaxNode)ast.GetRoot();
+                foreach (var elem in root.ChildNodes())
+                {
+                    if (elem is IncompleteMemberSyntax x)
+                    {
+                        foreach (var attributeList in x.AttributeLists)
+                        {
+                            foreach (var node in attributeList.Attributes)
+                            {
+                                if (node.Name.ToString() == name)
+                                {
+                                    return (node?.ArgumentList?.Arguments.Select(x => (x.Expression as LiteralExpressionSyntax)?.Token.ValueText).FirstOrDefault()) ?? "";
+                                }
+                            }
+                        }
+                    }
+                }
+                return "";
+            }
+            
+            public bool Output
+            {
+                get => HasAttribute(nameof(Output));
+                set => SetAttribute(value, nameof(Output), null);
+            }
+            public bool Result
+            {
+                get => HasAttribute(nameof(Result));
+                set => SetAttribute(value, nameof(Result), null);
+            }
+            
+            [EnabledIf(nameof(Type), PropertyType.Number, HideIfDisabled = true)]
+            public string Unit
+            {
+                get => AttributeString(nameof(Unit));
+                set => SetAttribute(string.IsNullOrEmpty(value) == false, nameof(Unit), value);
             }
 
-            [Display("Unit", Group: "Attributes", Order: 1.1)]
-            [EnabledIf(nameof(SelectedAttribute), AvailableAttributes.Unit, HideIfDisabled = true)]
-            public string SelectedUnit { get; set; } = "s";
-            
-            [Display("Validation", Group: "Attributes", Order: 1.1)]
-            [EnabledIf(nameof(SelectedAttribute), AvailableAttributes.Validation, HideIfDisabled = true)]
-            public string SelectedValidation { get; set; } = "";
-            
-            
-            [Display("Insert Attribute", Group: "Attributes", Order: 1.2)]
-            [Browsable(true)]
-            [EnabledIf(nameof(SelectedAttribute), AvailableAttributes.None, Invert = true)]
-            public void InsertAttribute()
-            {
-                string argumentString = null;
-                if (SelectedAttribute == AvailableAttributes.Unit)
-                    argumentString = SelectedUnit;
-                if (SelectedAttribute == AvailableAttributes.Validation)
-                    argumentString = SelectedValidation;
-                
-                Attributes = Attributes + $"[{SelectedAttribute}{(argumentString != null ? $"(\"{argumentString}\")" : "")}]" + "\n" ;
-                SelectedAttribute = AvailableAttributes.None;
-            }
-            
             [Submit]
             [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
             public OkCancel Submit { get; set; }
