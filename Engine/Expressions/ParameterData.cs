@@ -41,7 +41,7 @@ namespace OpenTap.Expressions
             return new ParameterData(lookup.ToImmutableDictionary(), parameters.ToImmutableArray());
         }            
         
-        internal static IEnumerable<IMemberData> GetMembers(object obj)
+        internal static IMemberData[] GetMembers(object obj)
         {
             IMemberData[] members = new IMemberData[10];
             GetMembers(obj, ref members);

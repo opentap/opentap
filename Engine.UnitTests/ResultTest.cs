@@ -268,7 +268,9 @@ namespace OpenTap.UnitTests
             public double X { get; set; }
             
             [Result]
-            [Verdict("Y > 0")]
+            [Verdict("pass(Y >= 1)")]
+            [Verdict("inconclusive(Y < 1)")]
+            [Verdict("fail(Y < 0)")]
             public double Y { get; set; }
 
             public override void Run()

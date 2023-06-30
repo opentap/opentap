@@ -39,7 +39,7 @@ namespace OpenTap
         static HashSet<object> traversed = null;
 
         bool validationAttributesChecked = false;
-        internal void InvalidateAttribute()
+        internal void InvalidateValidationAttributes()
         {
             validationAttributesChecked = false;
         }
@@ -52,6 +52,9 @@ namespace OpenTap
             if (validationAttributesChecked == false)
             {
                 var rules = ExpressionManager.GetValidationRules(this);
+                foreach (var rule in rules)
+                    rule.FromAttribute = true;
+                Rules.RemoveIf(rule => rule.FromAttribute);
                 Rules.AddRange(rules);
                 validationAttributesChecked = true;
             }
@@ -192,6 +195,8 @@ namespace OpenTap
         /// Rule function following the signature () -> bool.  
         /// </summary>
         public IsValidDelegateDefinition IsValid { get; set; }
+        
+        internal bool FromAttribute { get; set; }
 
         /// <summary>
         /// </summary>

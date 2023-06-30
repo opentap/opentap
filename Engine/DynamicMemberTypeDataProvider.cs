@@ -369,6 +369,9 @@ namespace OpenTap
                 DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, members);
             }
             members[member.Name] = member;
+            
+            // This action may affect validation attributes.
+            if(target is ValidatingObject vo) vo.InvalidateValidationAttributes();
         }
 
         /// <summary> Removes a dynamic member from an object. </summary>
@@ -378,6 +381,9 @@ namespace OpenTap
             members.Remove(member.Name);
             if (members.Count == 0) members = null;
             DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, members);
+            
+            // This action may affect validation attributes.
+            if(target is ValidatingObject vo) vo.InvalidateValidationAttributes();
         }
 
         /// <summary> the test plan stores a hashset of all current parameterizations, so this can be used

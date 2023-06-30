@@ -8,6 +8,10 @@ namespace OpenTap.Expressions
     {
         class Extra
         {
+            public bool isempty(string str) => string.IsNullOrEmpty(str);
+            public static Verdict fail(bool check) => check ? Verdict.Fail : Verdict.NotSet;
+            public static Verdict inconclusive(bool check) => check ? Verdict.Inconclusive : Verdict.NotSet;
+            public static Verdict pass(bool check) => check ? Verdict.Pass : Verdict.NotSet;
             public static double sin(double phase) => Math.Sin(phase);
             public static double cos(double phase) => Math.Cos(phase);
             public static double tan(double phase) => Math.Tan(phase);
@@ -81,6 +85,9 @@ namespace OpenTap.Expressions
 
             public static double Pi => π;
             public static double π => Math.PI;
+
+            public bool @false => false;
+            public bool @true => true;
         }
         
         static MethodInfo[] methods;

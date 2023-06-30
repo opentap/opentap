@@ -282,8 +282,7 @@ namespace OpenTap
                 [Display("Boolean", "A boolean value. Only the values true and false can be assigned.")]
                 Boolean
             }
-                
-
+            
             [Display("Name")]
             public string PropertyName { get; set; }
 
@@ -294,19 +293,65 @@ namespace OpenTap
                 if (Type == PropertyType.Text)
                     return typeof(string);
                 return typeof(bool);
-
             }
 
             [Layout(LayoutMode.FullRow, rowHeight: 5)]
-            [Display("Attributes", Group:"Attributes", Order: 1)]
-            public string Attributes { get; set; } = "[Output()]";
-            
-            [Layout(LayoutMode.FullRow)]
-            [Display("Add Attribute", Group:"Attributes", Order: 2)]
-            [Browsable(true)]
-            public void AddAttribute()
+            [Display("Attributes", Group: "Attributes", Order: 1)]
+            public string Attributes { get; set; } = "";
+
+            public enum AvailableAttributes
             {
-                Attributes = Attributes + "\n" + "[Output()]";
+                None, Unit, Output, Result, Validation, 
+            }
+
+            AvailableAttributes selectedAttribute;
+            [Display("Select Attribute", Group: "Attributes", Order: 1.1)]
+            public AvailableAttributes SelectedAttribute
+            {
+                get => selectedAttribute;
+                set
+                {
+                    if (selectedAttribute == value) return;
+                    selectedAttribute = value;
+                    if (value == AvailableAttributes.Validation)
+                    {
+                        if (Type == PropertyType.Text)
+                        {
+                            SelectedValidation = $"false == empty({PropertyName})";    
+                        }else if (Type == PropertyType.Number)
+                        {
+                            SelectedValidation = $"{PropertyName} > 0";
+                        }
+                        else
+                        {
+                            SelectedValidation = "1 == 1";
+                        }
+                    }
+                }
+            }
+
+            [Display("Unit", Group: "Attributes", Order: 1.1)]
+            [EnabledIf(nameof(SelectedAttribute), AvailableAttributes.Unit, HideIfDisabled = true)]
+            public string SelectedUnit { get; set; } = "s";
+            
+            [Display("Validation", Group: "Attributes", Order: 1.1)]
+            [EnabledIf(nameof(SelectedAttribute), AvailableAttributes.Validation, HideIfDisabled = true)]
+            public string SelectedValidation { get; set; } = "";
+            
+            
+            [Display("Insert Attribute", Group: "Attributes", Order: 1.2)]
+            [Browsable(true)]
+            [EnabledIf(nameof(SelectedAttribute), AvailableAttributes.None, Invert = true)]
+            public void InsertAttribute()
+            {
+                string argumentString = null;
+                if (SelectedAttribute == AvailableAttributes.Unit)
+                    argumentString = SelectedUnit;
+                if (SelectedAttribute == AvailableAttributes.Validation)
+                    argumentString = SelectedValidation;
+                
+                Attributes = Attributes + $"[{SelectedAttribute}{(argumentString != null ? $"(\"{argumentString}\")" : "")}]" + "\n" ;
+                SelectedAttribute = AvailableAttributes.None;
             }
             
             [Submit]

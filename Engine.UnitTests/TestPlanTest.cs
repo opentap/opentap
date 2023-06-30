@@ -1941,16 +1941,10 @@ namespace OpenTap.Engine.UnitTests
         }
         public class ValidationStep : TestStep
         {
-            const string rule = "10 < " + nameof(Voltage) + " < 100";
-            
-            public double LowerLimit { get; set; }
-            [Verdict(Verdict.Pass, "LowerLimit < Voltage < 90")]
-            [Result]
             public double Voltage { get; set; }
             
             public override void PrePlanRun()
             {
-                new ValidationRuleAttribute((voltage) => 10 < voltage);
                 Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Open]);
                 Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Execute]);
                 Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.PrePlanRun]);

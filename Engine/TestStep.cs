@@ -891,7 +891,7 @@ namespace OpenTap
 
         internal static string GetStepPath(this ITestStep Step)
         {
-            var name = Step.Name;
+            var name = Step.GetFormattedName();
 
             StringBuilder sb = new StringBuilder();
             sb.Append('"');
@@ -901,7 +901,7 @@ namespace OpenTap
                 if (step.Parent is ITestStep parent2)
                     getParentNames(parent2);
 
-                sb.Append(step.Name);
+                sb.Append(step.GetFormattedName());
                 sb.Append(" \\ ");
             }
 

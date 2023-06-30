@@ -34,6 +34,11 @@ namespace OpenTap.Expressions
             public object[] buffer;
 
             public readonly Dictionary<string, (IMemberData[], Delegate)> EnabledIfLookup = new Dictionary<string, (IMemberData[], Delegate)>();
+            public (Delegate, Verdict)[] UpdateVerdicts
+            {
+                get;
+                set;
+            }
 
             public bool TryGetValue(string memberName, out ExpressionObject o)
             {
@@ -135,6 +140,7 @@ namespace OpenTap.Expressions
             builder.UpdateParameterMembers(step, ref expressions.members, out bool updated);
             if (updated)
             {
+                expressions.UpdateVerdicts = null;
                 expressions.EnabledIfLookup.Clear();
                 foreach (var item in expressions)
                 {
@@ -149,17 +155,32 @@ namespace OpenTap.Expressions
             if (exprMember != null)
                 return true;
             return false;
-        } 
+        }
 
-        public static void Update(object step, IMemberData member = null)
+        static ExpressionList GetExpressionList(object step, bool Create)
         {
             var expressions = ExpressionsMember.GetValue(step) as ExpressionList;
+            if(Create && expressions == null)
+            {
+                if (expressions == null)
+                    expressions = new ExpressionList();
+                UpdateExpressions(step, expressions);    
+            }
+            else if(expressions != null)
+            {
+                UpdateExpressions(step, expressions);
+            }
+            return expressions;
+        }
+        public static void Update(object step, IMemberData member = null)
+        {
+            var expressions = GetExpressionList(step, false);
             if (expressions == null || expressions.Count == 0) return;
-            var td = TypeData.GetTypeData(step);
-
+            
             UpdateExpressions(step, expressions);
             if (expressions.Any(x => x.Lambda == null))
             {
+                var td = TypeData.GetTypeData(step);
                 var parameters = ParameterData.GetParameters(step)
                     .AddThis();
                 expressions.buffer = new object[expressions.members.Length + 1];
@@ -225,31 +246,52 @@ namespace OpenTap.Expressions
 
         public static void UpdateVerdicts(ITestStep step, IList<IMemberData> verdictMembers)
         {
-            var members = ParameterData.GetMembers(step);
-            var parameters = ParameterData.GetParameters(step);
-            var parameterValues = members.Select(x => x.GetValue(step)).ToArray();
-            foreach (var verdictMember in verdictMembers)
+            var expressions = GetExpressionList(step, true);
+            if (expressions.UpdateVerdicts == null)
             {
-                foreach (var attr in verdictMember.GetAttributes<VerdictAttribute>())
+                var parameters = ParameterData.GetParameters(step);
+                
+                var updateActions = new List<(Delegate, Verdict)>();
+                foreach (var verdictMember in verdictMembers)
                 {
-                    var expr = attr.Expression;
-                    var ast = builder.Parse(expr);
-                    var lambda = builder.GenerateLambda(ast, parameters, typeof(bool));
-                    object result = lambda.DynamicInvoke(parameterValues);
-                    if (result is bool t && t)
+                    
+                    foreach (var attr in verdictMember.GetAttributes<VerdictAttribute>())
                     {
-                        step.UpgradeVerdict(attr.Verdict);
-                    }
-                    else
-                    {
-                        throw new Exception("Unsupported return type from verdict attribute");
+                        var expr = attr.Expression;
+                        var ast = builder.Parse(expr);
+                        var lambda = builder.GenerateLambda(ast, parameters, typeof(object));
+                        
+                        updateActions.Add((lambda, attr.Verdict));
                     }
                 }
+                expressions.UpdateVerdicts = updateActions.ToArray();
+            }
+            if (expressions.UpdateVerdicts.Length == 0) return;
+            var parameterValues = expressions.members.Select(x => x.GetValue(step)).ToArray();
+
+            foreach (var item in expressions.UpdateVerdicts)
+            {
+                object result = item.Item1.DynamicInvoke(parameterValues);
+                if (result is bool t)
+                {
+                    if(t)
+                        step.UpgradeVerdict(item.Item2);
+                }
+                else if (result is Verdict v)
+                {
+                    step.UpgradeVerdict(v);
+                }
+                else
+                {
+                    throw new Exception("Unsupported return type from verdict attribute");
+                }
+                
             }
         }
 
         public static ValidationRule[] GetValidationRules(object step)
         {
+            // this can be slow, because the information is cached in the validation rule object.
             List<ValidationRule> rules = null;
             
             var members2 = TypeData.GetTypeData(step)
@@ -281,17 +323,12 @@ namespace OpenTap.Expressions
 
         public static bool? EvaluateEnabledIf(object step, string expression)
         {
+            var expressions = GetExpressionList(step, true);
+            
             var builder = new ExpressionCodeBuilder();
             var ast = builder.Parse(expression);
             if (ast == null) return null;
-                
-            var expressions = ExpressionsMember.GetValue(step) as ExpressionList;
-            if (expressions == null)
-            {
-                expressions = new ExpressionList();
-            }
             
-            UpdateExpressions(step, expressions);
             if (!expressions.EnabledIfLookup.TryGetValue(expression, out var x))
             {
                 var members2 = expressions.members.ToArray();
