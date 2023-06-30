@@ -1851,6 +1851,37 @@ namespace OpenTap
             }
         }
 
+        /// <summary>
+        /// Generates all permutations for l[>= index]. The buffer is used to store intermediate results.
+        /// </summary>
+        static IEnumerable<T1[]> PermuteRec<T1>(T1[][] l, int index, T1[] buffer)
+        {
+            if (index >= l.Length)
+                // create a clone of the buffer which has been filled by the previous levels on the stack.
+                yield return buffer.ToArray();
+            else
+            {
+                foreach (var elem in l[index])
+                {
+                    buffer[index] = elem;
+                    
+                    // fill the rest of the array
+                    foreach (var r in PermuteRec(l, index + 1, buffer))
+                        yield return r;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Generates all permutations over the supplied input array of arrays.
+        /// Each array in the source contains each possibility for each index in the output.
+        /// </summary>
+        public static IEnumerable<T1[]> Permutations<T1>(this T1[][] source)
+        {
+            T1[] buffer = new T1[source.Length];
+            return PermuteRec(source, 0, buffer);
+        }
+
         public static void Append<T>(ref T[]  array, params T[] appendage)
         {
             int preLen = array.Length;
