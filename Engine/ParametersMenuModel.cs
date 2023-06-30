@@ -231,8 +231,8 @@ namespace OpenTap
             }
         }
         
-        [Display("Add Dynamic Setting", 
-            "Add a new dynamic setting.", 
+        [Display("Add Custom Setting", 
+            "Add a new custom setting.", 
             Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.AddDynamicProperty)]
@@ -285,9 +285,13 @@ namespace OpenTap
                 [Display("Boolean", "A boolean value. Only the values true and false can be assigned.")]
                 Boolean
             }
-            
+
             [Display("Name")]
-            public string PropertyName { get; set; }
+            public string PropertyName
+            {
+                get => AttributeString("Display");
+                set => SetAttribute(true, "Display", value);
+            }
 
             public PropertyType Type { get; set; } = PropertyType.Number;
             public Type GetPropertyType() {
@@ -437,11 +441,14 @@ namespace OpenTap
                 return "";
             }
             
+            [Display("Output", Order: 0.5)]
             public bool Output
             {
                 get => HasAttribute(nameof(Output));
                 set => SetAttribute(value, nameof(Output), null);
             }
+            
+            [Display("Result", Order: 0.5)]
             public bool Result
             {
                 get => HasAttribute(nameof(Result));
@@ -473,7 +480,7 @@ namespace OpenTap
             } 
         }
 
-        [Display("Remove Dynamic Setting", "Remove user-defined dynamic setting.", Order: 2.0)]
+        [Display("Remove Custom Setting", "Remove custom setting.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.RemoveDynamicProperty)]
         [EnabledIf(nameof(CanRemoveDynamicMember), true, HideIfDisabled = true)]
