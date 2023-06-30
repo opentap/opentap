@@ -1,14 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
 namespace OpenTap.Expressions
 {
+
     class ExpressionCodeBuilder
     {
-        
         class BuilderCache
         {
             IExpressionFunctionProvider[] providers;
@@ -68,62 +69,14 @@ namespace OpenTap.Expressions
             return clone;
         }
         
-        internal IEnumerable<IMemberData> GetMembers(object obj)
-        {
-            IMemberData[] members = new IMemberData[10];
-            GetMembers(obj, ref members);
+       
 
-            return members;
-        }
-        bool GetMembers(object obj, ref IMemberData[] array)
-        {
-            if (array == null)
-            {
-                array = GetMembers(obj).ToArray();
-                return true;
-            }
-            int i = 0;
-            bool changed = false;
-            foreach (var mem in TypeData.GetTypeData(obj).GetMembers())
-            {
-                if (mem.Readable && mem.IsBrowsable() && (mem.HasAttribute<SettingsIgnoreAttribute>() == false))
-                {
-                    if (array.Length <= i)
-                    {
-                        Array.Resize(ref array, i + 1);
-                    }
-                    if (array[i] != mem)
-                    {
-                        array[i] = mem;
-                        changed = true;
-                    }
-                    i++;
-                }
-            }
-            if (array.Length > i)
-            {
-                Array.Resize(ref array, i);
-                changed = true;
-            }
-            return changed;
-        }
-
-        public ParameterExpression[] GetParameters(object obj)
-        {
-            var members = GetMembers(obj);
-            // parameters for the expression are the member variables.
-            var parameters = members
-                .Select(x => Expression.Parameter(x.TypeDescriptor.AsTypeData().Type, x.Name))
-                .Prepend(Expression.Parameter(typeof(ITestStep), "__this__"))
-                .ToArray();
-            return parameters;
-        }
         public void UpdateParameterMembers(object obj, ref IMemberData[] members, out bool updated)
         {
-            updated = GetMembers(obj, ref members);
+            updated = ParameterData.GetMembers(obj, ref members);
         }
 
-        public Delegate GenerateLambda(AstNode ast, ParameterExpression[] parameters, Type targetType)
+        public Delegate GenerateLambda(AstNode ast, ParameterData parameters, Type targetType)
         {
             var expr = GenerateExpression(ast, parameters, targetType);
             if (expr == null) return null;
@@ -142,20 +95,32 @@ namespace OpenTap.Expressions
                     expr = Expression.Convert(expr, targetType);
                 }
             }
-            var lmb = Expression.Lambda(expr, false, parameters);
+            var lmb = Expression.Lambda(expr, false, parameters.Parameters);
             var d = lmb.Compile();
             return d;
         }
         
         public Delegate GenerateLambdaCompact(AstNode ast, ref IMemberData[] members, Type targetType)
         {
-            var parameters = members
-                .Select(x => Expression.Parameter(x.TypeDescriptor.AsTypeData().Type, x.Name))
-                .ToArray();
+            var lookup = new Dictionary<string, ParameterExpression>();
+            var parameterList = new List<ParameterExpression>();
+            foreach (var member in members)
+            {
+                var expr2 = Expression.Parameter(member.TypeDescriptor.AsTypeData().Type, member.Name);
+                lookup[member.Name] = expr2;
+                parameterList.Add(expr2);
+                if (member.GetAttribute<DisplayAttribute>() is DisplayAttribute attr)
+                {
+                    lookup[attr.Name] = expr2;
+                    lookup[attr.GetFullName()] = expr2;
+                }
+            }
+            
+            var parameters = new ParameterData(lookup.ToImmutableDictionary(), parameterList.ToImmutableArray());
             var expr = GenerateExpression(ast, parameters);
             
             members = members.Where(p => UsedParameters.Contains(p.Name)).ToArray();
-            parameters = parameters.Where(p => UsedParameters.Contains(p.Name)).ToArray();
+            var parameters2 = parameters.Parameters.Where(p => UsedParameters.Contains(p.Name)).ToArray();
             if (expr.Type != targetType)
             {
                 if (targetType == typeof(string))
@@ -167,7 +132,7 @@ namespace OpenTap.Expressions
                     expr = Expression.Convert(expr, targetType);
                 }
             }
-            var lmb = Expression.Lambda(expr, false, parameters);
+            var lmb = Expression.Lambda(expr, false, parameters2);
             var d = lmb.Compile();
             return d;
         }
@@ -185,7 +150,7 @@ namespace OpenTap.Expressions
             var sub = this.WithThrowException(false);
             if (ast is ObjectNode objectNode)
             {
-                if (sub.GenerateExpression(objectNode, Array.Empty<ParameterExpression>(), null)
+                if (sub.GenerateExpression(objectNode, ParameterData.Empty, null)
                     is ConstantExpression ce)
                 {
                     return true;
@@ -198,7 +163,7 @@ namespace OpenTap.Expressions
         
         /// <summary> Compiles the AST into a tree of concrete expressions.
         /// This will throw an exception if the types does not match up. e.g "X" + 3 (undefined operation) </summary>
-        public Expression GenerateExpression(AstNode ast, ParameterExpression[] parameterExpressions, Type targetType = null)
+        public Expression GenerateExpression(AstNode ast, ParameterData parameterExpressions, Type targetType = null)
         {
             
             switch (ast)
@@ -234,7 +199,7 @@ namespace OpenTap.Expressions
                             MethodInfo method2 = Context.GetMethod(funcName, new []{typeof(ITestStepParent)}.Concat(expressions.Select(x => x.Type)).ToArray());
                             if(method2 == null)
                                 throw new Exception($"No such method: {funcName}");
-                            var thisArg = parameterExpressions.FirstOrDefault(x => x.Name == "__this__");
+                            var thisArg = parameterExpressions.Parameters.FirstOrDefault(x => x.Name == "__this__");
                             Debug.Assert(thisArg != null);
                             return Expression.Call(method2, new Expression[]
                             {
@@ -339,13 +304,10 @@ namespace OpenTap.Expressions
                     // if it is an object node, it can either be a parameter (variables) or a constant. 
 
                     // is there a matching parameter?
-                    var parameterExpression = parameterExpressions
-                        .FirstOrDefault(x => x.Name == i.Data);
-                    if (parameterExpression != null)
+                    if(parameterExpressions.Lookup.TryGetValue(i.Data, out var expression))
                     {
-                        UsedParameters.Add(parameterExpression.Name);
-                     
-                        return parameterExpression;
+                        UsedParameters.Add(expression.Name);
+                        return expression;
                     }
 
                     var prop = Context.GetProperty(i.Data);

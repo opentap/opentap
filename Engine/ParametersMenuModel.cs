@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using Microsoft.CodeAnalysis.CSharp;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OpenTap.Expressions;
 
 namespace OpenTap
@@ -300,11 +298,11 @@ namespace OpenTap
             }
 
             [Layout(LayoutMode.FullRow, rowHeight: 5)]
-            [Display("Attributes", Order: 1)]
+            [Display("Attributes", Group:"Attributes", Order: 1)]
             public string Attributes { get; set; } = "[Output()]";
             
             [Layout(LayoutMode.FullRow)]
-            [Display("Add Attribute", Order: 2)]
+            [Display("Add Attribute", Group:"Attributes", Order: 2)]
             [Browsable(true)]
             public void AddAttribute()
             {

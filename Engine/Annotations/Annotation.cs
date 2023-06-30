@@ -527,28 +527,6 @@ namespace OpenTap
         public IEnumerable<string> Errors => currentError == null ? Array.Empty<string>() : new[] { currentError };
     }
 
-    class ExpressionAnnotation : IValueDescriptionAnnotation, IOwnedAnnotation
-    {
-        IMemberData member;
-        object source;
-
-        public string Describe()
-        {
-            ExpressionManager.Update(source, member);
-            return member.GetValue(source)?.ToString() ?? "";
-        }
-        public ExpressionAnnotation(IMemberData member) => this.member = member;
-        
-        public void Read(object source)
-        {
-            this.source = source;
-        }
-        
-        public void Write(object source)
-        {
-            
-        }
-    }
 
     class TimeSpanAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation
     {
@@ -2839,9 +2817,6 @@ namespace OpenTap
                         emb = emb.InnerMember as EmbeddedMemberData;
                     }
                 }
-                var parentType = annotation.ParentAnnotation.Get<IReflectionAnnotation>().ReflectionInfo;
-                if(parentType != null && ExpressionManager.MemberHasExpression(parentType, mem.Member))
-                    annotation.Add(new ExpressionAnnotation(mem.Member));
                 
                 if (member.HasAttribute<EnabledIfAttribute>())
                 {

@@ -160,7 +160,8 @@ namespace OpenTap.Expressions
             UpdateExpressions(step, expressions);
             if (expressions.Any(x => x.Lambda == null))
             {
-                ParameterExpression[] parameters = builder.GetParameters(step);;
+                var parameters = ParameterData.GetParameters(step)
+                    .AddThis();
                 expressions.buffer = new object[expressions.members.Length + 1];
                 foreach (var expression in expressions)
                 {
@@ -188,7 +189,7 @@ namespace OpenTap.Expressions
                         expression.Lambda = lambda;
                     }
                     expression.UsedParameters = builder.UsedParameters.ToArray();
-                    expression.ParameterIndex = parameters.IndexWhen(x => x.Name == expression.Member);
+                    expression.ParameterIndex = parameters.Parameters.IndexWhen(x => x.Name == expression.Member);
                     Debug.Assert(expression.ParameterIndex != -1);
                 }
                 
@@ -224,8 +225,8 @@ namespace OpenTap.Expressions
 
         public static void UpdateVerdicts(ITestStep step, IList<IMemberData> verdictMembers)
         {
-            var members = builder.GetMembers(step);
-            var parameters = builder.GetParameters(step);
+            var members = ParameterData.GetMembers(step);
+            var parameters = ParameterData.GetParameters(step);
             var parameterValues = members.Select(x => x.GetValue(step)).ToArray();
             foreach (var verdictMember in verdictMembers)
             {
@@ -254,7 +255,7 @@ namespace OpenTap.Expressions
             var members2 = TypeData.GetTypeData(step)
                 .GetMembers()
                 .Where(x => x.Readable && x.IsBrowsable());
-
+            
             foreach (var member in members2)
             {
                 foreach (var attr in member.GetAttributes<ValidationAttribute>())

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Linq.Expressions;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
@@ -64,7 +65,7 @@ namespace OpenTap.UnitTests
             
             var builder = new ExpressionCodeBuilder();
             var ast = builder.ParseStringInterpolation(expression);
-            var lmb = builder.GenerateLambda(ast, Array.Empty<ParameterExpression>(), typeof(string));
+            var lmb = builder.GenerateLambda(ast, ParameterData.Empty, typeof(string));
             var result = lmb.DynamicInvoke();
             Assert.AreEqual(expectedResult, result);
         }
@@ -180,36 +181,19 @@ namespace OpenTap.UnitTests
         public void ExpressionAnnotationTest()
         {
             var delayStep = new DelayStep();
-            var a = AnnotationCollection.Annotate(delayStep);
-            var member = a.GetMember("DelaySecs");
-            var sv = member.Get<IStringValueAnnotation>();
-            sv.Value = "1 + 2";
-            a.Write();
-            Assert.AreEqual(3.0, delayStep.DelaySecs);
+            var t = TypeData.GetTypeData(delayStep).GetMember(nameof(delayStep.DelaySecs));
+            ExpressionManager.SetExpression(delayStep, t, "3 + 4");
+            ExpressionManager.Update(delayStep);
+
+            var a = AnnotationCollection.Annotate(delayStep)
+                .GetMember(nameof(delayStep.DelaySecs));
+
+            var hasExpr = a.GetAll<IIconAnnotation>().FirstOrDefault(x => x.IconName == IconNames.HasExpression);
             
-            a = AnnotationCollection.Annotate(delayStep);
-            member = a.GetMember("DelaySecs");
-            var sv2 = member.Get<IStringValueAnnotation>();
-            var currentValue = sv2.Value;
-            Assert.AreEqual("1 + 2", currentValue);
-        }
-        
-        [Test]
-        public void ExpressionMultiSelectAnnotationTest()
-        {
-            var step1 = new LogStep();
-            var step2 = new LogStep();
-            var steps = new[]
-            {
-                step1, step2
-            };
-            var a = AnnotationCollection.Annotate(steps);
-            var member = a.GetMember(nameof(step1.LogMessage));
-            var sv = member.Get<IStringValueAnnotation>();
-            sv.Value = "{1 + 2}";
-            a.Write();
-            Assert.AreEqual("3", step1.LogMessage);
-            Assert.AreEqual("3", step2.LogMessage);
+            Assert.AreEqual(3 + 4, delayStep.DelaySecs);
+            Assert.IsNotNull(hasExpr);
+
+
         }
         
         [Test]
