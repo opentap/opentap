@@ -229,7 +229,7 @@ namespace OpenTap
                 if (additionalMembers == null || additionalMembers.Count == 0)
                 {
                     source = null;
-                    DynamicMember.RemovedDynamicMember(Target, this);
+                    DynamicMember.RemoveDynamicMember(Target, this);
                     return true;
                 }
                 (source, member) = additionalMembers.FirstOrDefault();
@@ -375,7 +375,7 @@ namespace OpenTap
         }
 
         /// <summary> Removes a dynamic member from an object. </summary>
-        public static void RemovedDynamicMember(object target, IMemberData member)
+        public static void RemoveDynamicMember(object target, IMemberData member)
         {
             var members = (Dictionary<string, IMemberData>) DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
             members.Remove(member.Name);

@@ -117,9 +117,21 @@ namespace OpenTap.UnitTests
             
             DynamicMember.AddDynamicMember(step, newMem2);
             newMem2.SetValue(step, 2.0);
-
+            var a2 = (double)newMem2.GetValue(step);
+            
+            ExpressionManager.SetExpression(step, TypeData.GetTypeData(step).GetMember("A 2"), "1.0 + 2.0");
             ExpressionManager.Update(step);
-            Assert.AreEqual("The result is: 1.", step.LogMessage);
+            var a3 = (double)newMem2.GetValue(step);
+            DynamicMember.RemoveDynamicMember(step, newMem2);
+            ExpressionManager.Update(step);
+            DynamicMember.RemoveDynamicMember(step, newMem);
+            ExpressionManager.Update(step);
+            
+            Assert.IsNull(TypeData.GetTypeData(step).GetMember("A 2"));
+            Assert.AreEqual("The result is: 1" +
+                            ".", step.LogMessage);
+            Assert.AreEqual(2.0, a2);
+            Assert.AreEqual(3.0, a3);
         }
 
         [Test]

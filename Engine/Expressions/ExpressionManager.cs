@@ -184,6 +184,7 @@ namespace OpenTap.Expressions
                 var parameters = ParameterData.GetParameters(step)
                     .AddThis();
                 expressions.buffer = new object[expressions.members.Length + 1];
+                expressions.RemoveIf(expr => td.GetMember(expr.Member) == null);
                 foreach (var expression in expressions)
                 {
                     var mem = td.GetMember(expression.Member);

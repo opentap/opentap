@@ -379,7 +379,7 @@ namespace OpenTap
         public void RemoveDynamicProperty()
         {
             foreach(var src in source)
-                DynamicMember.RemovedDynamicMember(src, member);
+                DynamicMember.RemoveDynamicMember(src, member);
         }
 
         [Display("Define a new expression")]
