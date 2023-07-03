@@ -4,10 +4,10 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Linq.Expressions;
 namespace OpenTap.Expressions
 {
-    class ExpressionManager
+    /// <summary>  Manages expressions for settings.  </summary>
+    public static class ExpressionManager
     {
         class ExpressionObject
         {
@@ -104,6 +104,13 @@ namespace OpenTap.Expressions
             }
             return null;
         }
+        
+        
+        /// <summary> Sets an expression. </summary>
+        /// <param name="step"></param>
+        /// <param name="member"></param>
+        /// <param name="expression"></param>
+        /// <exception cref="ArgumentNullException"></exception>
         public static void SetExpression(ITestStepParent step, IMemberData member, string expression)
         {
             if (member == null)
