@@ -24,7 +24,7 @@ using System.Threading;
 // Bugs introduced here will cause bugs in other projects too, so be careful.
 // **
 
-namespace OpenTap
+namespace OpenTap 
 {
     /// <summary>
     /// Class to ease the use of reflection.
@@ -182,6 +182,51 @@ namespace OpenTap
             if(!inherit)
                 return attrslookupNoInherit.GetValue(prop, getAttributesNoInherit);
             return GetAllCustomAttributes(prop);
+        }
+
+        public static object DefaultValue(this Type type)
+        {
+            switch (Type.GetTypeCode(type))
+            {
+                case TypeCode.Boolean:
+                    return default(bool);
+                case TypeCode.Byte:
+                    return default(byte);
+                case TypeCode.Char:
+                    return default(char);
+                case TypeCode.DateTime:
+                    return default(DateTime);
+                case TypeCode.DBNull:
+                    return default(DBNull);
+                case TypeCode.Decimal:
+                    return default(decimal);
+                case TypeCode.Double:
+                    return default(double);
+                case TypeCode.Empty:
+                    return null;
+                case TypeCode.Int16:
+                    return default(short);
+                case TypeCode.Int32:
+                    return default(int);
+                case TypeCode.Int64:
+                    return default(long);
+                case TypeCode.Object:
+                    return null;
+                case TypeCode.SByte:
+                    return default(sbyte);
+                case TypeCode.Single:
+                    return default(float);
+                case TypeCode.String:
+                    return null;
+                case TypeCode.UInt16:
+                    return default(ushort);
+                case TypeCode.UInt32:
+                    return default(uint);
+                case TypeCode.UInt64:
+                    return default(ulong);
+                default:
+                    return null;
+            }
         }
 
         /// <summary>

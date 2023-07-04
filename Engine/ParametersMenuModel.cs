@@ -264,6 +264,7 @@ namespace OpenTap
                     DeclaringType = TypeData.FromType(typeof(TestStep)),
                 };    
                 DynamicMember.AddDynamicMember(src, newMem);
+                newMem.SetValue(src, selectedType.DefaultValue());
             }
         }
         
@@ -286,11 +287,12 @@ namespace OpenTap
                 Boolean
             }
 
+            
             [Display("Name")]
             public string PropertyName
             {
                 get => AttributeString("Display");
-                set => SetAttribute(true, "Display", value);
+                set => SetAttribute(true, "Display", value.Trim());
             }
 
             public PropertyType Type { get; set; } = PropertyType.Number;
