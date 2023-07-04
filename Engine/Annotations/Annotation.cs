@@ -3829,7 +3829,7 @@ namespace OpenTap
         public static void ExecuteIcon(this AnnotationCollection col, string iconName)
         {
             var icon = col.GetIcon(iconName);
-            if (!icon.Get<IEnabledAnnotation>().IsEnabled == true)
+            if (icon.Get<IEnabledAnnotation>()?.IsEnabled == false)
                 throw new Exception("Icon action is not enabled");
             icon.Get<IMethodAnnotation>().Invoke();
         }

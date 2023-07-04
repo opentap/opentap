@@ -7,7 +7,7 @@ using System.Linq;
 namespace OpenTap.Expressions
 {
     /// <summary>  Manages expressions for settings.  </summary>
-    static class ExpressionManager
+    public static class ExpressionManager
     {
         class ExpressionObject
         {
@@ -94,7 +94,7 @@ namespace OpenTap.Expressions
         };
           
         /// <summary>
-        /// Gets the current expression of a member.
+        /// Gets the current expression assigned to a member.
         /// </summary>
         public static string GetExpression(ITestStepParent step, IMemberData member)
         {
@@ -108,12 +108,7 @@ namespace OpenTap.Expressions
             return null;
         }
         
-        
-        /// <summary> Sets an expression. </summary>
-        /// <param name="step"></param>
-        /// <param name="member"></param>
-        /// <param name="expression"></param>
-        /// <exception cref="ArgumentNullException"></exception>
+        /// <summary> Sets an expression on a member. if set to null or white space, the expression is removed. </summary>
         public static void SetExpression(ITestStepParent step, IMemberData member, string expression)
         {
             if (member == null)
@@ -159,7 +154,7 @@ namespace OpenTap.Expressions
             }
         }
 
-        public static bool MemberHasExpression(ITypeData type, IMemberData member)
+        internal static bool MemberHasExpression(ITypeData type, IMemberData member)
         {
             var exprMember = type.GetMember(ExpressionsMember.Name);
             if (exprMember != null)
@@ -182,7 +177,11 @@ namespace OpenTap.Expressions
             }
             return expressions;
         }
-        public static void Update(object step, IMemberData member = null)
+
+        /// <summary> Updates all expressions on an object. </summary>
+        public static void Update(object step) => Update(step, null);
+        
+        internal static void Update(object step, IMemberData member)
         {
             var expressions = GetExpressionList(step, false);
             if (expressions == null || expressions.Count == 0) return;
@@ -255,7 +254,7 @@ namespace OpenTap.Expressions
             }
         }
 
-        public static void UpdateVerdicts(ITestStep step, IList<IMemberData> verdictMembers)
+        internal static void UpdateVerdicts(ITestStep step, IList<IMemberData> verdictMembers)
         {
             var expressions = GetExpressionList(step, true);
             if (expressions.UpdateVerdicts == null)
@@ -300,7 +299,7 @@ namespace OpenTap.Expressions
             }
         }
 
-        public static ValidationRule[] GetValidationRules(object step)
+        internal static ValidationRule[] GetValidationRules(object step)
         {
             // this can be slow, because the information is cached in the validation rule object.
             List<ValidationRule> rules = null;
@@ -356,7 +355,7 @@ namespace OpenTap.Expressions
             return rules?.ToArray() ?? Array.Empty<ValidationRule>();
         }
 
-        public static bool? EvaluateEnabledIf(object step, string expression)
+        internal static bool? EvaluateEnabledIf(object step, string expression)
         {
             var expressions = GetExpressionList(step, true);
             
@@ -374,7 +373,7 @@ namespace OpenTap.Expressions
             return (bool)x.Item2.DynamicInvoke(buffer2);
         }
 
-        public static bool CheckExpression(string expression, object targetObject, ITypeData type)
+        internal static bool CheckExpression(string expression, object targetObject, ITypeData type)
         {
             try
             {
