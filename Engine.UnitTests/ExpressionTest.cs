@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Linq.Expressions;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests;
 using OpenTap.Plugins.BasicSteps;
 using OpenTap.Expressions;
 using BinaryExpression = OpenTap.Expressions.BinaryExpression;
@@ -192,20 +193,37 @@ namespace OpenTap.UnitTests
         [Test]
         public void ExpressionAnnotationTest()
         {
-            var delayStep = new DelayStep();
-            var t = TypeData.GetTypeData(delayStep).GetMember(nameof(delayStep.DelaySecs));
-            ExpressionManager.SetExpression(delayStep, t, "3 + 4");
-            ExpressionManager.Update(delayStep);
+            using (OpenTap.Session.Create(SessionOptions.OverlayComponentSettings))
+            {
+                void handleExpression(object item)
+                {
+                    var a = AnnotationCollection.Annotate(item);
+                    a.GetMember("Expression").Get<IStringValueAnnotation>().Value = "3 + 4";
+                    a.Write();
+                    a.Read();
+                    var err = a.Get<IErrorAnnotation>();
+                    Assert.IsTrue(string.IsNullOrEmpty(((ValidatingObject)item).Error));
+                }
 
-            var a = AnnotationCollection.Annotate(delayStep)
-                .GetMember(nameof(delayStep.DelaySecs));
+                UserInput.SetInterface(new UserInputTestImpl { Func = handleExpression });
+                var delayStep = new DelayStep();
+                var t = TypeData.GetTypeData(delayStep).GetMember(nameof(delayStep.DelaySecs));
 
-            var hasExpr = a.GetAll<IIconAnnotation>().FirstOrDefault(x => x.IconName == IconNames.HasExpression);
+                var member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(delayStep.DelaySecs));
+                member.ExecuteIcon(IconNames.AssignExpression);
             
-            Assert.AreEqual(3 + 4, delayStep.DelaySecs);
-            Assert.IsNotNull(hasExpr);
+                ExpressionManager.SetExpression(delayStep, t, "3 + 4");
+                ExpressionManager.Update(delayStep);
 
+                var a = AnnotationCollection.Annotate(delayStep)
+                    .GetMember(nameof(delayStep.DelaySecs));
 
+                var hasExpr = a.GetAll<IIconAnnotation>().FirstOrDefault(x => x.IconName == IconNames.HasExpression);
+            
+                Assert.AreEqual(3 + 4, delayStep.DelaySecs);
+                Assert.IsNotNull(hasExpr);    
+                
+            }
         }
         
         [Test]

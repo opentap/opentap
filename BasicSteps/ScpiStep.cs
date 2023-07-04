@@ -93,6 +93,9 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Column Names", Group: "Results", Order: 1.51, Collapsed: true, Description: "The name of the columns of the resulting groups. The titles must be separated by commas.")]
         public string DimensionTitles { get; set; }
 
+        [Layout(LayoutMode.Normal, 1, 1)]
+        [Output]
+        [Display("Output", Group: "Results")]
         public string Output { get; set; } = "";
 
         public RegexOutputStep()

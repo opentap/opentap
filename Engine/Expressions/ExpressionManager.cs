@@ -320,12 +320,36 @@ namespace OpenTap.Expressions
                     var builder2 = new ExpressionCodeBuilder();
                     var members = members2.ToArray();
                     var lambda = builder2.GenerateLambdaCompact(ast, ref members, typeof(bool));
-                    
-                    rules.Add(new ValidationRule(() =>
+
+                    CustomErrorDelegateDefinition messageFcn = null;
+                    if (!string.IsNullOrWhiteSpace(attr.Message))
+                    {
+                        var members3 = members2.ToArray();
+                        var messageAst = builder.ParseStringInterpolation(attr.Message);
+                        if (messageAst != null)
+                        {
+                            var fcn = builder2.GenerateLambdaCompact(messageAst, ref members3, typeof(string));
+                            if (fcn != null)
+                            {
+                                messageFcn = () =>
+                                {
+                                    var buffer2 = members3.Select(mem => mem.GetValue(step)).ToArray();
+                                    return (string)fcn.DynamicInvoke(buffer2);
+                                };
+                            }
+                        }
+                    }
+                    if (messageFcn == null)
+                    {
+                        var str = string.IsNullOrEmpty(attr.Message) ? attr.Expression : attr.Message;
+                        messageFcn = () => str;
+                    }
+
+                    rules.Add(new DelegateValidationRule(() =>
                     {
                         var buffer2 = members.Select(mem => mem.GetValue(step)).ToArray();
                         return (bool)lambda.DynamicInvoke(buffer2);
-                    }, string.IsNullOrEmpty(attr.Message) ? attr.Expression : attr.Message, member.Name));
+                    }, member.Name, messageFcn));
                 }
             }
 
@@ -349,6 +373,22 @@ namespace OpenTap.Expressions
             var buffer2 = x.Item1.Select(mem => mem.GetValue(step)).ToArray();
             return (bool)x.Item2.DynamicInvoke(buffer2);
         }
-        
+
+        public static bool CheckExpression(string expression, object targetObject, ITypeData type)
+        {
+            try
+            {
+                var parameters = ParameterData.GetParameters(targetObject) ?? ParameterData.Empty;
+                var ast = builder.Parse(expression);
+                if (ast == null) return false;
+                var expr = builder.GenerateExpression(ast, parameters, type.AsTypeData().Type);
+                if (expr == null) return false;
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }

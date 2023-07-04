@@ -264,7 +264,7 @@ namespace OpenTap
                     DeclaringType = TypeData.FromType(typeof(TestStep)),
                 };    
                 DynamicMember.AddDynamicMember(src, newMem);
-                newMem.SetValue(src, selectedType.DefaultValue());
+                newMem.SetValue(src, r.DefaultValue);
             }
         }
         
@@ -467,6 +467,13 @@ namespace OpenTap
             [Submit]
             [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
             public OkCancel Submit { get; set; }
+            public object DefaultValue => Type switch
+            {
+                PropertyType.Number => 0.0,
+                PropertyType.Text => "",
+                PropertyType.Boolean => false,
+                var _ => throw new ArgumentOutOfRangeException()
+            };
 
         }
 
@@ -493,9 +500,17 @@ namespace OpenTap
         }
 
         [Display("Define a new expression")]
-        class AssignExpressionRequest
+        class AssignExpressionRequest : ValidatingObject
         {
+            [Validation("IsValid", "Expression '{Expression}' is not valid.")]
             public string Expression { get; set; }
+
+            public bool IsValid => ExpressionManager.CheckExpression(Expression, TargetObject, TargetType);
+            
+            
+            public ITypeData TargetType { get; internal set; }
+            
+            public object TargetObject { get; internal set; }
             
             [Submit]
             [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
@@ -509,7 +524,8 @@ namespace OpenTap
         {
             var req = new AssignExpressionRequest()
             {
-                Expression = ExpressionManager.GetExpression(source[0], member) ?? ""
+                Expression = ExpressionManager.GetExpression(source[0], member) ?? "",
+                TargetType = member.TypeDescriptor
             };
             
             UserInput.Request(req);
@@ -522,9 +538,6 @@ namespace OpenTap
                 Debug.Assert(source.Length != 1 || actual_member == member);
                 ExpressionManager.SetExpression(step, actual_member, req.Expression);
             }
-            
-            
-
         }
         
     }

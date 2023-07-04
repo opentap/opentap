@@ -13,7 +13,9 @@ namespace OpenTap
         public ValidationAttribute(string expression, string message = null)
         {
             Expression = expression;
+            Message = message;
         }
+        
         
         /// <summary> Gets or sets the expression used for validation. </summary>
         public string Expression { get; }

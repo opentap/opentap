@@ -1,5 +1,4 @@
-﻿using System;
-using System.Linq;
+﻿using System.Linq;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 
@@ -85,20 +84,12 @@ namespace OpenTap.Engine.UnitTests
 
         }
 
-        class UserInputTest : IUserInputInterface
-        {
-            public Action<object> Func { get; set; } 
-
-            public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
-            {
-                Func(dataObject);
-            }
-        }
+        
         
         [Test]
         public void UserDefinedMemberAnnotationTest()
         {
-            var user = new UserInputTest();
+            var user = new UserInputTestImpl();
             var input = UserInput.GetInterface();
             UserInput.SetInterface(user);
             try

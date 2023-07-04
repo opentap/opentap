@@ -328,7 +328,7 @@ namespace OpenTap
         /// <summary> Sets the value. </summary>
         public virtual void SetValue(object owner, object value)
         {
-            Debug.Assert(TypeData.GetTypeData(value).DescendsTo(TypeDescriptor));
+            Debug.Assert(value == null && (TypeData.GetTypeData(value).AsTypeData()?.IsValueType == false) || TypeData.GetTypeData(value).DescendsTo(TypeDescriptor));
             if (owner is IDynamicMemberValue dmv)
             {
                 dmv.SetValue(this, value);
