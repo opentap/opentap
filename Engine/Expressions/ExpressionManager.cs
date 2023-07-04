@@ -7,7 +7,7 @@ using System.Linq;
 namespace OpenTap.Expressions
 {
     /// <summary>  Manages expressions for settings.  </summary>
-    public static class ExpressionManager
+    static class ExpressionManager
     {
         class ExpressionObject
         {
@@ -93,6 +93,9 @@ namespace OpenTap.Expressions
             }
         };
           
+        /// <summary>
+        /// Gets the current expression of a member.
+        /// </summary>
         public static string GetExpression(ITestStepParent step, IMemberData member)
         {
             if (ExpressionsMember.GetValue(step) is ExpressionList lookup)
