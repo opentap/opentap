@@ -58,7 +58,7 @@ namespace OpenTap.Expressions
         public ExpressionCodeBuilder WithNumberFormatter(NumberFormatter numberFormatter) => new ExpressionCodeBuilder(this, numberFormatter);
         public ExpressionCodeBuilder WithThrowException(bool throws) => new ExpressionCodeBuilder(this, throws);
        
-        public void UpdateParameterMembers(object obj, ref IMemberData[] members, out bool updated)
+        public void UpdateParameterMembers(object obj, ref ImmutableArray<IMemberData> members, out bool updated)
         {
             updated = ParameterData.GetMembers(obj, ref members);
         }
@@ -98,7 +98,7 @@ namespace OpenTap.Expressions
                 });
         }
         
-        public Delegate GenerateLambdaCompact(AstNode ast, ref IMemberData[] members, Type targetType)
+        public Result<Delegate> GenerateLambdaCompact(AstNode ast, ref ImmutableArray<IMemberData> members, Type targetType)
         {
             var lookup = new Dictionary<string, ParameterExpression>();
             var parameterList = new List<ParameterExpression>();
@@ -118,13 +118,11 @@ namespace OpenTap.Expressions
             var usedParameters = parameters.GetUsedParameters(ast);
             var exprr = GenerateExpression(ast, parameters);
 
-            
             if (exprr.Ok())
-                members = members.Where(p => usedParameters.Contains(p.Name)).ToArray();
-
-            return exprr.IfOK(expr =>
+                members = members.RemoveAll(p => usedParameters.Contains(p.Name) == false);
+            
+            return exprr.IfThen(expr =>
             {
-                
                 var parameters2 = parameters.Parameters.Where(p => usedParameters.Contains(p.Name)).ToArray();
                 if (expr.Type != targetType)
                 {
@@ -139,6 +137,7 @@ namespace OpenTap.Expressions
                 }
                 var lmb = Expression.Lambda(expr, false, parameters2);
                 var d = lmb.Compile();
+                
                 return d;
             });
         }

@@ -31,10 +31,10 @@ namespace OpenTap.Expressions
         }
         class ExpressionList : List<ExpressionObject>
         {
-            public IMemberData[] members;
+            public ImmutableArray<IMemberData> members;
             public object[] buffer;
 
-            public readonly Dictionary<string, (IMemberData[], Delegate)> EnabledIfLookup = new Dictionary<string, (IMemberData[], Delegate)>();
+            public readonly Dictionary<string, (ImmutableArray<IMemberData>, Delegate)> EnabledIfLookup = new Dictionary<string, (ImmutableArray<IMemberData>, Delegate)>();
             public (Delegate, Verdict)[] UpdateVerdicts
             {
                 get;
@@ -311,11 +311,12 @@ namespace OpenTap.Expressions
             // this can be slow, because the information is cached in the validation rule object.
             List<ValidationRule> rules = null;
             
-            var members2 = TypeData.GetTypeData(step)
+            var members = TypeData.GetTypeData(step)
                 .GetMembers()
-                .Where(x => x.Readable && x.IsBrowsable());
-            
-            foreach (var member in members2)
+                .Where(x => x.Readable && x.IsBrowsable() && x.HasAttribute<SettingsIgnoreAttribute>() == false)
+                .ToImmutableArray();
+            var codeBuilder = new ExpressionCodeBuilder();
+            foreach (var member in members)
             {
                 foreach (var attr in member.GetAttributes<ValidationAttribute>())
                 {
@@ -325,25 +326,33 @@ namespace OpenTap.Expressions
                     var ast = builder.Parse(expression);
                     if (!ast.Ok())
                         continue;
-                    var builder2 = new ExpressionCodeBuilder();
-                    var members = members2.ToArray();
-                    var lambda = builder2.GenerateLambdaCompact(ast.Unwrap(), ref members, typeof(bool));
+                    
+                    var membersLocal = members;
+                    var lambda = codeBuilder.GenerateLambdaCompact(ast.Unwrap(), ref membersLocal, typeof(bool));
 
                     CustomErrorDelegateDefinition messageFcn = null;
                     if (!string.IsNullOrWhiteSpace(attr.Message))
                     {
-                        var members3 = members2.ToArray();
+                        var membersLocal2 = members;
                         var messageAst = builder.ParseStringInterpolation(attr.Message);
                         if (messageAst != null)
                         {
-                            var fcn = builder2.GenerateLambdaCompact(messageAst, ref members3, typeof(string));
-                            if (fcn != null)
+                            var fcnr = codeBuilder.GenerateLambdaCompact(messageAst, ref membersLocal2, typeof(string));
+                            
+                            if (fcnr.Ok())
                             {
+                                var fcn = fcnr.Unwrap();
+                                if (membersLocal.Equals(membersLocal2))
+                                    membersLocal2 = membersLocal;
                                 messageFcn = () =>
                                 {
-                                    var buffer2 = members3.Select(mem => mem.GetValue(step)).ToArray();
+                                    var buffer2 = membersLocal2.Select(mem => mem.GetValue(step)).ToArray();
                                     return (string)fcn.DynamicInvoke(buffer2);
                                 };
+                            }
+                            else
+                            {
+                                lambda = new Func<bool>(() => false);
                             }
                         }
                     }
@@ -352,11 +361,19 @@ namespace OpenTap.Expressions
                         var str = string.IsNullOrEmpty(attr.Message) ? attr.Expression : attr.Message;
                         messageFcn = () => str;
                     }
+                    if (lambda.Ok() == false)
+                    {
+                        var err = lambda.Error();
+                        lambda = new Func<bool>(() => false);
+                         messageFcn = () => err;
+                         membersLocal = membersLocal.Clear();
+                    }
+                    var lambda2 = lambda.Unwrap();
 
                     rules.Add(new DelegateValidationRule(() =>
                     {
-                        var buffer2 = members.Select(mem => mem.GetValue(step)).ToArray();
-                        return (bool)lambda.DynamicInvoke(buffer2);
+                        var buffer2 = membersLocal.Select(mem => mem.GetValue(step)).ToArray();
+                        return (bool)lambda2.DynamicInvoke(buffer2);
                     }, member.Name, messageFcn));
                 }
             }
@@ -375,9 +392,11 @@ namespace OpenTap.Expressions
             
             if (!expressions.EnabledIfLookup.TryGetValue(expression, out var x))
             {
-                var members2 = expressions.members.ToArray();
+                var members2 = expressions.members;
                 var lambda = builder.GenerateLambdaCompact(ast.Unwrap(), ref members2, typeof(bool));
-                expressions.EnabledIfLookup[expression] = x = (members2, lambda);
+                if (lambda.Ok())
+                    expressions.EnabledIfLookup[expression] = x = (members2, lambda.Unwrap());
+                else return null;
             }
             var buffer2 = x.Item1.Select(mem => mem.GetValue(step)).ToArray();
             return (bool)x.Item2.DynamicInvoke(buffer2);

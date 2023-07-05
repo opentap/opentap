@@ -8,7 +8,7 @@ namespace OpenTap.Expressions
     {
         class Extra
         {
-            public bool isempty(string str) => string.IsNullOrEmpty(str);
+            public static bool isempty(string str) => string.IsNullOrEmpty(str);
             public static Verdict fail(bool check) => check ? Verdict.Fail : Verdict.NotSet;
             public static Verdict inconclusive(bool check) => check ? Verdict.Inconclusive : Verdict.NotSet;
             public static Verdict pass(bool check) => check ? Verdict.Pass : Verdict.NotSet;

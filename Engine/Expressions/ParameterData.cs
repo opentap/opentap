@@ -41,44 +41,21 @@ namespace OpenTap.Expressions
             return new ParameterData(lookup.ToImmutableDictionary(), parameters.ToImmutableArray());
         }            
         
-        internal static IMemberData[] GetMembers(object obj)
+        internal static ImmutableArray<IMemberData> GetMembers(object obj)
         {
-            IMemberData[] members = new IMemberData[10];
+            var members = ImmutableArray<IMemberData>.Empty;
             GetMembers(obj, ref members);
-
             return members;
         }
-        public static bool GetMembers(object obj, ref IMemberData[] array)
+        public static bool GetMembers(object obj, ref ImmutableArray<IMemberData> array)
         {
-            if (array == null)
-            {
-                array = GetMembers(obj).ToArray();
-                return true;
-            }
-            int i = 0;
-            bool changed = false;
-            foreach (var mem in TypeData.GetTypeData(obj).GetMembers())
-            {
-                if (mem.Readable && mem.IsBrowsable() && (mem.HasAttribute<SettingsIgnoreAttribute>() == false))
-                {
-                    if (array.Length <= i)
-                    {
-                        Array.Resize(ref array, i + 1);
-                    }
-                    if (array[i] != mem)
-                    {
-                        array[i] = mem;
-                        changed = true;
-                    }
-                    i++;
-                }
-            }
-            if (array.Length > i)
-            {
-                Array.Resize(ref array, i);
-                changed = true;
-            }
-            return changed;
+            var newArray = TypeData.GetTypeData(obj).GetMembers()
+                .Where(mem => mem.Readable && mem.IsBrowsable() && (mem.HasAttribute<SettingsIgnoreAttribute>() == false))
+                .ToImmutableArray();
+            if (newArray.Equals(array))
+                return false;
+            array = newArray;
+            return true;
         }
         
         public ImmutableHashSet<string> GetUsedParameters(AstNode ast)
@@ -93,6 +70,8 @@ namespace OpenTap.Expressions
                     return ImmutableHashSet<string>.Empty;
                 case BinaryExpressionNode bin:
                     return GetUsedParameters(bin.Left).Union(GetUsedParameters(bin.Right));
+                case null:
+                    return ImmutableHashSet<string>.Empty;
                 default:
                     throw new InvalidOperationException();
             }
