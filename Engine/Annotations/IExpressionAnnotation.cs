@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using OpenTap.Expressions;
 namespace OpenTap
 {
@@ -11,7 +13,7 @@ namespace OpenTap
         public string Error { get; }
     }
     
-    class HasExpressionAnnotation : IIconAnnotation, IEnabledAnnotation, IInteractiveIconAnnotation, IExpressionAnnotation, IOwnedAnnotation
+    class HasExpressionAnnotation : IIconAnnotation, IEnabledAnnotation, IInteractiveIconAnnotation, IExpressionAnnotation, IOwnedAnnotation, IErrorAnnotation
     {
         readonly AnnotationCollection annotation;
         public string IconName => IconNames.HasExpression;
@@ -48,6 +50,10 @@ namespace OpenTap
             if(source is ITestStepParent parent  && member != null)
                 ExpressionManager.SetExpression(parent, annotation.Get<IMemberAnnotation>()?.Member, Expression);
         }
+        public IEnumerable<string> Errors => string.IsNullOrWhiteSpace(Error) ? Array.Empty<string>() : new []
+        {
+            $"Expression: {Error}"
+        };
     }
 
 }

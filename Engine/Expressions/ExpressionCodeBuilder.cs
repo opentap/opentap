@@ -333,14 +333,21 @@ namespace OpenTap.Expressions
                     if(parameterExpressions.Lookup.TryGetValue(i.Data, out var expression))
                         return expression;
 
-                    var prop = GetProperty(i.Data);
+                    var prop = GetProperty(i.Data); 
                     if (prop != null)
                         return Expression.Property(null, prop);
 
                     if (nf != null)
                     {
-                        var value = nf.ParseNumber(i.Data, targetType != null ? targetType : typeof(double));
-                        return Expression.Constant(value);
+                        try
+                        {
+                            var value = nf.ParseNumber(i.Data, targetType != null ? targetType : typeof(double));
+                            return Expression.Constant(value);
+                        }
+                        catch
+                        {
+                            
+                        }
                     }
                     
                     // otherwise, is it a constant?
