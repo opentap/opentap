@@ -68,7 +68,7 @@ namespace OpenTap.Expressions
         public Result<Delegate> GenerateLambda(AstNode ast, ParameterData parameters, Type targetType)
         {
             return GenerateExpression(ast, parameters, targetType)
-                .IfOK(expr =>
+                .IfThen(expr =>
                 {
 
                     if (expr.Type != targetType)
@@ -87,7 +87,10 @@ namespace OpenTap.Expressions
                         }
                         else
                         {
-                            expr = Expression.Convert(expr, targetType);
+                            if (expr.Type.IsNumeric() && targetType.IsNumeric())
+                                expr = Expression.Convert(expr, targetType);
+                            else
+                                return Result.Error<Delegate>($"Cannot convert result {expr.Type.Name} to {targetType.Name}.");
                         }
                     }
                     var lmb = Expression.Lambda(expr, false, parameters.Parameters);
@@ -121,7 +124,7 @@ namespace OpenTap.Expressions
             if (exprr.Ok())
                 members = members.RemoveAll(p => usedParameters.Contains(p.Name) == false);
             
-            return exprr.IfThen(expr =>
+            return exprr.IfThen<Delegate>(expr =>
             {
                 var parameters2 = parameters.Parameters.Where(p => usedParameters.Contains(p.Name)).ToArray();
                 if (expr.Type != targetType)
@@ -192,7 +195,7 @@ namespace OpenTap.Expressions
                         {
                             MethodInfo method2 = GetMethod(funcName, new []{typeof(ITestStepParent)}.Concat(expressions.Select(x => x.Type)).ToArray());
                             if(method2 == null)
-                                return Error($"No such method: {funcName}");
+                                return Error($"'{funcName}' function not found.");
                             var thisArg = parameterExpressions.Parameters.FirstOrDefault(x => x.Name == "__this__");
                             Debug.Assert(thisArg != null);
                             return Expression.Call(method2, new Expression[]
@@ -201,7 +204,13 @@ namespace OpenTap.Expressions
                             }.Concat(expressions).ToArray());
                         }
 
-                        return Expression.Call(method, expressions.ToArray());
+                        try
+                        {
+                            return Expression.Call(method, expressions.ToArray());
+                        }catch(Exception e)
+                        {
+                            return Error(e.Message);
+                        }
                     }
                     
                     var leftr = GenerateExpression(b.Left, parameterExpressions);
@@ -276,10 +285,32 @@ namespace OpenTap.Expressions
                     {
                         if (left.Type != typeof(string))
                         {
-                            left = Expression.Call(left, typeof(object).GetMethod("ToString"));
+                            if (left.Type == typeof(float) || left.Type == typeof(double))
+                            {
+                                if(left.Type == typeof(float))
+                                    left = Expression.Convert(left, typeof(double));
+                                left = Expression.Call(null, typeof(Math).GetMethod(nameof(Math.Round), new Type[]
+                                {
+                                    typeof(double), typeof(int),  
+                                }), left, Expression.Constant(15));
+                            }
+                            
+                            {
+                                left = Expression.Call(left, typeof(object).GetMethod("ToString"));
+                            }
                         }
                         if (right.Type != typeof(string))
                         {
+                            if (right.Type == typeof(float) || right.Type == typeof(double))
+                            {
+                                if(right.Type == typeof(float))
+                                    right = Expression.Convert(right, typeof(double));
+                                right = Expression.Call(null, typeof(Math).GetMethod(nameof(Math.Round), new Type[]
+                                {
+                                    typeof(double), typeof(int),  
+                                }), right, Expression.Constant(15));
+                            }
+                            
                             right = Expression.Call(right, typeof(object).GetMethod("ToString"));
                         }
                         
@@ -322,11 +353,11 @@ namespace OpenTap.Expressions
                     if (long.TryParse(i.Data, out var i3))
                         return Expression.Constant(i3);
 
-                    return Error($"Unable to understand: \"{i.Data}\".");
+                    return Error($"'{i.Data}' symbol not found.");
                 }
             }
 
-            return Error($"Unable to parse expression.");
+            return Error($"{ast} is an invalid expression.");
         }
         
 
@@ -344,7 +375,6 @@ namespace OpenTap.Expressions
         /// <returns></returns>
         public AstNode ParseStringInterpolation(ref ReadOnlySpan<char> str, bool isSubString = false)
         {
-            // This node will be continously built upon.
             AstNode returnNode = null;
             
             // For building a string of chars.

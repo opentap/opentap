@@ -402,14 +402,14 @@ namespace OpenTap.Expressions
             return (bool)x.Item2.DynamicInvoke(buffer2);
         }
 
-        internal static string ExpressionError(string expression, object targetObject, ITypeData type)
+        internal static string ExpressionError(string expression, object targetObject, ITypeData targetType)
         {
             try
             {
                 var parameters = ParameterData.GetParameters(targetObject) ?? ParameterData.Empty;
                 var ast = builder.Parse(expression);
                 if (ast.Ok() == false) return ast.Error();
-                var expr = builder.GenerateExpression(ast.Unwrap(), parameters, type.AsTypeData().Type);
+                var expr = builder.GenerateExpression(ast.Unwrap(), parameters, targetType.AsTypeData().Type);
                 if (expr.Ok() == false) return expr.Error();
                 return null;
             }

@@ -10,5 +10,7 @@
         }
 
         public readonly double Precedence;
+
+        public override string ToString() => $"{Operator}";
     }
 }

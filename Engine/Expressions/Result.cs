@@ -32,11 +32,11 @@ namespace OpenTap.Expressions
             return default(T2);
         }
         
-        public Result<T2> IfThen<T2>(Func<T, T2> func)
+        public Result<T2> IfThen<T2>(Func<T, Result<T2>> func)
         {
             if (error == null)
             {
-                return Result<T2>.Success(func(value));
+                return func(value);
             }
             return Result<T2>.Error(error);
         }

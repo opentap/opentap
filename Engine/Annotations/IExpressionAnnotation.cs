@@ -2,10 +2,13 @@ using OpenTap.Expressions;
 namespace OpenTap
 {
     /// <summary>  Annotation added when a setting has an expression. </summary>
-    public interface IExpressionAnnotation
+    public interface IExpressionAnnotation : IAnnotation
     {
         /// <summary>  The current expression value. </summary>
         public string Expression { get; set; }
+        
+        /// <summary> Gets the current expression error. </summary>
+        public string Error { get; }
     }
     
     class HasExpressionAnnotation : IIconAnnotation, IEnabledAnnotation, IInteractiveIconAnnotation, IExpressionAnnotation, IOwnedAnnotation
@@ -24,12 +27,20 @@ namespace OpenTap
             get;
             set;
         }
+        public string Error
+        {
+            get;
+            private set;
+        }
 
         public void Read(object source)
         {
             var member = annotation.Get<IMemberAnnotation>()?.Member;
-            if(source is ITestStepParent parent && member != null)
-                Expression = ExpressionManager.GetExpression(parent, annotation.Get<IMemberAnnotation>()?.Member);
+            if (source is ITestStepParent step && member != null)
+            {
+                Expression = ExpressionManager.GetExpression(step, annotation.Get<IMemberAnnotation>()?.Member);
+                Error = ExpressionManager.ExpressionError(Expression, step, annotation.Get<IMemberAnnotation>()?.Member?.TypeDescriptor);
+            }
         }
         public void Write(object source)
         {

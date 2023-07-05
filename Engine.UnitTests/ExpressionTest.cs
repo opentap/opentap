@@ -60,8 +60,8 @@ namespace OpenTap.UnitTests
         [TestCase("{Math.Round(1.11111111, 2)}", "1.11")]
         [TestCase(@"{Match(""A(?<B>\d*)"", ""B"", ""A112233"")}", "112233")]
         [TestCase("{Match(\"A\\d*\", \"A112233\nB1234\nA111\")}", "A112233")]
-        [TestCase("{sin(π * 2.0)}", "0")]
-        [TestCase("{cos(π * 2.0)}", "1")]
+        [TestCase("{sin(π * 2.0)} {cos(π * 2.0)}", "0 1")]
+        [TestCase("{cos(π * 2.0)} {sin(π * 2.0)}", "1 0")]
         public void StringExpressionBasicTest(string expression, string expectedResult)
         {
             
@@ -71,6 +71,35 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(lmb.Ok());
             var result = lmb.Unwrap().DynamicInvoke();
             Assert.AreEqual(expectedResult, result);
+        }
+        
+        [TestCase(typeof(double), "asd(1 + 2)", null, "'asd' function not found.")]
+        [TestCase(typeof(double), "1 + 2", null, null)]
+        [TestCase(typeof(double), "pass(1 == 1)", null, "Cannot convert result Verdict to Double.")]
+        [TestCase(typeof(Verdict), "pass(1 == 1)", null, null)]
+        [TestCase(typeof(double), "asd", null, "'asd' symbol not found.")]
+        [TestCase(typeof(double), "cos(\"asd\")", null, "Expression of type 'System.String' cannot be used.*")]
+        public void SimpleErrors(Type expressionType, string errorExpression, string parseError, string compileError)
+        {
+            
+            var builder = new ExpressionCodeBuilder();
+            var ast = builder.Parse(errorExpression);
+            if (parseError != null)
+            {
+                Assert.AreEqual(parseError, ast.Error());
+                return;
+            }
+            Assert.AreEqual(null, ast.Error());
+            
+            
+            var lmb = builder.GenerateLambda(ast.Unwrap(), ParameterData.Empty, expressionType);
+
+            if (compileError != null)
+            {
+                StringAssert.IsMatch(compileError, lmb.Error());
+                return;
+            }
+            Assert.AreEqual(null, lmb.Error());
         }
         
 
@@ -200,10 +229,16 @@ namespace OpenTap.UnitTests
                 void handleExpression(object item)
                 {
                     var a = AnnotationCollection.Annotate(item);
+                    
+                    a.GetMember("Expression").Get<IStringValueAnnotation>().Value = "asd(3 + 4)";
+                    a.Write();
+                    a.Read();
+                    Assert.IsFalse(string.IsNullOrEmpty(((ValidatingObject)item).Error));
+                    
+                    
                     a.GetMember("Expression").Get<IStringValueAnnotation>().Value = "3 + 4";
                     a.Write();
                     a.Read();
-                    var err = a.Get<IErrorAnnotation>();
                     Assert.IsTrue(string.IsNullOrEmpty(((ValidatingObject)item).Error));
                 }
 
@@ -213,18 +248,31 @@ namespace OpenTap.UnitTests
 
                 var member = AnnotationCollection.Annotate(delayStep).GetMember(nameof(delayStep.DelaySecs));
                 member.ExecuteIcon(IconNames.AssignExpression);
-            
-                ExpressionManager.SetExpression(delayStep, t, "3 + 4");
-                ExpressionManager.Update(delayStep);
 
+                ExpressionManager.Update(delayStep);
+                
+                Assert.AreEqual(3 + 4, delayStep.DelaySecs);
+
+                
                 var a = AnnotationCollection.Annotate(delayStep)
                     .GetMember(nameof(delayStep.DelaySecs));
-
+                
                 var hasExpr = a.GetAll<IIconAnnotation>().FirstOrDefault(x => x.IconName == IconNames.HasExpression);
             
                 Assert.AreEqual(3 + 4, delayStep.DelaySecs);
-                Assert.IsNotNull(hasExpr);    
+                Assert.IsNotNull(hasExpr);
+
+                var expra = a.Get<IExpressionAnnotation>();
+                expra.Expression = "asd(123)";
+                a.Write();
+                a.Read();
+                Assert.AreEqual("'asd' function not found.", expra.Error);
                 
+                expra.Expression = "123 + 345";
+                a.Write();
+                a.Read();
+                Assert.IsTrue(string.IsNullOrWhiteSpace(expra.Error));
+
             }
         }
         
