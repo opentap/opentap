@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
@@ -25,7 +26,7 @@ namespace OpenTap.Expressions
             public Delegate Lambda;
             string expression;
             public IMemberData MemberData;
-            public string[] UsedParameters;
+            public ImmutableHashSet<string> UsedParameters = ImmutableHashSet<string>.Empty;
             public int ParameterIndex;
         }
         class ExpressionList : List<ExpressionObject>
@@ -205,21 +206,24 @@ namespace OpenTap.Expressions
                     Debug.Assert(mem != null);
                     expression.MemberData = mem;
                     ReadOnlySpan<char> code = expression.Expression.ToArray();
+
+                    Result<AstNode> ast;
                     
-                    builder.UsedParameters.Clear();
                     if (mem.TypeDescriptor.DescendsTo(typeof(string)))
                     {
-                        var ast = builder2.ParseStringInterpolation(ref code);
-                        var lambda = builder2.GenerateLambda(ast, parameters, mem.TypeDescriptor.AsTypeData().Type);
-                        expression.Lambda = lambda;
+                        ast = builder2.ParseStringInterpolation(ref code);
                     }
                     else
                     {
-                        var ast = builder2.Parse(ref code);
-                        var lambda = builder2.GenerateLambda(ast, parameters, mem.TypeDescriptor.AsTypeData().Type);
-                        expression.Lambda = lambda;
+                        ast = builder2.Parse(ref code);
                     }
-                    expression.UsedParameters = builder.UsedParameters.ToArray();
+                    
+                    ast.IfOK(node =>
+                        {
+                            expression.UsedParameters = parameters.GetUsedParameters(node);
+                            return builder2.GenerateLambda(node, parameters, mem.TypeDescriptor.AsTypeData().Type);
+                        }).IfOK(lambda => expression.Lambda = lambda);
+                     
                     expression.ParameterIndex = parameters.Parameters.IndexWhen(x => x.Name == expression.Member);
                     Debug.Assert(expression.ParameterIndex != -1);
                 }
@@ -239,6 +243,9 @@ namespace OpenTap.Expressions
                 {
                     if (member != null && expression.MemberData != member) 
                         continue;
+                    
+                    if (expression.Lambda == null) 
+                        continue; // this may occur if the code was invalid.
                     var result = expression.Lambda.DynamicInvoke(expressions.buffer);
                     expression.MemberData.SetValue(step, result);
                     if (expression.ParameterIndex != -1)
@@ -269,9 +276,9 @@ namespace OpenTap.Expressions
                     {
                         var expr = attr.Expression;
                         var ast = builder.Parse(expr);
-                        var lambda = builder.GenerateLambda(ast, parameters, typeof(object));
-                        
-                        updateActions.Add((lambda, attr.Verdict));
+                        var lambda = ast.IfOK(ast => builder.GenerateLambda(ast, parameters, typeof(object)));
+                        if(lambda.Ok())
+                            updateActions.Add((lambda.Unwrap(), attr.Verdict));
                     }
                 }
                 expressions.UpdateVerdicts = updateActions.ToArray();
@@ -316,9 +323,11 @@ namespace OpenTap.Expressions
                     
                     var expression = attr.Expression;
                     var ast = builder.Parse(expression);
+                    if (!ast.Ok())
+                        continue;
                     var builder2 = new ExpressionCodeBuilder();
                     var members = members2.ToArray();
-                    var lambda = builder2.GenerateLambdaCompact(ast, ref members, typeof(bool));
+                    var lambda = builder2.GenerateLambdaCompact(ast.Unwrap(), ref members, typeof(bool));
 
                     CustomErrorDelegateDefinition messageFcn = null;
                     if (!string.IsNullOrWhiteSpace(attr.Message))
@@ -361,32 +370,33 @@ namespace OpenTap.Expressions
             
             var builder = new ExpressionCodeBuilder();
             var ast = builder.Parse(expression);
-            if (ast == null) return null;
+            
+            if (ast.Ok() == false) return null;
             
             if (!expressions.EnabledIfLookup.TryGetValue(expression, out var x))
             {
                 var members2 = expressions.members.ToArray();
-                var lambda = builder.GenerateLambdaCompact(ast, ref members2, typeof(bool));
+                var lambda = builder.GenerateLambdaCompact(ast.Unwrap(), ref members2, typeof(bool));
                 expressions.EnabledIfLookup[expression] = x = (members2, lambda);
             }
             var buffer2 = x.Item1.Select(mem => mem.GetValue(step)).ToArray();
             return (bool)x.Item2.DynamicInvoke(buffer2);
         }
 
-        internal static bool CheckExpression(string expression, object targetObject, ITypeData type)
+        internal static string ExpressionError(string expression, object targetObject, ITypeData type)
         {
             try
             {
                 var parameters = ParameterData.GetParameters(targetObject) ?? ParameterData.Empty;
                 var ast = builder.Parse(expression);
-                if (ast == null) return false;
-                var expr = builder.GenerateExpression(ast, parameters, type.AsTypeData().Type);
-                if (expr == null) return false;
-                return true;
+                if (ast.Ok() == false) return ast.Error();
+                var expr = builder.GenerateExpression(ast.Unwrap(), parameters, type.AsTypeData().Type);
+                if (expr.Ok() == false) return expr.Error();
+                return null;
             }
-            catch
+            catch(Exception e)
             {
-                return false;
+                return e.Message;
             }
         }
     }

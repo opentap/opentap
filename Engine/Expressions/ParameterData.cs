@@ -80,6 +80,25 @@ namespace OpenTap.Expressions
             }
             return changed;
         }
+        
+        public ImmutableHashSet<string> GetUsedParameters(AstNode ast)
+        {
+            switch (ast)
+            {
+                case ObjectNode obj:
+                    if (Lookup.TryGetValue(obj.Data, out var expr))
+                        return ImmutableHashSet<string>.Empty.Add(expr.Name);
+                    return ImmutableHashSet<string>.Empty;
+                case OperatorNode _:
+                    return ImmutableHashSet<string>.Empty;
+                case BinaryExpressionNode bin:
+                    return GetUsedParameters(bin.Left).Union(GetUsedParameters(bin.Right));
+                default:
+                    throw new InvalidOperationException();
+            }
+            
+            
+        }
 
     }
 }

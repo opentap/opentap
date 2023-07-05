@@ -7,97 +7,95 @@ using System.Linq.Expressions;
 using System.Reflection;
 namespace OpenTap.Expressions
 {
-
     class ExpressionCodeBuilder
     {
-        class BuilderCache
-        {
-            IExpressionFunctionProvider[] providers;
-
-            IExpressionFunctionProvider[] GetProviders()
-            {
-                return providers ??= TypeData.GetDerivedTypes<IExpressionFunctionProvider>()
-                    .Where(x => x.CanCreateInstance)
-                    .Select(x => x.CreateInstanceSafe())
-                    .OfType<IExpressionFunctionProvider>()
-                    .ToArray();
-            }
+        static Result<Expression> Error(string error) =>  Result.Error<Expression>(error);
         
-            public MethodInfo GetMethod(string name, Type[] types)
-            {
-                return GetProviders()
-                    .FirstNonDefault(p => p.GetMethod(name, types));
-            }
+        readonly ImmutableArray<IExpressionFunctionProvider> providers;
+        
+        public  ImmutableArray<string> KnownSymbols { get; }
+        
+        readonly NumberFormatter nf;
+        
+        public Type TargetType { get;  }
 
-            public PropertyInfo GetProperty(string name)
-            {
-                return GetProviders()
-                    .FirstNonDefault(p => p.GetProperty(name));
-            }
+        public bool ThrowException { get; }
+
+
+        public ExpressionCodeBuilder()
+        {
+            providers = TypeData.GetDerivedTypes<IExpressionFunctionProvider>()
+                .Where(x => x.CanCreateInstance)
+                .Select(x => x.CreateInstanceSafe())
+                .OfType<IExpressionFunctionProvider>()
+                .ToImmutableArray();
         }
 
-        BuilderCache Context = new BuilderCache();
-        
-        public string[] KnownSymbols { get; set; }
-
-        NumberFormatter nf;
-
-        public Type TargetType { get; private set; }
-
-        public string Error { get; private set;}
-        public bool ThrowException { get; set; }
-
-        public ExpressionCodeBuilder Clone() => this.MemberwiseClone() as ExpressionCodeBuilder;
-        
-        public ExpressionCodeBuilder WithNumberFormatter(NumberFormatter numberFormatter)
+        ExpressionCodeBuilder(ExpressionCodeBuilder builder)
         {
-            var clone = Clone();
-            clone.nf = numberFormatter;
-            return clone;
-        }
-        public ExpressionCodeBuilder WithThrowException(bool throws)
-        {
-            var clone = Clone();
-            clone.ThrowException = throws;
-            return clone;
-        }
-
-        public ExpressionCodeBuilder WithTargetType(Type newTargetType)
-        {
-            var clone = Clone();
-            clone.TargetType = newTargetType;
-            return clone;
+            providers = builder.providers;
+            nf = builder.nf;
+            KnownSymbols = builder.KnownSymbols;
+            ThrowException = builder.ThrowException;
+            TargetType = builder.TargetType;
         }
         
+        ExpressionCodeBuilder(ExpressionCodeBuilder builder, Type type): this(builder) => TargetType = type;
+        
+        ExpressionCodeBuilder(ExpressionCodeBuilder builder, bool throwException): this(builder) => ThrowException = throwException;
+        ExpressionCodeBuilder(ExpressionCodeBuilder builder, ImmutableArray<string> knownSymbols): this(builder) => KnownSymbols = knownSymbols;
+        ExpressionCodeBuilder(ExpressionCodeBuilder builder, NumberFormatter numberFormatter): this(builder) => nf = numberFormatter;
+
+        public ExpressionCodeBuilder WithTargetType(Type type)
+        {
+            return new ExpressionCodeBuilder(this, type);
+        }
+        
+        public MethodInfo GetMethod(string name, Type[] types) => providers.FirstNonDefault(p => p.GetMethod(name, types));
+
+        public PropertyInfo GetProperty(string name) => providers.FirstNonDefault(p => p.GetProperty(name));
+        
+        public ExpressionCodeBuilder WithNumberFormatter(NumberFormatter numberFormatter) => new ExpressionCodeBuilder(this, numberFormatter);
+        public ExpressionCodeBuilder WithThrowException(bool throws) => new ExpressionCodeBuilder(this, throws);
        
-
         public void UpdateParameterMembers(object obj, ref IMemberData[] members, out bool updated)
         {
             updated = ParameterData.GetMembers(obj, ref members);
         }
 
-        public Delegate GenerateLambda(AstNode ast, ParameterData parameters, Type targetType)
+        
+
+        public Result<Delegate> GenerateLambda(AstNode ast, ParameterData parameters, Type targetType)
         {
-            var expr = GenerateExpression(ast, parameters, targetType);
-            if (expr == null) return null;
-            if (expr.Type != targetType)
-            {
-                if (targetType == typeof(string))
+            return GenerateExpression(ast, parameters, targetType)
+                .IfOK(expr =>
                 {
-                    expr = Expression.Call(expr, typeof(object).GetMethod("ToString"));
-                }
-                else if(targetType.IsNumeric() && expr.Type == typeof(string))
-                {
-                    expr = Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ChangeType), new Type[]{typeof(object), typeof(Type)}), expr,  Expression.Constant(targetType));
-                    expr = Expression.Convert(expr, targetType);
-                }else
-                {
-                    expr = Expression.Convert(expr, targetType);
-                }
-            }
-            var lmb = Expression.Lambda(expr, false, parameters.Parameters);
-            var d = lmb.Compile();
-            return d;
+
+                    if (expr.Type != targetType)
+                    {
+                        if (targetType == typeof(string))
+                        {
+                            expr = Expression.Call(expr, typeof(object).GetMethod("ToString"));
+                        }
+                        else if (targetType.IsNumeric() && expr.Type == typeof(string))
+                        {
+                            expr = Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ChangeType), new Type[]
+                            {
+                                typeof(object), typeof(Type)
+                            }), expr, Expression.Constant(targetType));
+                            expr = Expression.Convert(expr, targetType);
+                        }
+                        else
+                        {
+                            expr = Expression.Convert(expr, targetType);
+                        }
+                    }
+                    var lmb = Expression.Lambda(expr, false, parameters.Parameters);
+                    var d = lmb.Compile();
+                    if (d == null)
+                        return Result<Delegate>.Error("Error compiling delegate");
+                    return d;
+                });
         }
         
         public Delegate GenerateLambdaCompact(AstNode ast, ref IMemberData[] members, Type targetType)
@@ -117,44 +115,41 @@ namespace OpenTap.Expressions
             }
             
             var parameters = new ParameterData(lookup.ToImmutableDictionary(), parameterList.ToImmutableArray());
-            var expr = GenerateExpression(ast, parameters);
-            
-            members = members.Where(p => UsedParameters.Contains(p.Name)).ToArray();
-            var parameters2 = parameters.Parameters.Where(p => UsedParameters.Contains(p.Name)).ToArray();
-            if (expr.Type != targetType)
-            {
-                if (targetType == typeof(string))
-                {
-                    expr = Expression.Call(expr, typeof(object).GetMethod("ToString"));
-                }
-                else
-                {
-                    expr = Expression.Convert(expr, targetType);
-                }
-            }
-            var lmb = Expression.Lambda(expr, false, parameters2);
-            var d = lmb.Compile();
-            return d;
-        }
+            var usedParameters = parameters.GetUsedParameters(ast);
+            var exprr = GenerateExpression(ast, parameters);
 
-        Expression GenError(string error)
-        {
-            if (ThrowException)
-                throw new Exception(error);
-            this.Error = error;
-            return null;
+            
+            if (exprr.Ok())
+                members = members.Where(p => usedParameters.Contains(p.Name)).ToArray();
+
+            return exprr.IfOK(expr =>
+            {
+                
+                var parameters2 = parameters.Parameters.Where(p => usedParameters.Contains(p.Name)).ToArray();
+                if (expr.Type != targetType)
+                {
+                    if (targetType == typeof(string))
+                    {
+                        expr = Expression.Call(expr, typeof(object).GetMethod("ToString"));
+                    }
+                    else
+                    {
+                        expr = Expression.Convert(expr, targetType);
+                    }
+                }
+                var lmb = Expression.Lambda(expr, false, parameters2);
+                var d = lmb.Compile();
+                return d;
+            });
         }
 
         public bool IsNumberExpression(AstNode ast)
         {
-            var sub = this.WithThrowException(false);
+            var sub = WithThrowException(false);
             if (ast is ObjectNode objectNode)
             {
-                if (sub.GenerateExpression(objectNode, ParameterData.Empty, null)
-                    is ConstantExpression ce)
-                {
+                if (sub.GenerateExpression(objectNode, ParameterData.Empty, null).Ok())
                     return true;
-                }
             }
 
             return false;
@@ -163,12 +158,12 @@ namespace OpenTap.Expressions
         
         /// <summary> Compiles the AST into a tree of concrete expressions.
         /// This will throw an exception if the types does not match up. e.g "X" + 3 (undefined operation) </summary>
-        public Expression GenerateExpression(AstNode ast, ParameterData parameterExpressions, Type targetType = null)
+        public Result<Expression> GenerateExpression(AstNode ast, ParameterData parameterExpressions, Type targetType = null)
         {
             
             switch (ast)
             {
-                case BinaryExpression b:
+                case BinaryExpressionNode b:
                 {
                     var op = b.Operator;
 
@@ -180,25 +175,25 @@ namespace OpenTap.Expressions
                         
                         List<Expression> expressions = new List<Expression>();
                         var right2 = b.Right;
-                        while (right2 is BinaryExpression b2 && b2.Operator == Operators.CommaOp)
+                        while (right2 is BinaryExpressionNode b2 && b2.Operator == Operators.CommaOp)
                         {
-                            expressions.Add(GenerateExpression(b2.Left, parameterExpressions));
+                            expressions.Add(GenerateExpression(b2.Left, parameterExpressions).Unwrap());
                             right2 = b2.Right;
                         }
                         if (right2 != null)
                         {
-                            expressions.Add(GenerateExpression(right2, parameterExpressions));
+                            expressions.Add(GenerateExpression(right2, parameterExpressions).Unwrap());
                             right2 = null;
                         }
-                        if (Error != null) return null;
+                        
                         var funcName = ((ObjectNode)b.Left).Data;
                         
-                        MethodInfo method = Context.GetMethod(funcName, expressions.Select(x => x.Type).ToArray());
+                        MethodInfo method = GetMethod(funcName, expressions.Select(x => x.Type).ToArray());
                         if (method == null)
                         {
-                            MethodInfo method2 = Context.GetMethod(funcName, new []{typeof(ITestStepParent)}.Concat(expressions.Select(x => x.Type)).ToArray());
+                            MethodInfo method2 = GetMethod(funcName, new []{typeof(ITestStepParent)}.Concat(expressions.Select(x => x.Type)).ToArray());
                             if(method2 == null)
-                                throw new Exception($"No such method: {funcName}");
+                                return Error($"No such method: {funcName}");
                             var thisArg = parameterExpressions.Parameters.FirstOrDefault(x => x.Name == "__this__");
                             Debug.Assert(thisArg != null);
                             return Expression.Call(method2, new Expression[]
@@ -210,9 +205,12 @@ namespace OpenTap.Expressions
                         return Expression.Call(method, expressions.ToArray());
                     }
                     
-                    var left = GenerateExpression(b.Left, parameterExpressions);
-                    var right = GenerateExpression(b.Right, parameterExpressions);
-                    if (Error != null) return null;
+                    var leftr = GenerateExpression(b.Left, parameterExpressions);
+                    var rightr = GenerateExpression(b.Right, parameterExpressions);
+                    if ((leftr.Error() ?? rightr.Error()) is string err)
+                        return Error(err);
+                    var left = leftr.Unwrap();
+                    var right = rightr.Unwrap();
 
                     // If the types of the two sides of the expression is not the same.
                     if (left.Type != right.Type)
@@ -243,8 +241,6 @@ namespace OpenTap.Expressions
                             right = Expression.Call(null, typeof(Convert).GetMethod(nameof(Convert.ChangeType), new []{typeof(object), typeof(Type)}), right,  Expression.Constant(left.Type));
                             right = Expression.Convert(right, left.Type);
                         }
-                        
-                        
                     }
 
                     if (op == Operators.AdditionOp)
@@ -305,12 +301,9 @@ namespace OpenTap.Expressions
 
                     // is there a matching parameter?
                     if(parameterExpressions.Lookup.TryGetValue(i.Data, out var expression))
-                    {
-                        UsedParameters.Add(expression.Name);
                         return expression;
-                    }
 
-                    var prop = Context.GetProperty(i.Data);
+                    var prop = GetProperty(i.Data);
                     if (prop != null)
                         return Expression.Property(null, prop);
 
@@ -319,7 +312,6 @@ namespace OpenTap.Expressions
                         var value = nf.ParseNumber(i.Data, targetType != null ? targetType : typeof(double));
                         return Expression.Constant(value);
                     }
-                    
                     
                     // otherwise, is it a constant?
                     if (int.TryParse(i.Data, out var i1))
@@ -331,13 +323,13 @@ namespace OpenTap.Expressions
                     if (long.TryParse(i.Data, out var i3))
                         return Expression.Constant(i3);
 
-                    return GenError($"Unable to understand: \"{i.Data}\".");
+                    return Error($"Unable to understand: \"{i.Data}\".");
                 }
             }
 
-            return GenError($"Unable to parse expression.");
+            return Error($"Unable to parse expression.");
         }
-        public HashSet<string> UsedParameters { get; } = new HashSet<string>();
+        
 
         public AstNode ParseStringInterpolation(string str, bool isSubString = false)
         {
@@ -410,7 +402,7 @@ namespace OpenTap.Expressions
                     if (returnNode == null) returnNode = newNode;
                     else
                     {
-                        returnNode = new BinaryExpression
+                        returnNode = new BinaryExpressionNode
                         {
                             Left = returnNode,
                             Operator = Operators.StrCombineOperator,
@@ -436,15 +428,15 @@ namespace OpenTap.Expressions
                     
                     if (returnNode == null)
                     {
-                        returnNode = node;
+                        returnNode = node.Unwrap();
                     }
                     else
                     {
-                        returnNode = new BinaryExpression
+                        returnNode = new BinaryExpressionNode
                         {
                             Left = returnNode,
                             Operator = Operators.StrCombineOperator,
-                            Right = node
+                            Right = node.Unwrap()
                         };
                     }
                     continue;
@@ -461,7 +453,7 @@ namespace OpenTap.Expressions
                 if (returnNode == null) returnNode = newNode;
                 else
                 {
-                    returnNode = new BinaryExpression
+                    returnNode = new BinaryExpressionNode
                     {
                         Left = returnNode,
                         Operator = Operators.StrCombineOperator,
@@ -505,14 +497,14 @@ namespace OpenTap.Expressions
             };
         }
 
-        public AstNode Parse(string str)
+        public Result<AstNode> Parse(string str)
         {
             
             ReadOnlySpan<char> str2 = str.ToArray();
             return Parse(ref str2);
             
         }
-        public AstNode Parse(ref ReadOnlySpan<char> str, bool subExpression = false)
+        public Result<AstNode> Parse(ref ReadOnlySpan<char> str, bool subExpression = false)
         {
             var expressionList = new List<AstNode>();
             
@@ -530,8 +522,13 @@ namespace OpenTap.Expressions
                 {
                     str = str.Slice(1);
                     var subVal = Parse(ref str, subExpression);
-                    expressionList.Add(Operators.CommaOp);
-                    expressionList.Add(subVal);
+                    if (subVal.Ok())
+                    {
+                        expressionList.Add(Operators.CommaOp);
+                        expressionList.Add(subVal.Unwrap());
+                    }
+                    else
+                        return subVal;
                     break;
                 }
                 // start parsing a sub-expression? (recursively).
@@ -546,12 +543,14 @@ namespace OpenTap.Expressions
                         // parameters are separated by the comma operator, but comma is not used for anything else.
                         
                         str = str.Slice(1);
-                        var node = Parse(ref str, true);
-                        
-                        var expr = new BinaryExpression {Left = objectNode, Operator = Operators.CallOperator, Right = node};
-                        if(node != null && !(node is BinaryExpression b &&  b.Operator == Operators.CommaOp))
+                        var noder = Parse(ref str, true);
+                        if (noder.Ok() == false)
+                            return noder;
+                        var node = noder.Unwrap();
+                        var expr = new BinaryExpressionNode {Left = objectNode, Operator = Operators.CallOperator, Right = node};
+                        if(!(node is BinaryExpressionNode b &&  b.Operator == Operators.CommaOp))
                         {
-                            expr.Right = new BinaryExpression
+                            expr.Right = new BinaryExpressionNode
                             {
                                 Left = node,
                                 Operator = Operators.CommaOp,
@@ -565,7 +564,10 @@ namespace OpenTap.Expressions
                     {
                         str = str.Slice(1);
                         var node = Parse(ref str, true);
-                        expressionList.Add(node);
+                        if (node.Ok())
+                            expressionList.Add(node.Unwrap());
+                        else
+                            return node;
                         continue;
                     }
                 }
@@ -586,7 +588,7 @@ namespace OpenTap.Expressions
                 if (str[0] == '$')
                 {
                     if (str.Length <= 2 || str[1] != '"')
-                        throw new Exception("Invalid format");
+                        return Result.Error<AstNode>("Invalid format");
 
                     str = str.Slice(2);
                     var ast = ParseStringInterpolation(ref str, true);
@@ -611,10 +613,11 @@ namespace OpenTap.Expressions
                 // The content can either be an identifier or an operator.
                 // numbers and other constants are also identifiers.
                 var strBackup = str;
-                var ident = ParseObject(ref str, x =>  char.IsLetterOrDigit(x) || x == '.' || x == '-');
+                var identr = ParseObject(ref str, x =>  char.IsLetterOrDigit(x) || x == '.' || x == '-');
                 
-                if (ident != null)
+                if (identr.Ok())
                 {
+                    var ident = identr.Unwrap();
                     if (ident.Data == "-")
                     {
                         str = strBackup;
@@ -654,7 +657,7 @@ namespace OpenTap.Expressions
                     nextOperator: ;
                 }
 
-                throw new FormatException("Unable to parse code");
+                return Result.Error<AstNode>("Unable to parse code");
             }
             
             // now the expression has turned into a list of identifiers and operators. 
@@ -667,7 +670,7 @@ namespace OpenTap.Expressions
                 int index = expressionList.IndexOf(expressionList.FindMax(x => x is OperatorNode op ? op.Precedence : -1));
                 if (index == 0 || index == expressionList.Count - 1)
                     // it cannot start or end with e.g '*'.
-                    throw new Exception("Invalid sub-expression");
+                    return Result.Error<AstNode>("Unable to parse sub-expression");
                 
                 // take out the group of things. e.g [1,*,2]
                 // left and right might each be a group of statements.
@@ -678,21 +681,21 @@ namespace OpenTap.Expressions
 
                 // Verify that the right syntax is used.
                 if (!(@operator is OperatorNode) || left is OperatorNode || right is OperatorNode)
-                    throw new Exception("Invalid sub-expression");
+                    return Result.Error<AstNode>("Unable to parse sub-expression");
                 
                 // insert it back in to the list as a combined group.
-                expressionList.Insert(index - 1, new BinaryExpression {Left = left, Operator = (OperatorNode) @operator, Right = right});
+                expressionList.Insert(index - 1, new BinaryExpressionNode {Left = left, Operator = (OperatorNode) @operator, Right = right});
                 
             }
             if (expressionList.Count == 0)
                 return null;
             // now there should only be one element left. Return it.
             if (expressionList.Count != 1)
-                throw new Exception("Invalid expression");
+                return Result.Error<AstNode>("Invalid expression");
             return expressionList[0];
         }
 
-        ObjectNode ParseObject(ref ReadOnlySpan<char> str, Func<char, bool> filter)
+        Result<ObjectNode> ParseObject(ref ReadOnlySpan<char> str, Func<char, bool> filter)
         {
             var str2 = str;
             SkipWhitespace(ref str2);
@@ -703,7 +706,7 @@ namespace OpenTap.Expressions
             }
 
             if (str2 == str)
-                return null;
+                return Result.Error<ObjectNode>("unable to parse object");
             var identifier = new ObjectNode(new string(str.Slice(0, str.Length - str2.Length).ToArray()));
             str = str2;
             return identifier;

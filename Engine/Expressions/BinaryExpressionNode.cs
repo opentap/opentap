@@ -1,6 +1,6 @@
 ﻿namespace OpenTap.Expressions
 {
-    class BinaryExpression : AstNode
+    class BinaryExpressionNode : AstNode
     {
         public AstNode Left;
         public AstNode Right;

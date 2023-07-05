@@ -502,10 +502,10 @@ namespace OpenTap
         [Display("Define a new expression")]
         class AssignExpressionRequest : ValidatingObject
         {
-            [Validation("IsValid", "Expression '{Expression}' is not valid.")]
+            [Validation("isempty(ExprError)", "Expression '{Expression}' is not valid: {ExprError}")]
             public string Expression { get; set; }
 
-            public bool IsValid => ExpressionManager.CheckExpression(Expression, TargetObject, TargetType);
+            public string ExprError => ExpressionManager.ExpressionError(Expression, TargetObject, TargetType);
             
             
             public ITypeData TargetType { get; internal set; }

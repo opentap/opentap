@@ -5,7 +5,6 @@ using NUnit.Framework;
 using OpenTap.Engine.UnitTests;
 using OpenTap.Plugins.BasicSteps;
 using OpenTap.Expressions;
-using BinaryExpression = OpenTap.Expressions.BinaryExpression;
 namespace OpenTap.UnitTests
 {
     public class ExpressionTest
@@ -61,13 +60,16 @@ namespace OpenTap.UnitTests
         [TestCase("{Math.Round(1.11111111, 2)}", "1.11")]
         [TestCase(@"{Match(""A(?<B>\d*)"", ""B"", ""A112233"")}", "112233")]
         [TestCase("{Match(\"A\\d*\", \"A112233\nB1234\nA111\")}", "A112233")]
+        [TestCase("{sin(π * 2.0)}", "0")]
+        [TestCase("{cos(π * 2.0)}", "1")]
         public void StringExpressionBasicTest(string expression, string expectedResult)
         {
             
             var builder = new ExpressionCodeBuilder();
             var ast = builder.ParseStringInterpolation(expression);
             var lmb = builder.GenerateLambda(ast, ParameterData.Empty, typeof(string));
-            var result = lmb.DynamicInvoke();
+            Assert.IsTrue(lmb.Ok());
+            var result = lmb.Unwrap().DynamicInvoke();
             Assert.AreEqual(expectedResult, result);
         }
         
@@ -77,9 +79,9 @@ namespace OpenTap.UnitTests
         public void ParseFancyNameTest()
         {
             var builder = new ExpressionCodeBuilder();
-            var ast = builder.Parse("Log Message + Log Message 2");
-            Assert.IsInstanceOf<BinaryExpression>(ast);
-            var b = (BinaryExpression)ast;
+            var ast = builder.Parse("Log Message + Log Message 2").Unwrap();
+            Assert.IsInstanceOf<BinaryExpressionNode>(ast);
+            var b = (BinaryExpressionNode)ast;
             Assert.IsInstanceOf<ObjectNode>(b.Left);
             Assert.IsInstanceOf<ObjectNode>(b.Right);
             Assert.IsTrue(b.Operator == Operators.AdditionOp);
