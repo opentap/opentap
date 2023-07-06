@@ -525,7 +525,8 @@ namespace OpenTap
             var req = new AssignExpressionRequest()
             {
                 Expression = ExpressionManager.GetExpression(source[0], member) ?? "",
-                TargetType = member.TypeDescriptor
+                TargetType = member.TypeDescriptor,
+                TargetObject = source[0]
             };
             
             UserInput.Request(req);
