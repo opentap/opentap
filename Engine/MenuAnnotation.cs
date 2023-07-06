@@ -196,7 +196,9 @@ namespace OpenTap
         /// <summary> Add a user-defined dynamic property</summary>
         public const string AddDynamicProperty = Common + nameof(AddDynamicProperty);
         /// <summary> Remove a user-defined dynamic property</summary>
-        public const string RemoveDynamicProperty = Common + nameof(RemoveDynamicProperty);
+        public const string RemoveCustomSetting = Common + nameof(RemoveCustomSetting);
+        /// <summary> Modify a user-defined dynamic property</summary>
+        public const string ModifyCustomSetting = Common + nameof(ModifyCustomSetting);
         /// <summary> Assign an expression. </summary>
         public const string AssignExpression = Common + nameof(AssignExpression);
         /// <summary> Assigned if a thing has an expression assigned. </summary>

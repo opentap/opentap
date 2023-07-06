@@ -277,7 +277,7 @@ namespace OpenTap.Expressions
                         var expr = attr.Expression;
                         var ast = builder.Parse(expr);
                         var lambda = ast.IfOK(ast => builder.GenerateLambda(ast, parameters, typeof(object)));
-                        if(lambda.Ok())
+                        if(lambda.Ok)
                             updateActions.Add((lambda.Unwrap(), attr.Verdict));
                     }
                 }
@@ -324,7 +324,7 @@ namespace OpenTap.Expressions
                     
                     var expression = attr.Expression;
                     var ast = builder.Parse(expression);
-                    if (!ast.Ok())
+                    if (!ast.Ok)
                         continue;
                     
                     var membersLocal = members;
@@ -339,7 +339,7 @@ namespace OpenTap.Expressions
                         {
                             var fcnr = codeBuilder.GenerateLambdaCompact(messageAst, ref membersLocal2, typeof(string));
                             
-                            if (fcnr.Ok())
+                            if (fcnr.Ok)
                             {
                                 var fcn = fcnr.Unwrap();
                                 if (membersLocal.Equals(membersLocal2))
@@ -361,9 +361,9 @@ namespace OpenTap.Expressions
                         var str = string.IsNullOrEmpty(attr.Message) ? attr.Expression : attr.Message;
                         messageFcn = () => str;
                     }
-                    if (lambda.Ok() == false)
+                    if (lambda.Ok == false)
                     {
-                        var err = lambda.Error();
+                        var err = lambda.Error;
                         lambda = new Func<bool>(() => false);
                          messageFcn = () => err;
                          membersLocal = membersLocal.Clear();
@@ -388,13 +388,13 @@ namespace OpenTap.Expressions
             var builder = new ExpressionCodeBuilder();
             var ast = builder.Parse(expression);
             
-            if (ast.Ok() == false) return null;
+            if (ast.Ok == false) return null;
             
             if (!expressions.EnabledIfLookup.TryGetValue(expression, out var x))
             {
                 var members2 = expressions.members;
                 var lambda = builder.GenerateLambdaCompact(ast.Unwrap(), ref members2, typeof(bool));
-                if (lambda.Ok())
+                if (lambda.Ok)
                     expressions.EnabledIfLookup[expression] = x = (members2, lambda.Unwrap());
                 else return null;
             }
@@ -407,11 +407,10 @@ namespace OpenTap.Expressions
             try
             {
                 var parameters = ParameterData.GetParameters(targetObject) ?? ParameterData.Empty;
-                var ast = builder.Parse(expression);
-                if (ast.Ok() == false) return ast.Error();
-                var expr = builder.GenerateExpression(ast.Unwrap(), parameters, targetType.AsTypeData().Type);
-                if (expr.Ok() == false) return expr.Error();
-                return null;
+                var result = builder.Parse(expression).IfOK(expr => builder.GenerateExpression(expr, parameters, targetType.AsTypeData().Type));
+                if (result.Ok)
+                    return null;
+                return result.Error;
             }
             catch(Exception e)
             {

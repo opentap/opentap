@@ -296,12 +296,14 @@ namespace OpenTap
             }
 
             public PropertyType Type { get; set; } = PropertyType.Number;
-            public Type GetPropertyType() {
-                if (Type == PropertyType.Number)
-                    return typeof(double);
-                if (Type == PropertyType.Text)
-                    return typeof(string);
-                return typeof(bool);
+            public Type GetPropertyType() => GetTypeMap().First(x => x.Item2 == Type).Item1;
+            
+
+            public static IEnumerable<(Type, PropertyType)> GetTypeMap()
+            {
+                yield return (typeof(double), PropertyType.Number);
+                yield return (typeof(string), PropertyType.Text);
+                yield return (typeof(bool), PropertyType.Boolean);
             }
 
             [Layout(LayoutMode.FullRow, rowHeight: 5)]
@@ -475,9 +477,10 @@ namespace OpenTap
                 var _ => throw new ArgumentOutOfRangeException()
             };
 
+            public static PropertyType ConvertType(Type type) => GetTypeMap().First(x => x.Item1 == type).Item2;
         }
 
-        public bool CanRemoveDynamicMember => member is UserDefinedDynamicMember;
+        public bool CanRemoveCustomSetting => member is UserDefinedDynamicMember;
         public bool HasExpression
         {
             get
@@ -488,12 +491,45 @@ namespace OpenTap
                 return false;
             } 
         }
+        
+        [Display("Modify Custom Setting", "Modify custom setting.", Order: 2.0)]
+        [Browsable(true)]
+        [IconAnnotation(IconNames.ModifyCustomSetting)]
+        [EnabledIf(nameof(CanRemoveCustomSetting), true, HideIfDisabled = true)]
+        public void ModifyCustomSetting()
+        {
+            var ud = member as UserDefinedDynamicMember;
+            var r = new AddDynamicPropertyRequest
+            {
+                // guess on a property name.
+                PropertyName = member.Name,
+                Attributes = ud.AttributesCode,
+                Type = AddDynamicPropertyRequest.ConvertType(ud.TypeDescriptor.AsTypeData().Type)
+
+            };
+            
+            // send the user request
+            UserInput.Request(r);
+            
+            if (r.Submit == OkCancel.Cancel)
+                return; // cancel
+            var newType = TypeData.FromType(r.GetPropertyType());
+            ud.AttributesCode = r.Attributes;
+            if (ud.TypeDescriptor != newType)
+            {
+                ud.TypeDescriptor = newType;
+                foreach (var src in source)
+                {
+                    ud.SetValue(src, r.DefaultValue);
+                }
+            }
+        }
 
         [Display("Remove Custom Setting", "Remove custom setting.", Order: 2.0)]
         [Browsable(true)]
-        [IconAnnotation(IconNames.RemoveDynamicProperty)]
-        [EnabledIf(nameof(CanRemoveDynamicMember), true, HideIfDisabled = true)]
-        public void RemoveDynamicProperty()
+        [IconAnnotation(IconNames.RemoveCustomSetting)]
+        [EnabledIf(nameof(CanRemoveCustomSetting), true, HideIfDisabled = true)]
+        public void RemoveCustomSetting()
         {
             foreach(var src in source)
                 DynamicMember.RemoveDynamicMember(src, member);

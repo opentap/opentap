@@ -68,7 +68,7 @@ namespace OpenTap.UnitTests
             var builder = new ExpressionCodeBuilder();
             var ast = builder.ParseStringInterpolation(expression);
             var lmb = builder.GenerateLambda(ast, ParameterData.Empty, typeof(string));
-            Assert.IsTrue(lmb.Ok());
+            Assert.IsTrue(lmb.Ok);
             var result = lmb.Unwrap().DynamicInvoke();
             Assert.AreEqual(expectedResult, result);
         }
@@ -86,20 +86,20 @@ namespace OpenTap.UnitTests
             var ast = builder.Parse(errorExpression);
             if (parseError != null)
             {
-                Assert.AreEqual(parseError, ast.Error());
+                Assert.AreEqual(parseError, ast.Error);
                 return;
             }
-            Assert.AreEqual(null, ast.Error());
+            Assert.AreEqual(null, ast.Error);
             
             
             var lmb = builder.GenerateLambda(ast.Unwrap(), ParameterData.Empty, expressionType);
 
             if (compileError != null)
             {
-                StringAssert.IsMatch(compileError, lmb.Error());
+                StringAssert.IsMatch(compileError, lmb.Error);
                 return;
             }
-            Assert.AreEqual(null, lmb.Error());
+            Assert.AreEqual(null, lmb.Error);
         }
         
 
