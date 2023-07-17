@@ -18,6 +18,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using OpenTap.Expressions;
 
+
 namespace OpenTap
 {
     /// <summary>
@@ -923,14 +924,25 @@ namespace OpenTap
             {
                 TestStepPath = Step.GetStepPath()
             };
+
+            bool skipStep;
             
+            {   // evaluate pre run mixins
+                var preRunMixin = Step.GetMixin<ITestStepPreRunMixin>();
+                var arg = new TestStepPreRunEventArgs(Step);
+                preRunMixin.ForEach(x => x.OnPreRun(arg));
+                skipStep = arg.SkipStep;
+            }
+
             planRun.ThrottleResultPropagation();
+
             var previouslyExecutingTestStep = currentlyExecutingTestStep;
             currentlyExecutingTestStep = Step;
             
             //Raise an event prior to starting the actual run of the TestStep. 
             Step.OfferBreak(stepRun, true);
-            if (stepRun.SuggestedNextStep != null) {
+            skipStep |= stepRun.SuggestedNextStep != null;
+            if (skipStep) {
                 Step.StepRun = null;
                 stepRun.Skipped = true;
                 return stepRun;    
@@ -959,6 +971,12 @@ namespace OpenTap
                         Step.Run();
                         stepRun.AfterRun(Step);
                         
+                        { // evaluate post run mixins
+                            var args = new TestStepPostRunEventArgs(Step);
+                            var postRunMixin = Step.GetMixin<ITestStepPostRunMixin>();
+                            postRunMixin.ForEach(x => x.OnPostRun(args));
+                        }
+
                         TapThread.ThrowIfAborted();
                     }
                     finally
@@ -1063,6 +1081,13 @@ namespace OpenTap
             return stepRun;
         }
 
+        internal static IEnumerable<T> GetMixin<T>(this ITapPlugin obj) where T: IMixin
+        {
+            var emb = TypeData.GetTypeData(obj).GetBaseType<EmbeddedTypeData>();
+            return emb.GetEmbeddingMembers().Where(x => x.TypeDescriptor.DescendsTo(typeof(T)))
+                .Select(x => x.GetValue(obj)).OfType<T>();
+        }
+        
         internal static void CheckResources(this ITestStep Step)
         {
             // collect null members into a set. Any null member here is an error.

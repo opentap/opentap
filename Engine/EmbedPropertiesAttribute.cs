@@ -209,7 +209,7 @@ namespace OpenTap
         public object CreateInstance(object[] arguments) => BaseType.CreateInstance(arguments);
         public IMemberData GetMember(string name) => GetMembers().FirstOrDefault(x => x.Name == name);
         IMemberData[] allMembers;
-        public IEnumerable<IMemberData> GetMembers() => allMembers ?? (allMembers = BaseType.GetMembers().Where(x => x.HasAttribute<EmbedPropertiesAttribute>() == false).Concat(list_embedded_members()).ToArray());
+        public IEnumerable<IMemberData> GetMembers() => allMembers ?? (allMembers = BaseType.GetMembers().Where(x => x.HasAttribute<EmbedPropertiesAttribute>() == false).Concat(ListEmbeddedMembers()).ToArray());
         public override int GetHashCode() => BaseType.GetHashCode() ^ typeof(EmbeddedTypeData).GetHashCode();
         public override bool Equals(object obj)
         {
@@ -221,7 +221,18 @@ namespace OpenTap
         [ThreadStatic]
         static HashSet<ITypeData> currentlyListing = null;
 
-        IList<IMemberData> list_embedded_members()
+        public IEnumerable<IMemberData> GetEmbeddingMembers()
+        {
+            foreach (var member in BaseType.GetMembers())
+            {
+                if (member.HasAttribute<EmbedPropertiesAttribute>())
+                {
+                    yield return member;
+                }
+            }
+        }
+        
+        internal IList<IMemberData> ListEmbeddedMembers()
         {
             if (currentlyListing == null)
                 currentlyListing = new HashSet<ITypeData>();            

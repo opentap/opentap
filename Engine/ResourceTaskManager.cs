@@ -244,6 +244,14 @@ namespace OpenTap
 
             try
             {
+                {
+                    var args = new ResourcePreOpenEventArgs(node.Resource);
+                    var preOpenMixins = node.Resource.GetMixin<IResourcePreOpenMixin>();
+                    foreach (var resourcePreOpenMixin in preOpenMixins)
+                    {
+                        resourcePreOpenMixin.OnPreOpen(args);
+                    }
+                }
                 // start a new thread to do synchronous work
                 node.Resource.Open();
 
@@ -578,6 +586,15 @@ namespace OpenTap
                 {
                     try
                     {
+                        {
+                            var args = new ResourcePreOpenEventArgs(node.Resource);
+                            var preOpenMixins = TestStepExtensions.GetMixin<IResourcePreOpenMixin>(node.Resource);
+                            foreach (var resourcePreOpenMixin in preOpenMixins)
+                            {
+                                resourcePreOpenMixin.OnPreOpen(args);
+                            }
+                        }
+                        
                         node.Resource.Open();
                         resourceLog.Info(sw, "Resource \"{0}\" opened.", node.Resource);
                     }
