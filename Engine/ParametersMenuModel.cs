@@ -274,7 +274,7 @@ namespace OpenTap
             Cancel
         }
 
-        [Display("Define the new setting")]
+        [Display("Define the new setting.")]
         class AddDynamicPropertyRequest
         {
             public enum PropertyType
@@ -292,9 +292,60 @@ namespace OpenTap
             public string PropertyName
             {
                 get => AttributeString("Display");
-                set => SetAttribute(true, "Display", value.Trim());
+                set => SetAttribute(true, "Display", value.Trim(), Description, Group);
             }
 
+            [Display("Group", Order: 1.0)]
+            public string Group
+            {
+                get => AttributeString("Display", 2) ?? ""; 
+                set => SetAttribute(true, "Display", PropertyName, Description, value);
+            }
+            
+            [Display("Description", Order: 1.0)]
+            public string Description { 
+                get => AttributeString("Display", 1) ?? ""; 
+                set => SetAttribute(true, "Display", PropertyName, value, Group); 
+            }
+            
+            [Display("Output", Order: 1.5)]
+            public bool Output
+            {
+                get => HasAttribute(nameof(Output));
+                set => SetAttribute(value, nameof(Output));
+            }
+            
+            [Display("Result", Order: 1.5)]
+            public bool Result
+            {
+                get => HasAttribute(nameof(Result));
+                set => SetAttribute(value, nameof(Result));
+            }
+
+            [Display("Unit", Order: 1.5)]
+            public Enabled<string> UnitStr
+            {
+                get;
+                set;
+            } = new Enabled<string>();
+            //
+            [EnabledIf(nameof(Type), PropertyType.Number, HideIfDisabled = true)]
+            [Browsable(false)]
+            public string Unit
+            {
+                get
+                {
+                    var cattr = AttributeString(nameof(Unit));
+                    
+                    return AttributeString(nameof(Unit));
+                }
+                set => SetAttribute(string.IsNullOrEmpty(value) == false, nameof(Unit), value);
+            }
+
+            [Submit]
+            [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+            public OkCancel Submit { get; set; }
+            
             public PropertyType Type { get; set; } = PropertyType.Number;
             public Type GetPropertyType() => GetTypeMap().First(x => x.Item2 == Type).Item1;
             
@@ -307,11 +358,11 @@ namespace OpenTap
             }
 
             [Layout(LayoutMode.FullRow, rowHeight: 5)]
-            [Display("Attributes", Group: "Attributes", Order: 1)]
+            [Display("Code", Group: "Code", Order: 2)]
             public string Attributes { get; set; } = "";
 
             
-            void SetAttribute(bool set, string name, string arg)
+            void SetAttribute(bool set, string name, params string[] args)
             {
                 var ast = CSharpSyntaxTree.ParseText(Attributes);
                 var root = (CSharpSyntaxNode)ast.GetRoot();
@@ -348,23 +399,21 @@ namespace OpenTap
                                     }
                                     else
                                     {
-                                        if (arg != null)
+                                        var node2 = node.WithArgumentList(node.ArgumentList.RemoveNodes(node.ArgumentList.ChildNodes(), SyntaxRemoveOptions.KeepNoTrivia));
+                                        foreach(var arg in args)
                                         {
-                                            var node2 = node.WithArgumentList(node.ArgumentList.RemoveNodes(node.ArgumentList.ChildNodes(), SyntaxRemoveOptions.KeepNoTrivia));
 
                                             node2 = node2.AddArgumentListArguments(SyntaxFactory.AttributeArgument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression)
                                                 .WithToken(SyntaxFactory.Literal(arg))));
-                                            var newList = attributeList.Attributes.Replace(node, node2);
-                                            var newx = x.WithAttributeLists(x.AttributeLists.Replace(attributeList, attributeList.WithAttributes(newList)));
-
-                                            var newRoot = newx.AttributeLists.SelectMany(a => a.Attributes).Any() ? root.ReplaceNode(elem, newx) : root.RemoveNode(elem, SyntaxRemoveOptions.KeepNoTrivia);
-                                            Attributes = CSharpSyntaxTree.Create(newRoot).ToString();
 
                                         }
-                                        else
-                                        {
-                                            // the attribute was already there.
-                                        }
+                                        
+                                        var newList = attributeList.Attributes.Replace(node, node2);
+                                        var newx = x.WithAttributeLists(x.AttributeLists.Replace(attributeList, attributeList.WithAttributes(newList)));
+
+                                        var newRoot = newx.AttributeLists.SelectMany(a => a.Attributes).Any() ? root.ReplaceNode(elem, newx) : root.RemoveNode(elem, SyntaxRemoveOptions.KeepNoTrivia);
+                                        Attributes = CSharpSyntaxTree.Create(newRoot).ToString();
+
                                         return;
                                     }
                                 }
@@ -375,10 +424,13 @@ namespace OpenTap
                 }
 
                 var newAttr = SyntaxFactory.Attribute(SyntaxFactory.IdentifierName(name));
-                if(arg != null)
-                    newAttr = newAttr .WithArgumentList(SyntaxFactory.AttributeArgumentList()
-                        .AddArguments(SyntaxFactory.AttributeArgument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression)
-                        .WithToken(SyntaxFactory.Literal(arg)))));
+                var arglist = SyntaxFactory.AttributeArgumentList();
+                foreach (var arg in args)
+                {
+                    arglist = arglist.AddArguments(SyntaxFactory.AttributeArgument(SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression)
+                            .WithToken(SyntaxFactory.Literal(arg))));
+                }
+                newAttr = newAttr.WithArgumentList(arglist);
 
                 var newMember = SyntaxFactory.IncompleteMember()
                     .WithAttributeLists(SyntaxFactory.List<AttributeListSyntax>(new[]
@@ -422,7 +474,7 @@ namespace OpenTap
                 }
                 return false;
             }
-            string AttributeString(string name)
+            string AttributeString(string name, int arg = 0)
             {
                 var ast = CSharpSyntaxTree.ParseText(Attributes);
                 var root = (CSharpSyntaxNode)ast.GetRoot();
@@ -435,9 +487,7 @@ namespace OpenTap
                             foreach (var node in attributeList.Attributes)
                             {
                                 if (node.Name.ToString() == name)
-                                {
-                                    return (node?.ArgumentList?.Arguments.Select(x => (x.Expression as LiteralExpressionSyntax)?.Token.ValueText).FirstOrDefault()) ?? "";
-                                }
+                                    return (node?.ArgumentList?.Arguments.Select(x => (x.Expression as LiteralExpressionSyntax)?.Token.ValueText).Skip(arg).FirstOrDefault()) ?? "";
                             }
                         }
                     }
@@ -445,30 +495,7 @@ namespace OpenTap
                 return "";
             }
             
-            [Display("Output", Order: 0.5)]
-            public bool Output
-            {
-                get => HasAttribute(nameof(Output));
-                set => SetAttribute(value, nameof(Output), null);
-            }
-            
-            [Display("Result", Order: 0.5)]
-            public bool Result
-            {
-                get => HasAttribute(nameof(Result));
-                set => SetAttribute(value, nameof(Result), null);
-            }
-            
-            [EnabledIf(nameof(Type), PropertyType.Number, HideIfDisabled = true)]
-            public string Unit
-            {
-                get => AttributeString(nameof(Unit));
-                set => SetAttribute(string.IsNullOrEmpty(value) == false, nameof(Unit), value);
-            }
 
-            [Submit]
-            [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
-            public OkCancel Submit { get; set; }
             public object DefaultValue => Type switch
             {
                 PropertyType.Number => 0.0,
@@ -505,7 +532,6 @@ namespace OpenTap
                 PropertyName = member.Name,
                 Attributes = ud.AttributesCode,
                 Type = AddDynamicPropertyRequest.ConvertType(ud.TypeDescriptor.AsTypeData().Type)
-
             };
             
             // send the user request
@@ -535,34 +561,48 @@ namespace OpenTap
                 DynamicMember.RemoveDynamicMember(src, member);
         }
 
-        [Display("Define a new expression")]
-        class AssignExpressionRequest : ValidatingObject
+        
+        class AssignExpressionRequest : ValidatingObject, IDisplayAnnotation
         {
+            public AssignExpressionRequest(IMemberData member, object targetObject, ITypeData targetType)
+            {
+                Name = $"Define a new expression for {member.GetDisplayAttribute().Name}";
+                TargetObject = targetObject;
+                TargetType = targetType;
+            }
+            
             [Validation("isempty(ExprError)", "Expression '{Expression}' is not valid: {ExprError}")]
             public string Expression { get; set; }
 
             public string ExprError => ExpressionManager.ExpressionError(Expression, TargetObject, TargetType);
             
+            public ITypeData TargetType { get; }
             
-            public ITypeData TargetType { get; internal set; }
-            
-            public object TargetObject { get; internal set; }
+            public object TargetObject { get; }
             
             [Submit]
             [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
             public OkCancel Submit { get; set; }
+            public string Description { get; } = "";
+            public string[] Group { get; } = Array.Empty<string>();
+            public string Name { get; }
+            public double Order { get; }
+            public bool Collapsed { get; }
         }
 
+        public bool CanAssignExpression => IsParameterized == false;
+        public bool CanModifyExpression => HasExpression;
+        
         [Browsable(true)]
-        [Display("Assign / Modify Expression", "Assign an expression to this property.")]
+        [Display("Assign Expression", "Assign an expression to this property.")]
         [IconAnnotation(IconNames.AssignExpression)]
+        [EnabledIf(nameof(CanAssignExpression), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(CanModifyExpression), false, HideIfDisabled = true)]
         public void AssignExpression()
         {
-            var req = new AssignExpressionRequest()
+            var req = new AssignExpressionRequest(member, source[0], member.TypeDescriptor)
             {
-                Expression = ExpressionManager.GetExpression(source[0], member) ?? "",
-                TargetType = member.TypeDescriptor,
-                TargetObject = source[0]
+                Expression = ExpressionManager.GetExpression(source[0], member) ?? ""
             };
             
             UserInput.Request(req);
@@ -577,6 +617,24 @@ namespace OpenTap
             }
         }
         
+        [Browsable(true)]
+        [Display("Modify Expression", "Modify an expression on this property.")]
+        [IconAnnotation(IconNames.ModifyExpression)]
+        [EnabledIf(nameof(CanModifyExpression), true, HideIfDisabled = true)]
+        public void ModifyExpression() => AssignExpression();
+
+        [Browsable(true)]
+        [Display("Remove Expression", "Modify an expression on this property.")]
+        [IconAnnotation(IconNames.ModifyExpression)]
+        [EnabledIf(nameof(CanModifyExpression), true, HideIfDisabled = true)]
+        public void RemoveExpression()
+        {
+            foreach (var step in source)
+            {
+                var actual_member = TypeData.GetTypeData(step).GetMember(member.Name);
+                ExpressionManager.SetExpression(step, actual_member, null);
+            }
+        }
     }
     
     class TestStepMenuItemsModelFactory : IMenuModelFactory

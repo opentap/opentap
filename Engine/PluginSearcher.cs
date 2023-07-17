@@ -222,7 +222,7 @@ namespace OpenTap
                     {
                         if(str.Length > int.MaxValue)
                             return null; // otherwise PEReader() will throw.
-                        if(str.Length < 50) 
+                        if(str.Length < 250) 
                             return null; // Don't consider super small assemblies.
                         using (PEReader header = new PEReader(str, PEStreamOptions.LeaveOpen))
                         {
