@@ -146,12 +146,12 @@ namespace OpenTap.Cli
         {
             // Set TapMutex to ensure any installers know about running OpenTAP processes.
             ReflectionHelper.SetTapMutex();
-            
+
             try
             {
                 // Turn off the default system behavior when CTRL+C is pressed. 
                 // When Console.TreatControlCAsInput is false, CTRL+C is treated as an interrupt instead of as input.
-                Console.TreatControlCAsInput = false; 
+                Console.TreatControlCAsInput = false;
             }
             catch { }
             try
@@ -163,6 +163,21 @@ namespace OpenTap.Cli
                     execThread.Abort();
                 };
 
+                // Signals are not supported on Windows.
+                if (OperatingSystem.Current != OperatingSystem.Windows)
+                {
+                    PosixSignalHandler.Register(PosixSignalHandler.SIGTERM, (sig, info) =>
+                    {
+                        try
+                        {
+                            execThread.Abort();
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // ignore
+                        }
+                    });
+                }
             }
             catch { }
 
