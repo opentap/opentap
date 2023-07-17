@@ -42,6 +42,20 @@ namespace OpenTap
             return false;
         }
         
+        public static T GetBaseType<T>(this ITypeData type) where T: ITypeData
+        {
+            var typeit = type;
+            while (typeit != null)
+            {
+                if (typeit is TypeData)
+                    break;
+                if (typeit is T t2)
+                    return t2;
+                typeit = typeit.BaseType;
+            }
+            return default;
+        }
+        
         /// <summary> Really fast direct descendant test. This checks for reference equality of the type or a base type, and 'baseType'.
         /// Given these constraints are met, this can be 6x faster than DescendsTo, but should only be used in special cases. </summary>
         public static bool DirectInheritsFrom(this ITypeData type, ITypeData baseType)
