@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 namespace OpenTap
@@ -5,7 +6,7 @@ namespace OpenTap
     internal static class PosixSignalHandler
     {
         // Signal implementation and numbering can vary between POSIX systems. I have checked some of the major resources, and at least SIGTERM seems to be consistent.
-        
+
         // GNU Linux: see the section 'Signal numbering for standard signals'
         // https://www.man7.org/linux/man-pages/man7/signal.7.html
 
@@ -24,9 +25,11 @@ namespace OpenTap
         [DllImport("libc", EntryPoint = "signal")]
         private static extern void signal(int sig, SignalCallback callback);
 
-
+        private static List<SignalCallback> GCHandles = new List<SignalCallback>();
         public static void Register(int s, SignalCallback cb)
         {
+            // Explicitly keep at least one reference to the callback. Otherwise, it could be garbage collected after it has been handed off to the unmanaged code.
+            GCHandles.Add(cb);
             signal(s, cb);
         }
     }
