@@ -12,9 +12,14 @@ namespace OpenTap
     public sealed class MenuAnnotation : IOwnedAnnotation
     {
         /// <summary> Creates a 'member' menu annotation. </summary>
-        /// <param name="member"> Which member of an object should the menu be generated for</param>
-        internal MenuAnnotation(IMemberData member) => this.member = member;
-        
+        /// <param name="member"> Which member of an object should the menu be generated for.</param>
+        /// <param name="type"> Set this if menu items for the type should be generated. </param>
+        internal MenuAnnotation(IMemberData member, ITypeData type)
+        {
+            this.member = member;
+            this.type = type;
+        }
+
         /// <summary> Create a 'type' menu annotation. </summary>
         /// <param name="type"> The type for which the menu should be generated. </param>
         internal MenuAnnotation(ITypeData type) => this.type = type;
@@ -33,11 +38,13 @@ namespace OpenTap
         {
             if (models == null)
             {
+                models = new List<IMenuModel>();
+                
                 // get models for type menu annotations
                 if (type != null)
                 {
                     var factoryTypes = TypeData.GetDerivedTypes<ITypeMenuModelFactory>();
-                    models = new List<IMenuModel>();
+                    
                     foreach (var type in factoryTypes)
                     {
                         if (type.CanCreateInstance == false) continue;
@@ -56,11 +63,12 @@ namespace OpenTap
                         }
                     }
                 }
-                else
+                
+                if(member != null)
                 {
                     // get models for member menu annotations
                     var factoryTypes = TypeData.GetDerivedTypes<IMenuModelFactory>();
-                    models = new List<IMenuModel>();
+                    
                     foreach (var type in factoryTypes)
                     {
                         if (type.CanCreateInstance == false) continue;

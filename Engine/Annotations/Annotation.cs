@@ -2901,7 +2901,7 @@ namespace OpenTap
                 }
                 
                 if (mem2.DeclaringType.DescendsTo(typeof(ITestStepParent)))
-                    annotation.Add(new MenuAnnotation(mem2));
+                    annotation.Add(new MenuAnnotation(mem2, reflect.ReflectionInfo));
 
                 if (mem2.Name == nameof(ParameterManager.NamingQuestion.Settings) && mem2.DeclaringType.DescendsTo(TypeData.FromType(typeof(ParameterManager.NamingQuestion))))
                     annotation.Add(new ParameterManager.SettingsName(annotation));
@@ -2913,7 +2913,7 @@ namespace OpenTap
                     annotation.Add(new StepNameStringValue(annotation, member: false));
 
                 // When not annotating a member, but an object, we add type annotation.
-                if (mem == null && (tp.DescendsTo(typeof(ITestStepParent)) || tp.DescendsTo(typeof(IResource))))
+                if (annotation.Any(x => x is MenuAnnotation) == false && tp.DescendsTo(typeof(ITestStepParent)) || tp.DescendsTo(typeof(IResource)))
                     annotation.Add(new MenuAnnotation(tp));
                 
                 bool csharpPrimitive = tp is TypeData cst && (cst.Type.IsPrimitive || cst.Type == typeof(string));
