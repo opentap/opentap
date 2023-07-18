@@ -53,7 +53,15 @@ namespace OpenTap.Package
             {
                 var ext = installed.FirstOrDefault(x => x.Name == package.Name);
                 if (ext != null)
+                {
                     installed.Remove(ext);
+                    // Support downgrading bundles by relaxing the constraints when merging an existing installation
+                    if (ext.Class.Equals("bundle", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var bundleMembers = ext.Dependencies.Select(m => m.Name).ToHashSet();
+                        installed.RemoveAll(p => bundleMembers.Contains(p.Name));
+                    }
+                }
 
                 if (File.Exists(package.Name))
                 {
