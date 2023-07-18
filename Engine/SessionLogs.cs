@@ -139,7 +139,7 @@ namespace OpenTap
                     // this ensures that System.Runtime.InteropServices.RuntimeInformation.dll is loaded. (issue #4000).
                     .StartNew(PluginManager.Load)
                     // then get the system info on a separate thread (it takes ~1s)
-                    .ContinueWith(tsk => SystemInfo()); 
+                    .ContinueWith(tsk => LogStartupInfo()); 
 
                 AppDomain.CurrentDomain.ProcessExit += FlushOnExit;
                 AppDomain.CurrentDomain.UnhandledException += FlushOnExit;
@@ -481,7 +481,7 @@ namespace OpenTap
         }
 
         static Task SystemInfoTask;
-        private static void SystemInfo()
+        private static void LogStartupInfo()
         {
             foreach (var td in TypeData.GetDerivedTypes<IStartupInfo>().Where(td => td.CanCreateInstance))
             {
@@ -508,7 +508,7 @@ namespace OpenTap
                 }
                 catch (Exception ex)
                 {
-                    log.Debug($"Unhandled exception in '{td.Name}.{nameof(td.LogStartupInfo)}': {ex.Message}");
+                    log.Debug($"Unhandled exception in '{td.Name}.{nameof(si.LogStartupInfo)}': {ex.Message}");
                     log.Debug(ex);
                 }
             }

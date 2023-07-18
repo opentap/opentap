@@ -11,27 +11,6 @@ using Tap.Shared;
 namespace OpenTap.Package
 {
     /// <summary>
-    /// Log information about the current installation at startup.
-    /// </summary>
-    public class InstallationLoggerStartupInfo : IStartupInfo
-    {
-        /// <summary>
-        /// Log information about the current installation at startup.
-        /// </summary>
-        public void LogStartupInfo()
-        {
-            var log = Log.CreateSource("Installation");
-            var packages = Installation.Current.GetPackages();
-            var longestName = packages.Max(p => p.Name.Length);
-            foreach (var pkg in packages)
-            {
-                var padded = pkg.Name.PadRight(longestName);
-                log.Debug($"{padded} - {pkg.Version}");
-            }
-        }
-    }
-
-    /// <summary>
     /// Represents an OpenTAP installation in a specific directory.
     /// </summary>
     public class Installation
