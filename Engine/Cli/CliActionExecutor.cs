@@ -154,32 +154,24 @@ namespace OpenTap.Cli
                 Console.TreatControlCAsInput = false;
             }
             catch { }
-            try
-            {
-                var execThread = TapThread.Current;
-                Console.CancelKeyPress += (s, e) =>
-                {
-                    e.Cancel = true;
-                    execThread.Abort();
-                };
+            var execThread = TapThread.Current;
 
-                // Signals are not supported on Windows.
-                if (OperatingSystem.Current != OperatingSystem.Windows)
-                {
-                    PosixSignalHandler.Register(PosixSignalHandler.SIGTERM, (sig, info) =>
-                    {
-                        try
-                        {
-                            execThread.Abort();
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            // ignore
-                        }
-                    });
-                }
+            void abort()
+            {
+                execThread.AbortNoThrow();
             }
-            catch { }
+
+            Console.CancelKeyPress += (s, e) =>
+            {
+                e.Cancel = true;
+                abort();
+            };
+            // Signals are not supported on Windows.
+            if (OperatingSystem.Current != OperatingSystem.Windows)
+            {
+                PosixSignals.SigTerm += (sig, info) => abort();
+                PosixSignals.SigInt += (sig, info) => abort();
+            }
 
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;

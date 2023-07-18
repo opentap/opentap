@@ -34,6 +34,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)WeakHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Cache.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FileLocks.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)PosixSignalHandler.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PosixSignals.cs" />
   </ItemGroup>
 </Project>
