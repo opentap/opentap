@@ -508,7 +508,7 @@ namespace OpenTap
                 }
                 catch (Exception ex)
                 {
-                    log.Debug($"Unhandled exception in '{td.Name}.LogStartupInfo': {ex.Message}");
+                    log.Debug($"Unhandled exception in '{td.Name}.{nameof(td.LogStartupInfo)}': {ex.Message}");
                     log.Debug(ex);
                 }
             }
