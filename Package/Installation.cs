@@ -11,6 +11,27 @@ using Tap.Shared;
 namespace OpenTap.Package
 {
     /// <summary>
+    /// Log information about the current installation at startup.
+    /// </summary>
+    public class InstallationLoggerStartupInfo : IStartupInfo
+    {
+        /// <summary>
+        /// Log information about the current installation at startup.
+        /// </summary>
+        public void LogStartupInfo()
+        {
+            var log = Log.CreateSource("Installation");
+            var packages = Installation.Current.GetPackages();
+            var longestName = packages.Max(p => p.Name.Length);
+            foreach (var pkg in packages)
+            {
+                var padded = pkg.Name.PadRight(longestName);
+                log.Debug($"{padded} - {pkg.Version}");
+            }
+        }
+    }
+
+    /// <summary>
     /// Represents an OpenTAP installation in a specific directory.
     /// </summary>
     public class Installation
@@ -86,31 +107,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Get the installation of the currently running tap process
         /// </summary>
-        public static Installation Current
-        {
-            get
-            {
-                if (current == null)
-                {
-                    current = new Installation(ExecutorClient.ExeDir);
-                    current.PrintReadable();
-                }
-
-                return current;
-            }
-        }
-
-        // This is included for debugging purposes so we know exactly what plugins are installed when people create issues with session logs.
-        private void PrintReadable()
-        {
-            var packages = GetPackages();
-            var longestName = packages.Max(p => p.Name.Length);
-            foreach (var pkg in GetPackages())
-            {
-                var padded = pkg.Name.PadRight(longestName);
-                log.Debug($"{padded} - {pkg.Version}");
-            }
-        }
+        public static Installation Current => current ??= new Installation(ExecutorClient.ExeDir);
 
         /// <summary> Target installation architecture. This could be anything as 32-bit is supported on 64bit systems.</summary>
         internal CpuArchitecture Architecture => GetOpenTapPackage()?.Architecture ?? ArchitectureHelper.GuessBaseArchitecture;
