@@ -925,14 +925,8 @@ namespace OpenTap
                 TestStepPath = Step.GetStepPath(),
             };
 
-            bool skipStep;
-            
-            {   // evaluate pre run mixins
-                var preRunMixin = Step.GetMixin<ITestStepPreRunMixin>();
-                var arg = new TestStepPreRunEventArgs(Step);
-                preRunMixin.ForEach(x => x.OnPreRun(arg));
-                skipStep = arg.SkipStep;
-            }
+            // evaluate pre run mixins
+            bool skipStep = TestStepPreRunEventArgs.Invoke(Step).SkipStep;
 
             planRun.ThrottleResultPropagation();
 
@@ -972,9 +966,7 @@ namespace OpenTap
                         stepRun.AfterRun(Step);
                         
                         { // evaluate post run mixins
-                            var args = new TestStepPostRunEventArgs(Step);
-                            var postRunMixin = Step.GetMixin<ITestStepPostRunMixin>();
-                            postRunMixin.ForEach(x => x.OnPostRun(args));
+                            TestStepPostRunEventArgs.Invoke(Step);
                         }
 
                         TapThread.ThrowIfAborted();
@@ -1081,12 +1073,8 @@ namespace OpenTap
             return stepRun;
         }
 
-        internal static IEnumerable<T> GetMixin<T>(this ITapPlugin obj) where T: IMixin
-        {
-            var emb = TypeData.GetTypeData(obj).GetBaseType<EmbeddedTypeData>();
-            return emb.GetEmbeddingMembers().Where(x => x.TypeDescriptor.DescendsTo(typeof(T)))
-                .Select(x => x.GetValue(obj)).OfType<T>();
-        }
+
+
         
         internal static void CheckResources(this ITestStep Step)
         {
