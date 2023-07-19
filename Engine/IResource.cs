@@ -10,7 +10,7 @@ namespace OpenTap
     /// <summary>
     /// Base interface for resources. Specializations include Dut, Instrument and ResultListener.
     /// </summary>
-    public interface IResource : INotifyPropertyChanged, ITapPlugin
+    public interface IResource : INotifyPropertyChanged
     {
         /// <summary>
         /// A short name to display in the user interface in areas with limited space.
