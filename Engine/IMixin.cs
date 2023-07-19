@@ -9,86 +9,70 @@ namespace OpenTap
         
     }
 
-    /// <summary>
-    /// Mixin event args
-    /// </summary>
-    /// <typeparam name="T">The mixin type this should be applied to.</typeparam>
-    public abstract class MixinEventArgs<T> : EventArgs where T: IMixin
+    abstract class MixinEvent<T2> where T2: IMixin
     {
-        readonly object target;
-        /// <summary> Creates a new instance of MixinEventArgs. </summary>
-        /// <param name="target">The target object for the event. </param>
-        protected MixinEventArgs(object target) => this.target = target;
-        
-        // invoke the event.
-        internal void Invoke()
+        protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg) 
         {
-            // Extract all the mixin properties of the given type.
             var emb = TypeData.GetTypeData(target).GetBaseType<EmbeddedTypeData>();
-            if (emb == null) return;
+            if (emb == null) return arg;
             foreach (var mem in emb.GetEmbeddingMembers())
             {
-                if (!mem.TypeDescriptor.DescendsTo(typeof(T))) continue;
+                if (!mem.TypeDescriptor.DescendsTo(typeof(T2))) continue;
                 if (mem.Readable == false) continue;
-                if (mem.GetValue(target) is T mixin)
+                if (mem.GetValue(target) is T2 mixin)
                 {
-                    OnInvoke(mixin);
+                    f(mixin, arg);
                 }
             }
+            return arg;
         }
-
-        /// <summary> Defines how to invoke the mixin. </summary>
-        protected abstract void OnInvoke(T v);
+    }
+    
+    class TestStepPreRunEvent : MixinEvent<ITestStepPreRunMixin>
+    {
+        public static TestStepPreRunEventArgs Invoke(ITestStep step) => 
+            Invoke(step, (v, arg) => v.OnPreRun(arg), new TestStepPreRunEventArgs(step));
     }
     
     /// <summary> Event args for ITestStepPreRun mixin. </summary>
-    public sealed class TestStepPreRunEventArgs : MixinEventArgs<ITestStepPreRunMixin>
+    public sealed class TestStepPreRunEventArgs
     {
         /// <summary> The step for which the event happens. </summary>
         public ITestStep TestStep { get; }
         /// <summary> Can be set to true to skip the step</summary>
         public bool SkipStep { get; set; }
-        
-        internal TestStepPreRunEventArgs(ITestStep step) : base(step) => TestStep = step;
-        
-        /// <summary> Calls ITestStepPreRunMixin.OnPreRun</summary>
-        protected override void OnInvoke(ITestStepPreRunMixin v) => v.OnPreRun(this);
 
-        internal static TestStepPreRunEventArgs Invoke(ITestStep step)
-        {
-            var args = new TestStepPreRunEventArgs(step);
-            args.Invoke();
-            return args;
-        }
+        internal TestStepPreRunEventArgs(ITestStep step) => TestStep = step;
     }
-
+    
+    class TestStepPostRunEvent : MixinEvent<ITestStepPostRunMixin>
+    {
+        public static void Invoke(ITestStep step) => 
+            Invoke(step, (v, args) => v.OnPostRun(args), new TestStepPostRunEventArgs(step));
+    }
+    
     /// <summary> Event args for ITestStepPostRun mixin. </summary>
-    public sealed class TestStepPostRunEventArgs : MixinEventArgs<ITestStepPostRunMixin>
+    public sealed class TestStepPostRunEventArgs
     {
         /// <summary> The step for which the event happens. </summary>
         public ITestStep TestStep { get; }
         
-        TestStepPostRunEventArgs(ITestStep step) : base(step) => TestStep = step;
-        
-        internal static void Invoke(ITestStep step) 
-            => new TestStepPostRunEventArgs(step).Invoke();
-        
-        /// <summary> Calls ITestStepPostRunMixin.OnPostRun. </summary>
-        protected override void OnInvoke(ITestStepPostRunMixin v) => v.OnPostRun(this);
+        internal TestStepPostRunEventArgs(ITestStep step)  => TestStep = step;
+    }
+
+    class ResourcePreOpenEvent: MixinEvent<IResourcePreOpenMixin>
+    {
+        public static void Invoke(IResource resource) => 
+            Invoke(resource, (v, args) => v.OnPreOpen(args), new ResourcePreOpenEventArgs(resource));
     }
 
     /// <summary> Event args for IResourcePreOpenMixin mixin. </summary>
-    public class ResourcePreOpenEventArgs :  MixinEventArgs<IResourcePreOpenMixin>
+    public class ResourcePreOpenEventArgs
     {
         /// <summary> The resource for which the event happens. </summary>
         public IResource Resource { get; }
         
-        internal ResourcePreOpenEventArgs(IResource resource): base(resource) => Resource = resource;
-        
-        /// <summary> Calls IResourcePreOpenMixin.OnPreOpen. </summary>
-        protected override void OnInvoke(IResourcePreOpenMixin v) => v.OnPreOpen(this);
-        
-        internal static void Invoke(IResource resource) => new ResourcePreOpenEventArgs(resource).Invoke();
+        internal ResourcePreOpenEventArgs(IResource resource) => Resource = resource;
     }
     
     /// <summary> This mixin is activated just after a step has been executed. It allows modifying the test step run. </summary>

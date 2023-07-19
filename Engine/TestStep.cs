@@ -926,7 +926,7 @@ namespace OpenTap
             };
 
             // evaluate pre run mixins
-            bool skipStep = TestStepPreRunEventArgs.Invoke(Step).SkipStep;
+            bool skipStep = TestStepPreRunEvent.Invoke(Step).SkipStep;
 
             planRun.ThrottleResultPropagation();
 
@@ -966,7 +966,7 @@ namespace OpenTap
                         stepRun.AfterRun(Step);
                         
                         { // evaluate post run mixins
-                            TestStepPostRunEventArgs.Invoke(Step);
+                            TestStepPostRunEvent.Invoke(Step);
                         }
 
                         TapThread.ThrowIfAborted();
