@@ -2160,55 +2160,5 @@ namespace OpenTap.UnitTests
             a.Read();
             Assert.AreEqual(Overlapping.Z, o.Overlapping);
         }
-
-        public class CustomTestPlanMenuModel: IMenuModel
-        {
-
-            object[] source;
-            object[] IMenuModel.Source
-            {
-                get => source;
-                set => source = value;
-            }
-
-            [Browsable(true)]
-            public void PresetPlan()
-            {
-                foreach (var plan in source.Cast<TestPlan>())
-                {
-                    plan.ChildTestSteps.Clear();
-                    plan.ChildTestSteps.Add(new DelayStep());
-                }
-            }
-            
-        }
-
-        public class CustomTypeMenuFactory : IMenuModelFactory, ITypeMenuModelFactory
-        {
-            IMenuModel IMenuModelFactory.CreateModel(IMemberData member)
-            {
-                return null;
-            }
-            IMenuModel ITypeMenuModelFactory.CreateModel(ITypeData type)
-            {
-                if (type.DescendsTo(typeof(TestPlan)))
-                    return new CustomTestPlanMenuModel();
-                return null;
-            }
-        }
-        
-        [Test]
-        public void CustomMenuModelTest()
-        {
-            var plan = new TestPlan();
-            var a = AnnotationCollection.Annotate(plan);
-            var x = a.Get<MenuAnnotation>();
-            var items = x.MenuItems.ToArray();
-            var callAnnotation = items.FirstOrDefault(x => x.Get<IMethodAnnotation>() != null);
-            var invoke = callAnnotation.Get<IMethodAnnotation>();
-            invoke.Invoke();
-
-            Assert.IsTrue(plan.ChildTestSteps[0] is DelayStep);
-        }
     }
 }

@@ -183,18 +183,30 @@ namespace OpenTap
         /// <summary> Create model should create exactly one IMenuItemModel whose members will be used in the MenuAnnotation. </summary>
         /// <param name="type">The member to show the menu for.</param>
         /// <returns>Shall return null if the model does not support the member.</returns>
-        IMenuModel CreateModel(ITypeData type);
+        ITypeMenuModel CreateModel(ITypeData type);
     }
 
-    /// <summary>
-    /// Base class for things in a menu item. 
-    /// </summary>
+    /// <summary> Base class for things in a menu item. </summary>
     public interface IMenuModel
     {
         /// <summary> The source for the menu item. This may be more than one element.
         /// It is strongly recommended to explicitly implement this property. </summary>
         object[] Source { get; set; }
     }
+
+    /// <summary> menu model for members </summary>
+    public interface IMemberMenuModel : IMenuModel
+    {
+        /// <summary> The member this menu model represents. </summary>
+        IMemberData Member { get; }
+    }
+    
+    /// <summary> menu model for types </summary>
+    public interface ITypeMenuModel : IMenuModel
+    {
+        
+    }
+    
 
     /// <summary>
     /// A MenuModel that can signal about it's current state (Enabled/Disabled). This is useful to dynamically disable the menu model.

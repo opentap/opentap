@@ -2901,7 +2901,7 @@ namespace OpenTap
                 }
                 
                 if (mem2.DeclaringType.DescendsTo(typeof(ITestStepParent)))
-                    annotation.Add(new MenuAnnotation(mem2, reflect.ReflectionInfo));
+                    annotation.Add(new MenuAnnotation(mem2, annotation.ParentAnnotation?.Get<ObjectValueAnnotation>()?.ReflectionInfo ?? reflect.ReflectionInfo));
 
                 if (mem2.Name == nameof(ParameterManager.NamingQuestion.Settings) && mem2.DeclaringType.DescendsTo(TypeData.FromType(typeof(ParameterManager.NamingQuestion))))
                     annotation.Add(new ParameterManager.SettingsName(annotation));
