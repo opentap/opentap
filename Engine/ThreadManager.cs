@@ -319,6 +319,11 @@ namespace OpenTap
             Abort(null);
         }
 
+        internal void AbortNoThrow()
+        {
+            Current.abortTokenSource.Cancel();
+        }
+
         /// <summary>
         /// Aborts the execution of this current instance of the <see cref="TapThread">TapThread</see> with a
         /// specified reason.
