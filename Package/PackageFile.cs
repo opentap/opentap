@@ -533,32 +533,32 @@ namespace OpenTap.Package
             new TapSerializer().Serialize(stream, this);
         }
 
+        
         /// <summary>
         /// Writes this package definition to a file.
         /// </summary>
         public static void SaveManyTo(Stream stream, IEnumerable<PackageDef> packages)
         {
-            XDocument xdoc = new XDocument();
-            var root = new XElement("ArrayOfPackages");
-            xdoc.Add(root);
+            using var writer = XmlWriter.Create(stream);
+            
+            writer.WriteStartDocument();
+            writer.WriteStartElement("ArrayOfPackages");
+            var serializer = new TapSerializer();
             foreach (PackageDef package in packages)
             {
-                using (Stream str = new MemoryStream())
+                try
                 {
-                    try
-                    {
-                        package.SaveTo(str);
-                        str.Seek(0, 0);
-                        var pkgElement = XElement.Load(str);
-                        root.Add(pkgElement);
-                    }
-                    catch (Exception ex)
-                    {
-                        log.Error(ex);
-                    }
+                    serializer.SerializeElement(writer, package);
+                    
+                }
+                catch (Exception ex)
+                {
+                    log.Error(ex);
                 }
             }
-            xdoc.Save(stream);
+            
+            writer.WriteEndElement();
+            writer.Flush();
         }
 
         /// <summary>

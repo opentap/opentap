@@ -419,6 +419,28 @@ namespace OpenTap
             if (IgnoreErrors == false)
                 LogMessages();
         }
+        
+        /// <summary>
+        /// Serializes an object to a XML writer.
+        /// </summary>
+        /// <param name="writer"></param>
+        /// <param name="obj"></param>
+        public void SerializeElement(XmlWriter writer, object obj)
+        {
+            if (writer == null)
+                throw new ArgumentNullException(nameof(writer));
+            XElement elem = new XElement(rootName);
+            if(obj != null)
+                elem.Name = TypeToXmlString(obj.GetType());
+            ClearErrors();
+            using(TypeData.WithTypeDataCache())
+            using(ParameterManager.WithSanityCheckDelayed(true))
+                Serialize(elem, obj);
+            elem.WriteTo(writer);
+            if (IgnoreErrors == false)
+                LogMessages();
+        }
+        
 
         /// <summary>
         /// Serializes an object to a string.
