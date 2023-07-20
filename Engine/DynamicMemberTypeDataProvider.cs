@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
@@ -134,9 +135,13 @@ namespace OpenTap
         object source;
         IMemberData member;
         HashSet<(object Source, IMemberData Member)> additionalMembers;
-        
+
         /// <summary>  Gets the value of this member. </summary>
-        public object GetValue(object owner) =>  member.GetValue(source);
+        public object GetValue(object owner)
+        {
+            Debug.Assert(source != null, "Using deleted parameter member data.");
+            return member.GetValue(source);
+        } 
 
         /// <summary> Sets the value of this member on the owner. </summary>
         public void SetValue(object owner, object value)

@@ -9,7 +9,6 @@ using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Collections;
 using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace OpenTap
 {
@@ -283,7 +282,7 @@ namespace OpenTap
 
         IEnumerator IEnumerable.GetEnumerator() =>  GetEnumerator();
     }
-    
+
     /// <summary>
     /// A collection of parameters related to the results.
     /// </summary>
@@ -480,21 +479,26 @@ namespace OpenTap
             IConvertible val;
             if (value == null)
                 val = null;
-            else if (value is IConvertible)
-                val = value as IConvertible;
+            else if (value is IConvertible conv)
+                val = conv;
             else if((val = StringConvertProvider.GetString(value)) == null)
                 val = value.ToString();
 
             output.Add( new ResultParameter(group, parentName, val, metadata));
         }
 
-        static ConditionalWeakTable<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
-            metadata)[]> propertiesLookup =
-            new ConditionalWeakTable<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
-                metadata)[]>();
+        static readonly ThreadField<Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
+            metadata)[]>> propertiesLookup =
+            new ThreadField<Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute metadata)[]>>(ThreadFieldMode.Flat);
 
         static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] GetParametersMap(
-            ITypeData type) => propertiesLookup.GetValue(type, getParametersMap);
+            ITypeData type)
+        {
+            var val = propertiesLookup.Value;
+            if (val == null)
+                propertiesLookup.Value = val = new Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute metadata)[]>();
+            return val.GetOrCreateValue(type, getParametersMap);
+        }
 
         static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] getParametersMap(
             ITypeData type)
@@ -546,7 +550,7 @@ namespace OpenTap
             return lst.ToArray();
         }
         
-        private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false)
+        static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false)
         {
             if (obj == null)
                 return;
