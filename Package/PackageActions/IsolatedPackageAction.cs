@@ -210,7 +210,10 @@ namespace OpenTap.Package
                     var brokenPackages = new HashSet<string>();
                     foreach (var file in fs)
                     {
-                        string loc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), file.FileName);
+                        // Mixing forward and backwards slashes can cause the File.Exists check to fail on Linux / MacOS
+                        // Just change them to forward slashes
+                        var fn = file.FileName.Replace('\\', '/');
+                        string loc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), fn);
                         if (!File.Exists(loc))
                         {
                             brokenPackages.Add(package.Name);
@@ -218,7 +221,7 @@ namespace OpenTap.Package
                             continue;
                         }
 
-                        allFiles.Add(file.FileName);
+                        allFiles.Add(fn);
                     }
 
                     foreach (var name in brokenPackages)
