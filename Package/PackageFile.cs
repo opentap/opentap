@@ -540,18 +540,20 @@ namespace OpenTap.Package
         public static void SaveManyTo(Stream stream, IEnumerable<PackageDef> packages)
         {
             using var writer = XmlWriter.Create(stream);
-            
+            using (TypeData.WithTypeDataCache()) ;
             writer.WriteStartDocument();
             writer.WriteStartElement("ArrayOfPackages");
-            var serializer = new TapSerializer();
+            // Write fragments because we manually insert the start and end of the document.
+            // This way, if the stream is outgoing from the process, we avoid having to store all the document
+            // in memory. This can be useful as 'packages' may come from a stream itself.
+            var serializer = new TapSerializer { WriteFragments = true };
             
             // added batching as a speculative performance improvement.
             foreach (PackageDef package in packages.Batch(32))
             {
                 try
                 {
-                    serializer.SerializeElement(writer, package);
-                    
+                    serializer.Serialize(writer, package);
                 }
                 catch (Exception ex)
                 {

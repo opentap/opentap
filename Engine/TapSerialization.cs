@@ -397,6 +397,9 @@ namespace OpenTap
         }
 
         static readonly XName rootName = "root";
+        
+        /// <summary> If set to true, Serialize will write a section of XML instead of an entire document. In other words, it will skip writing the start of the document. </summary>
+        public bool WriteFragments { get; set; }
         /// <summary>
         /// Serializes an object to a XML writer.
         /// </summary>
@@ -406,7 +409,7 @@ namespace OpenTap
         {
             if (writer == null)
                 throw new ArgumentNullException(nameof(writer));
-            XDocument doc = new XDocument();
+            
             XElement elem = new XElement(rootName);
             if(obj != null)
                 elem.Name = TypeToXmlString(obj.GetType());
@@ -414,34 +417,14 @@ namespace OpenTap
             using(TypeData.WithTypeDataCache())
             using(ParameterManager.WithSanityCheckDelayed(true))
                 Serialize(elem, obj);
-            doc.Add(elem);
-            doc.WriteTo(writer);
-            if (IgnoreErrors == false)
-                LogMessages();
-        }
-        
-        /// <summary>
-        /// Serializes an object to a XML writer.
-        /// </summary>
-        /// <param name="writer"></param>
-        /// <param name="obj"></param>
-        public void SerializeElement(XmlWriter writer, object obj)
-        {
-            if (writer == null)
-                throw new ArgumentNullException(nameof(writer));
-            XElement elem = new XElement(rootName);
-            if(obj != null)
-                elem.Name = TypeToXmlString(obj.GetType());
-            ClearErrors();
-            using(TypeData.WithTypeDataCache())
-            using(ParameterManager.WithSanityCheckDelayed(true))
-                Serialize(elem, obj);
+            if (!WriteFragments)
+                writer.WriteStartDocument();
             elem.WriteTo(writer);
+            
             if (IgnoreErrors == false)
                 LogMessages();
         }
         
-
         /// <summary>
         /// Serializes an object to a string.
         /// </summary>
