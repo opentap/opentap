@@ -385,5 +385,12 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(TimeSpan.MaxValue, Time.FromSeconds(1000000000000000000000000000.0));
             Assert.AreEqual(TimeSpan.MinValue, Time.FromSeconds(-1000000000000000000000000000.0));
         }
+
+        [Test]
+        public void BatchingTest()
+        {
+            var inv = Enumerable.Range(0, 1000).Batch(32).OrderByDescending(x => x).ToArray();
+            Assert.IsTrue(inv.SequenceEqual(Enumerable.Range(0, 1000).OrderByDescending(x => x)));
+        }
     }
 }

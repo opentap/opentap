@@ -544,7 +544,9 @@ namespace OpenTap.Package
             writer.WriteStartDocument();
             writer.WriteStartElement("ArrayOfPackages");
             var serializer = new TapSerializer();
-            foreach (PackageDef package in packages)
+            
+            // added batching as a speculative performance improvement.
+            foreach (PackageDef package in packages.Batch(32))
             {
                 try
                 {
