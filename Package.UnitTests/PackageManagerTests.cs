@@ -80,7 +80,7 @@ namespace OpenTap.Package.UnitTests
             Assert.AreEqual(expectedUrl, repository.Url);
         }
 
-        [Test]
+        [Test, Ignore("The test is slow and the endpoint is deprecated.")]
         public void HttpRepositoryManagerTest()
         {
             var manager = new HttpPackageRepository("http://packages.opentap.io/");

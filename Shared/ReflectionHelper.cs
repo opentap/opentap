@@ -1850,6 +1850,28 @@ namespace OpenTap
                 }
             }
         }
+        
+        /// <summary>
+        ///  process the enumerable source N objects at a time.
+        /// </summary>
+        public static IEnumerable<T> Batch<T>(this IEnumerable<T> src, int N)
+        {
+                var buffer = new T[N];
+                int cnt = 0;
+                foreach (var elem in src)
+                {
+                    buffer[cnt] = elem;
+                    cnt += 1;
+                    if (cnt == N)
+                    {
+                        foreach (var elem2 in buffer)
+                            yield return elem2;
+                        cnt = 0;
+                    }
+                }
+                foreach (var elem2 in buffer.Take(cnt))
+                    yield return elem2;
+        }
 
         public static void Append<T>(ref T[]  array, params T[] appendage)
         {

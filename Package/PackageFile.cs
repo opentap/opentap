@@ -533,32 +533,36 @@ namespace OpenTap.Package
             new TapSerializer().Serialize(stream, this);
         }
 
+        
         /// <summary>
         /// Writes this package definition to a file.
         /// </summary>
         public static void SaveManyTo(Stream stream, IEnumerable<PackageDef> packages)
         {
-            XDocument xdoc = new XDocument();
-            var root = new XElement("ArrayOfPackages");
-            xdoc.Add(root);
-            foreach (PackageDef package in packages)
+            using var writer = XmlWriter.Create(stream);
+            using (TypeData.WithTypeDataCache()) ;
+            writer.WriteStartDocument();
+            writer.WriteStartElement("ArrayOfPackages");
+            // Write fragments because we manually insert the start and end of the document.
+            // This way, if the stream is outgoing from the process, we avoid having to store all the document
+            // in memory. This can be useful as 'packages' may come from a stream itself.
+            var serializer = new TapSerializer { WriteFragments = true };
+            
+            // added batching as a speculative performance improvement.
+            foreach (PackageDef package in packages.Batch(32))
             {
-                using (Stream str = new MemoryStream())
+                try
                 {
-                    try
-                    {
-                        package.SaveTo(str);
-                        str.Seek(0, 0);
-                        var pkgElement = XElement.Load(str);
-                        root.Add(pkgElement);
-                    }
-                    catch (Exception ex)
-                    {
-                        log.Error(ex);
-                    }
+                    serializer.Serialize(writer, package);
+                }
+                catch (Exception ex)
+                {
+                    log.Error(ex);
                 }
             }
-            xdoc.Save(stream);
+            
+            writer.WriteEndElement();
+            writer.Flush();
         }
 
         /// <summary>

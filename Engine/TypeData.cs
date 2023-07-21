@@ -687,7 +687,8 @@ namespace OpenTap
         
         /// <summary>  Creates a type data cache. Note this should be used with 'using{}' so that it gets removed afterwards. </summary>
         /// <returns> A disposable object removing the cache. </returns>
-        internal static IDisposable WithTypeDataCache() => new TypeDataCache();
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public static IDisposable WithTypeDataCache() => new TypeDataCache();
 
         /// <summary> Gets the type info from a string. </summary>
         public static ITypeData GetTypeData(string name) => new TypeDataProviderStack().GetTypeData(name);
