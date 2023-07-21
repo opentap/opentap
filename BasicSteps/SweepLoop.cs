@@ -121,7 +121,8 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 if (CrossPlan == SweepBehaviour.Across_Runs)
                     return SweepParameters
-                        .Select(param => param.Values.GetValue(crossPlanSweepIndex))
+                            // crossPlanSweepIndex is 0 by default. Even if the number of rows is also 0.
+                        .Select(param => param.Values.ElementAtOrDefault(crossPlanSweepIndex))
                         .OfType<IResource>();
                 return SweepParameters
                     .SelectMany(param => param.Values)
