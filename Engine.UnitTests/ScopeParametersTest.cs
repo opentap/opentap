@@ -361,7 +361,7 @@ namespace OpenTap.UnitTests
                 // verify Enabled<T> works with SweepParameterStep.
                 var annotation = AnnotationCollection.Annotate(sweep);
                 var col = annotation.GetMember(nameof(SweepParameterStep.SelectedParameters)).Get<IStringReadOnlyValueAnnotation>().Value;
-                Assert.AreEqual("A, EnabledTest", col);
+                Assert.AreEqual("EnabledTest, A", col);
                 var elements = annotation.GetMember(nameof(SweepParameterStep.SweepValues))
                     .Get<ICollectionAnnotation>().AnnotatedElements
                     .Select(elem => elem.GetMember(nameof(ScopeTestStep.EnabledTest)))
@@ -395,7 +395,7 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(((ScopeTestStep)sweep2.ChildTestSteps[0]).Collection.SequenceEqual(new[] {10, 20}));
 
             var name = sweep.GetFormattedName();
-            Assert.AreEqual("Sweep A, EnabledTest", name);
+            Assert.AreEqual("Sweep EnabledTest, A", name);
 
             { // Testing that sweep parameters are automatically removed after unparameterization.
                 var p = (ParameterMemberData) TypeData.GetTypeData(sweep2).GetMember("Parameters \\ A");

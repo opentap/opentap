@@ -333,7 +333,8 @@ namespace OpenTap
         public static void AddDynamicMember(object target, IMemberData member)
         {
             var members = (ImmutableDictionary<string, IMemberData>) DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
-            DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, members.SetItem(member.Name, member));
+            var newMembers = members.SetItem(member.Name, member);
+            DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, newMembers);
         }
 
         public static void RemovedDynamicMember(object target, IMemberData member)
