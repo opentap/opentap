@@ -323,5 +323,36 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(-2.0, rl.Results[0].GetColumn("Y").Data.GetValue(0));
             Assert.AreEqual(Verdict.Fail, run.Verdict);
         }
+        
+        public class ResultAttributeBrokenTestStep : TestStep
+        {
+            
+            [Result]
+            public double X { get; set; }
+            
+            [Result]
+            [Verdict("passssss(Y >= 1)")]
+            public double Y { get; set; }
+
+            public override void Run()
+            {
+                
+            }
+        }
+
+        [Test]
+        public void ResultAttributeBrokenTest()
+        {
+            var rl = new RecordAllResultListener();
+            var step = new ResultAttributeBrokenTestStep();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+
+            var run = plan.Execute(new []{rl});
+            var log = rl.planLogs.Values.First();
+            
+            Assert.AreEqual(Verdict.Error, run.Verdict);
+            Assert.IsTrue(log.Contains("'passssss' function not found"));
+        }
     }
 }

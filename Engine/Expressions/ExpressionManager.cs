@@ -261,6 +261,8 @@ namespace OpenTap.Expressions
             }
         }
 
+        static TraceSource log = Log.CreateSource("ExpressionManager"); 
+
         internal static void UpdateVerdicts(ITestStep step, IList<IMemberData> verdictMembers)
         {
             var expressions = GetExpressionList(step, true);
@@ -279,6 +281,14 @@ namespace OpenTap.Expressions
                         var lambda = ast.IfOK(ast => builder.GenerateLambda(ast, parameters, typeof(object)));
                         if(lambda.Ok)
                             updateActions.Add((lambda.Unwrap(), attr.Verdict));
+                        else
+                        {
+                            updateActions.Add((new Action(() =>
+                            {
+                                log.Error("Unable to parse expression: {0}", expr);
+                                log.Debug("Error: {0}", lambda.Error);
+                            }), Verdict.Error));
+                        }
                     }
                 }
                 expressions.UpdateVerdicts = updateActions.ToArray();
@@ -288,6 +298,12 @@ namespace OpenTap.Expressions
 
             foreach (var item in expressions.UpdateVerdicts)
             {
+                if (item.Item1 is Action a)
+                {
+                    a();
+                    step.UpgradeVerdict(item.Item2);
+                    continue;
+                }
                 object result = item.Item1.DynamicInvoke(parameterValues);
                 if (result is bool t)
                 {

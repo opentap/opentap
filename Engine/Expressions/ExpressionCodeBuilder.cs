@@ -77,10 +77,17 @@ namespace OpenTap.Expressions
                         }
                         else
                         {
-                            if (expr.Type.IsNumeric() && targetType.IsNumeric())
+                            if (targetType == typeof(object))
+                            {
                                 expr = Expression.Convert(expr, targetType);
+                            }
                             else
-                                return Result.Error<Delegate>($"Cannot convert result {expr.Type.Name} to {targetType.Name}.");
+                            {
+                                if (expr.Type.IsNumeric() && targetType.IsNumeric())
+                                    expr = Expression.Convert(expr, targetType);
+                                else
+                                    return Result.Error<Delegate>($"Cannot convert result {expr.Type.Name} to {targetType.Name}.");
+                            }
                         }
                     }
                     var lmb = Expression.Lambda(expr, false, parameters.Parameters);
