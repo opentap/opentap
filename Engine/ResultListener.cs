@@ -8,6 +8,7 @@ using System.Linq;
 using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Collections;
+using System.Collections.Immutable;
 using System.ComponentModel;
 
 namespace OpenTap
@@ -487,17 +488,21 @@ namespace OpenTap
             output.Add( new ResultParameter(group, parentName, val, metadata));
         }
 
-        static readonly ThreadField<Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
-            metadata)[]>> propertiesLookup =
-            new ThreadField<Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute metadata)[]>>(ThreadFieldMode.Flat);
+        static  ImmutableDictionary<ITypeData, ((IMemberData member, string group, string name, MetaDataAttribute metadata)[], object token)> propertiesLookup 
+            = ImmutableDictionary<ITypeData, ((IMemberData member, string group, string name, MetaDataAttribute metadata)[] p, object token)>.Empty;
 
         static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] GetParametersMap(
             ITypeData type)
         {
-            var val = propertiesLookup.Value;
-            if (val == null)
-                propertiesLookup.Value = val = new Dictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute metadata)[]>();
-            return val.GetOrCreateValue(type, getParametersMap);
+            object marker = null;
+            if (type is ITypeDataCacheMarker m) marker = m.Marker;
+            if (propertiesLookup.TryGetValue(type, out var o) && Equals(o.token, marker))
+            {
+                return o.Item1;
+            }
+            var x = getParametersMap(type);
+            propertiesLookup = propertiesLookup.SetItem(type, (x, marker));
+            return x;
         }
 
         static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] getParametersMap(

@@ -70,6 +70,20 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(1.0, columnA.Data.GetValue(0));
             Assert.AreEqual(2.0, columnB.Data.GetValue(0));
         }
+
+        [Test]
+        public void TestResultParameters()
+        {
+            var plan = new TestPlan();
+            var step = new SimpleResultTest();
+            plan.Steps.Add(step);
+
+            var rl = new RecordAllResultListener();
+            
+            plan.Execute(new []{rl});
+            var run = rl.Runs.Values.OfType<TestStepRun>().FirstOrDefault();
+
+        }
         
         [Test]
         public void TestSimpleResults2()
