@@ -33,19 +33,20 @@ namespace OpenTap.Plugins.BasicSteps
 
         public override void Run()
         {
+            var message = LogMessage;
             switch (Severity)
             {
                 case LogSeverity.Debug:
-                    Log.Debug(LogMessage);
+                    Log.Debug(message);
                     break;
                 case LogSeverity.Info:
-                    Log.Info(LogMessage);
+                    Log.Info(message);
                     break;
                 case LogSeverity.Warning:
-                    Log.Warning(LogMessage);
+                    Log.Warning(message);
                     break;
                 case LogSeverity.Error:
-                    Log.Error(LogMessage);
+                    Log.Error(message);
                     break;
             }
         }

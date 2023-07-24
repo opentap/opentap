@@ -3,11 +3,10 @@ name: CI
 on:
   push:
     branches:
-      - main
-      - release9x
+      - '*'
+      
     tags:
       - v*
-  pull_request:
 
 env:
   #OPENTAP_COLOR: auto # github messes with the "auto" detection (i.e. it has no effect), and "always" breaks a lot of things

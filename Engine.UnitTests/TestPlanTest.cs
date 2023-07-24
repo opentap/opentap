@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 using OpenTap.EngineUnitTestUtils;
 using OpenTap.Plugins.BasicSteps;
 using System.ComponentModel;
+using System.Linq.Expressions;
 using System.Threading;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using System.Text;
@@ -1918,8 +1919,30 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        class ValidationRuleAttribute : Attribute
+        {
+            public ValidationRuleAttribute(string rule)
+            {
+                
+            }
+
+            public ValidationRuleAttribute(Expression<Func<double, bool>> x)
+            {
+                
+            }
+        }
+        
+        class VerdictAttribute : Attribute
+        {
+            public VerdictAttribute(Verdict v, string rule)
+            {
+                
+            }
+        }
         public class ValidationStep : TestStep
         {
+            public double Voltage { get; set; }
+            
             public override void PrePlanRun()
             {
                 Assert.AreEqual(1, ResourceManageValidator.StageCounter[TestPlanExecutionStage.Open]);
@@ -2484,10 +2507,7 @@ namespace OpenTap.Engine.UnitTests
 
     public class RegexStepTest : RegexOutputStep
     {
-        public override bool GeneratesOutput 
-        {
-            get { return true; }
-        }
+        public override bool GeneratesOutput => true;
 
         public override void Run()
         {

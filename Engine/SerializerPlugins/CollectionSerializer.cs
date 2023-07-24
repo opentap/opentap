@@ -153,6 +153,13 @@ namespace OpenTap.Plugins
                 {
                     int elementCount = finalValues.Cast<object>().Count();
                     values = (IList) Activator.CreateInstance(t, elementCount);
+                    // initialize the array with the currently known values
+                    // (this may change later)
+                    var lst = (IList) values;
+                    int i = 0;
+                    foreach (var item in finalValues)
+                        lst[i++] = item;
+                    
                     Serializer.DeferLoad(() =>
                     {
                         // Previous deserialization might have been deferred, so we have to defer again.

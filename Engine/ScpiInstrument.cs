@@ -975,7 +975,7 @@ namespace OpenTap
                 throw new IOException("Not connected.");
 
             OnActivity();
-            //TapThread.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
+            
             try
             {
                 Stopwatch timer = Stopwatch.StartNew();
@@ -1021,7 +1021,7 @@ namespace OpenTap
             if (!IsConnected)
                 throw new IOException("Not connected.");
             OnActivity();
-            //TapThread.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
+            
             try
             {
                 Stopwatch timer = Stopwatch.StartNew();

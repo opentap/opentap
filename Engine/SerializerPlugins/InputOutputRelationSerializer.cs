@@ -47,8 +47,6 @@ namespace OpenTap.Plugins
         static readonly XName stepInputsName = "TestStep.Inputs";
         readonly HashSet<XElement> activeElements = new HashSet<XElement>();
 
-        readonly Dictionary<ITestStepParent, IEnumerable<InputOutputMember>> unusedInputs = new Dictionary<ITestStepParent, IEnumerable<InputOutputMember>>();
-        
         /// <summary> Deserialize input/output relations </summary>
         public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {

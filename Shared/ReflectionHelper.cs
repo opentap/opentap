@@ -24,7 +24,7 @@ using System.Threading;
 // Bugs introduced here will cause bugs in other projects too, so be careful.
 // **
 
-namespace OpenTap
+namespace OpenTap 
 {
     /// <summary>
     /// Class to ease the use of reflection.
@@ -182,6 +182,51 @@ namespace OpenTap
             if(!inherit)
                 return attrslookupNoInherit.GetValue(prop, getAttributesNoInherit);
             return GetAllCustomAttributes(prop);
+        }
+
+        public static object DefaultValue(this Type type)
+        {
+            switch (Type.GetTypeCode(type))
+            {
+                case TypeCode.Boolean:
+                    return default(bool);
+                case TypeCode.Byte:
+                    return default(byte);
+                case TypeCode.Char:
+                    return default(char);
+                case TypeCode.DateTime:
+                    return default(DateTime);
+                case TypeCode.DBNull:
+                    return default(DBNull);
+                case TypeCode.Decimal:
+                    return default(decimal);
+                case TypeCode.Double:
+                    return default(double);
+                case TypeCode.Empty:
+                    return null;
+                case TypeCode.Int16:
+                    return default(short);
+                case TypeCode.Int32:
+                    return default(int);
+                case TypeCode.Int64:
+                    return default(long);
+                case TypeCode.Object:
+                    return null;
+                case TypeCode.SByte:
+                    return default(sbyte);
+                case TypeCode.Single:
+                    return default(float);
+                case TypeCode.String:
+                    return null;
+                case TypeCode.UInt16:
+                    return default(ushort);
+                case TypeCode.UInt32:
+                    return default(uint);
+                case TypeCode.UInt64:
+                    return default(ulong);
+                default:
+                    return null;
+            }
         }
 
         /// <summary>
@@ -365,12 +410,16 @@ namespace OpenTap
             }
         }
 
-        /// <summary>
-        /// Returns true if a type is numeric.
-        /// </summary>
+        /// <summary> Returns true if a type is numeric. </summary>
         public static bool IsNumeric(this ITypeData t)
         {
             return t.AsTypeData()?.Type.IsNumeric() == true;
+        }
+        
+        /// <summary> Returns true if a type is a C# primitive. </summary>
+        public static bool IsPrimitive(this ITypeData t)
+        {
+            return t.AsTypeData()?.Type.IsPrimitive ?? false;
         }
 
         /// <summary> Creates an instance of t with no constructor arguments. </summary>
@@ -1214,11 +1263,11 @@ namespace OpenTap
         /// <summary> As 'Select and FirstOrDefault' but skipping null values.
         /// Short hand for/more efficient version of 'Select(f).Where(x => x != null).FirstOrDefault()'
         /// </summary>
-        public static T2 FirstNonDefault<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> f) 
+        public static T2 FirstNonDefault<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> selector) 
         {
             foreach (var x in source)
             {
-                var value = f(x);
+                var value = selector(x);
                 if (Equals(value, default(T2)) == false)
                     return value;
             }
@@ -1878,6 +1927,13 @@ namespace OpenTap
             int preLen = array.Length;
             Array.Resize(ref array, array.Length + appendage.Length);
             Array.Copy(appendage, 0, array, preLen, appendage.Length);
+        }
+
+        public static T PopAt<T>(this IList<T> list, int index)
+        {
+            var value = list[index];
+            list.RemoveAt(index);
+            return value;
         }
         
         public static IEnumerable<T2> TrySelect<T, T2>(this IEnumerable<T> src, Func<T, T2> f,

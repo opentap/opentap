@@ -757,7 +757,7 @@ namespace OpenTap.Package
 
         /// <summary>
         /// Compresses the files to a zip package.
-        /// </summary>
+        /// </summary>  
         private static void Compress(this PackageDef pkg, FileStream outStream, IEnumerable<PackageFile> inputPaths)
         {
             using (var zip = new System.IO.Compression.ZipArchive(outStream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))

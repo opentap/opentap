@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace OpenTap
@@ -195,8 +196,7 @@ namespace OpenTap
             return outputMember.GetValue(outputObject);
         }
     
-
-    /// <summary> Updates the input of 'target' by reading the value of the source output.  </summary>
+        /// <summary> Updates the input of 'target' by reading the value of the source output.  </summary>
         public static void UpdateInputs(ITestStepParent target)
         {
             checkRelations(target);
@@ -217,6 +217,10 @@ namespace OpenTap
                     }
 
                     object value = GetOutput(connection.OutputMember, src);
+                    if (value is IConvertible conv &&
+                        connection.InputMember.TypeDescriptor.DescendsTo(typeof(IConvertible)))
+                        value = conv.ToType(connection.InputMember.TypeDescriptor.AsTypeData().Type,
+                            CultureInfo.CurrentCulture);
                     connection.InputMember.SetValue(target, value);
                 }
             }

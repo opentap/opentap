@@ -93,6 +93,11 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Column Names", Group: "Results", Order: 1.51, Collapsed: true, Description: "The name of the columns of the resulting groups. The titles must be separated by commas.")]
         public string DimensionTitles { get; set; }
 
+        [Layout(LayoutMode.Normal, 1, 1)]
+        [Output]
+        [Display("Output", Group: "Results")]
+        public string Output { get; set; } = "";
+
         public RegexOutputStep()
         {
             RegularExpressionPattern = new Enabled<string>() { IsEnabled = false, Value = "(.*)" };
@@ -110,6 +115,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         protected void ProcessOutput(string Output)
         {
+            this.Output = Output;
             if (RegularExpressionPattern.IsEnabled)
             {
                 var Matches = Regex.Matches(Output, RegularExpressionPattern.Value);
@@ -122,7 +128,10 @@ namespace OpenTap.Plugins.BasicSteps
 
             if (ResultRegularExpressionPattern.IsEnabled)
             {
-                var Matches = Regex.Matches(Output, ResultRegularExpressionPattern.Value);
+                var reg = new Regex(ResultRegularExpressionPattern.Value);
+                
+
+                var Matches = reg.Matches(Output);
 
                 foreach (Match Match in Matches)
                 {
@@ -148,23 +157,23 @@ namespace OpenTap.Plugins.BasicSteps
                                 break;
                             }
                         case SCPIRegexBehavior.GroupsAsResults:
+                        {
+                            var Name = ResultName;
+                            var titles = DimensionTitles.Split(',').ToList();
+
+                            if (titles.Count != 1)
                             {
-                                var Name = ResultName;
-                                var titles = DimensionTitles.Split(',').ToList();
-
-                                if (titles.Count != 1)
-                                {
-                                    Log.Error("Number of Column Names ({0}) does not match number of results (1).", titles.Count);
-                                    UpgradeVerdict(Verdict.Error);
-                                    return;
-                                }
-
-                                for (int i = 1; i < Match.Groups.Count; i++)
-                                {
-                                    Results.Publish(Name, titles, Match.Groups[i].Value);
-                                }
-                                break;
+                                Log.Error("Number of Column Names ({0}) does not match number of results (1).", titles.Count);
+                                UpgradeVerdict(Verdict.Error);
+                                return;
                             }
+
+                            for (int i = 1; i < Match.Groups.Count; i++)
+                            {
+                                Results.Publish(Name, titles, Match.Groups[i].Value);
+                            }
+                            break;
+                        }
                     }
                 }
             }
@@ -210,18 +219,21 @@ namespace OpenTap.Plugins.BasicSteps
         
         public override void Run()
         {
+            // get a formatted string so that dynamic properties can be inserted into the query.
+            var query = this.FormatString(Query);
+            
             if (Action == SCPIAction.Command)
             {
-                Instrument.ScpiCommand(Query);
+                Instrument.ScpiCommand(query);
             }
             else
             {
-                string Result = Instrument.ScpiQuery(Query);
+                string result = Instrument.ScpiQuery(query);
 
                 if (AddToLog)
-                    Log.Info(LogHeader + Result);
+                    Log.Info(LogHeader + result);
 
-                ProcessOutput(Result);
+                ProcessOutput(result);
             }
         }
     }

@@ -83,7 +83,7 @@ namespace OpenTap.Package.UnitTests
         [Test, Ignore("The test is slow and the endpoint is deprecated.")]
         public void HttpRepositoryManagerTest()
         {
-            var manager = new HttpPackageRepository("http://packages.opentap.io/");
+            var manager = new HttpPackageRepository("http://localhost:5000/");
             RepositoryManagerReceivePackageList(manager);
             TestDownload(manager);
         }

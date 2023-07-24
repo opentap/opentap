@@ -1,8 +1,10 @@
 using System;
 using System.Linq;
+using OpenTap.Expressions;
 
 namespace OpenTap
 {
+
     class ParameterizedIconAnnotation :IIconAnnotation, IEnabledAnnotation, ISettingReferenceIconAnnotation
     {
         public string IconName => IconNames.Parameterized;
@@ -73,6 +75,8 @@ namespace OpenTap
                         annotation.Add(new ParameterizedIconAnnotation());
                     }
                 }
+                if (stepModel.HasExpression)
+                    annotation.Add(new HasExpressionAnnotation(annotation));
                 if (stepModel.IsParameter)
                     annotation.Add(new ParameterIconAnnotation(annotation));
                 if (stepModel.IsOutput)
