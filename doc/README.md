@@ -11,18 +11,12 @@ OpenTAP offers a range of sequencing functionality and infrastructure that makes
 
 Learn more about OpenTAP [here](http://opentap.io).
 
-
+We recommend that you [download the Developer's System](https://www.keysight.com/find/tapinstall) provided by Keysight Technologies available with a commercial or community license. The Developer's System is a bundle that contains the SDK as well as a graphical user interface and result-viewing capabilities. 
 
 ## Install OpenTAP
 ### Windows
 1. Download OpenTAP from our homepage [here](https://opentap.io/downloads). 
 2. Start the installer.
-
-We recommend that you download the Software Development Kit, or simply the Developer’s System Community Edition provided by Keysight Technologies. The Developer System is a bundle that contains the SDK as well as a graphical user interface and result viewing capabilities. It can be installed by typing the following:
-```cmd
-cd "C:\Program Files\OpenTAP" (or the directory you selected in the installer)
-tap package install "Developer's System CE" -y
-```
 
 ### Linux
 <!--When installing on Linux there are a few options:-->
