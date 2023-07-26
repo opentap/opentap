@@ -384,7 +384,7 @@ namespace OpenTap
         {
             var componentSettings = TypeData.FromType(typeof(ComponentSettings)) //get component settings instances (lazy)
                 .DerivedTypes
-                .Where(x => x.CanCreateInstance && GetParametersMap(x).Any(y => y.metadata != null))
+                .Where(x => x.CanCreateInstance && GetParametersMap(x, true).Any())
                 .Select(td => ComponentSettings.GetCurrent(td.Type))
                 .Where(o => o != null)
                 .Cast<object>();
@@ -440,7 +440,7 @@ namespace OpenTap
             {
                 var t = tp.Load();
                 if (tp.CanCreateInstance == false) continue;
-                if (GetParametersMap(tp).Any(x => x.metadata != null) == false)
+                if (GetParametersMap(tp, true).Any() == false)
                     continue;
                 var componentSetting = ComponentSettings.GetCurrent(t);
                 if (componentSetting != null)
@@ -488,27 +488,8 @@ namespace OpenTap
             output.Add( new ResultParameter(group, parentName, val, metadata));
         }
 
-        static  ImmutableDictionary<ITypeData, ((IMemberData member, string group, string name, MetaDataAttribute metadata)[], object token)> propertiesLookup 
-            = ImmutableDictionary<ITypeData, ((IMemberData member, string group, string name, MetaDataAttribute metadata)[] p, object token)>.Empty;
-
-        static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] GetParametersMap(
-            ITypeData type)
+        static IEnumerable<(IMemberData member, string group, string name, MetaDataAttribute metadata)> GetParametersMap(ITypeData type, bool metadataOnly)
         {
-            object marker = null;
-            if (type is ITypeDataCacheMarker m) marker = m.Marker;
-            if (propertiesLookup.TryGetValue(type, out var o) && Equals(o.token, marker))
-            {
-                return o.Item1;
-            }
-            var x = getParametersMap(type);
-            propertiesLookup = propertiesLookup.SetItem(type, (x, marker));
-            return x;
-        }
-
-        static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] getParametersMap(
-            ITypeData type)
-        {
-            var lst = new List<(IMemberData member, string group, string name, MetaDataAttribute metadata)>();
             foreach (var prop in type.GetMembers())
             {
                 if (!prop.Readable)
@@ -517,6 +498,8 @@ namespace OpenTap
                 var metadataAttr = prop.GetAttribute<MetaDataAttribute>();
                 if (metadataAttr == null)
                 {
+                    if (metadataOnly) continue;
+                    
                     // if metadataAttr is specified, all we require is that we can read and write it. 
                     // Otherwise normal rules applies:
 
@@ -549,10 +532,8 @@ namespace OpenTap
                 group = metadataAttr?.Group ?? group;
                 name = metadataAttr?.Name ?? name;
 
-                lst.Add((prop, group, name, metadataAttr));
+                yield return (prop, group, name, metadataAttr);
             }
-
-            return lst.ToArray();
         }
         
         static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false)
@@ -560,9 +541,8 @@ namespace OpenTap
             if (obj == null)
                 return;
             var type = TypeData.GetTypeData(obj);
-            foreach (var (prop, group, name, metadata) in GetParametersMap(type))
+            foreach (var (prop, group, name, metadata) in GetParametersMap(type, metadataOnly))
             {
-                if (metadataOnly && metadata == null) continue;
                 object value = prop.GetValue(obj);
                 if (value == null)
                     continue;
@@ -575,7 +555,7 @@ namespace OpenTap
             if (obj == null)
                 return;
             var type = TypeData.GetTypeData(obj);
-            var p = GetParametersMap(type);
+            var p = GetParametersMap(type, false);
             foreach (var (prop, group, _name, metadata) in p)
             {
                 if (prop.GetAttribute<MetaDataAttribute>()?.Frozen == true) continue; 

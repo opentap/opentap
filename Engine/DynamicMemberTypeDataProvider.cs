@@ -21,12 +21,6 @@ namespace OpenTap
         void SetValue(IMemberData member, object value);
     }
 
-    interface ITypeDataCacheMarker
-    {
-        object Marker { get; }
-    }
-    
-
     /// <summary>  Extensions for parameter operations. </summary>
     public static class ParameterExtensions
     {
@@ -536,7 +530,7 @@ namespace OpenTap
             }
         }
 
-        public class DynamicTestStepTypeData : ITypeData, ITypeDataCacheMarker
+        public class DynamicTestStepTypeData : ITypeData
         {
             public DynamicTestStepTypeData(TestStepTypeData innerType, object target)
             {
@@ -605,8 +599,6 @@ namespace OpenTap
                 // Random factors for hashing (primes to reduce the risk of collision).
                 return ((((BaseType?.GetHashCode() ?? 0) + 86533973) * 25714789 + (target?.GetHashCode() ?? 0) + 67186051) * 63349417);
             }
-            
-            public object Marker => TestStepTypeData.DynamicMembers.GetValue(target);
         }
 
         internal class TestStepTypeData : ITypeData
