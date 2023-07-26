@@ -501,7 +501,9 @@ namespace OpenTap
         {
             if (resultListeners == null)
                 throw new ArgumentNullException("resultListeners");
-
+            
+            ResultParameters.ParameterCache.LoadCache();
+            
             if (PrintTestPlanRunSummary && !resultListeners.Contains(summaryListener))
                 resultListeners = resultListeners.Concat(new IResultListener[] { summaryListener });
             resultListeners = resultListeners.Where(r => r is IEnabledResource ? ((IEnabledResource)r).IsEnabled : true);
