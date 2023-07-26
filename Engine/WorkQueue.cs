@@ -207,6 +207,8 @@ namespace OpenTap
             {
                 Thread.Sleep(5);
             }
+            if (countdown < 0)
+                throw new InvalidOperationException("!!");
         }
 
         internal object Dequeue()
@@ -216,7 +218,7 @@ namespace OpenTap
                 return null;
             if (workItems.TryDequeue(out var inv))
             {
-                // when taking an item from the workqueue the countdown and the semaphore must be decremented
+                // when taking an item from the work queue the countdown and the semaphore must be decremented
                 Interlocked.Decrement(ref countdown);
                 
                 if (inv is IWrappedInvokable wrap)
