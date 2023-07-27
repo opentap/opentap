@@ -6,6 +6,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -602,10 +603,16 @@ namespace OpenTap
                         break;
                     
                     // pop the peeked object
-                    if (workQueue.Dequeue() != p)
+                    var dq = workQueue.Dequeue();
+                    if (dq != p)
                     {
-                        // this should never happen.
+                        if (dq == null)
+                            // we weren't able to dequeue the object - just give up on the optimization.
+                            break; 
+                        
+                        // This should never happen.
                         // If it did, something went really wrong.
+                        Debug.Fail("Peeked object not in front of queue.");
                         throw new InvalidOperationException("Peeked object not in front of queue.");
                     }
 
