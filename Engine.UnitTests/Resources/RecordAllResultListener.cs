@@ -36,7 +36,7 @@ namespace OpenTap.UnitTests
         public override void OnTestPlanRunCompleted(TestPlanRun planRun, Stream logStream)
         {
             Runs[planRun.Id] = planRun;
-            planLogs[planRun.Id] = new StreamReader(logStream,Encoding.UTF8, true, 4096, true).ReadLine();
+            planLogs[planRun.Id] = new StreamReader(logStream,Encoding.UTF8, true, 4096, true).ReadToEnd();
             base.OnTestPlanRunCompleted(planRun, logStream);
         }
 
