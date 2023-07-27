@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
@@ -11,14 +12,14 @@ namespace OpenTap
     /// <summary>  This interface speeds up accessing dynamic members as it avoids having to access a global table to store the information. </summary>
     interface IDynamicMembersProvider
     {
-        IDictionary<string, IMemberData> DynamicMembers { get; set; }
+        IImmutableDictionary<string, IMemberData> DynamicMembers { get; set; }
     }
+    
     interface IDynamicMemberValue
     {
         bool TryGetValue(IMemberData member, out object value);
         void SetValue(IMemberData member, object value);
     }
-    
 
     /// <summary>  Extensions for parameter operations. </summary>
     public static class ParameterExtensions
@@ -325,26 +326,19 @@ namespace OpenTap
 
         public static void AddDynamicMember(object target, IMemberData member)
         {
-            var members =
-                (Dictionary<string, IMemberData>) DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
-            if (members == null)
-            {
-                members = new Dictionary<string, IMemberData>();
-                DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, members);
-            }
-            members[member.Name] = member;
+            var members = (ImmutableDictionary<string, IMemberData>) DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
+            var newMembers = members.SetItem(member.Name, member);
+            DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, newMembers);
         }
 
         public static void RemovedDynamicMember(object target, IMemberData member)
         {
-            var members = (Dictionary<string, IMemberData>) DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
-            members.Remove(member.Name);
-            if (members.Count == 0) members = null;
-            DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, members);
+            var members = (ImmutableDictionary<string, IMemberData>) DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
+            DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, members.Remove(member.Name));
         }
 
         /// <summary> the test plan stores a hashset of all current parameterizations, so this can be used
-        /// to check if something is allready parameterized.</summary>
+        /// to check if something is already parameterized.</summary>
         static TestPlan GetPlanFor(object source)
         {
             while (source is ITestStepParent source2)
@@ -517,7 +511,7 @@ namespace OpenTap
             {
                 if (owner is IDynamicMembersProvider bc)
                 {
-                    bc.DynamicMembers = (IDictionary<string, IMemberData>) value;
+                    bc.DynamicMembers = (IImmutableDictionary<string, IMemberData>) value;
                     return;
                 }
 
@@ -526,11 +520,11 @@ namespace OpenTap
 
             public override object GetValue(object owner)
             {
-                IDictionary<string, IMemberData> result;
+                IImmutableDictionary<string, IMemberData> result;
                 if (owner is IDynamicMembersProvider bc)
                     result = bc.DynamicMembers;
                 else
-                    result = (Dictionary<string, IMemberData>) base.GetValue(owner);
+                    result = (IImmutableDictionary<string, IMemberData>) base.GetValue(owner);
 
                 return result;
             }
@@ -683,7 +677,7 @@ namespace OpenTap
             internal static readonly DynamicMember DynamicMembers = new DynamicMembersMember()
             {
                 Name = "ForwardedMembers",
-                DefaultValue = null,
+                DefaultValue = ImmutableDictionary<string, IMemberData>.Empty,
                 DeclaringType = TypeData.FromType((typeof(TestStepTypeData))),
                 Attributes = new Attribute[]{new XmlIgnoreAttribute(), new AnnotationIgnoreAttribute()},
                 Writable = true,
@@ -788,7 +782,7 @@ namespace OpenTap
             {
                 var subtype = stack.GetTypeData(obj);
                 var result = getStepTypeData(subtype);
-                if (TestStepTypeData.DynamicMembers.GetValue(obj) is Dictionary<string, IMemberData>)
+                if (TestStepTypeData.DynamicMembers.GetValue(obj) is ImmutableDictionary<string, IMemberData> obj2 && obj2.Count != 0)
                     return dict2.GetValue(p, o => new DynamicTestStepTypeData(result, o));
                 return result;
             }

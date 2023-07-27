@@ -8,8 +8,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -538,34 +538,32 @@ namespace OpenTap
         // Implementing this interface will make setting and getting descriptions faster.
         string IDescriptionProvider.Description { get; set; }
         // Implementing this interface will make setting and getting dynamic members faster.
-        IDictionary<string, IMemberData> IDynamicMembersProvider.DynamicMembers { get; set; }
+        IImmutableDictionary<string, IMemberData> IDynamicMembersProvider.DynamicMembers { get; set; } = ImmutableDictionary<string, IMemberData>.Empty;
 
         InputOutputRelation[] IInputOutputRelations.Inputs { get; set; }
         InputOutputRelation[] IInputOutputRelations.Outputs { get; set; }
 
-        readonly Dictionary<IMemberData, ParameterMemberData> parameterizations =
-            new Dictionary<IMemberData, ParameterMemberData>();
+        ImmutableDictionary<IMemberData, ParameterMemberData> parameterMembers =
+            ImmutableDictionary<IMemberData, ParameterMemberData>.Empty;
 
         void IParameterizedMembersCache.RegisterParameterizedMember(IMemberData mem, ParameterMemberData memberData)
         {
-            lock (parameterizations)
-                parameterizations.Add(mem, memberData);
+            parameterMembers = parameterMembers.Add(mem, memberData);
         }
 
         void IParameterizedMembersCache.UnregisterParameterizedMember(IMemberData mem, ParameterMemberData memberData)
         {
-            lock (parameterizations)
-                parameterizations.Remove(mem);
+            parameterMembers = parameterMembers.Remove(mem);
         }
 
         ParameterMemberData IParameterizedMembersCache.GetParameterFor(IMemberData mem)
         {
-            if (parameterizations.TryGetValue(mem, out var r))
+            if (parameterMembers.TryGetValue(mem, out var r))
                 return r;
             return null;
         }
 
-        readonly DynamicMembersLookup dynamicMemberValues = new DynamicMembersLookup();
+        ImmutableDictionary<IMemberData, object> dynamicMemberValues = ImmutableDictionary<IMemberData, object>.Empty;
 
         
         bool IDynamicMemberValue.TryGetValue(IMemberData member, out object obj)
@@ -573,18 +571,7 @@ namespace OpenTap
             return dynamicMemberValues.TryGetValue(member, out obj);
         }
 
-        void IDynamicMemberValue.SetValue(IMemberData member, object value)
-        {
-            dynamicMemberValues[member] = value;
-        }
-    }
-
-    class DynamicMembersLookup : ConcurrentDictionary<IMemberData, object>
-    {
-        public DynamicMembersLookup() : base(1, 4)
-        {
-            
-        }
+        void IDynamicMemberValue.SetValue(IMemberData member, object value) => dynamicMemberValues = dynamicMemberValues.SetItem(member, value);
     }
 
     /// <summary>
