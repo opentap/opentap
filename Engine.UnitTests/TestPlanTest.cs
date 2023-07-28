@@ -2042,9 +2042,28 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsFalse(instrB.ClosedDuringOpen); 
             
             // close has to be called even though Open failed.
-            Assert.IsTrue(instrA.CloseCalled);
-            Assert.IsTrue(instrB.CloseCalled); 
+            Assert.IsTrue(instrA.CloseCalled, "instrA.ClosedCalled == false");
+            Assert.IsTrue(instrB.CloseCalled, "instrB.ClosedCalled == false"); 
         }
+        
+        [Test]
+        public void OpenCloseOrderSmall()
+        {
+            var instrA = new CrashInstrument() {OpenThrow = true,CloseThrow = true, Name= "A"};
+            var stepA = new InstrumentTestStep() {Instrument = instrA};
+            
+            var parallel = new ParallelStep();
+            var plan = new TestPlan();
+            parallel.ChildTestSteps.Add(stepA);
+            plan.Steps.Add(parallel);
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Error, run.Verdict);
+            Assert.IsFalse(instrA.ClosedDuringOpen);
+            
+            // close has to be called even though Open failed.
+            Assert.IsTrue(instrA.CloseCalled, "instrA.ClosedCalled == false");
+        }
+        
 
         [Test]
         public void TestFastTapThreads()
@@ -2123,6 +2142,22 @@ namespace OpenTap.Engine.UnitTests
             try
             {
                 OpenCloseOrder();
+            }
+            finally
+            {
+                EngineSettings.Current.ResourceManagerType = lastrm;
+            }
+        }
+        
+        [Test]
+        [Repeat(10)]
+        public void OpenCloseOrderLazyRM_Reduced()
+        {
+            var lastrm = EngineSettings.Current.ResourceManagerType;
+            EngineSettings.Current.ResourceManagerType = new LazyResourceManager();
+            try
+            {
+                OpenCloseOrderSmall();
             }
             finally
             {
