@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Linq;
 using NUnit.Framework;
 
 namespace OpenTap.Engine.UnitTests
@@ -38,6 +40,32 @@ namespace OpenTap.Engine.UnitTests
             var test2mem = td.GetMember("E.Test2");
             Assert.IsNotNull(test2mem);
             Assert.AreEqual(10.0, test2mem.GetValue(test));
+        }
+
+        [Test]
+        public void AddingMixinsTest()
+        {
+            var test = new SomeClass();
+            var builders = MixinFactory.GetMixinBuilders(TypeData.GetTypeData(test)).ToArray();
+            var builderUi = new MixinBuilderUi(builders);
+            var type = TypeData.GetTypeData(builderUi);
+            var members = type.GetMembers();
+
+        }
+    }
+
+    public class TestAddingMixinsStep : TestStep
+    {
+        [Browsable(true)]
+        public void Test()
+        {
+            
+        }
+        
+        
+        public override void Run()
+        {
+            
         }
     }
 }

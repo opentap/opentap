@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+
 namespace OpenTap
 {
     /// <summary>
@@ -95,4 +97,5 @@ namespace OpenTap
         /// <summary> Invoked just before IResource.Open is called.</summary>
         void OnPreOpen(ResourcePreOpenEventArgs eventArgs);
     }
+
 }

@@ -687,7 +687,8 @@ namespace OpenTap
 
             static readonly IMemberData[] extraTestStepMembers = {BreakConditions, DynamicMembers, ChildItemVisibility.VisibilityProperty};
             static readonly IMemberData[] extraTestPlanMembers = {TestPlanBreakConditions, DynamicMembers};
-            
+            static readonly IMemberData[] othersMembers = {DynamicMembers};
+
             readonly IMemberData[] members;
 
             static IMemberData[] GetMembersRaw(ITypeData innerType)
@@ -695,8 +696,10 @@ namespace OpenTap
                 IMemberData[] members;
                 if (innerType.DescendsTo(typeof(TestPlan)))
                     members = extraTestPlanMembers;
-                else
+                else if (innerType.DescendsTo(typeof(ITestStep)))
                     members = extraTestStepMembers;
+                else 
+                    return othersMembers;
                 var d = DescriptionMember(innerType);
                 members = members.Append(d).ToArray();
                 return members;
