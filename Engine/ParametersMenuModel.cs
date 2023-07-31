@@ -214,9 +214,4 @@ namespace OpenTap
             return null;
         }
     }
-
-    class MixinMenuModel:  IMenuModel, I, IMenuModelState
-    {
-        
-    }
 }

@@ -225,7 +225,7 @@ namespace OpenTap
                 if (additionalMembers == null || additionalMembers.Count == 0)
                 {
                     source = null;
-                    DynamicMember.RemovedDynamicMember(Target, this);
+                    DynamicMember.RemoveDynamicMember(Target, this);
                     return true;
                 }
                 (source, member) = additionalMembers.FirstOrDefault();
@@ -274,7 +274,7 @@ namespace OpenTap
         }
     }
     
-    class DynamicMember : IMemberData
+    public class DynamicMember : IMemberData
     {
         public virtual IEnumerable<object> Attributes { get; set; } = Array.Empty<object>();
         public string Name { get; set; }
@@ -331,7 +331,7 @@ namespace OpenTap
             DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, newMembers);
         }
 
-        public static void RemovedDynamicMember(object target, IMemberData member)
+        public static void RemoveDynamicMember(object target, IMemberData member)
         {
             var members = (ImmutableDictionary<string, IMemberData>) DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
             DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, members.Remove(member.Name));
@@ -773,12 +773,12 @@ namespace OpenTap
         }
         
         // cache Dynamic type data for each ITestStepParent (which has parameters).
-        static readonly ConditionalWeakTable<ITestStepParent, DynamicTestStepTypeData> dict2 =
-            new ConditionalWeakTable<ITestStepParent, DynamicTestStepTypeData>();
+        static readonly ConditionalWeakTable<object, DynamicTestStepTypeData> dict2 =
+            new ConditionalWeakTable<object, DynamicTestStepTypeData>();
 
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
-            if (obj is ITestStepParent p)
+            if (obj is object p)
             {
                 var subtype = stack.GetTypeData(obj);
                 var result = getStepTypeData(subtype);

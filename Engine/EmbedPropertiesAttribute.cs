@@ -267,7 +267,7 @@ namespace OpenTap
 
     class EmbeddedTypeDataProvider : IStackedTypeDataProvider
     {
-        public double Priority => 10;
+        public double Priority => 10.5;
         internal const string exp = "emb:";
         static ConditionalWeakTable<ITypeData, EmbeddedTypeData> internedValues = new ConditionalWeakTable<ITypeData, EmbeddedTypeData>();
         static EmbeddedTypeData getOrCreate(ITypeData e) =>  internedValues.GetValue(e, t => new EmbeddedTypeData{BaseType =  e});
