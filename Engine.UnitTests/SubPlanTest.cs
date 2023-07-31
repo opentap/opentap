@@ -405,6 +405,35 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        public void TestPlanReferenceDetectChangesTest()
+        {
+            var planName = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".TapPlan");
+            var subPlan = new TestPlan();
+            var delay = new DelayStep();
+            
+            delay.DelaySecs = 0.1;
+            subPlan.Steps.Add(delay);
+
+            var mainPlan = new TestPlan();
+            var tpr = new TestPlanReference() { Filepath = { Text = planName } };
+            mainPlan.ChildTestSteps.Add(tpr);
+
+            string saveAndRun()
+            {
+                subPlan.Save(planName);
+                tpr.LoadTestPlan();
+                var hash = mainPlan.Execute().Hash;
+                Assert.IsFalse(string.IsNullOrWhiteSpace(hash));
+                return hash;
+            }
+
+            var firstHash = saveAndRun();
+            Assert.AreEqual(firstHash, saveAndRun(), "Expected hash to be the same.");
+            delay.DelaySecs = 0.01;
+            Assert.AreNotEqual(firstHash, saveAndRun(), "Expected hash to be different.");
+        }
+
+        [Test]
         public void TestPlanReferenceSubPlanTest()
         {
             int parallelism = 10;
