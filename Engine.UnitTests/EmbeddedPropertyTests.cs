@@ -239,4 +239,5 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(resource.TestMixin.PreOpenCalled);
         }
     }
+
 }
