@@ -1987,32 +1987,37 @@ namespace OpenTap.Engine.UnitTests
 
         class CrashInstrument : Instrument
         {
-            static Semaphore sharedStateA = new Semaphore(1,1);
             public bool OpenThrow { get; set; }
             public bool OpenWait { get; set; }
             public bool CloseThrow { get; set; }
             public bool ClosedDuringOpen { get; set; }
-            bool isopening = false;
+            bool isOpening;
 
             public bool CloseCalled { get; set; }
             public override void Open()
             {
+                if (IsConnected)
+                    throw new InvalidOperationException("Instrument already connected");
                 base.Open();
-                isopening = true;
+                isOpening = true;
+                try
+                {
+                    if (OpenWait)
+                        Thread.Sleep(20);
 
-                if(OpenWait)
-                    Thread.Sleep(20);
-                
-                isopening = false;
-                
-                    if(OpenThrow)
+                    if (OpenThrow)
                         throw new Exception("Intended failure");
+                }
+                finally
+                {
+                    isOpening = false;
+                }    
             }
             
             public override void Close()
             {
                 CloseCalled = true;
-                if (isopening)
+                if (isOpening)
                 {
                     ClosedDuringOpen = true;
                     Assert.Fail("Close called before open done.");
@@ -2026,16 +2031,22 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void OpenCloseOrder()
         {
-            var instrA = new CrashInstrument() {OpenThrow = true,CloseThrow = true, Name= "A"};
-            var instrB = new CrashInstrument() {OpenWait = true, Name= "B"};
-            var stepA = new InstrumentTestStep() {Instrument = instrA};
-            var stepB = new InstrumentTestStep() {Instrument = instrB};
-            
+            var instrA = new CrashInstrument {OpenThrow = true, CloseThrow = true, Name= "A"};
+            var instrB = new CrashInstrument {OpenWait = true, Name= "B"};
             var parallel = new ParallelStep();
+            // create a bunch of steps to make sure that we test race conditions
+            // in the resource managers.
+            for (int i = 0; i < 10; i++)
+            {
+                var stepA = new InstrumentTestStep { Instrument = instrA };
+                var stepB = new InstrumentTestStep { Instrument = instrB };
+                parallel.ChildTestSteps.Add(stepA);
+                parallel.ChildTestSteps.Add(stepB);
+            }
+            
             var plan = new TestPlan();
-            parallel.ChildTestSteps.Add(stepA);
-            parallel.ChildTestSteps.Add(stepB);
             plan.Steps.Add(parallel);
+            
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Error, run.Verdict);
             Assert.IsFalse(instrA.ClosedDuringOpen);
@@ -2049,13 +2060,15 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void OpenCloseOrderSmall()
         {
-            var instrA = new CrashInstrument() {OpenThrow = true,CloseThrow = true, Name= "A"};
-            var stepA = new InstrumentTestStep() {Instrument = instrA};
+            var instrA = new CrashInstrument {OpenThrow = true, CloseThrow = true, Name= "A"};
             
             var parallel = new ParallelStep();
+            for (int i = 0; i < 10; i++)
+                parallel.ChildTestSteps.Add(new InstrumentTestStep { Instrument = instrA });
+            
             var plan = new TestPlan();
-            parallel.ChildTestSteps.Add(stepA);
             plan.Steps.Add(parallel);
+            
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Error, run.Verdict);
             Assert.IsFalse(instrA.ClosedDuringOpen);

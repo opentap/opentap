@@ -534,6 +534,8 @@ namespace OpenTap
             }
 
             private ResourceState state { get; set; } = ResourceState.Reset;
+            
+            // counts up on open and down on close. When it reaches 0, it can finally be closed. 
             private int ReferenceCount { get; set; }
 
             private readonly object LockObj = new object();
@@ -728,10 +730,10 @@ namespace OpenTap
         {
             if (toClose.Any())
             {
-                Task.WaitAll(toClose.Select(res => RequestResourceClose(res)).ToArray());
+                Task.WaitAll(toClose.Select(RequestResourceClose).ToArray());
                 lock (resourceWithBeforeOpenCalled)
                 {
-                    var nodes = resourceWithBeforeOpenCalled.Where(rn => toClose.Contains(rn.Resource)).ToList();
+                    var nodes = resourceWithBeforeOpenCalled.Where(rn => toClose.Contains(rn.Resource)).ToArray();
                     lockManager.AfterClose(nodes, CancellationToken.None);
                     foreach (var node in nodes)
                         resourceWithBeforeOpenCalled.Remove(node);
@@ -897,7 +899,6 @@ namespace OpenTap
                 case TestPlanExecutionStage.Execute:
                     lock (resourceLock)
                         CloseResources(Resources);
-
                     break;
 
                 case TestPlanExecutionStage.Run:
@@ -905,16 +906,14 @@ namespace OpenTap
                     {
                         if (resourceDependencies.TryGetValue(step, out List<IResource> usedResourcesRaw))
                         {
-                            IEnumerable<IResource> usedResources;
+                            var usedResources = usedResourcesRaw.Where(r => r is IResource).ToArray();
                             lock (resourceLock)
                             {
-                                usedResources = usedResourcesRaw.Where(r => r is IResource);
                                 resourceDependencies.Remove(step);
                                 foreach (IResource res in usedResources)
                                 {
                                     resourceReferenceCount[res] -= 1;
                                 }
-                                usedResources = usedResources.Where(x => resourceReferenceCount[x] == 0).ToList();
                             }
 
                             CloseResources(usedResources);
