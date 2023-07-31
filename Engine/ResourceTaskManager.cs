@@ -692,9 +692,7 @@ namespace OpenTap
         private readonly object resourceLock = new object();
         private Dictionary<IResource, ResourceInfo> resources = new Dictionary<IResource, ResourceInfo>();
         private Dictionary<ITestStep, List<IResource>> resourceDependencies = new Dictionary<ITestStep, List<IResource>>();
-        private Dictionary<IResource, int> resourceReferenceCount = new Dictionary<IResource, int>(); // needed to make sure we don't close resources too early when something is running in parallel
-
-
+       
         private List<ResourceNode> resourceWithBeforeOpenCalled = new List<ResourceNode>();
 
         private LockManager lockManager;
@@ -866,15 +864,6 @@ namespace OpenTap
                                 lock (resourceLock)
                                 {
                                     resourceDependencies[step] = resources.Select(x => x.Resource).ToList();
-                                    foreach (ResourceNode n in resources)
-                                    {
-                                        if (n.Resource is IResource resource)
-                                        {
-                                            if (!resourceReferenceCount.ContainsKey(resource))
-                                                resourceReferenceCount[resource] = 0;
-                                            resourceReferenceCount[resource] += 1;
-                                        }
-                                    }
                                 }
 
                                 OpenResources(resources, cancellationToken);
@@ -910,10 +899,6 @@ namespace OpenTap
                             lock (resourceLock)
                             {
                                 resourceDependencies.Remove(step);
-                                foreach (IResource res in usedResources)
-                                {
-                                    resourceReferenceCount[res] -= 1;
-                                }
                             }
 
                             CloseResources(usedResources);
