@@ -50,7 +50,21 @@ namespace OpenTap.Engine.UnitTests
             var builderUi = new MixinBuilderUi(builders);
             var type = TypeData.GetTypeData(builderUi);
             var members = type.GetMembers();
+            var a = AnnotationCollection.Annotate(builderUi);
+            var textNameMember = a.GetMember("OpenTap.TextMixinBuilder.Name");
+            var enabled1 = textNameMember.Get<IAccessAnnotation>().IsVisible;
 
+            var nameMember = a.GetMember("OpenTap.NumberMixinBuilder.Name");
+            var enabled = nameMember.Get<IAccessAnnotation>().IsVisible;
+
+            Assert.IsTrue(enabled);
+            Assert.IsFalse(enabled1);
+
+            var selectedMixin = builderUi.SelectedItem;
+            var mem = selectedMixin.ToDynamicMember();
+            DynamicMember.AddDynamicMember(test, mem);
+            var td = TypeData.GetTypeData(test);
+            var mem2 = td.GetMembers().ToArray();
         }
     }
 

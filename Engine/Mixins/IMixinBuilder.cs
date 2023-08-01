@@ -2,6 +2,6 @@ namespace OpenTap
 {
     public interface IMixinBuilder
     {
-        IMixin CreateInstance();
+        MixinMember ToDynamicMember();
     }
 }

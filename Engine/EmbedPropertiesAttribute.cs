@@ -189,7 +189,7 @@ namespace OpenTap
                     }
                     else if (item is EnabledIfAttribute enabled)
                     {
-                        list[i] = new EnabledIfAttribute(prefix_name + "." + enabled.PropertyName, enabled.PropertyValues)
+                        list[i] = new EnabledIfAttribute(prefix_name + "." + enabled.PropertyName, enabled.Values)
                             {HideIfDisabled = enabled.HideIfDisabled};
                     }
                 }

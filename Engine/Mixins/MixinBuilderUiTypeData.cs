@@ -11,20 +11,28 @@ namespace OpenTap
 
         class WrappedMemberInfo : IMemberData
         {
+            public override string ToString() => Name; 
+            private readonly Attribute[] attributes;
             private readonly object src;
             private readonly IMemberData member;
 
-            public WrappedMemberInfo(object src, IMemberData member) => (this.src,this.member) = (src, member);
-            
-            public IEnumerable<object> Attributes => member.Attributes;
-            public string Name => member.Name;
+            public WrappedMemberInfo(object src, IMemberData member, params Attribute[] attributes)
+            {
+                this.attributes = attributes;
+                this.src = src;
+                this.member = member;
+                Name = $"{src}.{member.Name}";
+            }
+
+            public IEnumerable<object> Attributes => attributes.Concat(member.Attributes);
+            public string Name { get; }
+        
             public ITypeData DeclaringType => member.DeclaringType;
             public ITypeData TypeDescriptor => member.TypeDescriptor;
             public bool Writable => member.Writable;
             public bool Readable => member.Readable;
             public void SetValue(object owner, object value) => member.SetValue(src, value);
             public object GetValue(object owner) => member.GetValue(src);
-            
         }
         
         public MixinBuilderUiTypeData(MixinBuilderUi builder)
@@ -34,8 +42,9 @@ namespace OpenTap
             {
                 foreach (var member in TypeData.GetTypeData(item).GetMembers())
                 {
-                    var newmem = new WrappedMemberInfo(item, member);
-                    members.Add(newmem);
+                    var em = new EnabledIfAttribute(nameof(MixinBuilderUi.SelectedItem), item) {HideIfDisabled = true};
+                    var newMember = new WrappedMemberInfo(item, member, em);
+                    members.Add(newMember);
                 }
             }
 

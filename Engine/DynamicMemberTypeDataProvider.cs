@@ -716,7 +716,7 @@ namespace OpenTap
             {
                 this.innerType = innerType;
                 members = GetMembers(innerType);
-                descriptionMember = members.First(m => m.Name == descriptionName);
+                descriptionMember = members.FirstOrDefault(m => m.Name == descriptionName);
             }
 
             public override bool Equals(object obj)
@@ -742,7 +742,7 @@ namespace OpenTap
             {
                 if (name == BreakConditions.Name) return BreakConditions;
                 if (name == DynamicMembers.Name) return DynamicMembers;
-                if (name == descriptionMember.Name) return descriptionMember; 
+                if (name == descriptionMember?.Name) return descriptionMember; 
                 return innerType.GetMember(name);
             }
 
