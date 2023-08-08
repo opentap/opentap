@@ -5,6 +5,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Linq.Expressions;
 namespace OpenTap.Expressions
 {
     /// <summary>  Manages expressions for settings.  </summary>
@@ -34,13 +35,6 @@ namespace OpenTap.Expressions
         {
             public ImmutableArray<IMemberData> members;
             public object[] buffer;
-
-            public readonly Dictionary<string, (ImmutableArray<IMemberData>, Delegate)> EnabledIfLookup = new Dictionary<string, (ImmutableArray<IMemberData>, Delegate)>();
-            public (Delegate, Verdict)[] UpdateVerdicts
-            {
-                get;
-                set;
-            }
 
             public bool TryGetValue(string memberName, out ExpressionObject o)
             {
@@ -147,8 +141,6 @@ namespace OpenTap.Expressions
             builder.UpdateParameterMembers(step, ref expressions.members, out bool updated);
             if (updated)
             {
-                expressions.UpdateVerdicts = null;
-                expressions.EnabledIfLookup.Clear();
                 foreach (var item in expressions)
                 {
                     item.Lambda = null;
@@ -156,21 +148,12 @@ namespace OpenTap.Expressions
             }
         }
 
-        internal static bool MemberHasExpression(ITypeData type, IMemberData member)
-        {
-            var exprMember = type.GetMember(ExpressionsMember.Name);
-            if (exprMember != null)
-                return true;
-            return false;
-        }
-
-        internal static ExpressionList GetExpressionList(object step, bool Create)
+        internal static ExpressionList GetExpressionList(object step, bool create)
         {
             var expressions = ExpressionsMember.GetValue(step) as ExpressionList;
-            if(Create && expressions == null)
+            if(create && expressions == null)
             {
-                if (expressions == null)
-                    expressions = new ExpressionList();
+                expressions = new ExpressionList();
                 UpdateExpressions(step, expressions);    
             }
             else if(expressions != null)
@@ -218,12 +201,16 @@ namespace OpenTap.Expressions
                     {
                         ast = builder2.Parse(ref code);
                     }
-                    
-                    ast.IfOK(node =>
-                        {
-                            expression.UsedParameters = parameters.GetUsedParameters(node);
-                            return builder2.GenerateLambda(node, parameters, mem.TypeDescriptor.AsTypeData().Type);
-                        }).IfOK(lambda => expression.Lambda = lambda);
+
+                    var result = ast.IfThen(node =>
+                    {
+                        expression.UsedParameters = parameters.GetUsedParameters(node);
+                        return builder2.GenerateLambda(node, parameters, mem.TypeDescriptor.AsTypeData().Type);
+                    }).IfThen(lambda => expression.Lambda = lambda);
+                    if (result.Ok == false)
+                    {
+                        // this error is shown in the GUI, so it can be ignored.
+                    }
                      
                     expression.ParameterIndex = parameters.Parameters.IndexWhen(x => x.Name == expression.Member);
                     Debug.Assert(expression.ParameterIndex != -1);
@@ -257,7 +244,6 @@ namespace OpenTap.Expressions
                 catch (Exception)
                 {
                     // consider handling this exception.
-                    //throw new Exception($"Unable to update member {expression.Member} of {step}", e);
                 }
             }
         }
@@ -267,7 +253,15 @@ namespace OpenTap.Expressions
             try
             {
                 var parameters = ParameterData.GetParameters(targetObject) ?? ParameterData.Empty;
-                var result = builder.Parse(expression).IfOK(expr => builder.GenerateExpression(expr, parameters, targetType.AsTypeData().Type));
+                Result<Expression> result; 
+                if (targetType.DescendsTo(typeof(string)))
+                {
+                    result = builder.ParseStringInterpolation(expression).IfThen(expr => builder.GenerateExpression(expr, parameters, targetType.AsTypeData().Type));
+                }
+                else
+                {
+                    result = builder.Parse(expression).IfThen(expr => builder.GenerateExpression(expr, parameters, targetType.AsTypeData().Type));
+                }
                 if (result.Ok)
                     return null;
                 return result.Error;

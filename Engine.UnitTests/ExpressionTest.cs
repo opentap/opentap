@@ -69,10 +69,34 @@ namespace OpenTap.UnitTests
         public void StringExpressionBasicTest(string expression, string expectedResult)
         {
             var builder = new ExpressionCodeBuilder();
-            var ast = builder.ParseStringInterpolation(expression);
+            var ast0 = builder.ParseStringInterpolation(expression);
+            var ast = ast0.Unwrap();
             var lmb = builder.GenerateLambda(ast, ParameterData.Empty, typeof(string));
             var result = lmb.Unwrap().DynamicInvoke();
             Assert.AreEqual(expectedResult, result);
+        }
+
+        [TestCase( "123 {floor(1.5} 321432", "Unexpected symbol '}'.", null)]
+        [TestCase( "123 {1.5) 321432", "Unexpected symbol ')'.", null)]
+        public void StringExpressionParseErrors(string errorExpression, string parseError, string compileError)
+        {
+            var builder = new ExpressionCodeBuilder();
+            var ast = builder.ParseStringInterpolation(errorExpression);
+            if (parseError != null)
+            {
+                Assert.AreEqual(parseError, ast.Error);
+                return;
+            }
+            Assert.AreEqual(null, ast.Error);
+            
+            var lmb = builder.GenerateLambda(ast.Unwrap(), ParameterData.Empty, typeof(string));
+
+            if (compileError != null)
+            {
+                StringAssert.IsMatch(compileError, lmb.Error);
+                return;
+            }
+            Assert.AreEqual(null, lmb.Error);
         }
 
         [TestCase("abs(-1.0)", 1.0)]
@@ -107,8 +131,10 @@ namespace OpenTap.UnitTests
         [TestCase(typeof(double), "asd", null, "'asd' symbol not found.")]
         [TestCase(typeof(double), "cos(\"asd\")", null, "Invalid argument types for 'cos'.")]
         [TestCase(typeof(double), "cos(1.0, 2.0)", null, "Invalid number of arguments for 'cos'.")]
+        [TestCase(typeof(double), "cos(1.0}", "Unexpected symbol '}'.", null)]
         [TestCase(typeof(double), "Pi(1.0, 2.0)", null, "'Pi' cannot be used as a function.")]
-        
+        [TestCase(typeof(double), ")", "Unexpected symbol ')'.", null)]
+        [TestCase(typeof(double), "}", "Unexpected symbol '}'.", null)]
         public void SimpleErrors(Type expressionType, string errorExpression, string parseError, string compileError)
         {
             
@@ -143,7 +169,7 @@ namespace OpenTap.UnitTests
             var b = (BinaryExpressionNode)ast;
             Assert.IsInstanceOf<ObjectNode>(b.Left);
             Assert.IsInstanceOf<ObjectNode>(b.Right);
-            Assert.IsTrue(b.Operator == Operators.AdditionOp);
+            Assert.IsTrue(b.Operator == Operators.Addition);
 
             Assert.AreEqual("Log Message", ((ObjectNode)b.Left).Data);
             Assert.AreEqual("Log Message 2", ((ObjectNode)b.Right).Data);

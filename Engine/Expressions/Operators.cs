@@ -6,30 +6,29 @@ namespace OpenTap.Expressions
     {
         // operators are defined by a string an precedence.
         
-        public static readonly OperatorNode AdditionOp = new OperatorNode("+", 3);
-        public static readonly OperatorNode DivideOp = new OperatorNode("/", 4);
-        public static readonly OperatorNode MultiplyOp = new OperatorNode("*", 4);
-        public static readonly OperatorNode SubtractOp = new OperatorNode("-", 3);
-        // some types of operators are disabled at the moment:
+        public static readonly OperatorNode Addition = new OperatorNode("+", 3);
+        public static readonly OperatorNode Divide = new OperatorNode("/", 4);
+        public static readonly OperatorNode Multiply = new OperatorNode("*", 4);
+        public static readonly OperatorNode Subtract = new OperatorNode("-", 3);
         
-        //public static readonly OperatorNode AssignmentOp = new OperatorNode("=", 1.5);
-        //public static readonly OperatorNode StatementOperator = new OperatorNode(";", 1);
-        
-        public static readonly OperatorNode LessOperator = new OperatorNode("<", 1.8);
-        public static readonly OperatorNode GreaterOperator = new OperatorNode(">", 1.8);
-        public static readonly OperatorNode LessOrEqualOperator = new OperatorNode("<=", 1.8);
-        public static readonly OperatorNode GreaterOrEqualOperator = new OperatorNode(">=", 1.8);
-        public static readonly OperatorNode EqualOperator = new OperatorNode("==", 1.8);
-        public static readonly OperatorNode NotEqualOperator = new OperatorNode("!=", 1.8);
-        public static readonly OperatorNode AndOperator = new OperatorNode("&&", 1.7);
-        public static readonly OperatorNode OrOperator = new OperatorNode("||", 1.7);
-        
-        // this operator is for concatenating strings. normally not used, but it is used for interpolations.
-        public static readonly OperatorNode StrCombineOperator = new OperatorNode("..", 1.7);
+        public static readonly OperatorNode Less = new OperatorNode("<", 1.8);
+        public static readonly OperatorNode Greater = new OperatorNode(">", 1.8);
+        public static readonly OperatorNode LessOrEqual = new OperatorNode("<=", 1.8);
+        public static readonly OperatorNode GreaterOrEqual = new OperatorNode(">=", 1.8);
+        public static readonly OperatorNode Equal = new OperatorNode("==", 1.8);
+        public static readonly OperatorNode NotEqual = new OperatorNode("!=", 1.8);
+        public static readonly OperatorNode And = new OperatorNode("&&", 1.7);
+        public static readonly OperatorNode Or = new OperatorNode("||", 1.7);
         
         // comma is used for combining arguments for use by call.
-        public static readonly OperatorNode CommaOp = new OperatorNode(",", 1.6);
-        public static readonly OperatorNode CallOperator = new OperatorNode("[call]", 1.7);
+        public static readonly OperatorNode Comma = new OperatorNode(",", 1.6);
+        
+        // Some special operators are newer used directly, but figures in the AST:
+        
+        // This operator is for concatenating strings. normally not used, but it is used for interpolations.
+        public static readonly OperatorNode StrCombine = new OperatorNode("[strcombine]", 1.7);
+        // This operator is for calling functions. AST-wise, it looks like this:(funcname [call] (arg1 , (arg2 , ...)))
+        public static readonly OperatorNode Call = new OperatorNode("[call]", 1.7);
         
         static OperatorNode[] operators;
         public static OperatorNode[] GetOperators()

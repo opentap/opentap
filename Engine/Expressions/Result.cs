@@ -24,8 +24,6 @@ namespace OpenTap.Expressions
             throw new Exception($"{Error}");
         }
         
-        public T2 IfOK<T2>(Func<T, T2> func) =>  Error == null ? func(Value) : default(T2);
-        
         public Result<T> IfThen(Action<T> func)
         {
             if (Error == null)

@@ -8,7 +8,7 @@
 
         public override string ToString()
         {
-            if (Operator == Operators.CallOperator)
+            if (Operator == Operators.Call)
                 return $"{Left}({Right})";
             return $"{Left} {Operator} {Right}";
         }
