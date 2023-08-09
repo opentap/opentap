@@ -228,15 +228,16 @@ namespace OpenTap
         {
             public AssignExpressionRequest(IMemberData member, object targetObject, ITypeData targetType)
             {
-                Name = $"Define a new expression for {member.GetDisplayAttribute().Name}";
+                Name = $"Define expression for {member.GetDisplayAttribute().Name}";
                 TargetObject = targetObject;
                 TargetType = targetType;
-                Rules.Add(() => string.IsNullOrWhiteSpace(ExprError), () => $"Expression '{Expression}' is not valid: {ExprError}", nameof(Expression));
+                Rules.Add(() => string.IsNullOrWhiteSpace(ExprError), () => $"The expression '{Expression}' is not valid: {ExprError}", nameof(Expression));
             }
 
+            [Layout(LayoutMode.FullRow)]
             public string Expression { get; set; }
 
-            public string ExprError => ExpressionManager.ExpressionError(Expression, TargetObject, TargetType);
+            public string ExprError => Expression == "" ? null : ExpressionManager.ExpressionError(Expression, TargetObject, TargetType);
 
             public ITypeData TargetType { get; }
 
@@ -276,7 +277,9 @@ namespace OpenTap
                 // if the source length is 1, the member should always be the same as the actual member.
                 Debug.Assert(source.Length != 1 || actual_member == member);
                 ExpressionManager.SetExpression(step, actual_member, req.Expression);
+                ExpressionManager.Update(step);
             }
+            
         }
 
         [Browsable(true)]
@@ -286,7 +289,7 @@ namespace OpenTap
         public void ModifyExpression() => AssignExpression();
 
         [Browsable(true)]
-        [Display("Remove Expression", "Modify an expression on this property.")]
+        [Display("Unassign Expression", "Unassigns an expression on this property.")]
         [IconAnnotation(IconNames.ModifyExpression)]
         [EnabledIf(nameof(CanModifyExpression), true, HideIfDisabled = true)]
         public void RemoveExpression()

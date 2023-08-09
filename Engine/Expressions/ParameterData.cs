@@ -62,7 +62,7 @@ namespace OpenTap.Expressions
             var newArray = TypeData.GetTypeData(obj).GetMembers()
                 .Where(mem => mem.Readable && mem.IsBrowsable() && (mem.HasAttribute<SettingsIgnoreAttribute>() == false) && (mem.HasAttribute<AnnotationIgnoreAttribute>() == false))
                 .ToImmutableArray();
-            if (newArray.Equals(array))
+            if (array != null && newArray.SequenceEqual(array))
                 return false;
             array = newArray;
             return true;

@@ -3,6 +3,24 @@ using System.Collections.Generic;
 using OpenTap.Expressions;
 namespace OpenTap
 {
+    class ExpressionUpdaterAnnotation : IOwnedAnnotation
+    {
+        public static ExpressionUpdaterAnnotation Instance { get; } = new ExpressionUpdaterAnnotation();
+        public void Read(object source)
+        {
+            if (source is ITestStepParent parent)
+            {
+                //ExpressionManager.Update(parent);
+            }
+        }
+        public void Write(object source)
+        {
+            if (source is ITestStepParent parent)
+            {
+                ExpressionManager.Update(parent);
+            }
+        }
+    }
     class HasExpressionAnnotation : IIconAnnotation, IEnabledAnnotation, IInteractiveIconAnnotation, IExpressionAnnotation, IOwnedAnnotation, IErrorAnnotation
     {
         readonly AnnotationCollection annotation;
@@ -29,8 +47,12 @@ namespace OpenTap
         public void Write(object source)
         {
             var member = annotation.Get<IMemberAnnotation>()?.Member;
-            if(source is ITestStepParent parent  && member != null)
+            if (source is ITestStepParent parent && member != null)
+            {
                 ExpressionManager.SetExpression(parent, annotation.Get<IMemberAnnotation>()?.Member, Expression);
+                if(Expression != null)
+                    ExpressionManager.Update(parent);
+            }
         }
         public IEnumerable<string> Errors => string.IsNullOrWhiteSpace(Error) ? Array.Empty<string>() : new []
         {

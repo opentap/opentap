@@ -9,6 +9,7 @@ namespace OpenTap.Expressions
         public static readonly OperatorNode Addition = new OperatorNode("+", 3);
         public static readonly OperatorNode Divide = new OperatorNode("/", 4);
         public static readonly OperatorNode Multiply = new OperatorNode("*", 4);
+        public static readonly OperatorNode Power = new OperatorNode("^", 5);
         public static readonly OperatorNode Subtract = new OperatorNode("-", 3);
         
         public static readonly OperatorNode Less = new OperatorNode("<", 1.8);

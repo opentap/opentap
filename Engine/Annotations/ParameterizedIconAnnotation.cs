@@ -74,7 +74,9 @@ namespace OpenTap
                     }
                 }
                 if (stepModel.HasExpression)
+                {
                     annotation.Add(new HasExpressionAnnotation(annotation));
+                }
                 if (stepModel.IsParameter)
                     annotation.Add(new ParameterIconAnnotation(annotation));
                 if (stepModel.IsOutput)

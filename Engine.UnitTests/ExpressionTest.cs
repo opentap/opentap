@@ -110,6 +110,16 @@ namespace OpenTap.UnitTests
         [TestCase("(1 * 2 * 3 * 4 * 5) / 10", 12)]
         [TestCase("π", Math.PI)]
         [TestCase("Pi", Math.PI)]
+        [TestCase("log(3.0 ^ 0.5, 3.0)", 0.5)]
+        [TestCase("log(5.0 ^ 1.5, 5.0)", 1.5)]
+        [TestCase("max(3.0, 2.0, 1.0, 0.0)", 3.0)]
+        [TestCase("min(3.0, 2.0, 1.0, 0.0)", 0.0)]
+        [TestCase("max(3.0, 2.0, 1.0)", 3.0)]
+        [TestCase("min(3.0, 2.0, 1.0)", 1.0)]
+        [TestCase("max(3.0, 1.0)", 3.0)]
+        [TestCase("min(3.0, 1.0)", 1.0)]
+        [TestCase("log(8, 2)", 3.0)]
+        [TestCase("2 ^ 3", 8)]
         public void ExpressionBasicTest(string expression, object expectedResult)
         {
             var builder = new ExpressionCodeBuilder();
@@ -118,7 +128,7 @@ namespace OpenTap.UnitTests
             var result = lmb.Unwrap().DynamicInvoke();
             if (expectedResult is double d)
             {
-                Assert.AreEqual((double)result, d, 1e-15);
+                Assert.AreEqual(d, (double)result, 1e-15);
             }
             else
             {
@@ -132,6 +142,9 @@ namespace OpenTap.UnitTests
         [TestCase(typeof(double), "cos(\"asd\")", null, "Invalid argument types for 'cos'.")]
         [TestCase(typeof(double), "cos(1.0, 2.0)", null, "Invalid number of arguments for 'cos'.")]
         [TestCase(typeof(double), "cos(1.0}", "Unexpected symbol '}'.", null)]
+        [TestCase(typeof(double), "cos(1.0", "Reached end of text but expected ')'.", null)]
+        [TestCase(typeof(double), "cos(1.0,2.0", "Reached end of text but expected ')'.", null)]
+        [TestCase(typeof(double), "cos(1.0,2.0 + 1.0", "Reached end of text but expected ')'.", null)]
         [TestCase(typeof(double), "Pi(1.0, 2.0)", null, "'Pi' cannot be used as a function.")]
         [TestCase(typeof(double), ")", "Unexpected symbol ')'.", null)]
         [TestCase(typeof(double), "}", "Unexpected symbol '}'.", null)]

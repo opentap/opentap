@@ -182,6 +182,26 @@ namespace OpenTap.Expressions
                                 // if the method was not found generate an error.
                                 
                                 var methods = importedMethods.Where(x => x.Name == funcName).ToArray();
+                                foreach (var method2 in methods)
+                                {
+                                    var p = method2.GetParameters();
+                                    if (p.Length != expressions.Count)
+                                        continue;
+                                    List<Expression> expr2 = new List<Expression>();
+
+                                    for (int i = 0; i < p.Length; i++)
+                                    {
+                                        var a = p[i].ParameterType;
+                                        var b2 = expressions[i].Type;
+                                        if (a == typeof(double) && b2 == typeof(int))
+                                            expr2.Add(Expression.Convert(expressions[i], typeof(double)));
+                                        else goto nextit;
+                                    }
+                                    expressions = expr2;
+                                    method = method2;
+                                    goto useMethod;
+                                    nextit: ;
+                                }
                                 if (methods.Length > 0)
                                 {
                                     bool wrongCount = methods.All(x => x.GetParameters().Count() != expressions.Count);
@@ -204,6 +224,7 @@ namespace OpenTap.Expressions
                                 thisArg
                             }.Concat(expressions).ToArray());
                         }
+                        useMethod: ;
 
                         try
                         {
@@ -277,6 +298,15 @@ namespace OpenTap.Expressions
                         return Expression.Add(left, right);
                     if (op == Operators.Multiply)
                         return Expression.Multiply(left, right);
+                    if (op == Operators.Power)
+                    {
+                        if(left.Type != typeof(double))
+                            left = Expression.Convert(left, typeof(double));
+                        if(right.Type != typeof(double))
+                            right = Expression.Convert(right, typeof(double));
+                        
+                        return Expression.Power(left, right);
+                    }
                     if (op == Operators.Divide)
                         return Expression.Divide(left, right);
                     if (op == Operators.Subtract)
@@ -450,12 +480,7 @@ namespace OpenTap.Expressions
                     if (returnNode == null) returnNode = newNode;
                     else
                     {
-                        returnNode = new BinaryExpressionNode
-                        {
-                            Left = returnNode,
-                            Operator = Operators.StrCombine,
-                            Right = new ObjectNode(new String(read.ToArray()), true)
-                        };
+                        returnNode = new BinaryExpressionNode(returnNode, Operators.StrCombine, new ObjectNode(new String(read.ToArray()), true));
                     }
 
                     read.Clear();
@@ -474,13 +499,7 @@ namespace OpenTap.Expressions
                     }
                     str = str.Slice(1);
 
-
-                    returnNode = new BinaryExpressionNode
-                    {
-                        Left = returnNode,
-                        Operator = Operators.StrCombine,
-                        Right = node
-                    };
+                    returnNode = new BinaryExpressionNode(returnNode, Operators.StrCombine, node);
                     continue;
                 }
                 read.Add(str[0]);
@@ -492,12 +511,7 @@ namespace OpenTap.Expressions
                 if (returnNode == null) returnNode = newNode;
                 else
                 {
-                    returnNode = new BinaryExpressionNode
-                    {
-                        Left = returnNode,
-                        Operator = Operators.StrCombine,
-                        Right = new ObjectNode(new String(read.ToArray()), true)
-                    };
+                    returnNode = new BinaryExpressionNode(returnNode, Operators.StrCombine, new ObjectNode(new String(read.ToArray()), true));
                 }
             }
             return returnNode ?? new ObjectNode("", true);
@@ -548,9 +562,10 @@ namespace OpenTap.Expressions
         Result<AstNode> Parse(ref ReadOnlySpan<char> str, bool subExpression, bool stringSubExpression)
         {
             var expressionList = new List<AstNode>();
+            bool gotEnd = false;
 
             // Run through the span, parsing elements and adding them to the list.
-            while (str.Length > 0)
+            while (true)
             {
                 next:
                 // skip past the whitespace
@@ -558,7 +573,13 @@ namespace OpenTap.Expressions
 
                 // maybe we've read the last whitespace.
                 if (str.Length == 0)
+                {
+                    if (subExpression)
+                        return Result.Fail<AstNode>("Reached end of text but expected ')'.");
+                    if (stringSubExpression)
+                        return Result.Fail<AstNode>("Reached end of text but expected '}'.");
                     break;
+                }
                 if (str[0] == ',')
                 {
                     str = str.Slice(1);
@@ -593,21 +614,11 @@ namespace OpenTap.Expressions
                             case var r:
                                 return r;
                         }
-                        
-                        var expr = new BinaryExpressionNode
-                        {
-                            Left = objectNode,
-                            Operator = Operators.Call,
-                            Right = node
-                        };
+
+                        var expr = new BinaryExpressionNode(objectNode, Operators.Call, node);
                         if (!(node is BinaryExpressionNode b && b.Operator == Operators.Comma))
                         {
-                            expr.Right = new BinaryExpressionNode
-                            {
-                                Left = node,
-                                Operator = Operators.Comma,
-                                Right = null
-                            };
+                            expr = expr.WithRight(new BinaryExpressionNode(node, Operators.Comma, null));
                         }
                         expressionList[expressionList.Count - 1] = expr;
                         continue;
@@ -632,7 +643,8 @@ namespace OpenTap.Expressions
                 {
                     if (!subExpression)
                         return Result.Fail<AstNode>("Unexpected symbol ')'.");
-
+                    
+                    gotEnd = true;
                     // done with parsing a sub-expression.
                     str = str.Slice(1);
                     break;
@@ -719,6 +731,10 @@ namespace OpenTap.Expressions
 
                 return Result.Fail<AstNode>("Unable to parse code.");
             }
+            if (subExpression && gotEnd == false)
+            {
+                //return Result.Fail<AstNode>("Expected ).");
+            }
 
             // now the expression has turned into a list of identifiers and operators. 
             // e.g: [x, +, y, *, z, /, w]
@@ -744,14 +760,11 @@ namespace OpenTap.Expressions
                     return Result.Fail<AstNode>("Unable to parse sub-expression");
 
                 // insert it back in to the list as a combined group.
-                expressionList.Insert(index - 1, new BinaryExpressionNode
-                {
-                    Left = left,
-                    Operator = (OperatorNode)@operator,
-                    Right = right
-                });
-
+                expressionList.Insert(index - 1, new BinaryExpressionNode(left, (OperatorNode)@operator, right));
             }
+            
+            
+            
             if (expressionList.Count == 0)
                 return null;
             // now there should only be one element left. Return it.

@@ -10,6 +10,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using OpenTap.Expressions;
 
 namespace OpenTap
 {
@@ -2775,6 +2776,13 @@ namespace OpenTap
                 {
                     annotation.Add(new ReadOnlyMemberAnnotation());
                 }
+                if (annotation.Source is ITestStepParent step && ExpressionManager.HasExpression(step))
+                {
+                    // Insert it at the beginning. We want this update to be the last that happens when writing back
+                    // and that happens in reverse order.
+                    annotation.Insert(0, ExpressionUpdaterAnnotation.Instance);
+                }
+                    
             }
 
             if (reflect?.ReflectionInfo is TypeData csharpType)
@@ -2910,8 +2918,12 @@ namespace OpenTap
             if (reflect?.ReflectionInfo is ITypeData tp)
             {
                 if (tp.DescendsTo(typeof(ITestStep)))
+                {
                     annotation.Add(new StepNameStringValue(annotation, member: false));
-                
+                    
+
+                }
+
                 bool csharpPrimitive = tp is TypeData cst && (cst.Type.IsPrimitive || cst.Type == typeof(string));
                 if (tp.GetMembers().Any(x => x.HasAttribute<AnnotationIgnoreAttribute>() == false) && !csharpPrimitive)
                 {
