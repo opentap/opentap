@@ -15,7 +15,7 @@ namespace OpenTap.UnitTests
             var step = new DelayStep();
             ExpressionManager.SetExpression(step, TypeData.GetTypeData(step).GetMember(nameof(step.DelaySecs)), "1.0 + 2.0");
             var expr = ExpressionManager.GetExpression(step, TypeData.GetTypeData(step).GetMember(nameof(step.DelaySecs)));
-            Assert.AreEqual(expr, "1.0 + 2.0");
+            Assert.AreEqual("1.0 + 2.0", expr);
             ExpressionManager.Update(step);
             Assert.AreEqual(1.0 + 2.0, step.DelaySecs);
             step.DelaySecs = 0.0;

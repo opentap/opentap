@@ -2,7 +2,7 @@
 using System.Reflection;
 namespace OpenTap.Expressions
 {
-    class Operators
+    static class Operators
     {
         // operators are defined by a string and precedence.
         

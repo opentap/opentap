@@ -1,7 +1,7 @@
 ﻿namespace OpenTap.Expressions
 {
     /// <summary> Binary expressions AST node. This describes the application of a binary operator for example '*' in 5 * 4.</summary>
-    class BinaryExpressionNode : AstNode
+    sealed class BinaryExpressionNode : AstNode
     {
         /// <summary> Left side of the operation. </summary>
         public AstNode Left;
