@@ -1,11 +1,13 @@
 ﻿namespace OpenTap.Expressions
 {
+    /// <summary> An object node can contain a symbol, string or number. </summary>
     class ObjectNode : AstNode
     {
-        public string Data;
-        public bool IsString;
-        public ObjectNode(string data) => Data = data;
+        public readonly string Content;
+        
+        public readonly bool IsLiteralString;
+        public ObjectNode(string content, bool isLiteralString = false) => (Content, IsLiteralString) = (content, isLiteralString);
 
-        public override string ToString() => $"{Data}";
+        public override string ToString() => $"{Content}";
     }
 }

@@ -64,8 +64,8 @@ namespace OpenTap.UnitTests
         [TestCase("{true}", "True")]
         [TestCase("{false}", "False")]
         [TestCase("{abs(-1.0)}", "1")]
-        [TestCase("{isempty(\"\")}", "True")]
-        [TestCase("{isempty(\"asd\")}", "False")]
+        [TestCase("{empty(\"\")}", "True")]
+        [TestCase("{empty(\"asd\")}", "False")]
         public void StringExpressionBasicTest(string expression, string expectedResult)
         {
             var builder = new ExpressionCodeBuilder();
@@ -105,7 +105,7 @@ namespace OpenTap.UnitTests
         [TestCase("cos(2 * π)", 1.0)]
         [TestCase("sin(2 * π)", 0.0)]
         [TestCase("sin(π)", 0.0)]
-        [TestCase("isempty(\"\")", true)]
+        [TestCase("empty(\"\")", true)]
         [TestCase("1 * 2 * 3 * 4 * 5", 120)]
         [TestCase("(1 * 2 * 3 * 4 * 5) / 10", 12)]
         [TestCase("π", Math.PI)]
@@ -171,8 +171,8 @@ namespace OpenTap.UnitTests
             Assert.IsInstanceOf<ObjectNode>(b.Right);
             Assert.IsTrue(b.Operator == Operators.Addition);
 
-            Assert.AreEqual("Log Message", ((ObjectNode)b.Left).Data);
-            Assert.AreEqual("Log Message 2", ((ObjectNode)b.Right).Data);
+            Assert.AreEqual("Log Message", ((ObjectNode)b.Left).Content);
+            Assert.AreEqual("Log Message 2", ((ObjectNode)b.Right).Content);
 
         }
 

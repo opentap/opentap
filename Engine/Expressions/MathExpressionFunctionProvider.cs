@@ -8,7 +8,7 @@ namespace OpenTap.Expressions
     {
         class Extra
         {
-            public static bool isempty(string str) => string.IsNullOrEmpty(str);
+            public static bool empty(string str) => string.IsNullOrEmpty(str);
             public static double sin(double v) => Math.Sin(v);
             public static double cos(double v) => Math.Cos(v);
             public static double tan(double v) => Math.Tan(v);

@@ -372,6 +372,7 @@ namespace OpenTap
         
         internal void AfterRun(ITestStep step)
         {
+            // load member data for results.
             List<IMemberData> resultMembers = null;
             List<IMemberData> primitiveMembers = null;
             foreach (var member in TypeData.GetTypeData(step).GetMembers())

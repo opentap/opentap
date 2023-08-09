@@ -5,9 +5,12 @@ using System.Linq;
 using System.Linq.Expressions;
 namespace OpenTap.Expressions
 {
+    
+    /// <summary> Immutable class that contains information about parameters. </summary>
     class ParameterData
     {
-        public ImmutableDictionary<string,ParameterExpression> Lookup { get; }
+        
+        public ImmutableDictionary<string, ParameterExpression> Lookup { get; }
         public ImmutableArray<ParameterExpression> Parameters { get; }
         public ParameterData(ImmutableDictionary<string,ParameterExpression> lookup, ImmutableArray<ParameterExpression> parameters)
         {
@@ -22,7 +25,7 @@ namespace OpenTap.Expressions
             
         public static ParameterData GetParameters(object obj)
         {
-            var members = GetMembers(obj);
+            var members = GetParameterMembers(obj);
             var parameters = new List<ParameterExpression>();
             var lookup = new Dictionary<string, ParameterExpression>();
             foreach (var member in members)
@@ -41,13 +44,20 @@ namespace OpenTap.Expressions
             return new ParameterData(lookup.ToImmutableDictionary(), parameters.ToImmutableArray());
         }            
         
-        internal static ImmutableArray<IMemberData> GetMembers(object obj)
+        internal static ImmutableArray<IMemberData> GetParameterMembers(object obj)
         {
             var members = ImmutableArray<IMemberData>.Empty;
-            GetMembers(obj, ref members);
+            UpdateParameterMembers(obj, ref members);
             return members;
         }
-        public static bool GetMembers(object obj, ref ImmutableArray<IMemberData> array)
+        
+        /// <summary>
+        /// Updates array and returns true if the list compared to the referenced array.
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <param name="array"></param>
+        /// <returns>True if the list has been updated. </returns>
+        internal static bool UpdateParameterMembers(object obj, ref ImmutableArray<IMemberData> array)
         {
             var newArray = TypeData.GetTypeData(obj).GetMembers()
                 .Where(mem => mem.Readable && mem.IsBrowsable() && (mem.HasAttribute<SettingsIgnoreAttribute>() == false) && (mem.HasAttribute<AnnotationIgnoreAttribute>() == false))
@@ -58,12 +68,13 @@ namespace OpenTap.Expressions
             return true;
         }
         
+        /// <summary> Finds all the used symbol of an abstract syntax tree. </summary>
         public ImmutableHashSet<string> GetUsedParameters(AstNode ast)
         {
             switch (ast)
             {
                 case ObjectNode obj:
-                    if (Lookup.TryGetValue(obj.Data, out var expr))
+                    if (!obj.IsLiteralString && Lookup.TryGetValue(obj.Content, out var expr))
                         return ImmutableHashSet<string>.Empty.Add(expr.Name);
                     return ImmutableHashSet<string>.Empty;
                 case OperatorNode _:

@@ -4,7 +4,7 @@ namespace OpenTap.Expressions
 {
     class Operators
     {
-        // operators are defined by a string an precedence.
+        // operators are defined by a string and precedence.
         
         public static readonly OperatorNode Addition = new OperatorNode("+", 3);
         public static readonly OperatorNode Divide = new OperatorNode("/", 4);

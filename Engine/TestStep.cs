@@ -927,7 +927,7 @@ namespace OpenTap
             planRun.ThrottleResultPropagation();
             var previouslyExecutingTestStep = currentlyExecutingTestStep;
             currentlyExecutingTestStep = Step;
-            var stepPath = stepRun.TestStepPath;
+            
             //Raise an event prior to starting the actual run of the TestStep. 
             Step.OfferBreak(stepRun, true);
             if (stepRun.SuggestedNextStep != null) {
