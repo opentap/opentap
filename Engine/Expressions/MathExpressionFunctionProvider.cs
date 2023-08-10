@@ -32,8 +32,9 @@ namespace OpenTap.Expressions
             public static double exp(double x) => Math.Exp(x);
             
             
-            public static double Pi => π;
+            public static double pi => π;
             public static double π => Math.PI;
+            public static double e => Math.E;
             public static bool @false => false;
             public static bool @true => true;
         }
