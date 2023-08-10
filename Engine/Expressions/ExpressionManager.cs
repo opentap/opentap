@@ -286,7 +286,7 @@ namespace OpenTap.Expressions
                 return e.Message;
             }
         }
-        public static bool HasExpression(ITestStepParent step)
+        internal static bool HasExpression(ITestStepParent step)
         {
             var expressions = GetExpressionList(step, false);
             if (expressions == null || expressions.Count == 0) return false;
