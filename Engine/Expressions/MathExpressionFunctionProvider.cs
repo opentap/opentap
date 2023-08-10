@@ -9,8 +9,11 @@ namespace OpenTap.Expressions
         class Extra
         {
             public static bool empty(string str) => string.IsNullOrEmpty(str);
+            public static double number(string str) => double.Parse(str);
             public static double sin(double v) => Math.Sin(v);
+            public static double asin(double v) => Math.Asin(v);
             public static double cos(double v) => Math.Cos(v);
+            public static double acos(double v) => Math.Acos(v);
             public static double tan(double v) => Math.Tan(v);
             public static double atan(double v) => Math.Atan(v);
             public static double abs(double v) => Math.Abs(v);
