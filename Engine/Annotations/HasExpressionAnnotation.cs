@@ -8,17 +8,13 @@ namespace OpenTap
         public static ExpressionUpdaterAnnotation Instance { get; } = new ExpressionUpdaterAnnotation();
         public void Read(object source)
         {
-            if (source is ITestStepParent parent)
-            {
-                //ExpressionManager.Update(parent);
-            }
+            
         }
         public void Write(object source)
         {
+            // Force update expressions when a property is written.
             if (source is ITestStepParent parent)
-            {
                 ExpressionManager.Update(parent);
-            }
         }
     }
     class HasExpressionAnnotation : IIconAnnotation, IEnabledAnnotation, IInteractiveIconAnnotation, IExpressionAnnotation, IOwnedAnnotation, IErrorAnnotation

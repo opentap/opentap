@@ -170,7 +170,27 @@ namespace OpenTap.UnitTests
             }
             Assert.AreEqual(null, lmb.Error);
         }
-        
+
+        [TestCase("'3 * 4'", "3 * 4")]
+        [TestCase("   '3 * 4'   ", "3 * 4")]
+        [TestCase("'ASD'", "ASD")]
+        [TestCase("'A\"S\"D'", "A\"S\"D")]
+        [TestCase("'A''D'", "A'D")]
+        [TestCase("A''D", null)] // invalid operation (A '' D)
+        public void TestParseObjectNode(string expression, string expectedResult)
+        {
+            var builder = new ExpressionCodeBuilder();
+            var ast = builder.Parse(expression);
+            if (expectedResult == null)
+            {
+                Assert.IsFalse(ast.Ok);
+            }
+            else
+            {
+                Assert.AreEqual(expectedResult, ((ObjectNode)ast.Unwrap()).Content);
+            }
+
+        }
 
 
         [Test]
@@ -186,7 +206,40 @@ namespace OpenTap.UnitTests
 
             Assert.AreEqual("Log Message", ((ObjectNode)b.Left).Content);
             Assert.AreEqual("Log Message 2", ((ObjectNode)b.Right).Content);
+        }
 
+        class StepWithPropertyWithStrangeNames : TestStep
+        {
+            [Display("X * Y")]
+            public double X { get; set; } = -5.0;
+
+            [Display("X * Y + 2")]
+            public double Y { get; set; } = 3.0;
+
+            [Display("3 * 4")]
+            public double Z { get; set; } = 5.0;
+            
+            public double A { get; set; }
+            
+            public override void Run()
+            {
+                
+            }
+        }
+        
+        ///<summary> Test using some very confusing names, which are valid expressions themselves. </summary>
+        [TestCase("3 * 4", 12.0)]
+        [TestCase("'3 * 4'", 5.0)]
+        [TestCase("'X * Y'", -5.0)]
+        [TestCase("'X * Y + 2'", 3.0)]
+        [TestCase("'X * Y + 2' * 'X * Y'", -15.0)]
+        [TestCase("X * Y", -15.0)]
+        public void TestPropertyWithQuotedName(string expression, object result)
+        {
+            var step = new StepWithPropertyWithStrangeNames();
+            ExpressionManager.SetExpression(step, TypeData.GetTypeData(step).GetMember(nameof(step.A)), expression);
+            ExpressionManager.Update(step);
+            Assert.AreEqual((double)result, step.A);
         }
 
         [Test]

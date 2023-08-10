@@ -517,8 +517,7 @@ namespace OpenTap.Expressions
             return returnNode ?? new ObjectNode("", true);
         }
 
-
-        Result<AstNode> ParseString(ref ReadOnlySpan<char> str)
+        Result<ObjectNode> ParseDelimited(ref ReadOnlySpan<char> str, char delimiter, bool isLiteralString)
         {
             List<char> stringContent = new List<char>();
             var str2 = str.Slice(1);
@@ -526,13 +525,13 @@ namespace OpenTap.Expressions
             while (str2.Length > 0)
             {
                 if (str2.Length == 0)
-                    return Result.Fail<AstNode>("Invalid format for string.");
-                if (str2[0] == '"')
+                    return Result.Fail<ObjectNode>($"Expected '{delimiter}', got end of test.");
+                if (str2[0] == delimiter)
                 {
                     // escaped quote.
-                    if (str2.Length > 1 && str2[1] == '"')
+                    if (str2.Length > 1 && str2[1] == delimiter)
                     {
-                        stringContent.Add('"');
+                        stringContent.Add(delimiter);
                         str2 = str2.Slice(2);
                         continue;
                     }
@@ -543,9 +542,14 @@ namespace OpenTap.Expressions
             }
             str2 = str2.Slice(1);
             str = str2;
-            return new ObjectNode(new String(stringContent.ToArray()), true);
+            return new ObjectNode(new String(stringContent.ToArray()), isLiteralString);
         }
-
+        /// <summary> Parses a reqular string. </summary>
+        Result<ObjectNode> ParseString(ref ReadOnlySpan<char> str) => ParseDelimited(ref str, '\"', true);
+        
+        /// <summary> Parses a single quoted object. E.g a property named 'X * Y'. </summary>
+        Result<ObjectNode> ParseSingleQuotedObject(ref ReadOnlySpan<char> str) => ParseDelimited(ref str, '\'', false);
+        
         public Result<AstNode> Parse(string str)
         {
 
@@ -670,7 +674,17 @@ namespace OpenTap.Expressions
                 {
                     var ast = ParseString(ref str);
                     if (ast.Ok == false)
-                        return ast;
+                        return ast.FailAs<AstNode>();
+                    expressionList.Add(ast.Unwrap());
+                    continue;
+                }
+
+                // quoted object
+                if (str[0] == '\'')
+                {
+                    var ast = ParseSingleQuotedObject(ref str);
+                    if (ast.Ok == false)
+                        return ast.FailAs<AstNode>();
                     expressionList.Add(ast.Unwrap());
                     continue;
                 }

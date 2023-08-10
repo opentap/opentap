@@ -6,7 +6,7 @@ namespace OpenTap.Expressions
     readonly struct Result<T>
     {
         public static implicit operator Result<T>(T d) => Success(d);
-
+        
         /// <summary> If the result is an error, this value will be non-null. </summary>
         public string Error { get; }
         public T Value { get; }
@@ -30,6 +30,13 @@ namespace OpenTap.Expressions
         
         /// <summary> Continues the operation with another operation if the first went well. Otherwise it transforms the error into the new object. </summary>
         public Result<T2> Then<T2>(Func<T, Result<T2>> func) => Error == null ? func(Value) : Result.Fail<T2>(Error);
+        
+        /// <summary> Fails as a new object type. </summary>
+        public Result<T1> FailAs<T1>()
+        {
+            if (Ok) throw new Exception("Cannot transform value type, only errors.");
+            return Result.Fail<T1>(Error);
+        }
     }
     
     static class Result
