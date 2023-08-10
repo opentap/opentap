@@ -224,21 +224,23 @@ namespace OpenTap
         }
 
 
-        class AssignExpressionRequest : ValidatingObject, IDisplayAnnotation
+        [HelpLink("https://doc.opentap.io/Developer%20Guide/Test%20Step/#expressions")]
+        class ModifyExpressionRequest : ValidatingObject, IDisplayAnnotation
         {
-            public AssignExpressionRequest(IMemberData member, object targetObject, ITypeData targetType)
+            public ModifyExpressionRequest(IMemberData member, object targetObject, ITypeData targetType)
             {
-                Name = $"Define expression for {member.GetDisplayAttribute().Name}";
+                Name = $"Expression for {member.GetDisplayAttribute().Name}";
                 TargetObject = targetObject;
                 TargetType = targetType;
                 Rules.Add(() => string.IsNullOrWhiteSpace(ExprError), () => $"The expression '{Expression}' is not valid: {ExprError}", nameof(Expression));
             }
 
             [Layout(LayoutMode.FullRow)]
+            [Display("Expression", "Set the expression for setting.")]
             public string Expression { get; set; }
 
-            public string ExprError => Expression == "" ? null : ExpressionManager.ExpressionError(Expression, TargetObject, TargetType);
-
+            public string ExprError => ExpressionManager.ExpressionError(Expression, TargetObject, TargetType);
+            
             public ITypeData TargetType { get; }
 
             public object TargetObject { get; }
@@ -253,20 +255,25 @@ namespace OpenTap
             public bool Collapsed { get; }
         }
 
-        public bool CanAssignExpression => IsParameterized == false;
+        public bool CanSetExpression => IsParameterized == false && IsAnyOutputAssigned == false && IsReadOnly == false && (member.TypeDescriptor.IsNumeric() || member.TypeDescriptor.DescendsTo(typeof(string)));
         public bool CanModifyExpression => HasExpression;
 
         [Browsable(true)]
         [Display("Assign Expression", "Assign an expression to this property.")]
         [IconAnnotation(IconNames.AssignExpression)]
-        [EnabledIf(nameof(CanAssignExpression), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(CanSetExpression), true, HideIfDisabled = true)]
         [EnabledIf(nameof(CanModifyExpression), false, HideIfDisabled = true)]
         public void AssignExpression()
         {
-            var req = new AssignExpressionRequest(member, source[0], member.TypeDescriptor)
+            var req = new ModifyExpressionRequest(member, source[0], member.TypeDescriptor)
             {
                 Expression = ExpressionManager.GetExpression(source[0], member) ?? ""
             };
+            if (req.Expression == "")
+            {
+                if(member.TypeDescriptor.IsNumeric() || member.TypeDescriptor.DescendsTo(typeof(string)))
+                    req.Expression = member.GetValue(source[0]).ToString(); 
+            }
 
             UserInput.Request(req);
             if (req.Submit == OkCancel.Cancel) return;
@@ -283,13 +290,13 @@ namespace OpenTap
         }
 
         [Browsable(true)]
-        [Display("Modify Expression", "Modify an expression on this property.")]
+        [Display("Modify Expression", "Modify the expression on this property.")]
         [IconAnnotation(IconNames.ModifyExpression)]
         [EnabledIf(nameof(CanModifyExpression), true, HideIfDisabled = true)]
         public void ModifyExpression() => AssignExpression();
 
         [Browsable(true)]
-        [Display("Unassign Expression", "Unassigns an expression on this property.")]
+        [Display("Unassign Expression", "Unassign an expression from this property.")]
         [IconAnnotation(IconNames.ModifyExpression)]
         [EnabledIf(nameof(CanModifyExpression), true, HideIfDisabled = true)]
         public void RemoveExpression()

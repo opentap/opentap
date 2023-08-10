@@ -127,7 +127,7 @@ namespace OpenTap.Expressions
                 lookup = new ExpressionList();
                 ExpressionsMember.SetValue(step, lookup);
             }
-            if (string.IsNullOrEmpty(expression))
+            if (expression == null)
             {
                 lookup.Remove(member.Name);
                 return;
