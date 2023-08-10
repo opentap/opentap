@@ -461,9 +461,14 @@ Expressions provides users with the ability to use mathematical and functional e
 
 It uses basic mathematical syntax to express relationships between settings or to calculate values or manipulate strings.
 
-The true power of this feature comes in usage with the 'mixins' feature which provides ways to add new settings to a test step.
+For example, let's say we want to use time delay for exactly 10 minutes, we can configure Time Delay as the expression: ```10 * 60```, resulting the Time Delay having a value of 600 seconds.
 
-Take for instance the SCPI step, which provides a way to send SCPI commands to an instrument. Adding a 'Frequency' member and then an expression using that new setting gives us the possibility of inserting the frequency into the SCPI command. Then the step can be used with Sweep Step to sweep across frequencies.
+![TimeDelayExpression.png](TimeDelayExpression.png)
+
+For text based settings, expressions can be used to manipulate the text using a `{}` syntax. Take for example a SCPI step and set the expression to: `BANDwidth {2000 * 1000000 / 10}`.
+
+![ScpiCommandExpression.png](ScpiCommandExpression.png)
+
 
 ### Basic Syntax
 
