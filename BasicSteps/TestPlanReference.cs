@@ -74,6 +74,9 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
         
+        [Browsable(false)]
+        public string Hash { get; set; }
+        
         [AnnotationIgnore]
         public string Path => Filepath.Expand();
         
@@ -162,7 +165,7 @@ namespace OpenTap.Plugins.BasicSteps
                 {
                     if (evt.Source == "TestPlan" || evt.Source == "N/A")
                         if(evt.EventType != (int)LogEventType.Error)
-                        continue;
+                            continue;
                     forwardTo.AddEvent(evt);
                 }
             }
@@ -276,8 +279,19 @@ namespace OpenTap.Plugins.BasicSteps
 
                     loadedPlanPath = filepath.Text;
 
-                    TestPlan tp = (TestPlan)newSerializer.Deserialize(readXmlFile(refPlanPath), TypeData.FromType(typeof(TestPlan)), true, refPlanPath) ;
+                    var doc = readXmlFile(refPlanPath);
+                    TestPlan tp = (TestPlan)newSerializer.Deserialize(doc, TypeData.FromType(typeof(TestPlan)), true, refPlanPath) ;
                     plan = tp;
+
+                    using (var algo = System.Security.Cryptography.SHA1.Create())
+                    {
+                        using (var ms = new MemoryStream())
+                        {
+                            doc.Save(ms, SaveOptions.DisableFormatting);
+                            Hash = BitConverter.ToString(algo.ComputeHash(ms.ToArray()), 0, 8)
+                                .Replace("-", string.Empty);
+                        }
+                    }
 
                     ExternalParameters = TypeData.GetTypeData(tp).GetMembers().OfType<ParameterMemberData>().ToArray();
 

@@ -7,7 +7,7 @@ using OpenTap.Expressions;
 
 namespace OpenTap
 {
-    class TestStepMenuModel : IMenuModel, ITestStepMenuModel, IMenuModelState
+    class TestStepMenuModel : IMemberMenuModel, ITestStepMenuModel, IMenuModelState
     {
 
         public static TestStepMenuModel FromSource(IMemberData member, object source)
@@ -35,7 +35,7 @@ namespace OpenTap
 
         ITestStepParent[] ITestStepMenuModel.Source => source;
 
-        IMemberData ITestStepMenuModel.Member => member;
+        public IMemberData Member => member;
 
         public bool CanExecuteParameterize => ParameterManager.CanParameter(this) && (IsAnyOutputAssigned == false);
         
