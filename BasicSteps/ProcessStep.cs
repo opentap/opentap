@@ -27,6 +27,22 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 Rules.Add(() => !string.IsNullOrEmpty(Name), "Name must not be empty.", nameof(Name));
             }
+
+            public override bool Equals(object obj)
+            {
+                if (obj is EnvironmentVariable ev)
+                {
+                    return ev.Name == Name && ev.Value == Value;
+                }
+                return base.Equals(obj);
+            }
+
+            public override int GetHashCode()
+            {
+                var h1 = Name?.GetHashCode() ?? 0;
+                var h2 = Value?.GetHashCode() ?? 0;
+                return (((h1 + 742759321) * 1593213024) + h2) * 1079741372;
+            }
         }
 
         public override bool GeneratesOutput => WaitForEnd; 
