@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.ComponentModel;
 using System.Linq;
-using System.Reflection;
 
 namespace OpenTap
 {
@@ -31,12 +31,21 @@ namespace OpenTap
         /// Name of the property to enable. Must exactly match a name of a property in the current class. 
         /// </summary>
         public string PropertyName { get; }
+
         /// <summary>
         /// Value(s) the property must have for the item to be valid/enabled. If multiple values are specified, the item is enabled if just one value is equal. 
         /// If no values are specified, 'true' is the assumed value.
         /// </summary>
-        public IComparable[] PropertyValues { get; }
-
+        // note, IComparable is not for equality comparing. It is meant for sorting, hence it does not really matter here.
+        [EditorBrowsable(EditorBrowsableState.Advanced)]
+        [Obsolete("Use Values instead.")]
+        public IComparable[] PropertyValues => Values.OfType<IComparable>().ToArray();
+        
+        /// <summary>
+        /// Value(s) the property must have for the item to be valid/enabled. If multiple values are specified, the item is enabled if just one value is equal. 
+        /// If no values are specified, 'true' is the assumed value.
+        /// </summary>
+        public object[] Values { get; }
         /// <summary>
         /// Identifies settings, properties, or methods that are only valid/enabled when another property or setting has a certain value. 
         /// </summary>
@@ -47,9 +56,9 @@ namespace OpenTap
         {
             PropertyName = propertyName;
             if ((propertyValues == null) || (propertyValues.Length <= 0))
-                PropertyValues = new IComparable[] { true };
+                Values = new object[] {true};
             else
-                PropertyValues = propertyValues.Cast<IComparable>().ToArray();
+                Values = propertyValues;
         }
 
         /// <summary> Returns true if a member is enabled. </summary>
@@ -113,7 +122,7 @@ namespace OpenTap
             if (at.Flags)
             {
                 int value = (int)Convert.ChangeType(depValue, TypeCode.Int32);
-                foreach (var flag in at.PropertyValues)
+                foreach (var flag in at.Values)
                 {
                     int flagCode = (int) Convert.ChangeType(flag, TypeCode.Int32);
                     if ((value & flagCode) != 0)
@@ -125,9 +134,9 @@ namespace OpenTap
             if (depValue is IEnabled e)
                 depValue = e.IsEnabled;
 
-            foreach (var val in at.PropertyValues)
+            foreach (var val in at.Values)
             {
-                if (object.Equals(val, depValue))
+                if (Equals(val, depValue))
                     return true;
             }
             

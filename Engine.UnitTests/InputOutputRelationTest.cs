@@ -204,11 +204,11 @@ namespace OpenTap.UnitTests
                 var menu = AnnotationCollection.Annotate(step2).GetMember(nameof(OutputInput.Input))
                     .Get<MenuAnnotation>();
                 request.SelectName = "Step 1";
-                menu.MenuItems.First(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.AssignOutput).Get<IMethodAnnotation>().Invoke();
+                menu.MenuItems.First(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.AssignOutput).Get<IMethodAnnotation>().Invoke();
                 request.SelectName = "Step 2";
                 menu = AnnotationCollection.Annotate(step3).GetMember(nameof(OutputInput.Input))
                     .Get<MenuAnnotation>();
-                menu.MenuItems.First(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.AssignOutput).Get<IMethodAnnotation>().Invoke();
+                menu.MenuItems.First(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.AssignOutput).Get<IMethodAnnotation>().Invoke();
 
                 var input1 = AnnotationCollection.Annotate(step3).GetMember(nameof(OutputInput.Input)).GetAll<IIconAnnotation>()
                     .FirstOrDefault(x => x.IconName == IconNames.Input);
@@ -319,7 +319,7 @@ namespace OpenTap.UnitTests
             var sweep = new SweepLoop();
             plan.ChildTestSteps.Add(sweep);
             var menu = AnnotationCollection.Annotate(sweep).GetMember(nameof(SweepLoop.SweepParameters)).Get<MenuAnnotation>();
-            var member = menu.MenuItems.FirstOrDefault(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.AssignOutput);
+            var member = menu.MenuItems.FirstOrDefault(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.AssignOutput);
             member.Get<IMethodAnnotation>().Invoke(); // this previously failed with an null reference exception.
         }
 

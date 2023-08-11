@@ -44,14 +44,14 @@ namespace OpenTap
         
         public static T GetBaseType<T>(this ITypeData type) where T: ITypeData
         {
-            var typeit = type;
-            while (typeit != null)
+            var typeIterator = type;
+            while (typeIterator != null)
             {
-                if (typeit is TypeData)
+                if (typeIterator is TypeData)
                     break;
-                if (typeit is T t2)
+                if (typeIterator is T t2)
                     return t2;
-                typeit = typeit.BaseType;
+                typeIterator = typeIterator.BaseType;
             }
             return default;
         }
@@ -1927,6 +1927,21 @@ namespace OpenTap
                 yield return y;
             }
         }
+
+        public static IEnumerable<(T1, T2)> WithContext<T1, T2>(this IEnumerable<T1> src, Func<T2> ctx)
+        {
+            var e = src.GetEnumerator();
+            if (e.MoveNext() == false)
+                    yield break;
+            var ctxValue = ctx();
+            while (true)
+            {
+                yield return (e.Current, ctxValue);
+                if (e.MoveNext() == false)
+                    break;
+            }
+        } 
+        
     }
 
     internal class Time

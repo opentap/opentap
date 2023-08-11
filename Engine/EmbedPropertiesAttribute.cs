@@ -189,7 +189,7 @@ namespace OpenTap
                     }
                     else if (item is EnabledIfAttribute enabled)
                     {
-                        list[i] = new EnabledIfAttribute(prefix_name + "." + enabled.PropertyName, enabled.PropertyValues)
+                        list[i] = new EnabledIfAttribute(prefix_name + "." + enabled.PropertyName, enabled.Values)
                             {HideIfDisabled = enabled.HideIfDisabled};
                     }
                 }
@@ -202,15 +202,19 @@ namespace OpenTap
 
     class EmbeddedTypeData : ITypeData
     {
+        IMemberData[] listedEmbeddedMembers;
+        
         public ITypeData BaseType { get; set; }
         public bool CanCreateInstance => BaseType.CanCreateInstance;
         public IEnumerable<object> Attributes => BaseType.Attributes;
         public string Name => EmbeddedTypeDataProvider.exp +  BaseType.Name;
         public object CreateInstance(object[] arguments) => BaseType.CreateInstance(arguments);
         public IMemberData GetMember(string name) => GetMembers().FirstOrDefault(x => x.Name == name);
-        IMemberData[] allMembers;
-        public IEnumerable<IMemberData> GetMembers() => allMembers ?? (allMembers = BaseType.GetMembers().Where(x => x.HasAttribute<EmbedPropertiesAttribute>() == false).Concat(ListEmbeddedMembers()).ToArray());
-        public override int GetHashCode() => BaseType.GetHashCode() ^ typeof(EmbeddedTypeData).GetHashCode();
+        
+        public IEnumerable<IMemberData> GetMembers() => BaseType.GetMembers()
+            .Where(x => x.HasAttribute<EmbedPropertiesAttribute>() == false)
+            .Concat(listedEmbeddedMembers ??= ListEmbeddedMembers());
+        public override int GetHashCode() => BaseType.GetHashCode() * 86966513 + typeof(EmbeddedTypeData).GetHashCode();
         public override bool Equals(object obj)
         {
             if(obj is EmbeddedTypeData e)
@@ -219,7 +223,7 @@ namespace OpenTap
         }
 
         [ThreadStatic]
-        static HashSet<ITypeData> currentlyListing = null;
+        static HashSet<ITypeData> currentlyListing;
 
         public IEnumerable<IMemberData> GetEmbeddingMembers()
         {
@@ -232,13 +236,13 @@ namespace OpenTap
             }
         }
         
-        internal IList<IMemberData> ListEmbeddedMembers()
+        internal IMemberData[] ListEmbeddedMembers()
         {
             if (currentlyListing == null)
                 currentlyListing = new HashSet<ITypeData>();            
             List<IMemberData> embeddedMembers = new List<IMemberData>();
             if (currentlyListing.Contains(this))
-                return embeddedMembers;
+                return embeddedMembers.ToArray();
             currentlyListing.Add(this);
 
             foreach (var member in BaseType.GetMembers())
@@ -267,12 +271,12 @@ namespace OpenTap
 
     class EmbeddedTypeDataProvider : IStackedTypeDataProvider
     {
-        public double Priority => 10;
+        public double Priority => 10.5;
         internal const string exp = "emb:";
         static ConditionalWeakTable<ITypeData, EmbeddedTypeData> internedValues = new ConditionalWeakTable<ITypeData, EmbeddedTypeData>();
-        static EmbeddedTypeData getOrCreate(ITypeData e) =>  internedValues.GetValue(e, t => new EmbeddedTypeData{BaseType =  e});
+        static EmbeddedTypeData getOrCreate(ITypeData e) => internedValues.GetValue(e, t => t.GetMembers().Any(m => m.HasAttribute<EmbedPropertiesAttribute>()) ? new EmbeddedTypeData{BaseType =  e} : null);
 
-        public static EmbeddedTypeData FromTypeData(ITypeData basetype) => getOrCreate(basetype);
+        public static EmbeddedTypeData FromTypeData(ITypeData baseType) => getOrCreate(baseType);
 
         public ITypeData GetTypeData(string identifier, TypeDataProviderStack stack)
         {
@@ -280,21 +284,58 @@ namespace OpenTap
             {
                 var tp = TypeData.GetTypeData(identifier.Substring(exp.Length));
                 if (tp != null)
-                    return FromTypeData(tp);
+                {
+                    var embTp = FromTypeData(tp);
+                    if (embTp != null)
+                        return embTp;
+                    return tp;
+                }
             }
             return null;
         }
 
+        class KeyBox
+        {
+            public int Key { get; set; } 
+        }  
+        // this key table is used to keep track of the members of dynamic types.
+        // if the key has changed, then it means that the cache should be invalidated.
+        static ConditionalWeakTable<object, KeyBox> keyTable = new ConditionalWeakTable<object, KeyBox>();   
+
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
+            var typeData = stack.GetTypeData(obj);
+            var nowKey = DynamicMember.GetTypeDataKey(obj);
+            bool reload = false;
+            if (nowKey != 0)
+            {
+                if (keyTable.TryGetValue(obj, out var currentKey))
+                {
+                    if (currentKey.Key != nowKey)
+                    {
+                        reload = true;
+                        currentKey.Key = nowKey;
+                    }
+                }
+                else
+                {
+                    keyTable.Add(obj, new KeyBox(){Key = nowKey});
+                    reload = true;
+                }
+            }
+            if (reload)
+            {
+                internedValues.Remove(typeData);
+            }
+            if (internedValues.TryGetValue(typeData, out EmbeddedTypeData val))
+            {
+                return val ?? typeData;
+            }
             
-            var typedata = stack.GetTypeData(obj);
-            if (internedValues.TryGetValue(typedata, out EmbeddedTypeData val))
-                return val ?? typedata;
-            if (typedata.GetMembers().Any(x => x.HasAttribute<EmbedPropertiesAttribute>()))
-                return FromTypeData(typedata);
+            if (typeData.GetMembers().Any(x => x.HasAttribute<EmbedPropertiesAttribute>()))
+                return FromTypeData(typeData);
             // assign null to the value.
-            return internedValues.GetValue(typedata, t => null) ?? typedata;
+            return internedValues.GetValue(typeData, t => null) ?? typeData;
         }
     }
 }

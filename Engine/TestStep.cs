@@ -341,16 +341,6 @@ namespace OpenTap
                         }
                     });
                 }
-
-                if (propType.DescendsTo(typeof(IValidatingObject)))
-                {
-                    // load forwarded validation rules.
-                    loaders.Add(x =>
-                    {
-                        var step = (IValidatingObject)x;
-                        step.Rules.Forward(prop);
-                    });
-                }
             }
             if (loaders.Count == 0) return Array.Empty<Action<object>>();
             return loaders.ToArray();
@@ -567,13 +557,23 @@ namespace OpenTap
 
         ImmutableDictionary<IMemberData, object> dynamicMemberValues = ImmutableDictionary<IMemberData, object>.Empty;
 
-        
+
+        int IDynamicMemberValue.TypeDataKey { get; set; }
         bool IDynamicMemberValue.TryGetValue(IMemberData member, out object obj)
         {
             return dynamicMemberValues.TryGetValue(member, out obj);
         }
 
-        void IDynamicMemberValue.SetValue(IMemberData member, object value) => dynamicMemberValues = dynamicMemberValues.SetItem(member, value);
+        void IDynamicMemberValue.SetValue(IMemberData member, object value)
+        {
+            while (true)
+            {
+                var initValue = dynamicMemberValues;
+                var newValue = dynamicMemberValues.SetItem(member, value);
+                if (initValue == Interlocked.CompareExchange(ref dynamicMemberValues, newValue, initValue))
+                    break;
+            }
+        }
     }
 
     /// <summary>
@@ -925,14 +925,8 @@ namespace OpenTap
                 TestStepPath = Step.GetStepPath()
             };
 
-            bool skipStep;
-            
-            {   // evaluate pre run mixins
-                var preRunMixin = Step.GetMixin<ITestStepPreRunMixin>();
-                var arg = new TestStepPreRunEventArgs(Step);
-                preRunMixin.ForEach(x => x.OnPreRun(arg));
-                skipStep = arg.SkipStep;
-            }
+            // evaluate pre run mixins
+            bool skipStep = TestStepPreRunEvent.Invoke(Step).SkipStep;
 
             planRun.ThrottleResultPropagation();
 
@@ -972,9 +966,7 @@ namespace OpenTap
                         stepRun.AfterRun(Step);
                         
                         { // evaluate post run mixins
-                            var args = new TestStepPostRunEventArgs(Step);
-                            var postRunMixin = Step.GetMixin<ITestStepPostRunMixin>();
-                            postRunMixin.ForEach(x => x.OnPostRun(args));
+                            TestStepPostRunEvent.Invoke(Step);
                         }
 
                         TapThread.ThrowIfAborted();
@@ -1081,12 +1073,8 @@ namespace OpenTap
             return stepRun;
         }
 
-        internal static IEnumerable<T> GetMixin<T>(this ITapPlugin obj) where T: IMixin
-        {
-            var emb = TypeData.GetTypeData(obj).GetBaseType<EmbeddedTypeData>();
-            return emb.GetEmbeddingMembers().Where(x => x.TypeDescriptor.DescendsTo(typeof(T)))
-                .Select(x => x.GetValue(obj)).OfType<T>();
-        }
+
+
         
         internal static void CheckResources(this ITestStep Step)
         {

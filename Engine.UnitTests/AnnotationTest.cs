@@ -763,7 +763,7 @@ namespace OpenTap.UnitTests
                     p1.Parameterize(plan, sequence, p1.Name);
 
                     var editParameterIcon = AnnotationCollection.Annotate(sequence).GetMember(p1.Name).Get<MenuAnnotation>().MenuItems
-                        .First(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.EditParameter);
+                        .First(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
                     
                     menuInterface.SelectedMode = MenuTestUserInterface.Mode.TestPlan | MenuTestUserInterface.Mode.Error;
                     menuInterface.SelectName = p1.Name;
