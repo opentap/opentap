@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
+using OpenTap.Expressions;
 
 namespace OpenTap
 {
@@ -203,6 +205,108 @@ namespace OpenTap
         }
 
         bool IMenuModelState.Enabled => (source?.Length ?? 0) > 0;
+
+        public enum OkCancel
+        {
+            OK,
+            Cancel
+        }
+
+        public bool HasExpression
+        {
+            get
+            {
+                foreach (var src in source)
+                    if (ExpressionManager.GetExpression(src, member) != null)
+                        return true;
+                return false;
+            }
+        }
+
+
+        [HelpLink("https://doc.opentap.io/Developer%20Guide/Test%20Step/#expressions")]
+        class ModifyExpressionRequest : ValidatingObject, IDisplayAnnotation
+        {
+            public ModifyExpressionRequest(IMemberData member, object targetObject, ITypeData targetType)
+            {
+                Name = $"Expression for {member.GetDisplayAttribute().Name}";
+                TargetObject = targetObject;
+                TargetType = targetType;
+                Rules.Add(() => string.IsNullOrWhiteSpace(ExprError), () => $"The expression '{Expression}' is not valid: {ExprError}", nameof(Expression));
+            }
+
+            [Layout(LayoutMode.FullRow)]
+            [Display("Expression", "Set the expression for setting.")]
+            public string Expression { get; set; }
+
+            public string ExprError => ExpressionManager.ExpressionError(Expression, TargetObject, TargetType);
+            
+            public ITypeData TargetType { get; }
+
+            public object TargetObject { get; }
+
+            [Submit]
+            [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+            public OkCancel Submit { get; set; }
+            public string Description { get; } = "";
+            public string[] Group { get; } = Array.Empty<string>();
+            public string Name { get; }
+            public double Order { get; }
+            public bool Collapsed { get; }
+        }
+
+        public bool CanSetExpression => IsParameterized == false && IsAnyOutputAssigned == false && IsReadOnly == false && (member.TypeDescriptor.IsNumeric() || member.TypeDescriptor.DescendsTo(typeof(string)));
+        public bool CanModifyExpression => HasExpression;
+
+        [Browsable(true)]
+        [Display("Assign Expression", "Assign an expression to this property.")]
+        [IconAnnotation(IconNames.AssignExpression)]
+        [EnabledIf(nameof(CanSetExpression), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(CanModifyExpression), false, HideIfDisabled = true)]
+        public void AssignExpression()
+        {
+            var req = new ModifyExpressionRequest(member, source[0], member.TypeDescriptor)
+            {
+                Expression = ExpressionManager.GetExpression(source[0], member) ?? ""
+            };
+            if (req.Expression == "")
+            {
+                if(member.TypeDescriptor.IsNumeric() || member.TypeDescriptor.DescendsTo(typeof(string)))
+                    req.Expression = member.GetValue(source[0]).ToString(); 
+            }
+
+            UserInput.Request(req);
+            if (req.Submit == OkCancel.Cancel) return;
+            foreach (var step in source)
+            {
+                var actual_member = TypeData.GetTypeData(step).GetMember(member.Name);
+
+                // if the source length is 1, the member should always be the same as the actual member.
+                Debug.Assert(source.Length != 1 || actual_member == member);
+                ExpressionManager.SetExpression(step, actual_member, req.Expression);
+                ExpressionManager.Update(step);
+            }
+            
+        }
+
+        [Browsable(true)]
+        [Display("Modify Expression", "Modify the expression on this property.")]
+        [IconAnnotation(IconNames.ModifyExpression)]
+        [EnabledIf(nameof(CanModifyExpression), true, HideIfDisabled = true)]
+        public void ModifyExpression() => AssignExpression();
+
+        [Browsable(true)]
+        [Display("Unassign Expression", "Unassign an expression from this property.")]
+        [IconAnnotation(IconNames.ModifyExpression)]
+        [EnabledIf(nameof(CanModifyExpression), true, HideIfDisabled = true)]
+        public void RemoveExpression()
+        {
+            foreach (var step in source)
+            {
+                var actual_member = TypeData.GetTypeData(step).GetMember(member.Name);
+                ExpressionManager.SetExpression(step, actual_member, null);
+            }
+        }
     }
     
     class TestStepMenuItemsModelFactory : IMenuModelFactory

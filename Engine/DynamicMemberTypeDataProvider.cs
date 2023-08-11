@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
+using OpenTap.Expressions;
 
 namespace OpenTap
 {
@@ -241,6 +242,16 @@ namespace OpenTap
             }
 
             return false;
+        }
+
+        /// <summary>  Call on a ParameterMemberData to remove itself from its parent type. </summary>
+        internal void Remove()
+        {
+            while (ParameterizedMembers.Any())
+            {
+                var fst = ParameterizedMembers.First();
+                fst.Member.Unparameterize(this, fst.Source);
+            }
         }
 
         bool IDynamicMemberData.IsDisposed => source == null;
@@ -682,10 +693,10 @@ namespace OpenTap
                 Attributes = new Attribute[]{new XmlIgnoreAttribute(), new AnnotationIgnoreAttribute()},
                 Writable = true,
                 Readable = true,
-                TypeDescriptor = TypeData.FromType(typeof((Object,IMemberData)[]))
+                TypeDescriptor = TypeData.FromType(typeof(IDictionary<string,IMemberData>))
             };
 
-            static readonly IMemberData[] extraTestStepMembers = {BreakConditions, DynamicMembers, ChildItemVisibility.VisibilityProperty};
+            static readonly IMemberData[] extraTestStepMembers = {BreakConditions, DynamicMembers, ChildItemVisibility.VisibilityProperty, ExpressionManager.ExpressionsMember};
             static readonly IMemberData[] extraTestPlanMembers = {TestPlanBreakConditions, DynamicMembers};
             
             readonly IMemberData[] members;
@@ -740,6 +751,7 @@ namespace OpenTap
                 if (name == BreakConditions.Name) return BreakConditions;
                 if (name == DynamicMembers.Name) return DynamicMembers;
                 if (name == descriptionMember.Name) return descriptionMember; 
+                if (name == ExpressionManager.ExpressionsMember.Name) return ExpressionManager.ExpressionsMember; 
                 return innerType.GetMember(name);
             }
 

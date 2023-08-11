@@ -1,0 +1,8 @@
+﻿namespace OpenTap.Expressions
+{
+    /// <summary> Abstract Syntax Tree Node. This is the output of the expression parser. </summary>
+    abstract class AstNode
+    {
+            
+    }
+}
