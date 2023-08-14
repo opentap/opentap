@@ -36,11 +36,11 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(DebugWith)' == 'TUI'">
-    <OpenTapPackageReference Include="TUI" version="1.0.0"/>
+    <OpenTapPackageReference Include="TUI" version="1"/>
   </ItemGroup>
 
   <ItemGroup Condition="'$(DebugWith)' == 'Editor'">
-    <OpenTapPackageReference Include="Editor" version="9.19.1"/>
+    <OpenTapPackageReference Include="Editor" version="9"/>
   </ItemGroup>
 
 </Project>
