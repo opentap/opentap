@@ -7,7 +7,8 @@ using OpenTap;
 
 namespace ProjectName
 {
-    [Display("MyDUT")]
+    [Display("MyDUT", Description: "Insert a description here", Group: "ProjectName")]
+
     public class MyDUT : Dut
     {
         #region Settings
@@ -20,7 +21,7 @@ namespace ProjectName
         public MyDUT()
         {
             // ToDo: Set default values for properties / settings.
-            Name = "ProjectNameDUT";
+            Name = "MyDUT";
         }
 
         /// <summary>

@@ -7,7 +7,7 @@ using OpenTap;
 
 namespace ProjectName
 {
-    [Display("MyResultListener")]
+    [Display("MyResultListener", Description: "Insert a description here", Group: "ProjectName")]
     public class MyResultListener : ResultListener
     {
         #region Settings
@@ -16,7 +16,7 @@ namespace ProjectName
         public MyResultListener()
         {
             // ToDo: Set default values for properties / settings.
-            Name = "ProjectNameResultListener";
+            Name = "MyResultListener";
         }
 
         public override void Open()
