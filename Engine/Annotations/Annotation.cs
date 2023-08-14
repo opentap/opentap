@@ -495,22 +495,17 @@ namespace OpenTap
                 var unit = annotation.Get<UnitAttribute>();
                 if (annotation.Get<IReflectionAnnotation>()?.ReflectionInfo is TypeData cst)
                 {
-                    object number = null;
-                    try
-                    {
-                        number = new NumberFormatter(CultureInfo.CurrentCulture, unit).ParseNumber(value, NullableType ?? cst.Type);
-                    }
-                    catch (Exception e)
-                    {
-                        currentError = e.Message;
-                    }
-
-                    if (number != null)
+                    
+                    var result = new NumberFormatter(CultureInfo.CurrentCulture, unit).TryParseNumber(value, NullableType ?? cst.Type);
+                    if (result.Ok)
                     {
                         var val = annotation.Get<IObjectValueAnnotation>();
-                        val.Value = number;
+                        val.Value = result.Value;        
                     }
-
+                    else
+                    {
+                        currentError = result.Error;    
+                    }
                 }
                 else
                 {

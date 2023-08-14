@@ -9,6 +9,7 @@ using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using OpenTap.Expressions;
 
 namespace OpenTap
 {
@@ -46,7 +47,7 @@ namespace OpenTap
             Start = start;
             Stop = stop;
             Step = (Stop - Start).Sign();
-            CheckRange();
+            Error();
         }
 
         public Range(BigFloat start, BigFloat stop, BigFloat step)
@@ -54,14 +55,15 @@ namespace OpenTap
             Start = start;
             Stop = stop;
             Step = step;
-            CheckRange();
+            Error();
         }
 
-        public void CheckRange()
+        public string Error()
         {
-            if (Stop == Start) return; // Math.Sign(0) == 0.
+            if (Stop == Start) return null; // Math.Sign(0) == 0.
             if (Step == 0 || (Stop - Start).Sign() != Step.Sign())
-                throw new Exception("Infinite range not supported.");
+                return "Infinite range not supported.";
+            return null;
         }
 
         IEnumerator IEnumerable.GetEnumerator()
@@ -78,7 +80,7 @@ namespace OpenTap
         {
             conv = conv ?? ((v) => v.ToString());
 
-            if (Step == new BigFloat(1.0) || Step == new BigFloat(-1.0))
+            if (Step == BigFloat.From(1.0).Unwrap() || Step == BigFloat.From(-1.0).Unwrap())
             {
                 return string.Format("{0} : {1}", conv(Start), conv(Stop));
             }
@@ -210,17 +212,8 @@ namespace OpenTap
             else
                 return string.Format("{0}{3}{1}{2}", final_string, level, unit ?? "", space);
         }
-        static object parse(string str, string unit, string format, CultureInfo culture)
+        static Result<BigFloat> parse(string str, string unit, string format, CultureInfo culture)
         {
-            if (str == null)
-                return new ArgumentNullException("str");
-            if (unit == null)
-                return new ArgumentNullException("unit");
-            if (format == null)
-                return new ArgumentNullException("format");
-            if (culture == null)
-                return new ArgumentNullException("culture");
-
             str = str.Trim();
 
             bool IsHex =
@@ -240,7 +233,7 @@ namespace OpenTap
             str = str.TrimEnd();
             if (str.Length == 0)
             {
-                return new FormatException("Invalid format");
+                return Result.Fail<BigFloat>("Invalid format");
             }
 
             char prefix = str[str.Length - 1];
@@ -289,30 +282,31 @@ namespace OpenTap
                         continue;
                     else
                     {
-                        return new FormatException("Invalid binary format.");
+                        return Result.Fail<BigFloat>("Invalid binary format.");
                     }
                 }
                 return new BigFloat(v) * multiplier;
             }
             var r = BigFloat.Parse(str, culture);
-            if (r is BigFloat bf)
-                return bf * multiplier;
-            return r;
+            return r.Then<BigFloat>(x => x * multiplier);
         }
         public static BigFloat Parse(string str, string unit, string format, CultureInfo culture)
         {
             var result = parse(str, unit, format, culture);
-            if (result is BigFloat bf)
-                return bf;
-            else throw (Exception)result;
+            return result.Unwrap();
+        }
+
+        public static Result<BigFloat> ParseResult(string str, string unit, string format, CultureInfo culture)
+        {
+            return parse(str, unit, format, culture);
         }
 
         public static bool TryParse(string str, string unit, string format, CultureInfo culture, out BigFloat bf)
         {
             var result = parse(str, unit, format, culture);
-            if (result is BigFloat _bf)
+            if (result.Ok)
             {
-                bf = _bf;
+                bf = result.Value;
                 return true;
             }
             bf = default(BigFloat);
@@ -477,13 +471,9 @@ namespace OpenTap
             }
         }
 
-        const bool enableFeatureFractions = false;
-        BigFloat parseNumber(string trimmed)
+        Result<BigFloat> parseNumber(string trimmed)
         {
-            // support fractions e.g 1/3 disabled because its hard to convert back from 0.333333... to 1/3, so this gives problems with formatting.
-            if (enableFeatureFractions && trimmed.Contains('/'))
-                return trimmed.Split('/').Select(part => parseNumber(part.Trim())).Aggregate((x, y) => x * PreScaling / y);
-            return UnitFormatter.Parse(trimmed, Unit ?? "", Format, culture) * PreScaling;
+            return UnitFormatter.ParseResult(trimmed, Unit ?? "", Format, culture).Then<BigFloat>(x => x * PreScaling);
         }
 
         bool tryParseNumber(string trimmed, out BigFloat val)
@@ -524,26 +514,32 @@ namespace OpenTap
             return string.Format("{0} : {1} : {2}", parseBackNumber(rng.Start), parseBackNumber(rng.Step), parseBackNumber(rng.Stop));
         }
 
-        Range parseRange(string formatted)
+        Result<Range> parseRange(string formatted)
         {
             var parts = formatted.Split(':').Select(s => s.Trim());
-            var rangeitems = parts.Select(parseNumber).ToArray();
-            Range result = null;
-            if (rangeitems.Length == 3)
-            {
-                result = new Range(rangeitems[0], rangeitems[2], rangeitems[1]);
-            }
-            else
-            if (rangeitems.Length == 2)
-            {
-                result = new Range(rangeitems[0], rangeitems[1], PreScaling * (rangeitems[1] - rangeitems[0]).Sign());
-            }
-            else
-            {
-                throw new FormatException(string.Format("Unable to parse Range from {0}", formatted));
-            }
-            result.CheckRange();
-            return result;
+            return parts.Select(parseNumber)
+                .Extract().Then(rangeItems =>
+                {
+
+                    Range result = null;
+                    if (rangeItems.Length == 3)
+                    {
+                        result = new Range(rangeItems[0], rangeItems[2], rangeItems[1]);
+                    }
+                    else if (rangeItems.Length == 2)
+                    {
+                        result = new Range(rangeItems[0], rangeItems[1], PreScaling * (rangeItems[1] - rangeItems[0]).Sign());
+                    }
+                    else
+                    {
+                        return Result.Fail<Range>($"Unable to parse Range from {formatted}");
+                    }
+                    if (result.Error() is string err)
+                    {
+                        return Result.Fail<Range>(err);
+                    }
+                    return result;
+                });
         }
 
         /// <summary>
@@ -564,7 +560,7 @@ namespace OpenTap
                 var trimmed = split.Trim();
                 if (trimmed.Contains(':'))
                 {
-                    Range rng = parseRange(trimmed);
+                    Range rng = parseRange(trimmed).Unwrap();
                     parts.Add(rng);
                 }
                 else
@@ -572,11 +568,11 @@ namespace OpenTap
                     var result = parseNumber(trimmed);
                     if (parts.Count == 0 || parts[parts.Count - 1] is Range)
                     {
-                        parts.Add(new List<BigFloat> { result });
+                        parts.Add(new List<BigFloat> { result.Unwrap() });
                     }
                     else
                     {
-                        ((IList<BigFloat>)parts[parts.Count - 1]).Add(result);
+                        ((IList<BigFloat>)parts[parts.Count - 1]).Add(result.Unwrap());
                     }
                 }
             }
@@ -727,26 +723,31 @@ namespace OpenTap
             return parseBackNumber(BigFloat.Convert(value));
         }
 
+
+        internal Result<object> TryParseNumber(string str, Type t)
+        {
+            if (str == null) throw new ArgumentNullException("str");
+            if (t == null) throw new ArgumentNullException("t");
+            try
+            {
+
+                var r = parseNumber(str);
+                
+                return r.Then<object>(x => x.ConvertTo(t));
+            }
+            catch (OverflowException)
+            {
+                return Result.Fail<object>($"Unable to parse '{str}' to a {t.Name}");
+            }
+        }
+
         /// <summary>
         /// Parses a single number from a string.
         /// </summary>
         /// <param name="str"></param>
         /// <param name="t"></param>
         /// <returns></returns>
-        public object ParseNumber(string str, Type t)
-        {
-            if (str == null) throw new ArgumentNullException("str");
-            if (t == null) throw new ArgumentNullException("t");
-            try
-            {
-                
-                return parseNumber(str).ConvertTo(t);
-            }
-            catch (OverflowException)
-            {
-                throw new FormatException(string.Format("Unable to parse '{0}' to a {1}", str, t.Name));
-            }
-        }
+        public object ParseNumber(string str, Type t) => TryParseNumber(str, t).Unwrap();
 
         /// <summary>
         /// Try to parse a single number from a string.
