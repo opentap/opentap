@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Numerics;
 using System.Text;
+using OpenTap.Expressions;
 
 namespace OpenTap
 {
@@ -24,6 +25,7 @@ namespace OpenTap
         /// <param name="denominator"></param>
         public BigFloat(BigInteger nominator, BigInteger denominator)
         {
+            
             Numerator = nominator;
             Denominator = denominator;
             Normalize();
@@ -307,19 +309,8 @@ namespace OpenTap
         public int CompareTo(object obj)
         {
             if (obj == null)
-                throw new ArgumentNullException("obj");
-            switch (obj)
-            {
-                case double d: return CompareTo(new BigFloat(d));
-                case short d: return CompareTo(new BigFloat(d));
-                case int d: return CompareTo(new BigFloat(d));
-                case float d: return CompareTo(new BigFloat(d));
-                case decimal d: return CompareTo(new BigFloat(d));
-                case uint d: return CompareTo(new BigFloat(d));
-                case BigFloat d: return CompareTo(d);
-                default:
-                    throw new InvalidCastException(string.Format("Unable to compare BigFloat to {0}", obj.GetType()));
-            }
+                throw new ArgumentNullException(nameof(obj));
+            return CompareTo(From(obj).Unwrap());
         }
 
         /// <summary> Big float 1. </summary>
@@ -329,7 +320,7 @@ namespace OpenTap
         /// <param name="value"></param>
         /// <param name="format"></param>
         /// <returns></returns>
-        internal static object Parse(string value, IFormatProvider format = null)
+        internal static Result<BigFloat> Parse(string value, IFormatProvider format = null)
         {
             if (string.Equals(value, "infinity", StringComparison.InvariantCultureIgnoreCase))
                 return Infinity;
@@ -337,19 +328,7 @@ namespace OpenTap
                 return NegativeInfinity;
             if (string.Equals(value, "nan", StringComparison.InvariantCultureIgnoreCase))
                 return NaN;
-            if (value.Contains("/"))
-            {
-                // parse fractions: X/Y
-                var splitted = value.Split('/');
-                if (splitted.Length != 2)
-                {
-                    return new FormatException("value contains multiple '/'");
-                }
-                var numerator = BigInteger.Parse(splitted[0]);
-                var denominator = BigInteger.Parse(splitted[1]);
-                return new BigFloat(numerator, denominator);
-            }
-
+            
             var sep = getDigitSeparator(format);
             int index = 0;
             bool dotHit = false;
@@ -384,7 +363,7 @@ namespace OpenTap
                 if (char.IsWhiteSpace(chr)) continue;
                 if ((chr == '+') && exp) continue;
                 if (char.IsDigit(chr) == false)
-                    return new FormatException("Format not supported.");
+                    return Result.Fail<BigFloat>("Format not supported.");
                 if (dotHit)
                     denom *= 10;
                 int v = (chr - '0');
@@ -398,7 +377,7 @@ namespace OpenTap
                 {   // Extremely large numbers will cause the application to stall
                     // the biggest number in .NET is double.Infinty: 1.7976931348623157E+308
                     // so 1E+1000 is probably an ok max limit.
-                    throw new FormatException($"The value {value} is too huge or too precise to be presented as a number.");
+                    return Result.Fail<BigFloat>($"The value {value} is too huge or too precise to be presented as a number.");
                 }
 
                 var powerTerm = BigInteger.Pow(10, (int)nomerator);
@@ -428,95 +407,45 @@ namespace OpenTap
         {
             return ToString(formatProvider);
         }
-        static bool fastButImpreciseEnabled = false;
-        /// <summary> Creates a BigFloat. </summary>
-        /// <param name="value"></param>
-        public BigFloat(double value) : this(value.ToString("R", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)
-        {
-            if (fastButImpreciseEnabled)
-            { 
-                if (value == 0)
-                {
-                    Numerator = 0;
-                    Denominator = 1;
-                    return;
-                }
-                double tolerance = 1.0E-9;
-                double orig = value;
-                var bc = BigFloat.Zero;
-                BigInteger frac = BigInteger.One;
-                double frac2 = 1.0;
-                while (true)
-                {
-                    if (Math.Abs(value / orig) < tolerance)
-                        break;
-                    double a = Math.Round(value);
-                    value -= a;
-
-                    var fc = new BigFloat((BigInteger)a, frac);
-                    bc = bc + fc;
-                    frac2 *= 1000;
-                    value *= 1000.0;
-                    orig *= 1000.0;
-                    frac *= 1000;
-                }
-
-                this = bc.Normalize();
-            }
-        }
-
+        
         public BigFloat(BigInteger v):this(v, BigInteger.One)
         {
 
         }
-
-        public BigFloat(float value) : this(value.ToString("r", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture) { }
-
-        public BigFloat(decimal value) : this(value.ToString("F9", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)
+        public static Result<BigFloat> From(object value) => value switch
         {
-        }
-        public BigFloat(string value, IFormatProvider format = null)
-        {
-            var result = Parse(value, format);
-            if (result is BigFloat bf)
-            {
-                this = bf;
-            }
-            else throw (Exception)result;
-        }
+            BigFloat b => b,
+            double d => From(d),
+            short d => From(d),
+            int d => From(d),
+            float d => From(d),
+            decimal d => From(d),
+            uint d => From(d),
+            var _ => Result.Fail<BigFloat>("Unsupported type")
+        };
+        public static Result<BigFloat> From(double value) => Parse(value.ToString("R", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+        public static Result<BigFloat> From(float value) => Parse(value.ToString("r", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+        public static BigFloat From(long value) => new BigFloat(new BigInteger(value));
+        public static Result<BigFloat> From(decimal value) => Parse(value.ToString("F9", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+        public static Result<BigFloat> From(string strValue, IFormatProvider format = null) => Parse(strValue, format);
 
-        private bool IsNan { get { return (Denominator == 0) && (Numerator == 0); } }
-        private bool IsPosInf { get { return (Denominator == 0) && (Numerator == 1); } }
-        private bool IsNegInf { get { return (Denominator == 0) && (Numerator == -1); } }
+        private bool IsNan => (Denominator == 0) && (Numerator == 0);
+        private bool IsPosInf => (Denominator == 0) && (Numerator == 1);
+        private bool IsNegInf => (Denominator == 0) && (Numerator == -1);
 
         public BigFloat(int value) : this(value, 1) { }
         public BigFloat(uint value) : this(value, 1) { }
         public BigFloat(short value) : this(value, 1) { }
         public BigFloat(long value) : this(value, 1) { }
-        public static implicit operator BigFloat(double d)
-        {
-            return new BigFloat(d);
-        }
+        public static implicit operator BigFloat(double d)=> From(d).Unwrap();
 
-        public static implicit operator BigFloat(long d)
-        {
-            return new BigFloat(d, 1);
-        }
+        public static implicit operator BigFloat(long d)=>  From(d);
 
-        public static implicit operator BigFloat(int d)
-        {
-            return new BigFloat(d, 1);
-        }
+        public static implicit operator BigFloat(int d) =>  From(d);
         
-        public static explicit operator int(BigFloat d)
-        {
-            return (int)d.Rounded();
-        }
+        public static explicit operator int(BigFloat d) =>  (int)d.Rounded();
 
-        public static explicit operator double(BigFloat d)
-        {
-            return ((double)d.Numerator) / ((double)d.Denominator);
-        }
+        public static explicit operator double(BigFloat d) => ((double)d.Numerator) / ((double)d.Denominator);
 
         public static bool operator ==(BigFloat a, BigFloat b)
         {
@@ -732,13 +661,13 @@ namespace OpenTap
             switch (y)
             {
                 case BigFloat x: return x;
-                case double x: return new BigFloat(x);
-                case float x: return new BigFloat(x);
-                case decimal x: return new BigFloat(x);
-                case int x: return new BigFloat(x);
-                case long x: return new BigFloat(x);
-                case string x: return new BigFloat(x, prov);
-                default: return new BigFloat((long)System.Convert.ChangeType(y, typeof(long)));
+                case double x: return From(x).Unwrap();
+                case float x: return From(x).Unwrap();
+                case decimal x: return From(x).Unwrap();
+                case int x: return From(x);
+                case long x: return From(x);
+                case string x: return From(x, prov).Unwrap();
+                default: return From((long)System.Convert.ChangeType(y, typeof(long)));
             }
         }
 

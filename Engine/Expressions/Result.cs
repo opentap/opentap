@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 namespace OpenTap.Expressions
 {
     /// <summary>Data structure for storing the result of an operation. If the operation was success full the value can be used, otherwise the error can be accessed. </summary>
@@ -44,5 +46,19 @@ namespace OpenTap.Expressions
         public static Result<T> Success<T>(T value) => Result<T>.Success(value);
 
         public static Result<T> Fail<T>(string error) => Result<T>.Fail(error);
+        public static Result<T[]> Extract<T>(this IEnumerable<Result<T>> self)
+        {
+            List<T> x = new List<T>();
+            foreach (var elem in self)
+            {
+                if (!elem.Ok)
+                {
+                    return Fail<T[]>(elem.Error);
+                }
+                x.Add(elem.Value);
+            }
+            return x.ToArray();
+
+        } 
     }
 }

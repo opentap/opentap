@@ -18,6 +18,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using OpenTap.Expressions;
 
+
 namespace OpenTap
 {
     /// <summary>
@@ -340,16 +341,6 @@ namespace OpenTap
                         }
                     });
                 }
-
-                if (propType.DescendsTo(typeof(IValidatingObject)))
-                {
-                    // load forwarded validation rules.
-                    loaders.Add(x =>
-                    {
-                        var step = (IValidatingObject)x;
-                        step.Rules.Forward(prop);
-                    });
-                }
             }
             if (loaders.Count == 0) return Array.Empty<Action<object>>();
             return loaders.ToArray();
@@ -566,13 +557,23 @@ namespace OpenTap
 
         ImmutableDictionary<IMemberData, object> dynamicMemberValues = ImmutableDictionary<IMemberData, object>.Empty;
 
-        
+
+        int IDynamicMemberValue.TypeDataKey { get; set; }
         bool IDynamicMemberValue.TryGetValue(IMemberData member, out object obj)
         {
             return dynamicMemberValues.TryGetValue(member, out obj);
         }
 
-        void IDynamicMemberValue.SetValue(IMemberData member, object value) => dynamicMemberValues = dynamicMemberValues.SetItem(member, value);
+        void IDynamicMemberValue.SetValue(IMemberData member, object value)
+        {
+            while (true)
+            {
+                var initValue = dynamicMemberValues;
+                var newValue = dynamicMemberValues.SetItem(member, value);
+                if (initValue == Interlocked.CompareExchange(ref dynamicMemberValues, newValue, initValue))
+                    break;
+            }
+        }
     }
 
     /// <summary>
@@ -923,14 +924,19 @@ namespace OpenTap
             {
                 TestStepPath = Step.GetStepPath()
             };
-            
+
+            // evaluate pre run mixins
+            bool skipStep = TestStepPreRunEvent.Invoke(Step).SkipStep;
+
             planRun.ThrottleResultPropagation();
+
             var previouslyExecutingTestStep = currentlyExecutingTestStep;
             currentlyExecutingTestStep = Step;
             
             //Raise an event prior to starting the actual run of the TestStep. 
             Step.OfferBreak(stepRun, true);
-            if (stepRun.SuggestedNextStep != null) {
+            skipStep |= stepRun.SuggestedNextStep != null;
+            if (skipStep) {
                 Step.StepRun = null;
                 stepRun.Skipped = true;
                 return stepRun;    
@@ -959,6 +965,10 @@ namespace OpenTap
                         Step.Run();
                         stepRun.AfterRun(Step);
                         
+                        { // evaluate post run mixins
+                            TestStepPostRunEvent.Invoke(Step);
+                        }
+
                         TapThread.ThrowIfAborted();
                     }
                     finally
@@ -1063,6 +1073,9 @@ namespace OpenTap
             return stepRun;
         }
 
+
+
+        
         internal static void CheckResources(this ITestStep Step)
         {
             // collect null members into a set. Any null member here is an error.

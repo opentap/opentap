@@ -42,6 +42,20 @@ namespace OpenTap
             return false;
         }
         
+        public static T GetBaseType<T>(this ITypeData type) where T: ITypeData
+        {
+            var typeIterator = type;
+            while (typeIterator != null)
+            {
+                if (typeIterator is TypeData)
+                    break;
+                if (typeIterator is T t2)
+                    return t2;
+                typeIterator = typeIterator.BaseType;
+            }
+            return default;
+        }
+        
         /// <summary> Really fast direct descendant test. This checks for reference equality of the type or a base type, and 'baseType'.
         /// Given these constraints are met, this can be 6x faster than DescendsTo, but should only be used in special cases. </summary>
         public static bool DirectInheritsFrom(this ITypeData type, ITypeData baseType)
@@ -1913,6 +1927,21 @@ namespace OpenTap
                 yield return y;
             }
         }
+
+        public static IEnumerable<(T1, T2)> WithContext<T1, T2>(this IEnumerable<T1> src, Func<T2> ctx)
+        {
+            var e = src.GetEnumerator();
+            if (e.MoveNext() == false)
+                    yield break;
+            var ctxValue = ctx();
+            while (true)
+            {
+                yield return (e.Current, ctxValue);
+                if (e.MoveNext() == false)
+                    break;
+            }
+        } 
+        
     }
 
     internal class Time

@@ -571,7 +571,7 @@ namespace OpenTap.UnitTests
                 var a = AnnotationCollection.Annotate(s)
                     .GetMember(nameof(step1.A))
                     .Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
-                        x.Get<IconAnnotationAttribute>().IconName == IconNames.ParameterizeOnTestPlan);
+                        x.Get<IconAnnotationAttribute>()?.IconName == IconNames.ParameterizeOnTestPlan);
                 var enabled = a.Get<IEnabledAnnotation>().IsEnabled;
                 if (s == step1)
                 {
@@ -604,7 +604,7 @@ namespace OpenTap.UnitTests
                 var a = AnnotationCollection.Annotate(s)
                     .GetMember(nameof(s.SweepValues))
                     .Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
-                        x.Get<IconAnnotationAttribute>().IconName == IconNames.ParameterizeOnTestPlan);
+                        x.Get<IconAnnotationAttribute>()?.IconName == IconNames.ParameterizeOnTestPlan);
                 var enabled = a.Get<IEnabledAnnotation>().IsEnabled;
                 if (s == step1)
                 {

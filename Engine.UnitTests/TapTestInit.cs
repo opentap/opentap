@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using NUnit.Framework;
 using System;
+using System.Globalization;
 using System.Reflection;
 
 namespace OpenTap.Engine.UnitTests
@@ -15,6 +16,9 @@ namespace OpenTap.Engine.UnitTests
         [OneTimeSetUp]
         public static void AssemblyInit()
         {
+            
+            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             EngineSettings.LoadWorkingDirectory(System.IO.Path.GetDirectoryName(typeof(TestStep).Assembly.Location));
             PluginManager.SearchAsync().Wait();
             SessionLogs.Initialize(string.Format("OpenTap.Engine.UnitTests {0}.TapLog", DateTime.Now.ToString("HH-mm-ss.fff")));

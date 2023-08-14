@@ -483,6 +483,7 @@ namespace OpenTap
         static Task SystemInfoTask;
         private static void LogStartupInfo()
         {
+            TapThread.Sleep(200);
             foreach (var td in TypeData.GetDerivedTypes<IStartupInfo>().Where(td => td.CanCreateInstance))
             {
                 IStartupInfo si = null;
