@@ -91,11 +91,13 @@ namespace OpenTap
                                 var rule = new DynamicRule(() =>
                                 {
                                     var src = (IValidatingObject)member.OwnerMember.GetValue(this);
+                                    if (src == null) return false;
                                     var err = src[member.InnerMember.Name];
                                     return string.IsNullOrEmpty(err);
                                 }, member.Name, () =>
                                 {
                                     var src = (IValidatingObject)member.OwnerMember.GetValue(this);
+                                    if (src == null) return "Instance is null";
                                     return src[member.InnerMember.Name];
                                 });
                                 Rules.Add(rule);

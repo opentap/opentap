@@ -24,10 +24,7 @@ namespace OpenTap.Plugins
                         Serializer.Deserialize(elem, mixin =>
                         {
                             var mixin2 = (IMixinBuilder) mixin;
-                            var member = mixin2.ToDynamicMember(targetType);
-                            DynamicMember.AddDynamicMember(targetObject, member);
-                            
-                            member.SetValue(targetObject, member.DefaultValue ?? (member.TypeDescriptor.CanCreateInstance ? member.TypeDescriptor.CreateInstance() : null));
+                            MixinFactory.LoadMixin(targetObject, mixin2);
 
                         }, TypeData.FromType(typeof(IMixinBuilder)));
                     }

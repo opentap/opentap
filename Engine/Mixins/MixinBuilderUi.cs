@@ -3,17 +3,28 @@ using System.Linq;
 
 namespace OpenTap
 {
-    [Display("Select Mixin to add", Description: "Menu for adding or modifying a mixin.")]
+    [Display("Configure Mixin", Description: "Menu for adding or modifying a mixin.")]
     internal class MixinBuilderUi
     {
-        public class TypeDescriber
+        public class TypeDescriber : IDisplayAnnotation
         {
             public override string ToString() => Name;
+            public string Description { get; }
+            public string[] Group { get; }
             public string Name { get; }
+            public double Order { get; }
+            public bool Collapsed
+            {
+                get;
+            }
             public TypeDescriber(ITypeData type)
             {
                 var display = type.GetDisplayAttribute();
                 Name = display.Name;
+                Description = display.Description;
+                Group = display.Group;
+                Order = display.Order;
+                Collapsed = display.Collapsed;
             }
         }
         

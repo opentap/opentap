@@ -61,6 +61,37 @@ namespace OpenTap
                 Values = propertyValues;
         }
 
+        internal virtual (bool enabled, bool hidden) IsEnabled(object instance, ITypeData instanceType, out IMemberData dependentProp)
+        {
+            bool newEnabled = true;
+            dependentProp = instanceType.GetMember(PropertyName);
+
+            if (dependentProp == null)
+            {
+                // We cannot be sure that the step developer has used this attribute correctly
+                // (could just be a typo in the (weakly typed) property name), thus we need to 
+                // provide a good error message that leads the developer to where the error is.
+                log.Warning("Could not find property '{0}' on '{1}'. EnabledIfAttribute can only refer to properties of the same class as the property it is decorating.", PropertyName, instanceType.Name);
+                return (false, false);
+            }
+
+            var depValue = dependentProp.GetValue(instance);
+                
+            try
+            {
+                newEnabled = calcEnabled(this, depValue);
+            }
+            catch (ArgumentException)
+            {
+                // CompareTo throws ArgumentException when obj is not the same type as this instance.
+                newEnabled = false;
+            }
+            bool hidden = false;
+            if (HideIfDisabled)
+                hidden = !newEnabled;
+            return (newEnabled, hidden);
+        }
+
         /// <summary> Returns true if a member is enabled. </summary>
         public static bool IsEnabled(IMemberData property, object instance,
             out IMemberData dependentProp, out IComparable dependentValue, out bool hidden)
@@ -77,34 +108,11 @@ namespace OpenTap
             bool enabled = true;
             foreach (var at in dependencyAttrs)
             {
-                bool newEnabled = true;
-                dependentProp = instanceType.GetMember(at.PropertyName);
-
-                if (dependentProp == null)
-                {
-                    // We cannot be sure that the step developer has used this attribute correctly
-                    // (could just be a typo in the (weakly typed) property name), thus we need to 
-                    // provide a good error message that leads the developer to where the error is.
-                    log.Warning("Could not find property '{0}' on '{1}'. EnabledIfAttribute can only refer to properties of the same class as the property it is decorating.", at.PropertyName, instanceType.Name);
-                    enabled = false;
-                    return false;
-                }
-
-                var depValue = dependentProp.GetValue(instance);
+                var (enabled2, hidden2) = at.IsEnabled(instance, instanceType, out dependentProp);
                 
-                try
-                {
-                    newEnabled = calcEnabled(at, depValue);
-                }
-                catch (ArgumentException)
-                {
-                    // CompareTo throws ArgumentException when obj is not the same type as this instance.
-                    newEnabled = false;
-                }
-                if (!newEnabled && at.HideIfDisabled)
+                enabled &= enabled2;
+                if (hidden2)
                     hidden = true;
-                
-                enabled &= newEnabled;
             }
             return enabled;
         }

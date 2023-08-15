@@ -15,16 +15,48 @@ namespace OpenTap
             readonly Attribute[] attributes;
             readonly object src;
             readonly IMemberData member;
+            readonly object[] memberAttributes;
 
             public WrappedMemberInfo(object src, IMemberData member, params Attribute[] attributes)
             {
                 this.attributes = attributes;
                 this.src = src;
                 this.member = member;
-                Name = member.Name;
+                Name = member.DeclaringType.Name + "." + member.Name;
+
+                memberAttributes = member.Attributes.Select(TransformAttribute).ToArray();
+            }
+            class Enabled2 : EnabledIfAttribute
+            {
+                readonly EnabledIfAttribute wrapped;
+                readonly object source;
+
+                public Enabled2(object source, EnabledIfAttribute wrapped, string propertyName, params object[] propertyValues) : base(propertyName, propertyValues)
+                {
+                    this.wrapped = wrapped;
+                    this.source = source;
+                }
+
+                internal override (bool enabled, bool hidden) IsEnabled(object instance, ITypeData instanceType, out IMemberData dependentProp)
+                {
+                    return wrapped.IsEnabled(source, TypeData.GetTypeData(source), out dependentProp);
+                }
             }
 
-            public IEnumerable<object> Attributes => attributes.Concat(member.Attributes);
+            object TransformAttribute(object obj)
+            {
+                if (obj is EnabledIfAttribute e)
+                {
+                    return new Enabled2(src, e, e.PropertyName.Replace(member.Name, Name), e.Values);
+                }
+                if (obj is AvailableValuesAttribute av)
+                {
+                    return new AvailableValuesAttribute(member.DeclaringType.Name + "." + av.PropertyName);
+                }
+                return obj;
+            }
+            
+            public IEnumerable<object> Attributes => attributes.Concat(memberAttributes);
             public string Name { get; }
         
             public ITypeData DeclaringType => member.DeclaringType;

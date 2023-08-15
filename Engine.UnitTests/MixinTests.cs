@@ -23,8 +23,8 @@ namespace OpenTap.Engine.UnitTests
         public void EmbedRepeatMixinTest()
         {
             var step = new DelayStep();
-            DynamicMember.AddDynamicMember(step, new NumberMixinBuilder().ToDynamicMember(TypeData.GetTypeData(step)));
-            DynamicMember.AddDynamicMember(step, new RepeatMixinBuilder().ToDynamicMember(TypeData.GetTypeData(step)));
+            MixinFactory.LoadMixin(step, new NumberMixinBuilder());
+            MixinFactory.LoadMixin(step, new RepeatMixinBuilder());
             var td = TypeData.GetTypeData(step);
             var mem = td.GetMember("RepeatMixin.Count");
             Assert.IsNotNull(mem);
@@ -44,9 +44,16 @@ namespace OpenTap.Engine.UnitTests
 
             var nameMember = a.GetMember("OpenTap.NumberMixinBuilder.Name");
             var enabled = nameMember.Get<IAccessAnnotation>().IsVisible;
+            var optionMember = a.GetMember("OpenTap.NumberMixinBuilder.Options");
+            optionMember.SetValue("Unit");
+            var unitMember = a.GetMember("OpenTap.NumberMixinBuilder.Unit");
+            var unitEnabled = unitMember.Get<IEnabledAnnotation>().IsEnabled;
 
+            Assert.IsTrue(unitEnabled);
             Assert.IsTrue(enabled);
             Assert.IsFalse(enabled1);
+            
+            
         }
 
         [Test]
@@ -93,9 +100,8 @@ namespace OpenTap.Engine.UnitTests
         public void TestSerializeRepeatMixin()
         {
             var step = new SequenceStep();
-            var mem = new RepeatMixinBuilder().ToDynamicMember(TypeData.GetTypeData(step));
-            DynamicMember.AddDynamicMember(step, mem);
-            mem.SetValue(step, mem.TypeDescriptor.CreateInstance());
+            MixinFactory.LoadMixin(step, new RepeatMixinBuilder());
+            
             TypeData.GetTypeData(step).GetMember("RepeatMixin.Count").SetValue(step, 10);
             var xml = new TapSerializer().SerializeToString(step);
 
@@ -113,9 +119,7 @@ namespace OpenTap.Engine.UnitTests
             var logStep = new LogStep();
             var plan = new TestPlan();
             plan.ChildTestSteps.Add(logStep);
-            var mem = new RepeatMixinBuilder().ToDynamicMember(TypeData.GetTypeData(logStep));
-            DynamicMember.AddDynamicMember(logStep, mem);
-            mem.SetValue(logStep, mem.TypeDescriptor.CreateInstance());
+            MixinFactory.LoadMixin(logStep, new RepeatMixinBuilder());
             var countMember = TypeData.GetTypeData(logStep).GetMember("RepeatMixin.Count");
             countMember.SetValue(logStep, repeatCount);
 
@@ -132,9 +136,7 @@ namespace OpenTap.Engine.UnitTests
         public void TestRepeatMixinValidation()
         {
             var step = new SequenceStep();
-            var mem = new RepeatMixinBuilder().ToDynamicMember(TypeData.GetTypeData(step));
-            DynamicMember.AddDynamicMember(step, mem);
-            mem.SetValue(step, mem.TypeDescriptor.CreateInstance());
+            MixinFactory.LoadMixin(step, new RepeatMixinBuilder());
             TypeData.GetTypeData(step).GetMember("RepeatMixin.Count").SetValue(step, -10);
             var errors = step.Error;
 

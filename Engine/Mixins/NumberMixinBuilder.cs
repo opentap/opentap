@@ -8,8 +8,9 @@ namespace OpenTap
 
     [Display("Number", "Adds a number to an object.")]
     [MixinBuilder(typeof(object))]
-    class NumberMixinBuilder : IMixinBuilder
+    class NumberMixinBuilder : ValidatingObject, IMixinBuilder
     {
+        
         public string Name { get; set; } = "Number";
         
         [Flags]
@@ -44,7 +45,37 @@ namespace OpenTap
             if (Output)
                 yield return new OutputAttribute();
         }
-        
+
+        ITypeData targetType;
+        bool NameOK
+        {
+            get
+            {
+                if (targetType == null) return true;
+                var isSame = targetType.GetMember(Name) is MixinMemberData mb && mb.Source == this;
+                if (isSame) return true;
+                bool anyCollides = targetType.GetMembers().Any(x =>
+                {
+                    if (x is MixinMemberData mb && mb.Source == this)
+                    {
+                        return false;
+                    } 
+                    return x.GetDisplayAttribute().Name == Name;
+                });
+                return !anyCollides;
+            }   
+        } 
+        public void Initialize(ITypeData targetType)
+        {
+            Rules.Add(() => NameOK, "This name collides with one already defined.", "OpenTap.NumberMixinBuilder." + nameof(Name));
+            this.targetType = targetType;
+            if (Name == "Number")
+            {
+                int it = 1;
+                while(!NameOK)
+                    Name = $"Number{++it}";
+            }
+        }
         public MixinMemberData ToDynamicMember(ITypeData targetType)
         {
             return new MixinMemberData(this)
@@ -56,6 +87,10 @@ namespace OpenTap
                 DeclaringType = targetType,
                 Attributes = GetAttributes().ToArray()
             };
+        }
+        public IMixinBuilder Clone()
+        {
+            return (IMixinBuilder)this.MemberwiseClone();
         }
     }
 }

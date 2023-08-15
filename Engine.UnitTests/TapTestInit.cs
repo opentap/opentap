@@ -20,6 +20,9 @@ namespace OpenTap.Engine.UnitTests
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
             EngineSettings.LoadWorkingDirectory(System.IO.Path.GetDirectoryName(typeof(TestStep).Assembly.Location));
+            ThreadManager.IdleThreadCount = 0;
+            SessionLogs.SkipStartupInfo = true;
+            
             PluginManager.SearchAsync().Wait();
             SessionLogs.Initialize(string.Format("OpenTap.Engine.UnitTests {0}.TapLog", DateTime.Now.ToString("HH-mm-ss.fff")));
 

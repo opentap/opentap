@@ -20,9 +20,11 @@ namespace OpenTap
         /// <summary> If the member is readable. This should generally be true. </summary>
         public bool Readable { get; set; }
 
-        private ConditionalWeakTable<object, object> dict = new ConditionalWeakTable<object, object>();
+        readonly ConditionalWeakTable<object, object> dict = new ConditionalWeakTable<object, object>();
         
-        
+        readonly Func<object> make;
+
+
         /// <summary> Sets the value of the member. </summary>
         public void SetValue(object owner, object value)
         {
@@ -42,9 +44,20 @@ namespace OpenTap
         /// <summary> The object which was used to construct this. </summary>
         public IMixinBuilder Source { get; }
 
-        /// <summary> Creates a new instance of mixin member data. </summary>
-        public MixinMemberData(IMixinBuilder source)
+        public object NewInstance()
         {
+            if (DefaultValue != null) return DefaultValue;
+            if (TypeDescriptor.DescendsTo(typeof(string)))
+                return null;
+            if (make != null)
+                return make();
+            return TypeDescriptor.CreateInstance();
+        }
+
+        /// <summary> Creates a new instance of mixin member data. </summary>
+        public MixinMemberData(IMixinBuilder source, Func<object> make = null)
+        {
+            this.make = make;
             Writable = true;
             Readable = true;
             Source = source;

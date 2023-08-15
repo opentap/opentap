@@ -34,21 +34,21 @@ namespace OpenTap
             var selectedMixin = ui.SelectedItem;
             foreach (var src2 in Source)
             {
-                var mem = selectedMixin.ToDynamicMember(targetType);
+                var mem = selectedMixin.Clone().ToDynamicMember(targetType);
                 
                 var remMember = member;
                 var currentValue = remMember.GetValue(src2);
                 DynamicMember.RemoveDynamicMember(src2, remMember);
 
                 DynamicMember.AddDynamicMember(src2, mem);
+                
 
                 if (currentValue != null && TypeData.GetTypeData(currentValue).DescendsTo(mem.TypeDescriptor))
                 {
                     mem.SetValue(src2, currentValue);
-                } else if (mem.TypeDescriptor.CanCreateInstance)
+                } else
                 {
-                    var ins = mem.TypeDescriptor.CreateInstance();
-                    mem.SetValue(src2, ins);
+                    mem.SetValue(src2, mem.NewInstance());
                 }
             }
         }

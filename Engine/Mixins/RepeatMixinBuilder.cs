@@ -9,6 +9,23 @@ namespace OpenTap
     {
         [Display("Count", "The number of times to repeat running the test plan")]
         public int Count { get; set; } = 1;
+        
+        public enum RepeatBehavior
+        {
+            [Display("Fixed Count", "Repeat iteration a fixed number of times.")]
+            FixedCount,
+            [Display("While", "Repeat while the specified condition is met.")]
+            While,
+            [Display("Until", "Repeat until the specified condition is met.")]
+            Until
+        }
+        
+        [Display("Repeat")]
+        public RepeatBehavior Behavior { get; set; }
+        
+        [Display("Verdict Is")]
+        public Verdict VerdictIs { get; set; }
+        
 
         public RepeatMixin()
         {
@@ -45,6 +62,10 @@ namespace OpenTap
             yield return new DisplayAttribute("Repeat", Order: 19999);
         }
 
+        public void Initialize(ITypeData targetType)
+        {
+            
+        }
         public MixinMemberData ToDynamicMember(ITypeData targetType)
         {
             return new MixinMemberData(this)
@@ -57,5 +78,10 @@ namespace OpenTap
                 Name = "RepeatMixin"
             };
         }
+        public IMixinBuilder Clone()
+        {
+            return (IMixinBuilder)this.MemberwiseClone();
+        }
     }
+
 }

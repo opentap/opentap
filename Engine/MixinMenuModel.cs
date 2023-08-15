@@ -9,7 +9,7 @@ namespace OpenTap
 
         public MixinMenuModel(ITypeData type) => this.type = type;
 
-        [Display("Add Mixin", "Add a new mixin to the item.", Order: 2.0)]
+        [Display("Add Mixin", "Add a new mixin.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.AddMixin)]
         public void AddMixin()
@@ -25,17 +25,7 @@ namespace OpenTap
             var selectedMixin = ui.SelectedItem;
             
             foreach (var src in Source)
-            {
-                var mem = selectedMixin.ToDynamicMember(type);
-                
-                DynamicMember.AddDynamicMember(src, mem);
-
-                if (mem.TypeDescriptor.CanCreateInstance)
-                {
-                    var ins = mem.TypeDescriptor.CreateInstance();
-                    mem.SetValue(src, ins);
-                }
-            }
+                MixinFactory.LoadMixin(src, selectedMixin.Clone());
         }
     }
 }

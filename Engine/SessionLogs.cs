@@ -118,7 +118,7 @@ namespace OpenTap
             // a new method with a different signature.
             Initialize(logFileName, NoExclusiveWriteLock);
         }
-        
+        internal static bool SkipStartupInfo { get; set; }
         /// <summary>
         /// Initializes the logging.
         /// </summary>
@@ -139,7 +139,11 @@ namespace OpenTap
                     // this ensures that System.Runtime.InteropServices.RuntimeInformation.dll is loaded. (issue #4000).
                     .StartNew(PluginManager.Load)
                     // then get the system info on a separate thread (it takes ~1s)
-                    .ContinueWith(tsk => LogStartupInfo()); 
+                    .ContinueWith(tsk =>
+                    {
+                        if(!SkipStartupInfo)
+                            LogStartupInfo();
+                    }); 
 
                 AppDomain.CurrentDomain.ProcessExit += FlushOnExit;
                 AppDomain.CurrentDomain.UnhandledException += FlushOnExit;

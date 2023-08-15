@@ -18,8 +18,16 @@ namespace OpenTap
                 if (!types.Any(targetType.DescendsTo))
                     continue;
                 var instance = (IMixinBuilder)factoryType.CreateInstance();
+                instance.Initialize(targetType);
                 yield return instance;
             }
+        }
+        public static MixinMemberData LoadMixin(object target, IMixinBuilder mixin)
+        {
+            var mem = mixin.ToDynamicMember(TypeData.GetTypeData(target));
+            DynamicMember.AddDynamicMember(target, mem);
+            mem.SetValue(target, mem.NewInstance());
+            return mem;
         }
     }
 }
