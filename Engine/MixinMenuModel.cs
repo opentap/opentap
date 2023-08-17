@@ -7,10 +7,13 @@ namespace OpenTap
         readonly ITypeData type;
 
         public MixinMenuModel(ITypeData type) => this.type = type;
-
+        bool? showMixins;
+        public bool ShowMixins => showMixins ??= MixinFactory.GetMixinBuilders(type).Any();
+        
         [Display("Add Mixin", "Add a new mixin.", Order: 2.0)]
         [Browsable(true)]
         [IconAnnotation(IconNames.AddMixin)]
+        [EnabledIf(nameof(ShowMixins), true, HideIfDisabled = true)]
         public void AddMixin()
         {
             var builders = MixinFactory.GetMixinBuilders(type);

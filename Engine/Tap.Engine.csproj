@@ -27,7 +27,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Expressions" />
     <Folder Include="Properties\" />
     <None Include="../Installer/Assets/dotnet_library_license.txt">
        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

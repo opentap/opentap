@@ -44,7 +44,7 @@ namespace OpenTap
         /// <summary> The object which was used to construct this. </summary>
         public IMixinBuilder Source { get; }
 
-        public object NewInstance()
+        internal object NewInstance()
         {
             if (DefaultValue != null) return DefaultValue;
             if (TypeDescriptor.DescendsTo(typeof(string)))
