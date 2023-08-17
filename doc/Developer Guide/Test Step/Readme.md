@@ -459,6 +459,8 @@ Exceptions from user code are caught by OpenTAP. This could break the control fl
 ## Expressions
 Expressions provides users with the ability to use mathematical and functional expressions directly within the test step settings. This offers a more dynamic and flexible approach to configuring properties. The feature supports a range of mathematical functions, constants, and operators, as well as string manipulation.
 
+To use expressions you need the `Expressions` plugin which is normally included in the installation or can otherwise be downloaded from https://packages.opentap.io.
+
 It uses basic mathematical syntax to express relationships between settings or to calculate values or manipulate strings.
 
 For example, let's say we want to use time delay for exactly 10 minutes, we can configure Time Delay as the expression: ```10 * 60```, resulting the Time Delay having a value of 600 seconds.
