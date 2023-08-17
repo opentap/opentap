@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 namespace OpenTap
 {
@@ -28,6 +27,7 @@ namespace OpenTap
             }
             return arg;
         }
+        
     }
     
     class TestStepPreRunEvent : MixinEvent<ITestStepPreRunMixin>
@@ -45,6 +45,21 @@ namespace OpenTap
         public bool SkipStep { get; set; }
 
         internal TestStepPreRunEventArgs(ITestStep step) => TestStep = step;
+    }
+    
+    class TestPlanPreRunEvent : MixinEvent<ITestPlanPreRunMixin>
+    {
+        public static TestPlanPreRunEventArgs Invoke(TestPlan plan) => 
+            Invoke(plan, (v, arg) => v.OnPreRun(arg), new TestPlanPreRunEventArgs(plan));
+    }
+    
+    /// <summary> Event args for ITestStepPreRun mixin. </summary>
+    public sealed class TestPlanPreRunEventArgs
+    {
+        /// <summary> The step for which the event happens. </summary>
+        public TestPlan TestPlan { get; }
+
+        internal TestPlanPreRunEventArgs(TestPlan step) => TestPlan = step;
     }
     
     class TestStepPostRunEvent : MixinEvent<ITestStepPostRunMixin>
@@ -98,4 +113,10 @@ namespace OpenTap
         void OnPreOpen(ResourcePreOpenEventArgs eventArgs);
     }
 
+    /// <summary> This mixin is activated just before a step is executed. It allows modifying the test step run. </summary>
+    public interface ITestPlanPreRunMixin : IMixin
+    {
+        /// <summary> Invoked before test step run.</summary>
+        void OnPreRun(TestPlanPreRunEventArgs eventArgs);
+    }
 }

@@ -540,7 +540,8 @@ namespace OpenTap.Package
         public static void SaveManyTo(Stream stream, IEnumerable<PackageDef> packages)
         {
             using var writer = XmlWriter.Create(stream);
-            using (TypeData.WithTypeDataCache()) ;
+            using var _ = TypeData.WithTypeDataCache();
+            
             writer.WriteStartDocument();
             writer.WriteStartElement("ArrayOfPackages");
             // Write fragments because we manually insert the start and end of the document.

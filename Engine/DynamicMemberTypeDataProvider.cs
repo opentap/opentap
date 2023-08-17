@@ -6,7 +6,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
-using OpenTap.Expressions;
+
 
 namespace OpenTap
 {
@@ -288,7 +288,7 @@ namespace OpenTap
     }
 
     /// <summary> Dynamic Member</summary>
-    class DynamicMember : IMemberData
+    public class DynamicMember : IMemberData
     {
         /// <summary> Attributes </summary>
         public virtual IEnumerable<object> Attributes { get; set; } = Array.Empty<object>();
@@ -306,7 +306,7 @@ namespace OpenTap
         /// <summary> The default value of the member. </summary>
         public object DefaultValue { get; set; }
 
-        readonly ConditionalWeakTable<object, object> dict = new ConditionalWeakTable<object, object>();
+        readonly ConditionalWeakTable<object, object> valueLookup = new ConditionalWeakTable<object, object>();
 
         /// <summary>
         /// Creates an instance of the dynamic member.
@@ -319,7 +319,7 @@ namespace OpenTap
         /// <param name="base"></param>
         public DynamicMember(DynamicMember @base)
         {
-            dict = @base.dict;
+            valueLookup = @base.valueLookup;
         }
 
 
@@ -331,9 +331,9 @@ namespace OpenTap
                 dmv.SetValue(this, value);
                 return;
             }
-            dict.Remove(owner);
+            valueLookup.Remove(owner);
             if (Equals(value, DefaultValue) == false)
-                dict.Add(owner, value);
+                valueLookup.Add(owner, value);
         }
 
         /// <summary> Gets the value of the member. </summary>
@@ -346,7 +346,7 @@ namespace OpenTap
                 return DefaultValue;
             }
 
-            if (dict.TryGetValue(owner, out object value))
+            if (valueLookup.TryGetValue(owner, out object value))
                 return value ?? DefaultValue;
             return DefaultValue;
         }
@@ -377,7 +377,7 @@ namespace OpenTap
         }
 
         /// <summary> Adds a dynamic member to the object. </summary>
-        internal static void AddDynamicMember(object target, IMemberData member)
+        public static void AddDynamicMember(object target, IMemberData member)
         {
             var members = (ImmutableDictionary<string, IMemberData>)DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
             var newMembers = members.SetItem(member.Name, member);
@@ -386,7 +386,7 @@ namespace OpenTap
         }
 
         /// <summary> Removes a dynamic member to the object. </summary>
-        internal static void RemoveDynamicMember(object target, IMemberData member)
+        public static void RemoveDynamicMember(object target, IMemberData member)
         {
             var members = (ImmutableDictionary<string, IMemberData>)DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
             DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, members.Remove(member.Name));
@@ -743,8 +743,7 @@ namespace OpenTap
 
             static readonly IMemberData[] extraTestStepMembers =
             {
-                BreakConditions, DynamicMembers, ChildItemVisibility.VisibilityProperty
-            , ExpressionManager.ExpressionsMember};
+                BreakConditions, DynamicMembers, ChildItemVisibility.VisibilityProperty};
             static readonly IMemberData[] extraTestPlanMembers =
             {
                 TestPlanBreakConditions, DynamicMembers
@@ -765,7 +764,9 @@ namespace OpenTap
                 else
                     return othersMembers;
                 var d = DescriptionMember(innerType);
-                members = members.Append(d).ToArray();
+                var additional2 = dynamicMembersLookup.GetValue().Where(x => innerType.DescendsTo(x.DeclaringType)).OfType<IMemberData>();
+                members = members.Append(d).Concat(additional2).ToArray();
+                
                 return members;
             }
 
@@ -773,6 +774,15 @@ namespace OpenTap
             static readonly ConditionalWeakTable<ITypeData, IMemberData[]> memberMemorizer =
                 new ConditionalWeakTable<ITypeData, IMemberData[]>();
             static IMemberData[] GetMembers(ITypeData innerType) => memberMemorizer.GetValue(innerType, GetMembersRaw);
+            
+            static readonly Cached<IMemberData[]> dynamicMembersLookup = new Cached<IMemberData[]>(PluginManager.CacheState, () =>
+            {
+                return TypeData.GetDerivedTypes<IDynamicMemberProvider>()
+                    .Where(x => x.CanCreateInstance)
+                    .Select(x => x.CreateInstanceSafe())
+                    .OfType<IDynamicMemberProvider>()
+                    .SelectMany(x => x.GetDynamicMembers()).ToArray();
+            });
 
 
             readonly IMemberData descriptionMember;
@@ -806,7 +816,7 @@ namespace OpenTap
             {
                 if (name == BreakConditions.Name) return BreakConditions;
                 if (name == DynamicMembers.Name) return DynamicMembers;
-                if (name == descriptionMember?.Name) return descriptionMember;if (name == ExpressionManager.ExpressionsMember.Name) return ExpressionManager.ExpressionsMember; 
+                if (name == descriptionMember?.Name) return descriptionMember; 
                 return innerType.GetMember(name);
             }
 
@@ -849,15 +859,13 @@ namespace OpenTap
 
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
-
-            {
-                var subtype = stack.GetTypeData(obj);
-                var result = getStepTypeData(subtype);
-                if (TestStepTypeData.DynamicMembers.GetValue(obj) is ImmutableDictionary<string, IMemberData> obj2 && obj2.Count != 0)
-                    return dict2.GetValue(obj, o => new DynamicTestStepTypeData(result, o));
-                if (obj is ITestStepParent)
-                    return result;
-            }
+            var subtype = stack.GetTypeData(obj);
+            var result = getStepTypeData(subtype);
+            if (TestStepTypeData.DynamicMembers.GetValue(obj) is ImmutableDictionary<string, IMemberData> obj2 && obj2.Count != 0)
+                return dict2.GetValue(obj, o => new DynamicTestStepTypeData(result, o));
+            if (obj is ITestStepParent)
+                return result;
+            
             return null;
         }
         public double Priority => 10;
@@ -875,4 +883,5 @@ namespace OpenTap
         void OnTypeChanged();
         int TypeDataKey { get; }
     }
+
 }

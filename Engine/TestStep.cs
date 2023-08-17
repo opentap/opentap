@@ -16,7 +16,6 @@ using System.Threading.Tasks;
 using System.Threading;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
-using OpenTap.Expressions;
 
 
 namespace OpenTap
@@ -919,7 +918,7 @@ namespace OpenTap
                 throw new Exception("Test step not enabled."); // Do not run step if it has been disabled
             
             InputOutputRelation.UpdateInputs(Step);
-            ExpressionManager.Update(Step);
+            
             var stepRun = Step.StepRun = new TestStepRun(Step, parentRun, attachedParameters)
             {
                 TestStepPath = Step.GetStepPath()
@@ -1094,7 +1093,7 @@ namespace OpenTap
 
         // this dictionary may be accessed by multiple threads, so it is best to use ConcurrentDictionary.
         static readonly Cache<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]> 
-            membersLookup = new Cache<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]>(() => PluginManager.ChangeID);
+            membersLookup = new Cache<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]>(() => PluginManager.CacheState);
 
         static (IMemberData, bool hasEnabledAttribute)[] GetSettingsLookup(TypeData targetType, ITypeData sourceType)
         {

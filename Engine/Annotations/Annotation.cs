@@ -10,7 +10,6 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using OpenTap.Expressions;
 
 namespace OpenTap
 {
@@ -2776,12 +2775,7 @@ namespace OpenTap
                 {
                     annotation.Add(new ReadOnlyMemberAnnotation());
                 }
-                if (annotation.Source is ITestStepParent step && ExpressionManager.HasExpression(step))
-                {
-                    // Insert it at the beginning. We want this update to be the last that happens when writing back
-                    // and that happens in reverse order.
-                    annotation.Insert(0, ExpressionUpdaterAnnotation.Instance);
-                }
+                
                     
             }
 
@@ -2909,7 +2903,7 @@ namespace OpenTap
                 }
                 
                 if (mem2.DeclaringType.DescendsTo(typeof(ITestStepParent)))
-                    annotation.Add(new MenuAnnotation(mem2, annotation.ParentAnnotation?.Get<ObjectValueAnnotation>()?.ReflectionInfo ?? reflect.ReflectionInfo));
+                    annotation.Add(new MenuAnnotation(mem2, mem2.DeclaringType));
 
                 if (mem2.Name == nameof(ParameterManager.NamingQuestion.Settings) && mem2.DeclaringType.DescendsTo(TypeData.FromType(typeof(ParameterManager.NamingQuestion))))
                     annotation.Add(new ParameterManager.SettingsName(annotation));

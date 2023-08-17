@@ -928,18 +928,18 @@ namespace OpenTap
         /// Returns the element for which selector returns the max value.
         /// if IEnumerable is empty, it returns default(T) multiplier gives the direction to search.
         /// </summary>
-        static T FindExtreme<T, C>(this IEnumerable<T> ienumerable, Func<T, C> selector, int multiplier) where C : IComparable
+        static T FindExtreme<T, C>(this IEnumerable<T> sequence, Func<T, C> selector, int multiplier) where C : IComparable
         {
-            if (!ienumerable.Any())
-            {
+            var e = sequence.GetEnumerator();
+            if (!e.MoveNext())
                 return default(T);
-            }
-            T selected = ienumerable.FirstOrDefault();
+            
+            T selected = e.Current;
             C max = selector(selected);
 
-
-            foreach (T obj in ienumerable.Skip(1))
+            while(e.MoveNext())
             {
+                var obj = e.Current;
                 C comparable = selector(obj);
                 if (comparable.CompareTo(max) * multiplier > 0)
                 {
@@ -950,15 +950,8 @@ namespace OpenTap
 
             return selected;
         }
-        /// <summary>
-        /// Returns the element for which selector returns the max value.
-        /// if IEnumerable is empty, it returns default(T).
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <typeparam name="C"></typeparam>
-        /// <param name="ienumerable"></param>
-        /// <param name="selector"></param>
-        /// <returns></returns>
+        
+        /// <summary> Returns the element for which selector returns the max value. if IEnumerable is empty, it returns default(T). </summary>
         public static T FindMax<T, C>(this IEnumerable<T> ienumerable, Func<T, C> selector) where C : IComparable
         {
             return FindExtreme(ienumerable, selector, 1);
@@ -968,11 +961,6 @@ namespace OpenTap
         /// Returns the element for which selector returns the minimum value.
         /// if IEnumerable is empty, it returns default(T).
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <typeparam name="C"></typeparam>
-        /// <param name="ienumerable"></param>
-        /// <param name="selector"></param>
-        /// <returns></returns>
         public static T FindMin<T, C>(this IEnumerable<T> ienumerable, Func<T, C> selector) where C : IComparable
         {
             return FindExtreme(ienumerable, selector, -1);
@@ -1127,13 +1115,7 @@ namespace OpenTap
             return source.Concat(newObjects);
         }
 
-        /// <summary>
-        /// First index where the result of predicate function is true.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="source"></param>
-        /// <param name="pred"></param>
-        /// <returns></returns>
+        /// <summary>  First index where the result of predicate function is true. </summary>
         public static int IndexWhen<T>(this IEnumerable<T> source, Func<T, bool> pred)
         {
             int idx = 0;
