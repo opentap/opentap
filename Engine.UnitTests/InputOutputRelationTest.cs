@@ -280,7 +280,7 @@ namespace OpenTap.UnitTests
                 var menu = AnnotationCollection.Annotate(new []{step2, step3}).GetMember(nameof(OutputInput.Input))
                     .Get<MenuAnnotation>();
                 request.SelectName = "Step 1";
-                menu.MenuItems.First(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.AssignOutput).Get<IMethodAnnotation>().Invoke();
+                menu.MenuItems.First(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.AssignOutput).Get<IMethodAnnotation>().Invoke();
 
                 var input1 = AnnotationCollection.Annotate(step3).GetMember(nameof(OutputInput.Input)).GetAll<IIconAnnotation>()
                     .FirstOrDefault(x => x.IconName == IconNames.Input);

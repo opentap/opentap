@@ -5,7 +5,6 @@ namespace OpenTap
     class MixinMenuModel: ITypeMenuModel
     {
         readonly ITypeData type;
-        public object[] Source { get; set; }
 
         public MixinMenuModel(ITypeData type) => this.type = type;
 
@@ -24,8 +23,15 @@ namespace OpenTap
 
             var selectedMixin = ui.SelectedItem;
             
-            foreach (var src in Source)
+            foreach (var src in source)
                 MixinFactory.LoadMixin(src, selectedMixin.Clone());
+        }
+
+        object[] source;
+        object[] IMenuModel.Source
+        {
+            get => source;
+            set => source = value;
         }
     }
 }
