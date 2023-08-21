@@ -44,6 +44,12 @@ namespace OpenTap
             public override bool CanWrite => false;
             public override long Length => teeStream.Length;
             public override long Position { get; set; }
+
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+                this.CopyTo(Stream.Null);
+            }
         }
 
         public long Length => str.Length;

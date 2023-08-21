@@ -1,3 +1,4 @@
+using System.IO;
 namespace OpenTap.Engine.UnitTests
 {
     [Display("Artifact Step", Group: "Test")]
@@ -10,10 +11,15 @@ namespace OpenTap.Engine.UnitTests
         public bool AsStream { get; set; }
         public override void Run()
         {
-            if(AsStream)
-                StepRun.PublishArtifacts(System.IO.File.OpenRead(File), File);
+            if (AsStream)
+            {
+                var bytes = System.IO.File.ReadAllBytes(File);
+                StepRun.PublishArtifacts(new MemoryStream(bytes), File);
+            }
             else
-                StepRun.PublishArtifacts(File);
+            {
+                StepRun.PublishArtifacts(System.IO.File.OpenRead(File), File);
+            }
         }
     }
 

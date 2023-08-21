@@ -255,16 +255,22 @@ namespace OpenTap
         HashSet<string> artifacts { get; set; } = new HashSet<string>();
         readonly List<FileStream> tempFiles = new List<FileStream>();
         readonly string targetLoc = Path.Combine(Path.GetTempPath(), "OpenTAP", "Temporary Artifacts", Guid.NewGuid().ToString());
-        public void OnArtifactPublished(TestRun run, Stream s, string filename)
+        public void OnArtifactPublished(TestRun run, Stream artifactStream, string artifactName)
         {
-            using var _ = s; 
-            var tmpFileName = Path.Combine(targetLoc, Path.GetFileName(filename));
+            
+            using var _ = artifactStream;
+            if (artifactStream is FileStream fstr)
+            {
+                artifacts.Add(fstr.Name);
+                return;
+            }
+            var tmpFileName = Path.Combine(targetLoc, Path.GetFileName(artifactName));
             if (artifacts.Contains(tmpFileName)) return;
             FileSystemHelper.EnsureDirectoryOf(tmpFileName);
             
             var fileStream = new FileStream(tmpFileName, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.DeleteOnClose);
             
-            s.CopyTo(fileStream);
+            artifactStream.CopyTo(fileStream);
             fileStream.Flush();
             
             artifacts.Add(tmpFileName);

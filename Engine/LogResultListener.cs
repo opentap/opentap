@@ -124,7 +124,7 @@ namespace OpenTap
             base.OnTestPlanRunCompleted(planRun, logStream);
             
             OnActivity();
-
+            string outPath;
             FileStream fileStream;
             lock (fileReadLocker)
             {
@@ -135,14 +135,14 @@ namespace OpenTap
                 }
 
                 int fileid = 1;
-                var outPath = realPath;
+                outPath = realPath;
                 while (File.Exists(outPath))
                 {
                     var extension = Path.GetExtension(realPath);
                     outPath = Path.ChangeExtension(realPath, $".{fileid++}" + extension);
                 }
                 fileStream = new FileStream(outPath, FileMode.Create);
-                planRun.PublishArtifacts(outPath);
+                
             }
 
             if (UseFilter())
@@ -153,7 +153,8 @@ namespace OpenTap
             {
                 logStream.CopyTo(fileStream);
             }
-            fileStream.Close();
+            fileStream.Position = 0;
+            planRun.PublishArtifacts(fileStream, Path.GetFileName(outPath));
         }
 
         string IFileResultStore.DefaultExtension => "txt";

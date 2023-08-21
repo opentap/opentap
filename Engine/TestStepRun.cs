@@ -153,11 +153,6 @@ namespace OpenTap
         {
             
         }
-        
-        public virtual void PublishArtifacts(string filepath)
-        {
-            
-        }
     }
 
     /// <summary>
@@ -524,12 +519,6 @@ namespace OpenTap
         public virtual void PublishArtifacts(Stream stream, string filename)
         {
             testPlanRun.PublishArtifactsWithRun(stream, filename, this);
-        }
-        
-        /// <summary> Publishes an artifact for the test plan run. </summary>
-        public virtual void PublishArtifacts(string filepath)
-        {
-            testPlanRun.PublishArtifactsWithRun(filepath, this);
         }
     }
 

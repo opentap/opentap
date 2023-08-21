@@ -639,18 +639,32 @@ namespace OpenTap
         
         internal void PublishArtifactsWithRun(Stream s, string filename, TestRun run)
         {
+            object lockobj = new object();
             publishedArtifacts = publishedArtifacts.Add(filename);
             var streamGetters = new BlockingCollection<Stream>();
-            var tee = new TeeStream(s);
+            TeeStream tee = s is FileStream ? null : new TeeStream(s);
             int count = ScheduleInResultProcessingThread<IArtifactListener>(l =>
             {
-                if (!streamGetters.TryTake(out var s2))
+                Stream s2 = null;
+                if (s is FileStream fstr)
                 {
-                    throw new Exception("Unable to get client stream.");
+                    lock (lockobj)
+                    {
+                        s2 = new FileStream(fstr.Name, FileMode.Open, FileAccess.Read, FileShare.Read |FileShare.Write | FileShare.Delete);
+                    }
+                }
+                else
+                {
+                    while (!streamGetters.TryTake(out s2))
+                    {
+                        TapThread.Sleep(10);
+                        //throw new Exception("Unable to get client stream.");
+                    }
                 }
                 try
                 {
                     l.OnArtifactPublished(run, s2, filename);
+                    s2.Dispose();
                 }
                 catch (Exception e)
                 {
@@ -658,10 +672,13 @@ namespace OpenTap
                     artifactsLog.Debug(e);
                 }
             });
-            var subStreams = tee.CreateClientStreams(count);
-            foreach (var str in subStreams)
+            if (tee != null)
             {
-                streamGetters.Add(str);
+                var subStreams = tee.CreateClientStreams(count);
+                foreach (var str in subStreams)
+                {
+                    streamGetters.Add(str);
+                }
             }
         }
         
@@ -671,30 +688,8 @@ namespace OpenTap
             PublishArtifactsWithRun(stream, filename, this);
         }
 
-        internal void PublishArtifactsWithRun(string filepath, TestRun run)
-        {
-            publishedArtifacts = publishedArtifacts.Add(filepath);
-            ScheduleInResultProcessingThread<IArtifactListener>(l =>
-            {
-                try
-                {
-                    l.OnArtifactPublished(run, filepath);
-                }
-                catch (Exception e)
-                {
-                    artifactsLog.Error("Error during Test Step Run Start for {0}", l);
-                    artifactsLog.Debug(e);
-                }
-            });
-        }
-        
-        /// <summary> Publishes an artifact for the test plan run. </summary>
-        public virtual void PublishArtifacts(string filepath)
-        {
-            PublishArtifactsWithRun(filepath, this);
-        }
-
+        /// <summary> Returns a list of all published artifacts. </summary>
         public IEnumerable<string> PublishedArtifacts => publishedArtifacts;
-        ImmutableList<string> publishedArtifacts = ImmutableList<string>.Empty;
+        ImmutableHashSet<string> publishedArtifacts = ImmutableHashSet<string>.Empty;
     }
 }
