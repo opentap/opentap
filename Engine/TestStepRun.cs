@@ -6,11 +6,13 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Xml.Serialization;
 using OpenTap.Expressions;
+using OpenTap.Plugins;
 
 namespace OpenTap
 {
@@ -146,6 +148,16 @@ namespace OpenTap
         {
             
         }
+
+        public virtual void PublishArtifacts(Stream s, string filename)
+        {
+            
+        }
+        
+        public virtual void PublishArtifacts(string filepath)
+        {
+            
+        }
     }
 
     /// <summary>
@@ -159,6 +171,7 @@ namespace OpenTap
     [DebuggerDisplay("TestStepRun {TestStepName}")]
     public class TestStepRun : TestRun
     {
+        readonly TestPlanRun testPlanRun;
         /// <summary>
         /// Parent run that is above this run in the <see cref="TestPlan"/> tree.  
         /// </summary>
@@ -280,8 +293,9 @@ namespace OpenTap
             Parent = parent;
         }
         
-        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters = null)
+        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters, TestPlanRun testPlanRun)
         {
+            this.testPlanRun = testPlanRun;
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
             TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
@@ -503,6 +517,19 @@ namespace OpenTap
             base.ChildStarted(stepRun);
             stepRuns[stepRun.TestStepId] = stepRun;
             childStarted?.Invoke(stepRun);
+        }
+
+        static readonly TraceSource artifactsLog = Log.CreateSource("artifacts");
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        public virtual void PublishArtifacts(Stream stream, string filename)
+        {
+            testPlanRun.PublishArtifactsWithRun(stream, filename, this);
+        }
+        
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        public virtual void PublishArtifacts(string filepath)
+        {
+            testPlanRun.PublishArtifactsWithRun(filepath, this);
         }
     }
 

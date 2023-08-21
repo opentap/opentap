@@ -5,13 +5,16 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTap.Plugins;
 
 namespace OpenTap
 {
@@ -203,9 +206,11 @@ namespace OpenTap
         
         internal void AddTestPlanCompleted(HybridStream logStream, bool openCompleted)
         {
-            ScheduleInResultProcessingThread<IResultListener>(r => 
+       
+            void onTestPlanCompleted(IResultListener r)
             {
                 var reslog = ResourceTaskManager.GetLogSource(r);
+
                 if (r.IsConnected)
                 {
                     try
@@ -230,7 +235,25 @@ namespace OpenTap
                     if (!openCompleted)
                         reslog.Warning("Run Completed was not called for '{0}' as it failed to open.", r);
                 }
-            });
+            }
+            
+            ScheduleInResultProcessingThread<IResultListener>(r =>
+            {
+                if (r is IArtifactListener) return;
+                onTestPlanCompleted(r);
+            }, blocking: true);
+            
+            foreach(var kw in resultWorkers)
+            {
+                kw.Value.Wait();
+            }
+            
+            ScheduleInResultProcessingThread<IResultListener>(r =>
+            {
+                if (r is IArtifactListener) { 
+                    onTestPlanCompleted(r);
+                }
+            }, blocking: true);
 
             // now clean up the result listener workers and wait for them to end.
             foreach(var kw in resultWorkers)
@@ -612,6 +635,66 @@ namespace OpenTap
         }
         #endregion
 
+        static readonly TraceSource artifactsLog = Log.CreateSource("artifacts");
         
+        internal void PublishArtifactsWithRun(Stream s, string filename, TestRun run)
+        {
+            publishedArtifacts = publishedArtifacts.Add(filename);
+            var streamGetters = new BlockingCollection<Stream>();
+            var tee = new TeeStream(s);
+            int count = ScheduleInResultProcessingThread<IArtifactListener>(l =>
+            {
+                if (!streamGetters.TryTake(out var s2))
+                {
+                    throw new Exception("Unable to get client stream.");
+                }
+                try
+                {
+                    l.OnArtifactPublished(run, s2, filename);
+                }
+                catch (Exception e)
+                {
+                    artifactsLog.Error("Error during Test Step Run Start for {0}", l);
+                    artifactsLog.Debug(e);
+                }
+            });
+            var subStreams = tee.CreateClientStreams(count);
+            foreach (var str in subStreams)
+            {
+                streamGetters.Add(str);
+            }
+        }
+        
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        public virtual void PublishArtifacts(Stream stream, string filename)
+        {
+            PublishArtifactsWithRun(stream, filename, this);
+        }
+
+        internal void PublishArtifactsWithRun(string filepath, TestRun run)
+        {
+            publishedArtifacts = publishedArtifacts.Add(filepath);
+            ScheduleInResultProcessingThread<IArtifactListener>(l =>
+            {
+                try
+                {
+                    l.OnArtifactPublished(run, filepath);
+                }
+                catch (Exception e)
+                {
+                    artifactsLog.Error("Error during Test Step Run Start for {0}", l);
+                    artifactsLog.Debug(e);
+                }
+            });
+        }
+        
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        public virtual void PublishArtifacts(string filepath)
+        {
+            PublishArtifactsWithRun(filepath, this);
+        }
+
+        public IEnumerable<string> PublishedArtifacts => publishedArtifacts;
+        ImmutableList<string> publishedArtifacts = ImmutableList<string>.Empty;
     }
 }

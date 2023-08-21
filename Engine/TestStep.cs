@@ -919,7 +919,7 @@ namespace OpenTap
             
             InputOutputRelation.UpdateInputs(Step);
             ExpressionManager.Update(Step);
-            var stepRun = Step.StepRun = new TestStepRun(Step, parentRun, attachedParameters)
+            var stepRun = Step.StepRun = new TestStepRun(Step, parentRun, attachedParameters, planRun)
             {
                 TestStepPath = Step.GetStepPath()
             };

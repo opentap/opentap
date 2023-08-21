@@ -17,48 +17,38 @@ namespace OpenTap
     [Display("Text Log", Group:"Text", Description: "Save the log from a test plan run as a text file.")]
     public class LogResultListener : ResultListener, IFileResultStore
     {
-        /// <summary>
-        /// File path of log file.
-        /// </summary>
+        /// <summary> File path of log file. </summary>
         [FilePath(FilePathAttribute.BehaviorChoice.Save, "txt")]
         [HelpLink(@"EditorHelp.chm::/Configurations/Using Tags and Variables in File Names.html")]
         [Display("File Path", Description: "Output file path for the log file.")]
         public MacroString FilePath { get; set; }
 
-        string IFileResultStore.FilePath { get { return FilePath.Expand(); } set { FilePath.Text = value; } }
+        string IFileResultStore.FilePath 
+        { 
+            get => FilePath.Expand();
+            set => FilePath.Text = value;
+        }
         
-        /// <summary>
-        /// FilterOptions for filtering on log message verbosity level.
-        /// </summary>
+        /// <summary> FilterOptions for filtering on log message verbosity level. </summary>
         [Flags]
         public enum FilterOptionsType
         {
-            /// <summary>
-            /// Debug messages.
-            /// </summary>
+            /// <summary> Debug messages. </summary>
             [Display("Debug", "Include debug level log messages.")]
             Verbose = 1,
-            /// <summary>
-            /// Information messages.
-            /// </summary>
+            /// <summary> Information messages. </summary>
             [Display("Information", "Include information level log messages.")]
             Info = 2,
-            /// <summary>
-            /// Warning messages.
-            /// </summary>
+            /// <summary> Warning messages. </summary>
             [Display("Warning", "Include warning level log messages.")]
             Warnings = 4,
-            /// <summary>
-            /// Error messages.
-            /// </summary>
+            /// <summary> Error messages. </summary>
             [Display("Error", "Include error level log messages.")]
             Errors = 8
         }
 
-        /// <summary>
-        /// to string converter LUT for filter options.
-        /// </summary>
-        readonly Dictionary<FilterOptionsType, string> logFilterOptionsLUT = new Dictionary<FilterOptionsType, string>()
+        /// <summary> To string converter LUT for filter options. </summary>
+        readonly Dictionary<FilterOptionsType, string> logFilterOptionsLUT = new Dictionary<FilterOptionsType, string>
         {
             {FilterOptionsType.Verbose, "Debug"},
             {FilterOptionsType.Info, "Information"},
@@ -66,13 +56,11 @@ namespace OpenTap
             {FilterOptionsType.Errors, "Error"}
         };
 
-        /// <summary>
-        /// Contains the FilterOptions flags. Any combination of the four flags is allowed.
-        /// </summary>
+        /// <summary> Contains the FilterOptions flags. Any combination of the four flags is allowed. </summary>
         [Display("Filter Options", Description: "Select how to filter the log messages if needed.")]
         public FilterOptionsType FilterOptions { get; set; }
 
-        bool useFilter()
+        bool UseFilter()
         {
             return FilterOptions != (FilterOptionsType.Verbose |
                 FilterOptionsType.Warnings |
@@ -80,52 +68,45 @@ namespace OpenTap
                 FilterOptionsType.Errors);
         }
 
-        /// <summary>
-        /// Sets default values.
-        /// </summary>
+        /// <summary> Sets default values. </summary>
         public LogResultListener()
         {
             Name = "Log";
-            FilePath = new MacroString() { Text = "Results/<Date>-<Verdict>.txt" };
+            FilePath = new MacroString { Text = "Results/<Date>-<Verdict>.txt" };
             FilterOptions = FilterOptionsType.Verbose |
                 FilterOptionsType.Warnings |
                 FilterOptionsType.Info |
                 FilterOptionsType.Errors;
         }
 
-        void filterCopyStream(Stream input, Stream outStream)
+        void FilterCopyStream(Stream input, Stream outStream)
         {
-            using (StreamWriter streamWriter = new StreamWriter(outStream, System.Text.Encoding.UTF8))
+            using StreamWriter streamWriter = new StreamWriter(outStream, System.Text.Encoding.UTF8);
+            using StreamReader streamReader = new StreamReader(input);
+            Regex rx = new Regex("^(?<time>[^;]+);(?<source>[^;]+);(?<level>[^;]+)");
+            var allFilterOptions = Enum.GetValues(typeof(FilterOptionsType));
+            while (streamReader.ReadLine() is { } line)
             {
-                using (StreamReader streamReader = new StreamReader(input))
+                Match m = rx.Match(line);
+                bool skip = false;
+                if (m.Success)
                 {
-                    string line;
-                    Regex rx = new Regex("^(?<time>[^;]+);(?<source>[^;]+);(?<level>[^;]+)");
-                    var allFilterOptions = Enum.GetValues(typeof(FilterOptionsType));
-                    while ((line = streamReader.ReadLine()) != null)
+                    foreach (FilterOptionsType filterOption in allFilterOptions)
                     {
-                        Match m = rx.Match(line);
-                        bool skip = false;
-                        if (m.Success)
+                        if (!FilterOptions.HasFlag(filterOption))
                         {
-                            foreach (FilterOptionsType filterOption in allFilterOptions)
+                            string searchString = logFilterOptionsLUT[filterOption];
+                            if (m.Groups["level"].Value.Trim() == searchString)
                             {
-                                if (!FilterOptions.HasFlag(filterOption))
-                                {
-                                    string searchString = logFilterOptionsLUT[filterOption];
-                                    if (m.Groups["level"].Value.Trim() == searchString)
-                                    {
-                                        skip = true;
-                                        break;
-                                    }
-                                }
+                                skip = true;
+                                break;
                             }
                         }
-                        if (!skip)
-                        {
-                            streamWriter.WriteLine(line);
-                        }
                     }
+                }
+                if (!skip)
+                {
+                    streamWriter.WriteLine(line);
                 }
             }
         }
@@ -133,24 +114,19 @@ namespace OpenTap
         // Multiple resources might point to the same file path.
         // Hence this lock is used to prevent the same file.
         // being created from multiple LogResultListeners.
-        static object filereadlocker = new object();
+        static readonly object fileReadLocker = new object();
 
-        /// <summary>
-        /// On test plan run completed the previously temporary file is moved to the location expanded by the macro path.
-        /// </summary>
-        /// <param name="planRun"></param>
-        /// <param name="logStream"></param>
+        /// <summary> On test plan run completed the previously temporary file is moved to the location expanded by the macro path. </summary>
         public override void OnTestPlanRunCompleted(TestPlanRun planRun, Stream logStream)
         {
             if (logStream == null)
-                throw new ArgumentNullException("logStream");
+                throw new ArgumentNullException(nameof(logStream));
             base.OnTestPlanRunCompleted(planRun, logStream);
+            
             OnActivity();
 
-
-            string outpath = "";
-            FileStream fstr;
-            lock (filereadlocker)
+            FileStream fileStream;
+            lock (fileReadLocker)
             {
                 string realPath = FilePath.Expand(planRun);
                 if (Path.GetDirectoryName(realPath) != "")
@@ -159,29 +135,27 @@ namespace OpenTap
                 }
 
                 int fileid = 1;
-                outpath = realPath;
-                while (File.Exists(outpath))
+                var outPath = realPath;
+                while (File.Exists(outPath))
                 {
                     var extension = Path.GetExtension(realPath);
-                    outpath = Path.ChangeExtension(realPath, string.Format(".{0}", fileid++) + extension);
+                    outPath = Path.ChangeExtension(realPath, $".{fileid++}" + extension);
                 }
-                fstr = new FileStream(outpath, FileMode.Create);
+                fileStream = new FileStream(outPath, FileMode.Create);
+                planRun.PublishArtifacts(outPath);
             }
 
-            if (useFilter())
+            if (UseFilter())
             {
-                filterCopyStream(logStream, fstr);
+                FilterCopyStream(logStream, fileStream);
             }
             else
             {
-                logStream.CopyTo(fstr);
+                logStream.CopyTo(fileStream);
             }
-            fstr.Close();
+            fileStream.Close();
         }
 
-        string IFileResultStore.DefaultExtension
-        {
-            get { return "txt"; }
-        }
+        string IFileResultStore.DefaultExtension => "txt";
     }
 }
