@@ -156,7 +156,7 @@ namespace OpenTap
             }
             else
             {
-                summaryLog.Info(formatSummary($" No artifacts registered. "));
+                //summaryLog.Info(formatSummary($" No artifacts registered. "));
             }
         }
         int maxLength = -1;

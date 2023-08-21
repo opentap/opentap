@@ -635,7 +635,7 @@ namespace OpenTap
         }
         #endregion
 
-        static readonly TraceSource artifactsLog = Log.CreateSource("artifacts");
+        static readonly TraceSource artifactsLog = Log.CreateSource("Artifacts");
         
         internal void PublishArtifactsWithRun(Stream s, string filename, TestRun run)
         {

@@ -519,7 +519,7 @@ namespace OpenTap
             childStarted?.Invoke(stepRun);
         }
 
-        static readonly TraceSource artifactsLog = Log.CreateSource("artifacts");
+        static readonly TraceSource artifactsLog = Log.CreateSource("Artifacts");
         /// <summary> Publishes an artifact for the test plan run. </summary>
         public virtual void PublishArtifacts(Stream stream, string filename)
         {

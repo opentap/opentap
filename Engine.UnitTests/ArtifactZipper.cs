@@ -44,7 +44,7 @@ namespace OpenTap.Engine.UnitTests
             archive = null;
             var newName = ZipFile.Expand(planRun);
             File.Move(name,newName);
-            this.Log.Info("Wrote file: {0}", Path.GetFullPath(newName));
+            this.Log.Debug("Wrote file: {0}", Path.GetFullPath(newName));
             
             planRun.PublishArtifacts(newName);
         }
