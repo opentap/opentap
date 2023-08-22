@@ -42,14 +42,16 @@ namespace OpenTap.Package
                 new Regex("^integration$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
                 new Regex("^develop$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
                 new Regex("^dev$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-                new Regex("^master$", RegexOptions.Compiled | RegexOptions.IgnoreCase)
+                new Regex("^master$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+                new Regex("^main$", RegexOptions.Compiled | RegexOptions.IgnoreCase)
             };
             public List<string> BetaBranchPatterns { get; private set; } = new List<string>
             {
                 "^integration$",
                 "^master$",
                 "^develop$",
-                "^dev$"
+                "^dev$",
+                "^main$"
             };
 
             /// <summary>
