@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 namespace OpenTap.Engine.UnitTests
@@ -27,6 +28,9 @@ namespace OpenTap.Engine.UnitTests
             
             var run = plan.Execute(new IResultListener[]{zip, txt});
             Assert.AreEqual(4, run.PublishedArtifacts.Count());
+            Assert.IsTrue(run.PublishedArtifacts.Contains(file));
+            Assert.IsTrue(run.PublishedArtifacts.Contains(file2));
+            Assert.IsTrue(run.PublishedArtifacts.Any(x => Path.GetExtension(x) == ".zip"));
         }
         
         [Test]
@@ -57,6 +61,5 @@ namespace OpenTap.Engine.UnitTests
             var run = plan.Execute(new IResultListener[]{zip, txt});
             Assert.AreEqual(4, run.PublishedArtifacts.Count());
         }
-        
     }
 }

@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 namespace OpenTap.Engine.UnitTests
 {
@@ -9,12 +10,19 @@ namespace OpenTap.Engine.UnitTests
         
         [Display("As Stream")]
         public bool AsStream { get; set; }
+        
+        public bool Rename { get; set; }
+        public string RenameTo { get; set; }
+        
         public override void Run()
         {
             if (AsStream)
             {
+                if (Rename && string.IsNullOrWhiteSpace(RenameTo))
+                    throw new InvalidOperationException("Cannot rename to nothing.");
+                    
                 var bytes = System.IO.File.ReadAllBytes(File);
-                StepRun.PublishArtifact(new MemoryStream(bytes), File);
+                StepRun.PublishArtifact(new MemoryStream(bytes), Rename ? RenameTo : File);
             }
             else
             {

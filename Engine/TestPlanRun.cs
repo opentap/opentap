@@ -647,10 +647,11 @@ namespace OpenTap
         {
             publishedArtifacts = publishedArtifacts.Add(filename);
             var streamGetters = new BlockingCollection<Stream>();
-            int refcount = 0;
+            
+            int readerRefCount = 0;
             TeeStream tee = s is FileStream ? null : new TeeStream(s);
             ManualResetEventSlim go = new ManualResetEventSlim(false);
-            refcount = ScheduleInResultProcessingThread<IArtifactListener>(l =>
+            readerRefCount = ScheduleInResultProcessingThread<IArtifactListener>(l =>
             {
                 go.Wait();
                 Stream s2;
@@ -663,7 +664,6 @@ namespace OpenTap
                     while (!streamGetters.TryTake(out s2))
                     {
                         TapThread.Sleep(10);
-                        //throw new Exception("Unable to get client stream.");
                     }
                 }
                 try
@@ -678,20 +678,20 @@ namespace OpenTap
                 }
                 finally
                 {
-                    Interlocked.Decrement(ref refcount);
-                    if(refcount == 0)
+                    Interlocked.Decrement(ref readerRefCount);
+                    if(readerRefCount == 0)
                         s.Dispose();
                 }
             });
             if (tee != null)
             {
-                var subStreams = tee.CreateClientStreams(refcount);
+                var subStreams = tee.CreateClientStreams(readerRefCount);
                 foreach (var str in subStreams)
                 {
                     streamGetters.Add(str);
                 }
             }
-            if (refcount == 0)
+            if (readerRefCount == 0)
             {
                 s.Dispose();
             }
@@ -702,10 +702,9 @@ namespace OpenTap
         }
         
         /// <summary> Publishes an artifact for the test plan run. </summary>
-        public void PublishArtifacts(Stream stream, string filename)
-        {
-            PublishArtifactsWithRun(stream, filename, this);
-        }
+        /// <param name="stream"> The artifact data as a stream. When publishing an artifact stream, the stream will be disposed by the callee and does not have to be disposed by the caller.</param>
+        /// <param name="artifactName"> The name of the published artifact. </param>
+        public void PublishArtifacts(Stream stream, string artifactName) => PublishArtifactsWithRun(stream, artifactName, this);
         
         /// <summary> Publishes an artifact for the test plan run. </summary>
         public void PublishArtifacts(string file) => PublishArtifactsWithRun(file, this);

@@ -508,12 +508,12 @@ namespace OpenTap
             stepRuns[stepRun.TestStepId] = stepRun;
             childStarted?.Invoke(stepRun);
         }
-
-        static readonly TraceSource artifactsLog = Log.CreateSource("Artifacts");
         
         /// <summary> Publishes an artifact for the test plan run. </summary>
-        public void PublishArtifact(Stream stream, string filename) 
-            => testPlanRun.PublishArtifactsWithRun(stream, filename, this);
+        /// <param name="stream"> The artifact data as a stream. When publishing an artifact stream, the stream will be disposed by the callee and does not have to be disposed by the caller.</param>
+        /// <param name="artifactName"> The name of the published artifact. </param>
+        public void PublishArtifact(Stream stream, string artifactName) 
+            => testPlanRun.PublishArtifactsWithRun(stream, artifactName, this);
         
         /// <summary> Publishes an artifact file for the test plan run. </summary>
         public void PublishArtifact(string file) => testPlanRun.PublishArtifactsWithRun(file, this); 

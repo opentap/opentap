@@ -83,6 +83,7 @@ namespace OpenTap
         {
             using StreamWriter streamWriter = new StreamWriter(outStream, System.Text.Encoding.UTF8);
             using StreamReader streamReader = new StreamReader(input);
+            
             Regex rx = new Regex("^(?<time>[^;]+);(?<source>[^;]+);(?<level>[^;]+)");
             var allFilterOptions = Enum.GetValues(typeof(FilterOptionsType));
             while (streamReader.ReadLine() is { } line)
