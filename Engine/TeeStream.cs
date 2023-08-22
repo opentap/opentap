@@ -7,23 +7,26 @@ namespace OpenTap
     /// If one reader is slower than the others, it will block until the slowest catches up. </summary>
     class TeeStream
     {
+        /// <summary> Represents a client stream that reads from a shared TeeStream. </summary>
         class TeeStreamClient : Stream
         {
-            int offset;
-            long globalOffset = 0;
-            readonly TeeStream teeStream;
-            public TeeStreamClient(TeeStream teeStream)
-            {
-                this.teeStream = teeStream;
-            }
-
+            /// <summary> Keeps track of the current position in the stream for this client. </summary>
+            long globalOffset;
+            
+            /// <summary>  Reference to the host TeeStream that this client reads from. </summary>
+            readonly TeeStream streamHost;
+            public TeeStreamClient(TeeStream streamHost) => this.streamHost = streamHost;
+            
+            /// <summary> This stream is read-only. Flush does nothing. </summary>
             public override void Flush()
             {
-            
+                
             }
+            
+            /// <summary> Reads a sequence of bytes from the current stream and advances the position within the stream. </summary>
             public override int Read(byte[] buffer, int offset, int count)
             {
-                int read = teeStream.Read(buffer, globalOffset, offset, count);
+                int read = streamHost.Read(buffer, globalOffset, offset, count);
                 globalOffset += read;
                 return read;
             }
@@ -42,36 +45,41 @@ namespace OpenTap
             public override bool CanRead => true;
             public override bool CanSeek => false;
             public override bool CanWrite => false;
-            public override long Length => teeStream.Length;
-            public override long Position { get; set; }
+            public override long Length => streamHost.Length;
+            public override long Position 
+            { 
+                get => globalOffset; 
+                set  { } 
+            }
 
             protected override void Dispose(bool disposing)
             {
                 base.Dispose(disposing);
+                
+                // flush everything. There may be other peers so doing this makes sure that nobody waits for this client to read.
                 this.CopyTo(Stream.Null);
             }
         }
 
-        public long Length => str.Length;
-        public long Position => str.Position - block_length;
-        public long block_length;
+        public long Length => mainStream.Length;
+        public long Position => mainStream.Position - blockLength;
+        public long blockLength;
             
-        readonly Stream str;
-        byte[] buffer;
+        readonly Stream mainStream;
+        byte[] currentBlock;
 
-        public TeeStream(Stream str) => this.str = str;
+        public TeeStream(Stream mainStream) => this.mainStream = mainStream;
         
-        Stream[] subStreams;
         Stream CreateClientStream() => new TeeStreamClient(this);
 
         public Stream[] CreateClientStreams(int count)
         {
             if (count == 0)
             {
-                str.Dispose();
+                mainStream.Dispose();
                 return Array.Empty<Stream>();
             }
-            buffer = new byte[4096 * count];
+            currentBlock = new byte[4096 * count];
             clientCount = count;
             var result = new Stream[count];
             for (int i = 0; i < count; i++)
@@ -82,16 +90,19 @@ namespace OpenTap
         }
         bool done;
         
-        void ReadBlock()
+        void ReadNextBlock()
         {
-            int len = str.Read(buffer, 0, buffer.Length);
+            // at this point everyone is waiting for the next block.
+            
+            int len = mainStream.Read(currentBlock, 0, currentBlock.Length);
             if (len == 0)
             {
+                // We are done. let's stop.
                 done = true;
-                str.Close();
-                str.Dispose();
+                mainStream.Close();
+                mainStream.Dispose();
             }
-            block_length = len;
+            blockLength = len;
             var oldEvt = evt;
             var w2 = waiting;
             evt = new SemaphoreSlim(0);
@@ -103,40 +114,47 @@ namespace OpenTap
         SemaphoreSlim evt = new SemaphoreSlim(0);
         int waiting;
         int clientCount;
-        public int Read(byte[] bytes, long offset2, int offset, int count)
+        public int Read(byte[] bytes, long subStreamPosition, int bufferOffset, int count)
         {
             if (done) return 0;
-            long innerOffset = offset2 - (str.Position - block_length);
-            if (innerOffset < 0) 
-                throw new Exception("!!");
-            if (innerOffset >= block_length)
+            
+            // Offset into the current block.
+            long blockOffset = subStreamPosition - (mainStream.Position - blockLength);
+            if (blockOffset < 0) 
+                throw new InvalidOperationException("Unexpected position calculated");
+            
+            // if the block offset is greater than the size of the block, we need to get/wait for the next block. 
+            if (blockOffset >= blockLength)
             {
                 if (Interlocked.Increment(ref waiting) == clientCount)
                 {
-                    ReadBlock();
+                    // All clients are waiting - read the next block.
+                    ReadNextBlock();
                 }
                 else
                 {
+                    // wait for a new block.
                     evt.Wait();
                 }
+                // new blocks released. start over.
+                return Read(bytes, subStreamPosition, bufferOffset, count);
             }
-            else
+
+            // read the block byte-by-byte.
+            for (int i = 0; i < count; i++)
             {
-                for (int i = 0; i < count; i++)
+                long o2 = subStreamPosition - (mainStream.Position - blockLength) + i;
+                if (o2 >= blockLength)
                 {
-                    long o2 = offset2 - (str.Position - block_length) + i;
-                    if (o2 >= block_length)
-                    {
-                        int r = Read(bytes, offset2 + i, offset + i, count - i);
-                        if (r == 0) return i;
-                        return r + i;
-                    }
-                    bytes[i] = buffer[o2];
+                    // End of the block reached.
+                    // start Read over with new args.
+                    int r = Read(bytes, subStreamPosition + i, bufferOffset + i, count - i);
+                    if (r == 0) return i;
+                    return r + i;
                 }
-                return count;
+                bytes[i] = currentBlock[o2];
             }
-            
-            return Read(bytes, offset2, offset, count);
+            return count;
         }
     }
 }

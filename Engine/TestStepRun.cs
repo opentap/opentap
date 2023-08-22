@@ -148,11 +148,6 @@ namespace OpenTap
         {
             
         }
-
-        public virtual void PublishArtifacts(Stream s, string filename)
-        {
-            
-        }
     }
 
     /// <summary>
@@ -515,11 +510,12 @@ namespace OpenTap
         }
 
         static readonly TraceSource artifactsLog = Log.CreateSource("Artifacts");
+        
         /// <summary> Publishes an artifact for the test plan run. </summary>
-        public virtual void PublishArtifacts(Stream stream, string filename)
-        {
-            testPlanRun.PublishArtifactsWithRun(stream, filename, this);
-        }
+        public void PublishArtifacts(Stream stream, string filename) 
+            => testPlanRun.PublishArtifactsWithRun(stream, filename, this);
+        
+        
     }
 
     class TestStepBreakException : OperationCanceledException

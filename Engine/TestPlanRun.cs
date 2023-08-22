@@ -470,7 +470,7 @@ namespace OpenTap
             {
                 BreakCondition = breakCondition;
             }
-            resultWorkers = new Dictionary<IResultListener, WorkQueue>();
+            
             this.IsCompositeRun = isCompositeRun;
             Parameters = ResultParameters.GetComponentSettingsMetadata();
             // Add metadata from the plan itself.
@@ -579,6 +579,7 @@ namespace OpenTap
         {
             MainThread = TapThread.Current;
             FailedToStart = false;
+            resultWorkers = new Dictionary<IResultListener, WorkQueue>();
             
             {   // AbortCondition
                 
@@ -639,19 +640,18 @@ namespace OpenTap
         
         internal void PublishArtifactsWithRun(Stream s, string filename, TestRun run)
         {
-            object lockobj = new object();
             publishedArtifacts = publishedArtifacts.Add(filename);
             var streamGetters = new BlockingCollection<Stream>();
+            int refcount = 0;
             TeeStream tee = s is FileStream ? null : new TeeStream(s);
-            int count = ScheduleInResultProcessingThread<IArtifactListener>(l =>
+            ManualResetEventSlim go = new ManualResetEventSlim(false);
+            refcount = ScheduleInResultProcessingThread<IArtifactListener>(l =>
             {
-                Stream s2 = null;
-                if (s is FileStream fstr)
+                go.Wait();
+                Stream s2;
+                if (s is FileStream fileStream)
                 {
-                    lock (lockobj)
-                    {
-                        s2 = new FileStream(fstr.Name, FileMode.Open, FileAccess.Read, FileShare.Read |FileShare.Write | FileShare.Delete);
-                    }
+                    s2 = new FileStream(fileStream.Name, FileMode.Open, FileAccess.Read, FileShare.Read |FileShare.Write | FileShare.Delete);   
                 }
                 else
                 {
@@ -671,19 +671,33 @@ namespace OpenTap
                     artifactsLog.Error("Error during Test Step Run Start for {0}", l);
                     artifactsLog.Debug(e);
                 }
+                finally
+                {
+                    Interlocked.Decrement(ref refcount);
+                    if(refcount == 0)
+                        s.Dispose();
+                }
             });
             if (tee != null)
             {
-                var subStreams = tee.CreateClientStreams(count);
+                var subStreams = tee.CreateClientStreams(refcount);
                 foreach (var str in subStreams)
                 {
                     streamGetters.Add(str);
                 }
             }
+            if (refcount == 0)
+            {
+                s.Dispose();
+            }
+            else
+            {
+                go.Set();
+            }
         }
         
         /// <summary> Publishes an artifact for the test plan run. </summary>
-        public virtual void PublishArtifacts(Stream stream, string filename)
+        public void PublishArtifacts(Stream stream, string filename)
         {
             PublishArtifactsWithRun(stream, filename, this);
         }
