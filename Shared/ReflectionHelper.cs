@@ -1909,21 +1909,6 @@ namespace OpenTap
                 yield return y;
             }
         }
-
-        public static IEnumerable<(T1, T2)> WithContext<T1, T2>(this IEnumerable<T1> src, Func<T2> ctx)
-        {
-            var e = src.GetEnumerator();
-            if (e.MoveNext() == false)
-                    yield break;
-            var ctxValue = ctx();
-            while (true)
-            {
-                yield return (e.Current, ctxValue);
-                if (e.MoveNext() == false)
-                    break;
-            }
-        } 
-        
     }
 
     internal class Time

@@ -18,7 +18,6 @@ namespace OpenTap.Plugins
                 var elements = rootElem.Elements();
                 void setter2(object targetObject)
                 {
-                    var targetType = TypeData.GetTypeData(targetObject);
                     foreach (var elem in elements)
                     {
                         Serializer.Deserialize(elem, mixin =>
@@ -56,6 +55,8 @@ namespace OpenTap.Plugins
                 }
             }
 
+            // the mixin members has been serialized now, but
+            // continue serializing as before. 
             return false;
         }
     }

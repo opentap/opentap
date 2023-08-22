@@ -12,6 +12,7 @@ namespace OpenTap
 
     abstract class MixinEvent<T2> where T2: IMixin
     {
+        static TraceSource log = Log.CreateSource("Mixin");
         protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg) 
         {
             var emb = TypeData.GetTypeData(target).GetBaseType<EmbeddedTypeData>();
@@ -20,9 +21,17 @@ namespace OpenTap
             {
                 if (!mem.TypeDescriptor.DescendsTo(typeof(T2))) continue;
                 if (mem.Readable == false) continue;
-                if (mem.GetValue(target) is T2 mixin)
+                try
                 {
-                    f(mixin, arg);
+                    if (mem.GetValue(target) is T2 mixin)
+                    {
+                        f(mixin, arg);
+                    }
+                }
+                catch(Exception e)
+                {
+                    log.Error("Caught error in mixin: {0}", e.Message);
+                    log.Debug(e);
                 }
             }
             return arg;
