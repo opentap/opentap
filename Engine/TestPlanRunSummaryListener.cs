@@ -5,16 +5,16 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Text;
+using OpenTap.Plugins;
 
 namespace OpenTap
 {
-    /// <summary>
-    /// Class for generating the summary for a test plan.
-    /// </summary>
+    /// <summary> Class for generating the summary for a test plan. </summary>
     [Browsable(false)]
-    internal class TestPlanRunSummaryListener : ResultListener
+    class TestPlanRunSummaryListener : ResultListener, IArtifactListener
     {
         const int stepRunLimit = 10000;
 
@@ -48,7 +48,7 @@ namespace OpenTap
 
         TestPlanRun planRun;
 
-        static TraceSource summaryLog =  OpenTap.Log.CreateSource("Summary");
+        static readonly TraceSource summaryLog =  OpenTap.Log.CreateSource("Summary");
 
         /// <summary>Creates an instance and removes the ResultListener log from the TraceSources, so log messages from this listener wont go anywhere.</summary>
         public TestPlanRunSummaryListener()
@@ -63,6 +63,13 @@ namespace OpenTap
         {
             stepRuns = new Dictionary<Guid, TestStepRunData>();
             this.planRun = planRun;
+
+            foreach (var f in tempFiles)
+            {
+                f.Dispose();
+            }
+            tempFiles.Clear();
+            artifacts.Clear();
         }
 
         /// <summary>Saves which steps are started.</summary>
@@ -70,7 +77,7 @@ namespace OpenTap
         public override void OnTestStepRunStart(TestStepRun stepRun)
         {
             if (stepRun == null)
-                throw new ArgumentNullException("stepRun");
+                throw new ArgumentNullException(nameof(stepRun));
             base.OnTestStepRunStart(stepRun);
             if (stepRuns == null) return;
             stepRuns[stepRun.Id] = TestStepRunData.FromTestStepRun(stepRun);
@@ -84,7 +91,7 @@ namespace OpenTap
         { // this is mostly for updating stepRun's duration.
             
             if (stepRun == null)
-                throw new ArgumentNullException("stepRun");
+                throw new ArgumentNullException(nameof(stepRun));
             base.OnTestStepRunCompleted(stepRun);
             if (stepRuns == null) return;
             stepRuns[stepRun.Id] = TestStepRunData.FromTestStepRun(stepRun);
@@ -117,7 +124,8 @@ namespace OpenTap
             var (timeString, unit) = ShortTimeSpan.FromSeconds(run.Duration.TotalSeconds).ToStringParts();
             string v = run.Verdict == Verdict.NotSet ? "" : run.Verdict.ToString();
             var name = run.TestStepName;
-            summaryLog.Info("{4} {0,-43} {5}{1,5:0} {7,-4}{2,-7}", name, timeString, v, idx, indent, inverseIndent, 0, unit);
+            // this prints something like this: '12:42:16.302  Summary       Delay                                             106 ms'
+            summaryLog.Info($"{indent} {name,-43} {inverseIndent}{timeString,5:0} {unit,-4}{v,-7}");
 
             int idx2 = 0;
             foreach (TestStepRunData run2 in lookup[run.Id])
@@ -126,11 +134,36 @@ namespace OpenTap
 
         private readonly string separator = new string('-', 44);
 
-        /// <summary>
-        /// Prints the summary.
-        /// </summary>
+        /// <summary> Prints the artifact summary. </summary>
+        public void PrintArtifactsSummary()
+        {
+            string formatSummary(string message)
+            {
+                int fillLength = (int)Math.Floor((maxLength - message.Length) / 2.0);
+                StringBuilder sb = new StringBuilder(new string('-', fillLength));
+                sb.Append(message);
+                sb.Append('-', maxLength - sb.Length);
+                return sb.ToString();
+            }
+
+            if (artifacts.Count > 0)
+            {
+                summaryLog.Info(formatSummary($" {artifacts.Count} artifacts registered. "));
+                foreach (var artifact in artifacts)
+                {
+                    summaryLog.Info($" - {Path.GetFullPath(artifact)}  [{new FileInfo(artifact).Length} B]");
+                }
+            }
+            else
+            {
+                //summaryLog.Info(formatSummary($" No artifacts registered. "));
+            }
+        }
+        int maxLength = -1;
+        /// <summary> Prints the summary. </summary>
         public void PrintSummary()
         {
+            maxLength = -1;
             if (planRun == null) return; //Something very wrong happened. In this case the use will be informed of an error anyway.
             bool hasOtherVerdict = planRun.Verdict != Verdict.Pass && planRun.Verdict != Verdict.NotSet;
             ILookup<Guid, TestStepRunData> parentLookup = null;
@@ -159,7 +192,7 @@ namespace OpenTap
             }
 
             int addPadLength = maxIndent + (int)Math.Round(maxVerdictLength / 2.0);
-            int maxLength = -1;
+            
 
             Func<string, int, string> formatSummaryHeader = (message, indentLength) => {
                 string indent = new String('-', indentLength + 3);
@@ -178,7 +211,7 @@ namespace OpenTap
                 return sb.ToString();
             };
 
-            summaryLog.Info(formatSummaryHeader(String.Format(" Summary of test plan started {0} ", planRun.StartTime), addPadLength));
+            summaryLog.Info(formatSummaryHeader($" Summary of test plan started {planRun.StartTime} ", addPadLength));
             if (stepRuns != null)
             {
                 int idx = 0;
@@ -190,14 +223,18 @@ namespace OpenTap
                 summaryLog.Warning("Test plan summary skipped. Summary contains too many steps ({0}).", stepRunLimit);
             }
             summaryLog.Info(formatSummary(separator));
+            
+
+            
             if (!hasOtherVerdict)
             {
-                summaryLog.Info(formatSummary(String.Format(" Test plan completed successfully in {0,6} ", ShortTimeSpan.FromSeconds(planRun.Duration.TotalSeconds).ToString())));
+                summaryLog.Info(formatSummary($" Test plan completed successfully in {ShortTimeSpan.FromSeconds(planRun.Duration.TotalSeconds).ToString(),6} "));
             }
             else
             {
-                summaryLog.Info(formatSummary(String.Format(" Test plan completed with verdict {1} in {0,6} ", ShortTimeSpan.FromSeconds(planRun.Duration.TotalSeconds).ToString(), planRun.Verdict)));
+                summaryLog.Info(formatSummary(string.Format(" Test plan completed with verdict {1} in {0,6} ", ShortTimeSpan.FromSeconds(planRun.Duration.TotalSeconds).ToString(), planRun.Verdict)));
             }
+
         }
 
         int getMaxVerdictLength(TestStepRunData run, int maxVerdictLength, ILookup<Guid, TestStepRunData> lookup)
@@ -213,6 +250,38 @@ namespace OpenTap
             }
 
             return maxLength > maxVerdictLength ? maxLength : maxVerdictLength;
+        }
+
+        // keeps track of published artifacts.
+        HashSet<string> artifacts { get; set; } = new HashSet<string>();
+        
+        // these tmp files are used to keep temporary (stream) files alive until the next test plan run.
+        readonly List<FileStream> tempFiles = new List<FileStream>();
+        readonly string targetLoc = Path.Combine(Path.GetTempPath(), "OpenTAP", "Temporary Artifacts", Guid.NewGuid().ToString());
+        public void OnArtifactPublished(TestRun run, Stream artifactStream, string artifactName)
+        {
+            // when an artifact is published, keep track of it.
+            // if it is a file artifact (FileStream), we just keep track of the names.
+            // if is a non-artifact stream, persist it on disk for a while.
+            
+            using var _ = artifactStream;
+            if (artifactStream is FileStream originFileStream)
+            {
+                artifacts.Add(originFileStream.Name);
+                return;
+            }
+            var tmpFileName = Path.Combine(targetLoc, Path.GetFileName(artifactName));
+            if (artifacts.Contains(tmpFileName)) return;
+            FileSystemHelper.EnsureDirectoryOf(tmpFileName);
+            
+            // DeleteOnClose: persist the file until it is closed (next test plan run).
+            var fileStream = new FileStream(tmpFileName, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.DeleteOnClose);
+            
+            artifactStream.CopyTo(fileStream);
+            fileStream.Flush();
+            
+            artifacts.Add(tmpFileName);
+            tempFiles.Add(fileStream);
         }
     }
 }

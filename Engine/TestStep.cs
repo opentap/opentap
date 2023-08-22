@@ -919,7 +919,7 @@ namespace OpenTap
             
             InputOutputRelation.UpdateInputs(Step);
             
-            var stepRun = Step.StepRun = new TestStepRun(Step, parentRun, attachedParameters)
+            var stepRun = Step.StepRun = new TestStepRun(Step, parentRun, attachedParameters, planRun)
             {
                 TestStepPath = Step.GetStepPath()
             };

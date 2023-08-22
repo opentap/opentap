@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -509,7 +510,7 @@ namespace OpenTap
         }
 
         private static string valueTypeName = typeof(ValueType).FullName;
-        private static readonly Dictionary<string, bool> ValueTypeMap = new Dictionary<string, bool>(); 
+        private static readonly ConcurrentDictionary<string, bool> ValueTypeMap = new ConcurrentDictionary<string, bool>(); 
         private bool IsValueType(TypeDefinition typeDef, string typeName = null)
         {
             
@@ -544,7 +545,7 @@ namespace OpenTap
             }
 
             typeName ??= GetTypeName(typeDef);
-            return ValueTypeMap.GetOrCreateValue(typeName, helper);
+            return ValueTypeMap.GetOrAdd(typeName, helper);
         }
 
         private string GetTypeName(TypeDefinition td)

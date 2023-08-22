@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Threading.Tasks;
 using Tap.Shared;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 
@@ -391,6 +392,41 @@ namespace OpenTap.Engine.UnitTests
         {
             var inv = Enumerable.Range(0, 1000).Batch(32).OrderByDescending(x => x).ToArray();
             Assert.IsTrue(inv.SequenceEqual(Enumerable.Range(0, 1000).OrderByDescending(x => x)));
+        }
+
+        [Test]
+        public void CompareAndExchangeTest()
+        {
+            object X = 1;
+            object Y = 2;
+            Utils.InterlockedSwap(ref X, () => 3);
+            Utils.InterlockedSwap(ref Y, () => 4);
+            Assert.AreEqual(3, X);
+            Assert.AreEqual(4, Y);
+
+            X = 0;
+            Y = 0;
+            int cnt = 5;
+            int adds = 10000;
+            var tasks = new Task[cnt];
+
+            for (int i = 0; i < cnt; i++)
+            {
+                tasks[i] = TapThread.StartAwaitable(() =>
+                {
+                    for (int i = 0; i < adds; i++)
+                    {
+                        Utils.InterlockedSwap(ref X, () => ((int)X + 1));
+                        Utils.InterlockedSwap(ref Y, () => ((int)Y + 2));
+                    }
+                });
+            }
+            for (int i = 0; i < cnt; i++)
+            {
+                tasks[i].Wait();
+            }
+            Assert.AreEqual(X, cnt * adds);
+            Assert.AreEqual(Y, cnt * adds * 2);
         }
     }
 }
