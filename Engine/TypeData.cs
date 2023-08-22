@@ -220,14 +220,13 @@ namespace OpenTap
         static readonly ConcurrentDictionary<ITypeData, ITypeData[]> derivedTypesCache =
             new ConcurrentDictionary<ITypeData, ITypeData[]>();
 
-        static int ChangeID = -1; // used for monitoring cache invalidation
         static readonly object lockSearchers = new object();
         static int lastCount;
-        static HashSet<ITypeData> warningLogged = new HashSet<ITypeData>();
+        static readonly HashSet<ITypeData> warningLogged = new HashSet<ITypeData>();
         static ConditionalWeakTable<Type, TypeData> typeToTypeDataCache = new ConditionalWeakTable<Type, TypeData>();
 
         // add assembly is not thread safe.
-        static object loadTypeDictLock = new object();
+        static readonly object loadTypeDictLock = new object();
 
         Type type;
         bool? canCreateInstance;
@@ -483,7 +482,6 @@ namespace OpenTap
             var cache = TypeDataCache.Current;
             if (cache != null && cache.TryGetValue(obj, out var cachedValue))
                 return cachedValue;
-            checkCacheValidity();
             var resolver = new TypeDataProviderStack();
             var result = resolver.GetTypeData(obj);
             if (result == null)
@@ -500,7 +498,6 @@ namespace OpenTap
         /// <returns>All known types that descends to the given base type.</returns>
         public static IEnumerable<ITypeData> GetDerivedTypes(ITypeData baseType)
         {
-            checkCacheValidity();
             bool invalidated = false;
             int count = 0;
             foreach (var s in searchers)
@@ -659,18 +656,16 @@ namespace OpenTap
             return GetDerivedTypes(FromType(typeof(BaseType)));
         }
 
-        static void checkCacheValidity()
+        static TypeData()
         {
-            if (PluginManager.ChangeID != ChangeID)
+            PluginManager.CacheState.Updated += (s, e) =>
             {
-                // make sure that ITypeDataSearchers with cache invalidation are demantled.
                 foreach (var searcher in searchers.OfType<ITypeDataSearcherCacheInvalidated>())
                     searcher.CacheInvalidated -= CacheInvalidatedOnCacheInvalidated;
                 searchers = searchers.Clear();
                 MemberData.InvalidateCache();
                 typeToTypeDataCache = new ConditionalWeakTable<Type, TypeData>();
-                ChangeID = PluginManager.ChangeID;
-            }
+            };
         }
 
         static void WarnOnce(string message, ITypeData t)
@@ -711,7 +706,6 @@ namespace OpenTap
         /// <summary> Creates a new TypeData object to represent a dotnet type. </summary>
         public static TypeData FromType(Type type)
         {
-            checkCacheValidity();
             if (typeToTypeDataCache.TryGetValue(type, out var i))
                 return i;
             TypeData td = null;

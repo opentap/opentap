@@ -244,6 +244,8 @@ namespace OpenTap
 
             try
             {
+                ResourcePreOpenEvent.Invoke(node.Resource);
+                
                 // start a new thread to do synchronous work
                 node.Resource.Open();
 
@@ -578,6 +580,8 @@ namespace OpenTap
                 {
                     try
                     {
+                        ResourcePreOpenEvent.Invoke(node.Resource);
+                        
                         node.Resource.Open();
                         resourceLog.Info(sw, "Resource \"{0}\" opened.", node.Resource);
                     }

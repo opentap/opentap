@@ -146,6 +146,12 @@ namespace OpenTap
                 }
                 finally
                 {
+                    if(ThrowOnErrors){
+                        if (messages.Count > 0)
+                        {
+                            throw new Exception("Error during reading XML: " + string.Join("\n", messages));
+                        }
+                    }
                     if (IgnoreErrors == false)
                     {
                         LogMessages();
@@ -242,6 +248,9 @@ namespace OpenTap
         /// True if errors should be ignored.
         /// </summary>
         public bool IgnoreErrors { get; set; } = false;
+
+        /// <summary> The serializer will throw an exception if there are any errors. </summary>
+        internal bool ThrowOnErrors { get; set; } = false;
         
         /// <summary>
         /// Gets a serializer from the stack of active serializers. Returns null if there is no serializer of that type on the stack.

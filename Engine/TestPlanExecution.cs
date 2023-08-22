@@ -157,6 +157,10 @@ namespace OpenTap
             try
             {
                 execStage.StepsWithPrePlanRun.Clear();
+                
+                // Invoke test plan pre run event mixins.
+                TestPlanPreRunEvent.Invoke(this);
+                
                 if (!runPrePlanRunMethods(steps, execStage))
                 {
                     return failState.StartFail;
@@ -333,6 +337,7 @@ namespace OpenTap
         }
         /// <summary> When true, prints the test plan run summary at the end of a run. </summary>
         [XmlIgnore]
+        [AnnotationIgnore]
         public bool PrintTestPlanRunSummary { get; set; }
             
         /// <summary>
@@ -500,7 +505,7 @@ namespace OpenTap
         private TestPlanRun DoExecute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
         {
             if (resultListeners == null)
-                throw new ArgumentNullException("resultListeners");
+                throw new ArgumentNullException(nameof(resultListeners));
             
             ResultParameters.ParameterCache.LoadCache();
             
@@ -695,9 +700,11 @@ namespace OpenTap
             return Execute(resultListeners, metaDataParameters, null);
         }
 
-        private TestPlanRun currentExecutionState = null;
+        TestPlanRun currentExecutionState = null;
 
+        
         /// <summary> true if the plan is in its open state. </summary>
+        [AnnotationIgnore]
         public bool IsOpen { get { return currentExecutionState != null; } }
         
         /// <summary>

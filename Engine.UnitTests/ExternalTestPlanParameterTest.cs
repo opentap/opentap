@@ -487,7 +487,7 @@ namespace OpenTap.Engine.UnitTests
                 var delayAnnotation = stepsModel.GetMember(nameof(DelayStep.DelaySecs));
                 var menu = delayAnnotation.Get<MenuAnnotation>();
                 var edit = menu.MenuItems.FirstOrDefault(x =>
-                    x.Get<IconAnnotationAttribute>().IconName == IconNames.EditParameter);
+                    x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
 
                 var access = edit.Get<IAccessAnnotation>();
                 

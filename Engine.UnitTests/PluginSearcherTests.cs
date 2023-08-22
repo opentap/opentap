@@ -97,9 +97,13 @@ namespace OpenTap.Engine.UnitTests
             // However if they are ever mentioned in respect to a Type, then we must make sure it is correctly loaded. 
             var type1 = TypeData.FromType(typeof(System.Net.IPAddress));
             var type2 = TypeData.GetTypeData("System.Net.IPAddress");
-            Assert.AreEqual(type1, type2);
+            var type3 = TypeData.GetTypeData(new System.Net.IPAddress(new byte[]{127, 0, 0, 1}));
+            
             Assert.IsNotNull(type1);
             Assert.IsNotNull(type2);
+            Assert.IsNotNull(type3);
+            Assert.AreEqual(type1, type2);
+            Assert.AreEqual(type3, type2);
         }
     }
 }

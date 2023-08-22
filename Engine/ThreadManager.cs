@@ -568,7 +568,8 @@ namespace OpenTap
             threadManagerThread.Start();
             //ThreadPool.GetMaxThreads(out MaxWorkerThreads, out int _);
         }
-        static readonly int idleThreadCount = 4;
+        internal static int IdleThreadCount { get => idleThreadCount; set => idleThreadCount = value; }
+        static int idleThreadCount = 4;
         void threadManagerWork()
         {
             var handles = new WaitHandle[2];

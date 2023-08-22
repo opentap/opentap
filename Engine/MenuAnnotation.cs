@@ -257,13 +257,12 @@ namespace OpenTap
         public const string OutputAssigned = Common + nameof(OutputAssigned);
         /// <summary> This is an input</summary>
         public const string Input = Common + nameof(Input);
-        /// <summary> Assign an expression. </summary>
-        public const string AssignExpression = Common + nameof(AssignExpression);
-        /// <summary> Modify an expression. </summary>
-        public const string ModifyExpression = Common + nameof(ModifyExpression);
-        /// <summary> Remove expression. </summary>
-        public const string RemoveExpression = Common + nameof(RemoveExpression);
-        /// <summary> Assigned if a thing has an expression assigned. </summary>
-        public const string HasExpression = Common + nameof(HasExpression);
+        /// <summary> Add a mixin. </summary>
+        public const string AddMixin = Common + nameof(AddMixin);
+        /// <summary> Modifies a mixin. </summary>
+        public const string ModifyMixin = Common + nameof(ModifyMixin);
+        /// <summary> Remove a mixin. </summary>
+        public const string RemoveMixin = Common + nameof(RemoveMixin);
+        
     }
 }

@@ -11,8 +11,6 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Xml.Serialization;
-using OpenTap.Expressions;
-using OpenTap.Plugins;
 
 namespace OpenTap
 {
