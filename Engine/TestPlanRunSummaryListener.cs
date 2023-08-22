@@ -252,22 +252,29 @@ namespace OpenTap
             return maxLength > maxVerdictLength ? maxLength : maxVerdictLength;
         }
 
+        // keeps track of published artifacts.
         HashSet<string> artifacts { get; set; } = new HashSet<string>();
+        
+        // these tmp files are used to keep temporary (stream) files alive until the next test plan run.
         readonly List<FileStream> tempFiles = new List<FileStream>();
         readonly string targetLoc = Path.Combine(Path.GetTempPath(), "OpenTAP", "Temporary Artifacts", Guid.NewGuid().ToString());
         public void OnArtifactPublished(TestRun run, Stream artifactStream, string artifactName)
         {
+            // when an artifact is published, keep track of it.
+            // if it is a file artifact (FileStream), we just keep track of the names.
+            // if is a non-artifact stream, persist it on disk for a while.
             
             using var _ = artifactStream;
-            if (artifactStream is FileStream fstr)
+            if (artifactStream is FileStream originFileStream)
             {
-                artifacts.Add(fstr.Name);
+                artifacts.Add(originFileStream.Name);
                 return;
             }
             var tmpFileName = Path.Combine(targetLoc, Path.GetFileName(artifactName));
             if (artifacts.Contains(tmpFileName)) return;
             FileSystemHelper.EnsureDirectoryOf(tmpFileName);
             
+            // DeleteOnClose: persist the file until it is closed (next test plan run).
             var fileStream = new FileStream(tmpFileName, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.DeleteOnClose);
             
             artifactStream.CopyTo(fileStream);
@@ -275,11 +282,6 @@ namespace OpenTap
             
             artifacts.Add(tmpFileName);
             tempFiles.Add(fileStream);
-        }
-        
-        public void OnArtifactPublished(TestRun run, string filepath)
-        {
-            artifacts.Add(filepath);
         }
     }
 }
