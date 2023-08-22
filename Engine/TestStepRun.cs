@@ -512,10 +512,11 @@ namespace OpenTap
         static readonly TraceSource artifactsLog = Log.CreateSource("Artifacts");
         
         /// <summary> Publishes an artifact for the test plan run. </summary>
-        public void PublishArtifacts(Stream stream, string filename) 
+        public void PublishArtifact(Stream stream, string filename) 
             => testPlanRun.PublishArtifactsWithRun(stream, filename, this);
         
-        
+        /// <summary> Publishes an artifact file for the test plan run. </summary>
+        public void PublishArtifact(string file) => testPlanRun.PublishArtifactsWithRun(file, this); 
     }
 
     class TestStepBreakException : OperationCanceledException

@@ -637,6 +637,11 @@ namespace OpenTap
         #endregion
 
         static readonly TraceSource artifactsLog = Log.CreateSource("Artifacts");
+
+        internal void PublishArtifactsWithRun(string file, TestRun run)
+        {
+            PublishArtifactsWithRun(new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Write | FileShare.Delete), Path.GetFileName(file), run);
+        }
         
         internal void PublishArtifactsWithRun(Stream s, string filename, TestRun run)
         {
@@ -701,6 +706,9 @@ namespace OpenTap
         {
             PublishArtifactsWithRun(stream, filename, this);
         }
+        
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        public void PublishArtifacts(string file) => PublishArtifactsWithRun(file, this);
 
         /// <summary> Returns a list of all published artifacts. </summary>
         public IEnumerable<string> PublishedArtifacts => publishedArtifacts;

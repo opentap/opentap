@@ -14,11 +14,11 @@ namespace OpenTap.Engine.UnitTests
             if (AsStream)
             {
                 var bytes = System.IO.File.ReadAllBytes(File);
-                StepRun.PublishArtifacts(new MemoryStream(bytes), File);
+                StepRun.PublishArtifact(new MemoryStream(bytes), File);
             }
             else
             {
-                StepRun.PublishArtifacts(System.IO.File.OpenRead(File), File);
+                StepRun.PublishArtifact(File);
             }
         }
     }
