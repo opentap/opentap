@@ -27,10 +27,10 @@ namespace OpenTap.Engine.UnitTests
             step2.File = file2;
             
             var run = plan.Execute(new IResultListener[]{zip, txt});
-            Assert.AreEqual(4, run.PublishedArtifacts.Count());
-            Assert.IsTrue(run.PublishedArtifacts.Contains(file));
-            Assert.IsTrue(run.PublishedArtifacts.Contains(file2));
-            Assert.IsTrue(run.PublishedArtifacts.Any(x => Path.GetExtension(x) == ".zip"));
+            Assert.AreEqual(4, run.Artifacts.Count());
+            Assert.IsTrue(run.Artifacts.Contains(file));
+            Assert.IsTrue(run.Artifacts.Contains(file2));
+            Assert.IsTrue(run.Artifacts.Any(x => Path.GetExtension(x) == ".zip"));
         }
         
         [Test]
@@ -59,7 +59,7 @@ namespace OpenTap.Engine.UnitTests
             }
             
             var run = plan.Execute(new IResultListener[]{zip, txt});
-            Assert.AreEqual(4, run.PublishedArtifacts.Count());
+            Assert.AreEqual(4, run.Artifacts.Count());
         }
     }
 }

@@ -863,6 +863,27 @@ namespace OpenTap
             del += () => f(v); 
             return del;
         }
+
+        /// <summary>
+        /// Thread-safe and lock free value exchange. valueGen depends on the current value.
+        /// </summary>
+        /// <param name="outPlace"> Where to place the value</param>
+        /// <param name="valueGen"> Function generating a value based on the current value. </param>
+        /// <typeparam name="T"> The type of object. </typeparam>
+        public static void InterlockedSwap<T>(ref T outPlace, Func<T> valueGen) where T: class
+        {
+            while (true)
+            {   
+                // safely add a new item to the list using the compare-and-swap atomic operation.
+                var currentValue = outPlace;
+                var nextValue = valueGen();
+
+                if (Interlocked.CompareExchange(ref outPlace, nextValue, currentValue) == currentValue)
+                {
+                    break;
+                }
+            }
+        }
         
         
     #if DEBUG
