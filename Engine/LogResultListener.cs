@@ -155,7 +155,7 @@ namespace OpenTap
                 logStream.CopyTo(fileStream);
             }
             fileStream.Position = 0;
-            planRun.PublishArtifacts(fileStream, Path.GetFileName(outPath));
+            planRun.PublishArtifact(fileStream, Path.GetFileName(outPath));
         }
 
         string IFileResultStore.DefaultExtension => "txt";

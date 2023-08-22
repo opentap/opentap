@@ -638,14 +638,16 @@ namespace OpenTap
 
         static readonly TraceSource artifactsLog = Log.CreateSource("Artifacts");
 
-        internal void PublishArtifactsWithRun(string file, TestRun run)
+        internal void PublishArtifactWithRun(string file, TestRun run)
         {
-            PublishArtifactsWithRun(new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Write | FileShare.Delete), Path.GetFileName(file), run);
+            PublishArtifactWithRun(new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Write | FileShare.Delete), Path.GetFileName(file), run);
         }
         
-        internal void PublishArtifactsWithRun(Stream s, string filename, TestRun run)
+        internal void PublishArtifactWithRun(Stream s, string filename, TestRun run)
         {
-            publishedArtifacts = publishedArtifacts.Add(filename);
+            // multiple threads might be publishing artifacts at the same time, so this add needs to be done safely.
+            Utils.InterlockedSwap(ref artifacts, () => artifacts.Add(filename));
+           
             var streamGetters = new BlockingCollection<Stream>();
             
             int readerRefCount = 0;
@@ -704,13 +706,13 @@ namespace OpenTap
         /// <summary> Publishes an artifact for the test plan run. </summary>
         /// <param name="stream"> The artifact data as a stream. When publishing an artifact stream, the stream will be disposed by the callee and does not have to be disposed by the caller.</param>
         /// <param name="artifactName"> The name of the published artifact. </param>
-        public void PublishArtifacts(Stream stream, string artifactName) => PublishArtifactsWithRun(stream, artifactName, this);
+        public void PublishArtifact(Stream stream, string artifactName) => PublishArtifactWithRun(stream, artifactName, this);
         
         /// <summary> Publishes an artifact for the test plan run. </summary>
-        public void PublishArtifacts(string file) => PublishArtifactsWithRun(file, this);
+        public void PublishArtifact(string file) => PublishArtifactWithRun(file, this);
 
-        /// <summary> Returns a list of all published artifacts. </summary>
-        public IEnumerable<string> PublishedArtifacts => publishedArtifacts;
-        ImmutableHashSet<string> publishedArtifacts = ImmutableHashSet<string>.Empty;
+        /// <summary> Returns a list of all published artifacts. This list will get updated as the test plan progresses.</summary>
+        public IEnumerable<string> Artifacts => artifacts;
+        ImmutableHashSet<string> artifacts = ImmutableHashSet<string>.Empty;
     }
 }
