@@ -315,7 +315,9 @@ namespace OpenTap
                     logStream.Flush();
 
                     run.AddTestPlanCompleted(logStream, runWentOk != failState.StartFail);
-
+                    
+                    if(PrintTestPlanRunSummary)
+                        summaryListener.PrintArtifactsSummary();
                     run.ResourceManager.EndStep(this, TestPlanExecutionStage.Execute);
 
                     if (!run.IsCompositeRun)
@@ -329,9 +331,7 @@ namespace OpenTap
                         item.ExitTestPlanRun(run);
             }
         }
-        /// <summary>
-        /// When true, prints the test plan run summary at the end of a run.  
-        /// </summary>
+        /// <summary> When true, prints the test plan run summary at the end of a run. </summary>
         [XmlIgnore]
         public bool PrintTestPlanRunSummary { get; set; }
             

@@ -6,11 +6,13 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Xml.Serialization;
 using OpenTap.Expressions;
+using OpenTap.Plugins;
 
 namespace OpenTap
 {
@@ -159,6 +161,7 @@ namespace OpenTap
     [DebuggerDisplay("TestStepRun {TestStepName}")]
     public class TestStepRun : TestRun
     {
+        readonly TestPlanRun testPlanRun;
         /// <summary>
         /// Parent run that is above this run in the <see cref="TestPlan"/> tree.  
         /// </summary>
@@ -280,8 +283,9 @@ namespace OpenTap
             Parent = parent;
         }
         
-        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters = null)
+        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters, TestPlanRun testPlanRun)
         {
+            this.testPlanRun = testPlanRun;
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
             TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
@@ -504,6 +508,15 @@ namespace OpenTap
             stepRuns[stepRun.TestStepId] = stepRun;
             childStarted?.Invoke(stepRun);
         }
+        
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        /// <param name="stream"> The artifact data as a stream. When publishing an artifact stream, the stream will be disposed by the callee and does not have to be disposed by the caller.</param>
+        /// <param name="artifactName"> The name of the published artifact. </param>
+        public void PublishArtifact(Stream stream, string artifactName) 
+            => testPlanRun.PublishArtifactsWithRun(stream, artifactName, this);
+        
+        /// <summary> Publishes an artifact file for the test plan run. </summary>
+        public void PublishArtifact(string file) => testPlanRun.PublishArtifactsWithRun(file, this); 
     }
 
     class TestStepBreakException : OperationCanceledException
