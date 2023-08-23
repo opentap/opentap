@@ -169,7 +169,7 @@ namespace OpenTap.Package
         /// Like Resolve, but includes the current installation as a base. In this case, packages can be upgraded and downgraded,
         /// but not removed if they do not exist in the image specification.
         /// </summary>
-        internal ImageIdentifier MergeAndResolve(Installation deploymentInstallation, CancellationToken cancellationToken)
+        public ImageIdentifier MergeAndResolve(Installation deploymentInstallation, CancellationToken cancellationToken)
         {
             var imageSpecifier2 = FromAddedPackages(deploymentInstallation, Packages);
             imageSpecifier2.Name = Name;

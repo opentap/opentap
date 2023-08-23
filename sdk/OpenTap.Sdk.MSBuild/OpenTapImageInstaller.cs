@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Xml.Linq;
 using Microsoft.Build.Framework;
 using OpenTap;
 using OpenTap.Diagnostic;
@@ -17,11 +16,41 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
     internal class DefaultImageDeployer : IImageDeployer
     {
-        public void Install(ImageSpecifier spec, Installation install, CancellationToken cts)
+        static bool IsSystemWide(PackageDef package)
         {
-            if (!spec.Repositories.Any(r => r.ToLower().Contains("https://packages.opentap.io") || r.ToLower().Contains("http://packages.opentap.io")))
-                spec.Repositories.Add("https://packages.opentap.io");
-            spec.MergeAndDeploy(install, cts);
+            return package.Class.Equals("system-wide", StringComparison.OrdinalIgnoreCase);
+        }
+
+        public void Install(ImageSpecifier spec, Installation install, CancellationToken ct)
+        {
+            ImageIdentifier image = null;
+            // As a performance optimization, don't start resolving the image if a package
+            // which is known to be system-wide was requested.
+            var requestedPackages = spec.Packages.Select(p => p.Name).ToArray();
+            var requestedSystemWide = install.GetPackages().Where(IsSystemWide)
+                .FirstOrDefault(syswide => requestedPackages.Contains(syswide.Name));
+
+            // Resolve the image if there are no system-wide packages requested
+            if (requestedSystemWide == null)
+            {
+                if (!spec.Repositories.Any(r =>
+                        r.ToLower().Contains("https://packages.opentap.io") ||
+                        r.ToLower().Contains("http://packages.opentap.io")))
+                    spec.Repositories.Add("https://packages.opentap.io");
+
+                image = spec.MergeAndResolve(install, ct);
+
+                requestedSystemWide =
+                    image.Packages.FirstOrDefault(def => IsSystemWide(def) && requestedPackages.Contains(def.Name));
+            }
+
+            if (requestedSystemWide is PackageDef p)
+            {
+                throw new Exception(
+                    $"Requested package '{p.Name}' is system-wide, and should not be installed as part of a build.");
+            }
+
+            image.Deploy(install.Directory, ct);
         }
     }
 
