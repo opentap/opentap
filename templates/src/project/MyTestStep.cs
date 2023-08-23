@@ -2,7 +2,8 @@ using OpenTap;
 
 namespace ProjectName
 {
-    [Display("MyTestStep")]
+    [Display("MyTestStep", Description: "Insert a description here", Group: "ProjectName")]
+
     public class MyTestStep : TestStep
     {
         #region Settings
