@@ -76,11 +76,13 @@
         <Version>%(AdditionalOpenTapPackage.Version)</Version>
         <Repository>%(AdditionalOpenTapPackage.Repository)</Repository>
         <UnpackOnly>%(AdditionalOpenTapPackage.UnpackOnly)</UnpackOnly>
+        <Token>%(AdditionalOpenTapPackage.Token)</Token>
       </OpenTapPackagesToInstall>
       <OpenTapPackagesToInstall Include="@(OpenTapPackageReference)">
         <Version>%(OpenTapPackageReference.Version)</Version>
         <Repository>%(OpenTapPackageReference.Repository)</Repository>
         <UnpackOnly>%(OpenTapPackageReference.UnpackOnly)</UnpackOnly>
+        <Token>%(OpenTapPackageReference.Token)</Token>
       </OpenTapPackagesToInstall>
     </ItemGroup>
   </Target>
