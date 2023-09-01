@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading;
@@ -7,38 +8,40 @@ namespace OpenTap.Package
 {
     /// <summary> Sets the authentication token for use with a given domain.  </summary>
     [Display("set-auth-token", Group: "package", Description: "Sets the authentication token for a given domain.")]
-    [Browsable(false)]
-    public class SetUserToken : ICliAction
+    public class SetAuthToken : ICliAction
     {
         /// <summary>  Gets or sets the domain. </summary>
-        [UnnamedCommandLineArgument("Domain")]
-        public string Domain { get; set; }
+        [UnnamedCommandLineArgument("url")]
+        public string Url { get; set; }
 
         /// <summary>  Gets or sets the token. </summary>
-        [UnnamedCommandLineArgument("Token")]
+        [UnnamedCommandLineArgument("token")]
         public string Token { get; set; }
         
         /// <summary>  Gets or sets update - if existing settings should be updated. </summary>
         [CommandLineArgument("update", ShortName = "u", Description = "Sets if existing settings should be updated.")]
         public bool Update { get; set; }
 
-        static readonly TraceSource log = Log.CreateSource("set-auto-token");
+        static readonly TraceSource log = Log.CreateSource("set-auth-token");
         
         public int Execute(CancellationToken cancellationToken)
         {
-            if (AuthenticationSettings.Current.Tokens.Any(x => x.Domain == Domain))
+            var uri = new Uri(Url, UriKind.RelativeOrAbsolute);
+            var authority = uri.IsAbsoluteUri ? uri.Authority : Url;
+            log.Debug($"Selecting {authority} as authority.");
+            if (AuthenticationSettings.Current.Tokens.Any(x => x.Domain == authority))
             {
                 if (!Update)
                 {
-                    log.Error($"Settings already contains a token for {Domain}. Use --update to overwrite it.");
+                    log.Error($"Settings already contains a token for {authority}. Use --update to overwrite it.");
                     return -1;
                 }
             }
             
-            AuthenticationSettings.Current.Tokens.RemoveIf(x => x.Domain == Domain);
-            AuthenticationSettings.Current.Tokens.Add(new TokenInfo(Token, "", Domain));
+            AuthenticationSettings.Current.Tokens.RemoveIf(x => x.Domain == authority);
+            AuthenticationSettings.Current.Tokens.Add(new TokenInfo(Token, "", authority));
             AuthenticationSettings.Current.Save();
-            log.Info($"Successfully set the authentication token for {Domain}.");
+            log.Info($"Successfully set the authentication token for {Url}.");
             return 0;
         }
     }
