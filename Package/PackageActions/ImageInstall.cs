@@ -94,6 +94,7 @@ namespace OpenTap.Package
                 }
                 else
                 {
+                    imageSpecifier.AdditionalPackages.AddRange(new Installation(Target).GetPackages());
                     image = imageSpecifier.Resolve(TapThread.Current.AbortToken);
                 }
 
