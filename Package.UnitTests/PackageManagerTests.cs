@@ -52,17 +52,17 @@ namespace OpenTap.Package.UnitTests
         }
 
         [TestCase("file:///C:/Packages", "file:///C:/Packages", "Windows")]
-        [TestCase("file:///C:/Packages/", "file:///C:/Packages", "Windows")]
-        [TestCase("file:///Packages/", "file:///{Drive}Packages", "Windows")]
+        [TestCase("file:///C:/Packages/", "file:///C:/Packages/", "Windows")]
+        [TestCase("file:///Packages/", "file:///{Drive}Packages/", "Windows")]
         [TestCase("file:///Packages", "file:///Packages", "Linux")]
-        [TestCase("file:///Packages/", "file:///Packages", "Linux")]
+        [TestCase("file:///Packages/", "file:///Packages/", "Linux")]
         [TestCase("C:/Packages", "file:///C:/Packages", "Windows")]
-        [TestCase("C:/Packages/", "file:///C:/Packages", "Windows")]
+        [TestCase("C:/Packages/", "file:///C:/Packages/", "Windows")]
         [TestCase("/Packages", "file:///Packages", "Linux")]
         [TestCase("/Packages/", "file:///Packages", "Linux")]
-        [TestCase("C:\\Packages/", "file:///C:/Packages", "Windows")]
+        [TestCase("C:\\Packages/", "file:///C:/Packages/", "Windows")]
         [TestCase("PackageCache", "file:///{CurrentDirectory}/PackageCache")]
-        [TestCase("PackageCache/", "file:///{CurrentDirectory}/PackageCache")]
+        [TestCase("PackageCache/", "file:///{CurrentDirectory}/PackageCache/")]
         [TestCase(@"\\wsl.localhost\arch\packages\", "file://wsl.localhost/arch/packages")]
         [TestCase(@"\\192.168.0.100\some\directory\", "file://192.168.0.100/some/directory")]
         public void FileRepositoryUrls(string input, string expectedUrl, string os = "Windows,Linux")

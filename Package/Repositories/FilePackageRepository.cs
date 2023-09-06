@@ -44,7 +44,7 @@ namespace OpenTap.Package
             // On other systems (Linux, mac, .. where path == "/") we do nothing.
             if (Path.IsPathRooted(path) && path !="/" && Path.GetPathRoot(path) == path)
             {
-                path = Path.GetPathRoot(path) + Path.DirectorySeparatorChar;
+                path = Path.GetPathRoot(path).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
             }
             
             if (Uri.TryCreate(path, UriKind.RelativeOrAbsolute, out Uri uri))
