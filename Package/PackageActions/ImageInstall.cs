@@ -104,6 +104,7 @@ namespace OpenTap.Package
                     // or if the package cache has been cleared by the user, and an image install is attempted
                     // without the original source repository of some package.
                     imageSpecifier.AdditionalPackages.AddRange(new Installation(Target).GetPackages());
+                    
                     image = imageSpecifier.Resolve(TapThread.Current.AbortToken);
                 }
 
