@@ -94,6 +94,15 @@ namespace OpenTap.Package
                 }
                 else
                 {
+                    // Here we add the list of currently installed packages to 'AdditionalPackages'.
+                    // These packages will be added to the imageSpecifier's internal cache of known packages.
+                    // This fixes an edge case where an image fails to resolve because one of the specified
+                    // packages is already installed, but is not available in any of the specified repositories
+                    // (or the local cache). In that case, if the installed version is compatible with the image,
+                    // the image resolution will still succeed even if the package cannot be found.
+                    // This is possible e.g. with debug installs where the debug package does not exist in any repository,
+                    // or if the package cache has been cleared by the user, and an image install is attempted
+                    // without the original source repository of some package.
                     imageSpecifier.AdditionalPackages.AddRange(new Installation(Target).GetPackages());
                     image = imageSpecifier.Resolve(TapThread.Current.AbortToken);
                 }
