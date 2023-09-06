@@ -6,8 +6,9 @@ using System.Threading;
 
 namespace OpenTap.UnitTests
 {
-    public class RecordAllResultListener : ResultListener
+    public class RecordAllResultListener : ResultListener, IMergedTableResultListener
     {
+        public bool SupportsMergedResults { get; set; } = true;
         public Dictionary<Guid, TestRun> Runs { get; set; } = new Dictionary<Guid, TestRun>();
         public Dictionary<Guid, string> planLogs = new Dictionary<Guid, string>();
         public List<ResultTable> Results = new List<ResultTable>();

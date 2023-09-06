@@ -285,6 +285,12 @@ namespace OpenTap
             {
                 if (item.Key is T x)
                 {
+                    if (r is ISkippableInvokable<T, WorkQueue> skippableInvokable)
+                    {
+                        // skip the work if possible.
+                        if (skippableInvokable.Skip(x, item.Value))
+                            continue;
+                    }
                     count++;
                     item.Value.EnqueueWork(r, x, item.Value);
                 }

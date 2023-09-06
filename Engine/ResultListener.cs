@@ -82,6 +82,20 @@ namespace OpenTap
         public virtual void OnResultPublished(Guid stepRunId, ResultTable result)
         {
         }
+        
+        // lookup keeping track of which result listeners implements OnResultPublished
+        static ImmutableDictionary<Type, bool> implementsOnResultsPublished = ImmutableDictionary<Type, bool>.Empty;
+        /// <summary> Returns true if the result listener has implemented OnResultPublished. This is used to optimize performance in situations where they don't. </summary>
+        internal static bool ImplementsOnResultsPublished(ResultListener resultListener)
+        {
+            var resultListenerType = resultListener.GetType();
+            if (!implementsOnResultsPublished.TryGetValue(resultListenerType, out bool doesImplement))
+            {
+                doesImplement = resultListenerType.MethodOverridden(typeof(ResultListener), nameof(OnResultPublished));
+                implementsOnResultsPublished = implementsOnResultsPublished.Add(resultListenerType, doesImplement);
+            }
+            return doesImplement;
+        }
     }
 
     /// <summary>

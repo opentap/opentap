@@ -505,7 +505,12 @@ namespace OpenTap
             return getMethodsTap(type);
         }
 
-        
+        public static bool MethodOverridden(this Type t, Type baseType, string methodName)
+        {
+            var m1 = baseType.GetMethod(methodName).MethodHandle.Value;
+            var m2 = t.GetMethod(methodName).MethodHandle.Value;
+            return m1 != m2;
+        } 
 
         /// <summary> Get the base C# type of a given type. </summary>
         internal static T As<T>(this ITypeData type) where T: ITypeData
