@@ -6,7 +6,7 @@ namespace OpenTap.Package.UnitTests
     public class FilePackageRepoTest
     {
         [TestCase("C:\\", "C:\\")]
-        [TestCase("/", null)] // this might be C or D or ... depending on the current drive.
+        [TestCase("\\", null)] // this might be C or D or ... depending on the current drive.
         [TestCase("C:", "C:\\")]
         [TestCase("D:", "D:\\")]
         [TestCase("D:\\", "D:\\")]
