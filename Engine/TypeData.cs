@@ -241,6 +241,9 @@ namespace OpenTap
         TypeData elementType;
         ITypeData baseTypeCache;
 
+        // this value is used to mark a type code that has not been loaded
+        // all the normal values of TypeCode means something specifically
+        // so this value is used as something that does not have other meaning.
         const int UnloadedTypeCode = 100;
         
         TypeCode typeCode = (TypeCode)(UnloadedTypeCode);
