@@ -449,24 +449,23 @@ namespace OpenTap
             }
         }
 
-        /// <summary>
-        /// Serializes an object to XML.
-        /// </summary>
-        /// <param name="elem"></param>
-        /// <param name="obj"></param>
-        /// <param name="expectedType"></param>
-        /// <returns></returns>
-        public bool Serialize(XElement elem, object obj, ITypeData expectedType = null)
+        /// <summary> Serializes an object to XML. </summary>
+        public bool Serialize(XElement elem, object obj, ITypeData expectedType = null) => 
+            Serialize(elem, obj, expectedType, true);
+
+        /// <summary> Serializes an object to XML. Includes an argument whether the serializer should be notified about the type being used.</summary>
+        internal bool Serialize(XElement elem, object obj, ITypeData expectedType, bool notifyTypeUsed)
         {
             ITypeData type = null;
             if(obj != null)
             {
                 type = TypeData.GetTypeData(obj);
-                NotifyTypeUsed(type);
+                if(notifyTypeUsed)
+                    NotifyTypeUsed(type);
             }
             if (Object.Equals(type, expectedType) == false && type != null)
                 elem.SetAttributeValue("type", type.Name);
-            else if (expectedType != null)
+            else if (expectedType != null && notifyTypeUsed)
                 NotifyTypeUsed(expectedType);
 
             foreach (var serializer in serializers)
