@@ -15,7 +15,7 @@ namespace OpenTap
         
         IMemberData IMemberMenuModel.Member { get;}
         
-        [Display("Modify Mixin", "Modify custom setting.", Order: 2.0)]
+        [Display("Modify Mixin", "Modify custom setting.", Order: 2.0, Group: "Mixins")]
         [Browsable(true)]
         [IconAnnotation(IconNames.ModifyMixin)]
         public void ModifyMixin()
@@ -53,7 +53,7 @@ namespace OpenTap
             }
         }
 
-        [Display("Remove Mixin", "Remove custom setting.", Order: 2.0)]
+        [Display("Remove Mixin", "Remove custom setting.", Order: 2.0, Group: "Mixins")]
         [Browsable(true)]
         [IconAnnotation(IconNames.RemoveMixin)]
         public void RemoveMixin()
