@@ -39,6 +39,14 @@ namespace OpenTap.Package
         /// <exception cref="NotSupportedException">Path is not a valid file package repository</exception>
         public FilePackageRepository(string path)
         {
+            // if path is the path root, for example C: and the path is not "/".
+            // then we need to add a '\' so "C:" becomes "C:\".
+            // On other systems (Linux, mac, .. where path == "/") we do nothing.
+            if (Path.IsPathRooted(path) && path !="/" && Path.GetPathRoot(path) == path)
+            {
+                path = Path.GetPathRoot(path).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            }
+            
             if (Uri.TryCreate(path, UriKind.RelativeOrAbsolute, out Uri uri))
             {
                 // This is true for UNC paths on Windows
@@ -62,9 +70,9 @@ namespace OpenTap.Package
                     }
 
                     if (File.Exists(absolutePath))
-                        AbsolutePath = Path.GetFullPath(Path.GetDirectoryName(absolutePath)).TrimEnd('/', '\\');
+                        AbsolutePath = Path.GetFullPath(Path.GetDirectoryName(absolutePath));
                     else
-                        AbsolutePath = Path.GetFullPath(absolutePath).TrimEnd('/', '\\');
+                        AbsolutePath = Path.GetFullPath(absolutePath);
                     AbsolutePath = Uri.UnescapeDataString(AbsolutePath);
 
                     Url = new Uri(AbsolutePath).AbsoluteUri;
@@ -88,7 +96,7 @@ namespace OpenTap.Package
             {
                 allPackages = Array.Empty<PackageDef>();
 
-                if (AbsolutePath != PackageDef.SystemWideInstallationDirectory) // Let's ignore this error if the repo is the system wide directory.
+                if (AbsolutePath.TrimEnd('/', '\\') != PackageDef.SystemWideInstallationDirectory.TrimEnd('/', '\\')) // Let's ignore this error if the repo is the system wide directory.
                     throw new DirectoryNotFoundException($"File package repository directory not found at: {Url}");
 
                 return;
