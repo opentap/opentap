@@ -102,8 +102,9 @@ namespace OpenTap.UnitTests
             Assert.IsFalse(parameterNames.Contains("Break Conditions"));
         }
         
-        [Test]
-        public void TestSimpleResults3()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TestSimpleResults3(bool mergeResults)
         {
             var plan = new TestPlan();
             var step = new SimpleResultTestMany
@@ -119,12 +120,21 @@ namespace OpenTap.UnitTests
             plan.Steps.Add(step);
             plan.Steps.Add(actionStep);
 
-            var rl = new RecordAllResultListener();
+            RecordAllResultListener rl = mergeResults ? new RecordAllMergedResultListener() : new RecordAllResultListener();
             rl.OnTestStepRunStartAction = () => evt.WaitOne();
             
             plan.Execute(new []{rl});
-            Assert.AreEqual(step.Count, rl.Results[0].Rows);
-            Assert.AreEqual(1, rl.Results.Count);
+            if (mergeResults)
+            {
+                Assert.AreEqual(step.Count, rl.Results[0].Rows);
+                Assert.AreEqual(1, rl.Results.Count);    
+            }
+            else
+            {
+                Assert.AreEqual(1, rl.Results[0].Rows);
+                Assert.AreEqual(10, rl.Results.Count);
+            }
+            
         }
 
         [Test]
@@ -233,7 +243,7 @@ namespace OpenTap.UnitTests
             }
         }
 
-        class SlowResultListener : ResultListener
+        class SlowResultListener : ResultListener, IMergedTableResultListener
         {
             public override void OnResultPublished(Guid stepRunId, ResultTable result)
             {

@@ -49,4 +49,9 @@ namespace OpenTap.UnitTests
             ResultTableGuids.Add(stepRunId);
         }
     }
+
+    public class RecordAllMergedResultListener : RecordAllResultListener, IMergedTableResultListener
+    {
+        
+    }
 }

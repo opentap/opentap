@@ -567,7 +567,7 @@ namespace OpenTap
 
         internal bool WasDeferred => deferWorker != null;
 
-        class PublishResultTableInvokable : IInvokable<IResultListener, WorkQueue>
+        class PublishResultTableInvokable : IInvokable<IResultListener, WorkQueue>, ISkippableInvokable<IResultListener, WorkQueue>
         {
             readonly ResultTable table;
             readonly ResultSource proxy;
@@ -632,7 +632,15 @@ namespace OpenTap
             {
                 try
                 {
-                    a.OnResultPublished(proxy.stepRun.Id, CreateOptimizedTable(queue));
+                    // only merge result tables where it is explicitly supported by the result listener.
+                    if (a is IMergedTableResultListener)
+                    {
+                        a.OnResultPublished(proxy.stepRun.Id, CreateOptimizedTable(queue));    
+                    }
+                    else
+                    {
+                        a.OnResultPublished(proxy.stepRun.Id, table);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -642,7 +650,14 @@ namespace OpenTap
                 }
             }
 
-
+            // Skip the invocation if the result listener does not implement OnResultPublished.
+            public bool Skip(IResultListener a, WorkQueue b)
+            {
+                if (a is ResultListener r)
+                    return ResultListener.ImplementsOnResultsPublished(r) == false;
+                
+                return false;
+            }
         }
     }
 }
