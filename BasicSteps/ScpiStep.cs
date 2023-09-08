@@ -58,40 +58,53 @@ namespace OpenTap.Plugins.BasicSteps
             return true;
         }
 
-        [EnabledIf("GeneratesOutput", true)]
+        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
         [Display("Regular Expression", Group: "Set Verdict", Order: 1.1, Collapsed: true, Description: "The regular expression to apply to the output.")]
         [HelpLink("EditorHelp.chm::/CreatingATestPlan/Working with Test Steps/Using Regex in Output Parameters.html")]
         public Enabled<string> RegularExpressionPattern { get; set; }
 
-        [EnabledIf("GeneratesOutput", true)]
-        [EnabledIf("RegularExpressionPattern", true)]
-        [Display("Step Verdict on Match", Group: "Set Verdict", Order: 1.2, Collapsed: true, Description: "The verdict of the step when the regex did match the result.")]
+        
+        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
+        [EnabledIf("RegularExpressionPattern", true, HideIfDisabled = true)]
+        [Display("Verdict on Match", Group: "Set Verdict", Order: 1.2, Collapsed: true, Description: "The verdict of the step when the regex did match the result.")]
         public Verdict VerdictOnMatch { get; set; }
 
-        [EnabledIf("GeneratesOutput", true)]
-        [EnabledIf("RegularExpressionPattern", true)]
-        [Display("Step Verdict on No Match", Group: "Set Verdict", Order: 1.3, Collapsed: true, Description: "The verdict of the step when the regex did not match the result.")]
+        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
+        [EnabledIf("RegularExpressionPattern", true, HideIfDisabled = true)]
+        [Display("Verdict on No Match", Group: "Set Verdict", Order: 1.3, Collapsed: true, Description: "The verdict of the step when the regex did not match the result.")]
         public Verdict VerdictOnNoMatch { get; set; }
 
-        [EnabledIf("GeneratesOutput", true)]
+        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
         [Display("Regular Expression", Group: "Results", Order: 1.5, Collapsed: true, Description: "The regular expression to apply to the output.")]
         [HelpLink("EditorHelp.chm::/CreatingATestPlan/Working with Test Steps/Using Regex in Output Parameters.html")]
         public Enabled<string> ResultRegularExpressionPattern { get; set; }
 
-        [EnabledIf("GeneratesOutput", true)]
-        [EnabledIf("ResultRegularExpressionPattern", true)]
+        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(ResultRegularExpressionPattern), true, HideIfDisabled = true)]
         [Display("Result Name", Group: "Results", Order: 1.51, Collapsed: true, Description: "The name of the result.")]
         public string ResultName { get; set; }
 
-        [EnabledIf("GeneratesOutput", true)]
-        [EnabledIf("ResultRegularExpressionPattern", true)]
+        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(ResultRegularExpressionPattern), true, HideIfDisabled = true)]
         [Display("Regex Behavior", Group: "Results", Order: 1.51, Collapsed: true, Description: "How the step should publish the matched values of the regular expression as a result table.")]
         public SCPIRegexBehavior Behavior { get; set; }
 
-        [EnabledIf("GeneratesOutput", true)]
-        [EnabledIf("ResultRegularExpressionPattern", true)]
+        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(ResultRegularExpressionPattern), true, HideIfDisabled = true)]
         [Display("Column Names", Group: "Results", Order: 1.51, Collapsed: true, Description: "The name of the columns of the resulting groups. The titles must be separated by commas.")]
         public string DimensionTitles { get; set; }
+        
+        [Display("Save to Output", Group: "Results", Order: 1.52, Collapsed: true, Description: "If the output of the application should be saved to the output.")]
+        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
+        public bool SaveToOutput { get; set; }
+
+        [Display("Output", Group: "Results", Order: 1.53, Collapsed: true, Description: "The result of the execution.")]
+        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(SaveToOutput), true, HideIfDisabled = true)]
+        [Output]
+        [Browsable(true)]
+        [Layout(LayoutMode.Normal, maxRowHeight: 1)]
+        public string Output { get; private set; } = "";
 
         public RegexOutputStep()
         {
@@ -104,15 +117,19 @@ namespace OpenTap.Plugins.BasicSteps
             ResultName = "Regex Result";
             DimensionTitles = "";
             
-            Rules.Add(new ValidationRule(() => ResultRegularExpressionPattern.IsEnabled == false || IsValidRegex(ResultRegularExpressionPattern.Value), "Invalid regular expression.", "ResultRegularExpressionPattern"));
+            Rules.Add(new ValidationRule(() => ResultRegularExpressionPattern.IsEnabled == false || IsValidRegex(ResultRegularExpressionPattern.Value), "Invalid regular expression.", nameof(ResultRegularExpressionPattern)));
             Rules.Add(new ValidationRule(() => RegularExpressionPattern.IsEnabled == false || IsValidRegex(RegularExpressionPattern.Value), "Invalid regular expression.", "RegularExpressionPattern"));
+            
         }
 
-        protected void ProcessOutput(string Output)
+        protected void ProcessOutput(string output)
         {
+            if (SaveToOutput)
+                Output = output;
+            else Output = "";
             if (RegularExpressionPattern.IsEnabled)
             {
-                var Matches = Regex.Matches(Output, RegularExpressionPattern.Value);
+                var Matches = Regex.Matches(output, RegularExpressionPattern.Value);
 
                 if (Matches.Count > 0)
                     UpgradeVerdict(VerdictOnMatch);
@@ -122,7 +139,7 @@ namespace OpenTap.Plugins.BasicSteps
 
             if (ResultRegularExpressionPattern.IsEnabled)
             {
-                var Matches = Regex.Matches(Output, ResultRegularExpressionPattern.Value);
+                var Matches = Regex.Matches(output, ResultRegularExpressionPattern.Value);
 
                 foreach (Match Match in Matches)
                 {
@@ -191,8 +208,8 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Add to Log", Order: 0.3, Description: "If enabled the result of the query is added to the log.")]
         public bool AddToLog { get; set; }
 
-        [EnabledIf(nameof(AddToLog), true)]
-        [EnabledIf(nameof(Action), SCPIAction.Query)]
+        [EnabledIf(nameof(AddToLog), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(Action), SCPIAction.Query, HideIfDisabled = true)]
         [Display("Log Header", Order: 0.4, Description: "This string is added to the front of the result of the query.")]
         public string LogHeader { get; set; }
         
