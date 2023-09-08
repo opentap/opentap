@@ -120,10 +120,7 @@ namespace OpenTap.UnitTests
             plan.Steps.Add(step);
             plan.Steps.Add(actionStep);
 
-            var rl = new RecordAllResultListener()
-            {
-                SupportsMergedResults = mergeResults
-            };
+            RecordAllResultListener rl = mergeResults ? new RecordAllMergedResultListener() : new RecordAllResultListener();
             rl.OnTestStepRunStartAction = () => evt.WaitOne();
             
             plan.Execute(new []{rl});
@@ -253,7 +250,6 @@ namespace OpenTap.UnitTests
                 base.OnResultPublished(stepRunId, result);
                 TapThread.Sleep(100);
             }
-            public bool SupportsMergedResults => true;
         }
         
         [Test]

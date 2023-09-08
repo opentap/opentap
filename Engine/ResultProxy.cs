@@ -633,7 +633,7 @@ namespace OpenTap
                 try
                 {
                     // only merge result tables where it is explicitly supported by the result listener.
-                    if (a is IMergedTableResultListener m && m.SupportsMergedResults)
+                    if (a is IMergedTableResultListener)
                     {
                         a.OnResultPublished(proxy.stepRun.Id, CreateOptimizedTable(queue));    
                     }
