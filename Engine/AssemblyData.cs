@@ -109,6 +109,9 @@ namespace OpenTap
         Assembly assembly;
 
         bool failedLoad;
+
+        /// <summary> Gets the assembly without loading it.</summary>
+        internal Assembly GetCached() => assembly ?? preloadedAssembly;
         
         /// <summary>
         /// Returns the System.Reflection.Assembly corresponding to this. 

@@ -240,7 +240,13 @@ namespace OpenTap
         bool failedLoad;
         TypeData elementType;
         ITypeData baseTypeCache;
-        TypeCode typeCode = TypeCode.Object;
+
+        // this value is used to mark a type code that has not been loaded
+        // all the normal values of TypeCode means something specifically
+        // so this value is used as something that does not have other meaning.
+        const int UnloadedTypeCode = 100;
+        
+        TypeCode typeCode = (TypeCode)(UnloadedTypeCode);
         object[] attributes = null;
         bool postLoaded = false;
         readonly object loadLock = new object();
@@ -298,12 +304,19 @@ namespace OpenTap
             IsBrowsable = true;
         }
 
-        TypeData(Type type): this(type.FullName)
+        TypeData(Type type, PluginSearcher searcher): this(type.FullName)
         {
             this.type = type;
+            if(type.Assembly.IsDynamic == false)
+                this.Assembly = searcher.GetAssemblyData(type.Assembly);
+            else
+            {
+                this.Assembly = new AssemblyData(null, type.Assembly);
+            }
             PostLoad();
             IsBrowsable = this.GetAttribute<BrowsableAttribute>()?.Browsable ?? true;
         }
+        
 
         /// <summary>
         /// Returns the System.Type corresponding to this. 
@@ -312,11 +325,16 @@ namespace OpenTap
         public Type Load()
         {
             if (failedLoad) return null;
-            if (type != null) return type;
+            if (type != null && UnloadedTypeCode != (int)typeCode)
+            {
+                return type;
+            }
+            // if UnloadedTypeCode == typeCode, it means it has not been fully loaded. 
 
             try
             {
-                var asm = Assembly.Load();
+                
+                var asm = Assembly?.Load();
                 if (asm == null)
                 {
                     failedLoad = true;
@@ -324,6 +342,7 @@ namespace OpenTap
                 }
 
                 type = asm.GetType(this.Name, true);
+                typeCode = Type.GetTypeCode(type);
                 typeToTypeDataCache.GetValue(type, t => this);
             }
             catch (Exception ex)
@@ -731,7 +750,7 @@ namespace OpenTap
                     {
                     }
 
-                    td = new TypeData(type);
+                    td = new TypeData(type, searcher);
                 }
                 else
                 {
@@ -741,7 +760,7 @@ namespace OpenTap
                     // is a type mismatch, we instantiate a new typedata from the correct type.
                     if (td == null || td.Type != type)
                     {
-                        td = new TypeData(type);
+                        td = new TypeData(type, searcher);
                     }
                 }
             }

@@ -828,9 +828,13 @@ namespace OpenTap.Plugins
                                         }
                                     }
                                     
-                                    SetHasDefaultValueAttribute(subProp, val, elem2);
+                                    // if the setting has the default value, then don't notify that the type has been used, 
+                                    // because it will probably not have been used in the end.
+                                    bool hasDefaultValue =  SetHasDefaultValueAttribute(subProp, val, elem2);
+                                    
                                     elem.Add(elem2);
-                                    Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
+                                    
+                                    Serializer.Serialize(elem2, val, subProp.TypeDescriptor, notifyTypeUsed: !hasDefaultValue);
                                 }
                             }
                             catch (Exception e)
@@ -857,12 +861,16 @@ namespace OpenTap.Plugins
             }
         }
 
-        private void SetHasDefaultValueAttribute(IMemberData subProp, object val, XElement elem2)
+        bool SetHasDefaultValueAttribute(IMemberData subProp, object val, XElement elem2)
         {
             
             var attr = subProp.GetAttribute<DefaultValueAttribute>();
             if (attr != null && !(subProp is IParameterMemberData))
+            {
                 Serializer.GetSerializer<DefaultValueSerializer>().RegisterDefaultValue(elem2, attr.Value);
+                return val == attr.Value;
+            }
+            return false;
         }
     }
 }
