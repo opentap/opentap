@@ -130,8 +130,6 @@ namespace OpenTap.Package
                 // If OPENTAP_COLOR is set, the escape symbols for colors in the child process will break the parsing of the forwarded logs.
                 // Ensure color is never set in the child process. Colors will still be set in the parent process.
                 pi.Environment["OPENTAP_COLOR"] = "never";
-                // Allow child processes to bypass the lock on the installation which is held by this process.
-                pi.Environment[FileLock.InstallationLockEnv] = "1";
 
                 try
                 {

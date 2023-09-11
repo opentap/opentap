@@ -143,9 +143,6 @@ namespace OpenTap
                 UseShellExecute = false,
             };
 
-            if (Unlocked)
-                pInfo.Environment[FileLock.InstallationLockEnv] = "1";
-
             if (elevate)
             {
                 if (OperatingSystem.Current == OperatingSystem.Linux)

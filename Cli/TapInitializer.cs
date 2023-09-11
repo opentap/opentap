@@ -15,39 +15,6 @@ namespace OpenTap
 {
     internal static class TapInitializer
     {
-        internal static bool CanAcquireInstallationLock()
-        {
-            var lockfile = FileLock.DefaultLockFile();
-            // We need to be able to override the installation lock in certain scenarios, e.g. package install actions
-            // that need to invoke `tap.exe ...` in the installation during install / uninstall.
-            var env = Environment.GetEnvironmentVariable(FileLock.InstallationLockEnv, EnvironmentVariableTarget.Process);
-            if (env != null) return true;
-            
-            // Check if the lock for the current installation can be acquired
-            FileSystemHelper.EnsureDirectoryOf(lockfile);
-            const int limit = 30;
-            
-            var target = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
-            for (int i = 0; i < limit; i++)
-            {
-                using var fileLock = FileLock.Create(lockfile);
-                try
-                {
-                    if (fileLock.WaitOne(TimeSpan.FromSeconds(1)))
-                        return true;
-                }
-                catch (AbandonedMutexException)
-                {
-                    // ignore -- this happens if the mutex is disposed in another process.
-                    // In this case we will most likely acquire the lock in the next iteration.
-                    continue;
-                }
-                Console.WriteLine($"{target} is locked by a locking package action. Waiting for it to become unlocked... ({i + 1} / {limit})");
-            }
-
-            return false;
-        }
-
         public class InitTraceListener : ILogListener {
             public readonly List<Event> AllEvents = new List<Event>();
             public void EventsLogged(IEnumerable<Event> events)

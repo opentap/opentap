@@ -183,13 +183,6 @@ namespace OpenTap.Cli
                 AppDomain.CurrentDomain.ProcessExit += (s, e) => cliTraceListener.Flush();
             }
 
-            if (!TapInitializer.CanAcquireInstallationLock())
-            {
-                Console.Error.WriteLine($"Unable to acquire a lock on the installation.");
-                Environment.ExitCode = (int)ExitCodes.FailedToAcquireLockError;
-                return;
-            }
-
             TapInitializer.Initialize(); // This will dynamically load OpenTap.dll
             // loadCommandLine has to be called after Initialize 
             // to ensure that we are able to load OpenTap.dll
