@@ -115,10 +115,10 @@ namespace Tap.Upgrader
         /// </summary>
         internal static readonly UpgradePair[] UpgradePairs =
         {
-            // this file is written when installing any version of OpenTAP with OpenTAP 9.17 or later
-            new UpgradePair("../../tap.exe.new", "../../tap.exe", true),
             // this file is part of the payload for OpenTAP 9.17 and later
             new UpgradePair("tap.exe.new", "../../tap.exe", false),
+            // this file is written when installing any version of OpenTAP with OpenTAP 9.17 or later
+            new UpgradePair("../../tap.exe.new", "../../tap.exe", true),
             // .net462 no tap.dll exists.
             //// this file is written when installing any version of OpenTAP with OpenTAP 9.17 or later
             //new UpgradePair("../../tap.dll.new", "../../tap.dll", true),
@@ -146,7 +146,7 @@ namespace Tap.Upgrader
             }, TimeSpan.FromMinutes(10));
         }
 
-        private static bool DeleteTapDll()
+        private static bool ShouldDeleteTapDll()
         {
             try
             {
@@ -227,7 +227,7 @@ namespace Tap.Upgrader
                         p.Install();
                 }
 
-                if (DeleteTapDll())
+                if (ShouldDeleteTapDll())
                 {
                     var tapDllLoc = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "../../tap.dll"));
                     RetryUntilSuccess(() =>
