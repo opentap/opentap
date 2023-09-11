@@ -226,6 +226,13 @@ namespace OpenTap.Package
         public string ExpectedExitCodes { get; set; } = "0";
 
         /// <summary>
+        /// False; package installation should fail if the executable does not exist.
+        /// True; package installation should continue if the executable does not exist.
+        /// </summary>
+        [XmlAttribute("Optional")]
+        public bool Optional { get; set; } = false;
+
+        /// <summary>
         /// Arguments to the exe file.
         /// </summary>
         [XmlAttribute("Arguments")]

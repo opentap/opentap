@@ -112,7 +112,7 @@ namespace OpenTap.Package.UnitTests
             </File>
         </Files>
         <PackageActionExtensions>
-            <ActionStep ExpectedExitCodes='0' ActionName='install' Arguments='+x tap' ExeFile='chmod' ></ActionStep>
+            <ActionStep ExpectedExitCodes='0' ActionName='install' Arguments='+x tap' ExeFile='chmod' Optional='false'></ActionStep>
         </PackageActionExtensions>
     </Package>";
                 LoadSaveCompare(input, input);
