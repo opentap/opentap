@@ -3,20 +3,15 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-    <LangVersion>8</LangVersion>
+    <LangVersion>latest</LangVersion>
     <Configurations>Debug;Release</Configurations>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <IsDebug>false</IsDebug>
-    <OpenTapAppTargetFramework>net6.0</OpenTapAppTargetFramework>
+    <OpenTapAppTargetFramework>net8.0</OpenTapAppTargetFramework>
     <TargetFramework>netstandard2.0</TargetFramework>
     <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
     <TargetFrameworkVersion></TargetFrameworkVersion>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(OS)' != 'Unix'">
-    <!-- .net462 revert: on windows we build -->   
-    <OpenTapAppTargetFramework>net472</OpenTapAppTargetFramework>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">

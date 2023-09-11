@@ -72,7 +72,7 @@ namespace OpenTap.UnitTests
             TypeBuilder typeBuilder = moduleBuilder.DefineType("TestType",
                 TypeAttributes.Public | TypeAttributes.Class,
                 typeof(object),Array.Empty<Type>());
-            var type = typeBuilder.CreateType();
+            var type = typeBuilder.CreateTypeInfo();
             var td = TypeData.FromType(type);
             
             // A problem caused these kinds of type data to have IsBrowsable set to false, even though it does not 
@@ -88,7 +88,7 @@ namespace OpenTap.UnitTests
                     typeof(BrowsableAttribute).GetConstructor(new[] { typeof(bool) }), new object[] { browsable });
                 typeBuilder2.SetCustomAttribute(attrBuilder);
 
-                var td2 = TypeData.FromType(typeBuilder2.CreateType());
+                var td2 = TypeData.FromType(typeBuilder2.CreateTypeInfo());
                 Assert.AreEqual(browsable, td2.IsBrowsable);
             }
 

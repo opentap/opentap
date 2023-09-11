@@ -135,7 +135,7 @@ namespace OpenTap
             /// Returns a list of assemblies and their dependencies/references. 
             /// The list is sorted such that a dependency is before the assembly/assemblies that depend on it.
             /// </summary>
-            public List<AssemblyData> Generate(IEnumerable<string> files)
+            public List<AssemblyData> Generate(string[] files)
             {
                 if (nameToFileMap == null)
                     nameToFileMap = files.ToLookup(Path.GetFileNameWithoutExtension);
@@ -407,7 +407,7 @@ namespace OpenTap
         public IEnumerable<TypeData> Search(string dir)
         {
             var finder = new AssemblyFinder() { Quiet = true, IncludeDependencies = true, DirectoriesToSearch = new[] { dir } };
-            IEnumerable<string> files = finder.AllAssemblies();
+            var files = finder.AllAssemblies();
 
             return Search(files);
         }
@@ -435,7 +435,7 @@ namespace OpenTap
         /// and all Assemblies found in the Assemblies property.
         /// Subsequent calls to this method will add to those properties.
         /// </summary>
-        public IEnumerable<TypeData> Search(IEnumerable<string> files)
+        public IEnumerable<TypeData> Search(string[] files)
         {
             Stopwatch timer = Stopwatch.StartNew();
             if (graph == null)

@@ -24,21 +24,13 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="DotNet.Glob" Version="3.0.1" />
-    <PackageReference Include="LibGit2Sharp" Version="0.27.0.0-preview-0175" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
-    <PackageReference Include="Mono.Cecil" Version="0.10.1" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="LibGit2Sharp" Version="0.27.2" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="Mono.Cecil" Version="0.11.5" />
     <PackageReference Include="NuGet.Client" Version="4.2.0" />
-    <PackageReference Include="System.Collections" Version="4.3.0" />
-    <PackageReference Include="System.Collections.Immutable" Version="1.5.0" />
-    <PackageReference Include="System.IO.FileSystem" Version="4.3.0" />
-    <PackageReference Include="System.IO.FileSystem.Primitives" Version="4.3.0" />
-    <PackageReference Include="System.IO.Packaging" Version="4.5.0" />
-    <PackageReference Include="System.Reflection.Metadata" Version="1.6.0" />
-    <PackageReference Include="System.Runtime.Extensions" Version="4.3.0" />
-    <PackageReference Include="System.Runtime.InteropServices.RuntimeInformation" Version="4.3.0" />
-    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
-    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
+    <PackageReference Include="System.Collections.Immutable" Version="8.0.0-preview.7.23375.6" />
+    <PackageReference Include="System.IO.Packaging" Version="8.0.0-preview.7.23375.6" />
+    <PackageReference Include="System.Reflection.Metadata" Version="8.0.0-preview.7.23375.6" />
     <PackageReference Include="OpenTAP.Repository.Client" Version="4.17.0-beta.9"/>
   </ItemGroup>
   <ItemGroup>

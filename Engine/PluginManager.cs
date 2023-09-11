@@ -329,7 +329,7 @@ namespace OpenTap
         /// <param name="_fileNames">List of files to search.</param>
         static PluginSearcher SearchAndAddToStore(IEnumerable<string> _fileNames)
         {
-            var fileNames = _fileNames.ToList();
+            var fileNames = _fileNames.ToArray();
             Stopwatch timer = Stopwatch.StartNew();
             PluginSearcher searcher = new PluginSearcher();
             try
@@ -355,7 +355,7 @@ namespace OpenTap
                 log.Error("Plugin search failed for: " + String.Join(", ", fileNames));
                 log.Debug(ex);
             }
-            log.Debug(timer, "Searched {0} Assemblies.", fileNames.Count);
+            log.Debug(timer, "Searched {0} Assemblies.", fileNames.Length);
 
 
             if (GetPlugins(searcher, typeof(IInstrument).FullName).Count == 0)

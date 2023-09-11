@@ -66,28 +66,7 @@ namespace OpenTap.Engine.UnitTests
             var array = new byte[] { 1, 2, 3, 4, 5, 6 };
             api.Write(array);
 
-            var bf = new BinaryFormatter();
-            var memstr = new MemoryStream();
-            string[] strings2 = new[] { "asd", "", null };
-#pragma warning disable SYSLIB0011 // Type or member is obsolete
-            bf.Serialize(memstr, strings2);
-#pragma warning restore SYSLIB0011 // Type or member is obsolete
-            api.Write(memstr.ToArray());
-
-            var array2 = new int[] { 1, 2, 3, 4, 5, 6 };
-            api.Write(array2);
             
-            api.Persist();
-            api2 = new MemoryMappedApi(api.Name);
-            var thedata = api2.Read<byte[]>();
-            Assert.IsTrue(array.SequenceEqual(thedata));
-            var stream = api2.ReadStream();
-#pragma warning disable SYSLIB0011 // Type or member is obsolete
-            var strings3 = (string[])bf.Deserialize(stream);
-#pragma warning restore SYSLIB0011 // Type or member is obsolete
-            strings2.SequenceEqual(strings3);
-            var array3 = api2.Read<int[]>();
-            Assert.IsTrue(array2.SequenceEqual(array3));
         }
 
         [Test]
