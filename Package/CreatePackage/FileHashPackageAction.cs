@@ -139,7 +139,11 @@ namespace OpenTap.Package
                         log.Debug("Replacing '\\' with '/' in {0}", file.FileName);
                         file.FileName = repl;
                     }
-                    string fullpath = Path.Combine(Target, file.FileName);
+
+                    string fullpath =
+                        Path.Combine(pkg.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : Target,
+                            file.FileName);
+                    
                     var hash2 = new FileHashPackageAction.Hash(FileHashPackageAction.hashFile(fullpath));
                     if (false == hash2.Equals(hash))
                     {
