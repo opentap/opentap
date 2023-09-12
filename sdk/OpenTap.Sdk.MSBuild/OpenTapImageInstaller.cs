@@ -107,8 +107,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 }
                 catch (ImageResolveException ex)
                 {
-                    LogMessage(ex.Message, (int)LogEventType.Warning, null);
-                    LogMessage($"Error resolving image: {ex.DotGraph}", (int)LogEventType.Warning, null);
+                    LogMessage(ex.Message, (int)LogEventType.Error, null);
+                    LogMessage($"Error resolving image: {ex.DotGraph}", (int)LogEventType.Error, null);
+                    success = false;
                 }
             }
             catch (AggregateException aex)
