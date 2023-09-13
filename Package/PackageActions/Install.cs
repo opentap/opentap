@@ -403,6 +403,9 @@ namespace OpenTap.Package
                     RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
                 }
 
+                if (needElevation == false && systemwidePackages.Any())
+                    installer.PackagePaths.AddRange(systemwidePackages);
+
                 installer.PackagePaths.AddRange(regularPackages);
             }
             catch (OperationCanceledException e)
