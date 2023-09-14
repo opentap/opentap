@@ -962,12 +962,16 @@ namespace OpenTap
                         parentRun.ChildStarted(stepRun);
                         planRun.AddTestStepRunStart(stepRun);
                         Step.Run();
-                        stepRun.AfterRun(Step);
                         
-                        { // evaluate post run mixins
+                        {
+                            // Evaluate post run mixins.
+                            // This needs to be done before 'AfterRun' as that waits for defer and publishes results
+                            // which the mixins must be able to affect.
                             TestStepPostRunEvent.Invoke(Step);
                         }
-
+                        
+                        stepRun.AfterRun(Step);
+                        
                         TapThread.ThrowIfAborted();
                     }
                     finally

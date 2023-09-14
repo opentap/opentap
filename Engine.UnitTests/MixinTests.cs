@@ -32,7 +32,68 @@ namespace OpenTap.UnitTests
             
             Assert.AreEqual(true, onPostRunCalled);
             Assert.AreEqual(true, onPreRunCalled);
-        }        
+        }
+        
+        
+        public class ProcessStepMixin : ITestStepPostRunMixin
+        {
+
+            public void OnPostRun(TestStepPostRunEventArgs eventArgs)
+            {
+                var step = (ResultsFromAttributesStep)eventArgs.TestStep;
+                step.X = step.RunIndex * 5 + 2;
+                step.Y = step.RunIndex * 10 + 513;
+                step.UpgradeVerdict(Verdict.Pass);
+            }
+        }
+        
+        public class ResultsFromAttributesStep : TestStep
+        {
+            [Result]
+            public double RunIndex { get; set; }
+            
+            [Result]
+            public double X { get; set; }
+            
+            [Result]
+            public double Y { get; set; }
+
+            // add a mixin which generates new values for X and Y.
+            [EmbedProperties]
+            public ProcessStepMixin ResultsProcessorMixin { get; set; } = new ProcessStepMixin();
+
+            public override void Run()
+            {
+                RunIndex += 1;
+            }
+        }
+        
+        //
+        [Test]
+        public void DynamicResultsFromMixinTest()
+        {
+            var results = new ResultsFromAttributesStep();
+            var loop = new RepeatStep();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(loop);
+            loop.ChildTestSteps.Add(results);
+            var rl = new RecordAllResultListener();
+            var run = plan.Execute(new[]
+            {
+                rl
+            });
+            
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
+            Assert.AreEqual(loop.Count * 1, rl.Results.Count);
+            for (int i = 0; i < loop.Count; i++)
+            {
+                var idx = (double)rl.Results[i].Columns.First(x => x.Name == "RunIndex").Data.GetValue(0);
+                var x = (double)rl.Results[i].Columns.First(x => x.Name == "X").Data.GetValue(0);
+                var y = (double)rl.Results[i].Columns.First(x => x.Name == "Y").Data.GetValue(0);
+                Assert.AreEqual(idx * 5 + 2, x);
+                Assert.AreEqual(idx * 10 + 513, y);
+            }
+        }
     }
 
     public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin
