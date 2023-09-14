@@ -365,6 +365,7 @@ namespace OpenTap.Package
                     log.Warning($"Process elevation failed. Installation will continue without elevation.");
                 }
 
+                // If we need to install system-wide packages and we are not admin, we should install them in an elevated sub-process
                 if (needElevation)
                 {
                     RaiseProgressUpdate(20, "Installing system-wide packages.");
@@ -402,9 +403,11 @@ namespace OpenTap.Package
                     var pct = ((double)systemwidePackages.Length / systemwidePackages.Length + packagesToInstall.Count) * 100;
                     RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
                 }
-
-                if (needElevation == false && systemwidePackages.Any())
+                // Otherwise if we are admin and we need to install system-wide packages, we can install them in the current process
+                else if (systemwidePackages.Any())
+                {
                     installer.PackagePaths.AddRange(systemwidePackages);
+                }
 
                 installer.PackagePaths.AddRange(regularPackages);
             }
