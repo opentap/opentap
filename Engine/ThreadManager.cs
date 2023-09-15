@@ -206,6 +206,9 @@ namespace OpenTap
 
         internal object[] Fields;
         #region properties
+
+        static int rootThreadNameId = 0;
+        
         /// <summary>
         /// The currently running TapThread
         /// </summary>
@@ -215,7 +218,8 @@ namespace OpenTap
             {
                 if (ThreadManager.ThreadKey == null)
                 {
-                    ThreadManager.ThreadKey = new TapThread(null, null, null);
+                    var id = Interlocked.Increment(ref rootThreadNameId);
+                    ThreadManager.ThreadKey = new TapThread(null, null, null, id == 1 ? "Main Thread" : $"Root Thread {id-1}");
                 }
                 return ThreadManager.ThreadKey;
             }
@@ -321,7 +325,7 @@ namespace OpenTap
 
         internal void AbortNoThrow()
         {
-            Current.abortTokenSource.Cancel();
+            abortTokenSource.Cancel();
         }
 
         /// <summary>

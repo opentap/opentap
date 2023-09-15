@@ -731,7 +731,8 @@ jobs:
       - GetVersion
       - Package-Win
     container:
-      image: ghcr.io/opentap/smartinstaller:2.1.0-beta.5
+      #beta.5 was force-overwritten so now we are using a sha256 hash for a docker image.
+      image: ghcr.io/opentap/smartinstaller@sha256:f9cc89cce025be9b7dad011347a02b8c4304655f343aff1ac9396d22b148ec42 
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -789,7 +790,7 @@ jobs:
       - GetVersion
       - Package-Cross
     container:
-      image: ghcr.io/opentap/smartinstaller:2.1.0-beta.5
+      image: ghcr.io/opentap/smartinstaller@sha256:f9cc89cce025be9b7dad011347a02b8c4304655f343aff1ac9396d22b148ec42
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
