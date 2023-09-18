@@ -26,13 +26,14 @@ namespace OpenTap
 
 
         /// <summary> Sets the value of the member. </summary>
-        public void SetValue(object owner, object value)
+        public virtual void SetValue(object owner, object value)
         {
             dict.Remove(owner);
-            dict.GetValue(owner, (owner) => value);
+            dict.GetValue(owner, owner => value);
         }
+        
         /// <summary> Gets the value of the member. </summary>
-        public object GetValue(object owner)
+        public virtual object GetValue(object owner)
         {
             if (dict.TryGetValue(owner, out var value))
                 return value;
