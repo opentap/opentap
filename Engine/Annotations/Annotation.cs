@@ -2901,9 +2901,11 @@ namespace OpenTap
                         && param.ParameterizedMembers.All(x => x.Member.DeclaringType.DescendsTo(typeof(ITestStep))))
                         annotation.Add(new InputStepAnnotation(annotation, true));
                 }
-                
+
                 if (mem2.DeclaringType.DescendsTo(typeof(ITestStepParent)))
-                    annotation.Add(new MenuAnnotation(mem2, mem2.DeclaringType));
+                {
+                    annotation.Add(new MenuAnnotation(mem2, mem2.DeclaringType, annotation.ParentAnnotation));
+                }
 
                 if (mem2.Name == nameof(ParameterManager.NamingQuestion.Settings) && mem2.DeclaringType.DescendsTo(TypeData.FromType(typeof(ParameterManager.NamingQuestion))))
                     annotation.Add(new ParameterManager.SettingsName(annotation));
