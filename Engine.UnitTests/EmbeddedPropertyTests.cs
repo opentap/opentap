@@ -146,11 +146,10 @@ namespace OpenTap.UnitTests
             }
         }
         
-        public class RepeatMixin : ITestStepPostRunMixin, ITestStepPreRunMixin
+        public class TestRepeatMixin : ITestStepPostRunMixin, ITestStepPreRunMixin
         {
             [Display("Repeat Count")]
             public int Count { get; set; } = 1;
-
 
             int? it = null; 
             public void OnPostRun(TestStepPostRunEventArgs step)
@@ -178,7 +177,7 @@ namespace OpenTap.UnitTests
             public OverrideVerdictMixin OverrideVerdict { get; set; } = new OverrideVerdictMixin();
 
             [EmbedProperties]
-            public RepeatMixin Repeat { get; set; } = new RepeatMixin();
+            public TestRepeatMixin Repeat { get; set; } = new TestRepeatMixin();
 
             internal int Repeats = 0;
             public override void PrePlanRun()

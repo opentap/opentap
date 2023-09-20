@@ -22,12 +22,33 @@ namespace OpenTap
                 yield return instance;
             }
         }
-        public static MixinMemberData LoadMixin(object target, IMixinBuilder mixin)
+        static readonly TraceSource log = Log.CreateSource("Mixins");
+        public static void LoadMixin(object target, IMixinBuilder mixin)
         {
-            var mem = mixin.ToDynamicMember(TypeData.GetTypeData(target));
-            DynamicMember.AddDynamicMember(target, mem);
-            mem.SetValue(target, mem.NewInstance());
-            return mem;
+
+            try
+            {
+                var mem = mixin.ToDynamicMember(TypeData.GetTypeData(target));
+                if (mem == null)
+                {
+                    if (mixin is IValidatingObject validating && validating.Error is string err && string.IsNullOrEmpty(err) == false)
+                    {
+                        log.Error($"Unable to load mixin: {err}");
+                    }
+                    else
+                    {
+                        log.Error($"Unable to load mixin: {TypeData.GetTypeData(mixin)?.GetDisplayAttribute()?.Name ?? mixin.ToString()}");
+                    }
+                    return;
+                }
+                DynamicMember.AddDynamicMember(target, mem);
+                mem.SetValue(target, mem.NewInstance());
+            }
+            catch (Exception e)
+            {
+                log.Error($"Unable to load mixin: {e.Message}");
+                log.Debug(e);
+            }
         }
     }
 }

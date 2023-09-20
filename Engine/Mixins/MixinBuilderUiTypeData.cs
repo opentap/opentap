@@ -22,10 +22,11 @@ namespace OpenTap
                 this.attributes = attributes;
                 this.src = src;
                 this.member = member;
-                Name = member.DeclaringType.Name + "." + member.Name;
+                Name = GetTransformedName(member);
 
                 memberAttributes = member.Attributes.Select(TransformAttribute).ToArray();
             }
+            
             class Enabled2 : EnabledIfAttribute
             {
                 readonly EnabledIfAttribute wrapped;
@@ -94,5 +95,10 @@ namespace OpenTap
         
 
         public bool CanCreateInstance => false;
+        
+        internal static string GetTransformedName(IMemberData member)
+        {
+            return member.DeclaringType.Name + "." + member.Name;
+        }
     }
 }
