@@ -33,6 +33,46 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(true, onPostRunCalled);
             Assert.AreEqual(true, onPreRunCalled);
         }
+
+        [Test]
+        public void TestMixinWithValidationRule()
+        {
+            var step = new LogStep();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+            
+            var builder = new MixinBuilderUi(new IMixinBuilder[]
+            {
+                new MixinTestBuilder
+                {
+                    TestMember = null
+                }
+            });
+
+            var builderType = TypeData.GetTypeData(builder);
+            foreach (var rule in builder.Rules)
+            {
+                var member = builderType.GetMember(rule.PropertyName);
+                Assert.IsNotNull(member);
+                if (member.Name.Contains("TestMember"))
+                {
+                    Assert.AreEqual("Test member must not be null.", (builder as IValidatingObject)[member.Name]);
+                }
+            }
+            
+            Assert.AreEqual("Test member must not be null.", builder.Error);
+            
+            builder = new MixinBuilderUi(new IMixinBuilder[]
+            {
+                new MixinTestBuilder
+                {
+                    TestMember = "123"
+                }
+            });
+            Assert.IsTrue(string.IsNullOrWhiteSpace(builder.Error));
+
+
+        }
         
         
         public class ProcessStepMixin : ITestStepPostRunMixin
@@ -124,8 +164,13 @@ namespace OpenTap.UnitTests
     }
     
     [MixinBuilder(typeof(ITestStepParent))]
-    public class MixinTestBuilder : IMixinBuilder
+    public class MixinTestBuilder : ValidatingObject, IMixinBuilder
     {
+        public MixinTestBuilder()
+        {
+            Rules.Add(() => TestMember != null, "Test member must not be null.", nameof(TestMember));
+        }
+        
         public string TestMember { get; set; }
         public void Initialize(ITypeData targetType)
         {
@@ -133,6 +178,8 @@ namespace OpenTap.UnitTests
         }
         public MixinMemberData ToDynamicMember(ITypeData targetType)
         {
+            if (string.IsNullOrWhiteSpace(TestMember))
+                return null;
             return new MixinMemberData(this, () => new MixinTest(TestMember))
             {
                 TypeDescriptor = TypeData.FromType(typeof(MixinTest)),

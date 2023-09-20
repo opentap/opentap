@@ -4,7 +4,7 @@ using System.Linq;
 namespace OpenTap
 {
     [Display("Configure Mixin", Description: "Menu for adding or modifying a mixin.")]
-    internal class MixinBuilderUi
+    internal class MixinBuilderUi : ValidatingObject
     {
         public class TypeDescriber : IDisplayAnnotation
         {
@@ -59,6 +59,27 @@ namespace OpenTap
             SelectedType = ItemTypes.First();
             if (selected != null)
                 SelectedType = ItemTypes[Array.IndexOf(items, selected)];
+            
+            
+            { // redirect validation rules.
+                foreach (var mixinBuilder in items)
+                {
+                    if (mixinBuilder is IValidatingObject val)
+                    {
+                        var type = TypeData.GetTypeData(mixinBuilder);
+
+                        foreach (var rule in val.Rules)
+                        {
+                            var member = type.GetMember(rule.PropertyName);
+                            if (member == null) continue;
+
+                            
+                            var transformedName = MixinBuilderUiTypeData.GetTransformedName(member);
+                            Rules.Add(() => rule.IsValid(), () => rule.ErrorMessage, transformedName);
+                        }
+                    }
+                }
+            }
         }
     }
 }
