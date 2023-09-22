@@ -15,13 +15,19 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <PlatformEnv Condition=" '$(OS)' == 'OSX' ">MacOS</PlatformEnv>
-    <PlatformEnv Condition=" '$(OS)' == 'Unix' ">Linux</PlatformEnv>
-    <PlatformEnv Condition=" '$(OS)' == 'Windows' ">Windows</PlatformEnv>
+    <!--Detect platform-->
+    <PlatformEnv Condition="$([MSBuild]::IsOSPlatform('OSX'))">MacOS</PlatformEnv>
+    <PlatformEnv Condition="$([MSBuild]::IsOSPlatform('Linux'))">Linux</PlatformEnv>
+    <PlatformEnv Condition="$([MSBuild]::IsOSPlatform('Windows'))">Windows</PlatformEnv>
+    <!-- IsOsPlatform may not always be available on Windows -->
+    <PlatformEnv Condition="'$(OS)' == 'Windows_NT'">Windows</PlatformEnv>
+
+    <!--Detect architecture -->
+    <ArchEnv>$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)</ArchEnv> 
   </PropertyGroup>
   <!-- Install OpenTAP as a package - this is necessary for most of the package cli actions to function normally.  -->
   <!-- CopyFilesToOutputDirectory is required for libgit native DLLs -->
   <Target Name="InstallOpenTapAsPackage" AfterTargets="CopyFilesToOutputDirectory">
-    <Exec Command="$(OutDir)tap package create ../../package.xml -o $(OutDir)OpenTap.Debug.TapPackage --install" EnvironmentVariables="Debug=true;Sign=false;Platform=$(PlatformEnv)" WorkingDirectory="$(OutDir)" />
+    <Exec Command="$(OutDir)tap package create ../../package.xml -o $(OutDir)OpenTap.Debug.TapPackage --install" EnvironmentVariables="Debug=true;Sign=false;Platform=$(PlatformEnv);Architecture=$(ArchEnv.ToLower())" WorkingDirectory="$(OutDir)" />
   </Target>
 </Project>
