@@ -5,6 +5,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -55,6 +56,26 @@ namespace OpenTap.Package
         internal static string GetLocalInstallationDir()
         {
             return Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        }
+
+        internal static string GuessHostOS()
+        {
+            // Environment.OSVersion is not very reliable. In some cases, it will return Unix for MacOSX, even
+            // in spite of the fact that MacOSX is a member of the returned enum.
+            // Check runtime version first, and then use OSVersion as a fallback.
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                return "Linux";
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                return "MacOS";
+            switch (Environment.OSVersion.Platform)
+            {
+                case PlatformID.MacOSX:
+                    return "MacOS";
+                case PlatformID.Unix:
+                    return "Linux";
+                default:
+                    return "Windows";
+            }
         }
 
         /// <summary>
