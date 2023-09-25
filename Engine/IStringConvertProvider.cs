@@ -77,10 +77,10 @@ namespace OpenTap
                                         // if BeforeAttribute is used, insert somewhere before the marked type.
                                         // otherwise insert at the end of the list.
                                         int addIndex = builder.Count;
-                                        if (type.GetAttribute<BeforeAttribute>() is BeforeAttribute before)
+                                        foreach (var before in type.GetAttributes<BeforeAttribute>())
                                         {
                                             int addIndex2 = builder.IndexWhen(item => before.Before(TypeData.GetTypeData(item)));
-                                            if (addIndex2 != -1)
+                                            if (addIndex2 != -1 && addIndex2 < addIndex)
                                                 addIndex = addIndex2;
                                         }
                                         

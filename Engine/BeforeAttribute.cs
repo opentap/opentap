@@ -4,6 +4,7 @@ namespace OpenTap
     /// <summary>
     /// Ordering constraint for plugin types. This should be used 'before' something else.
     /// This is currently only support by implementations of IStringConvertProvider.
+    /// If more than one of these attributes are used, it will try to find a type before all of them.
     /// </summary>
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = true)]
     public class BeforeAttribute: Attribute
