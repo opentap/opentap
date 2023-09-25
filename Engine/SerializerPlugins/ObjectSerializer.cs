@@ -750,6 +750,14 @@ namespace OpenTap.Plugins
                         return true;
                     }
                 }
+                
+                if (obj is ISerializeNotifyAdditionalTypesUsed notifyObject)
+                {
+                    foreach (var extraUsedType in notifyObject.AdditionalTypes)
+                    {
+                        Serializer.NotifyTypeUsed(extraUsedType);
+                    }
+                }
 
                 IMemberData xmlTextProp = null;
                 var _type = TypeData.GetTypeData(obj);
