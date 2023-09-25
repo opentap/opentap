@@ -1,5 +1,5 @@
-using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests;
@@ -208,6 +208,48 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(sweep.SweepParameters.Any());
             // if SweepParameters.Count > 0 && across-runs mode was enabled. This could cause an exception.
             Assert.AreEqual(0, sweep.ReferencedResources.Count());
+        }
+
+        public class ListNameStep : TestStep
+        {
+            public List<string> RecordedValues = new List<string>();
+            public override void PrePlanRun()
+            {
+                base.PrePlanRun();
+                RecordedValues.Clear();
+            }
+            public string StringMember { get; set; } = "";
+            public override void Run()
+            {
+                RecordedValues.Add(StringMember);
+                
+            }
+        }
+        
+        [Test]
+        public void SweepFileTest()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepFileParameterStep();
+            var step1 = new ListNameStep();
+            var step2 = new ListNameStep();
+            plan.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(step1);
+            sweep.ChildTestSteps.Add(step2);
+            var p1 = TypeData.GetTypeData(step1).GetMember(nameof(step1.StringMember)).Parameterize(sweep, step1, "A");
+            var p2 = TypeData.GetTypeData(step2).GetMember(nameof(step2.StringMember)).Parameterize(sweep, step2, "B");
+            sweep.SelectedParameters = new List<ParameterMemberData>()
+            {
+                p1,
+                p2
+            };
+            string testString = "a,b\nc,d";
+            File.WriteAllText("csvTest.CSV", testString);
+            sweep.SweepValues = "csvTest.CSV";
+            plan.Execute();
+            Assert.IsTrue(step1.RecordedValues.SequenceEqual(new string[]{"a", "c"}));
+            Assert.IsTrue(step2.RecordedValues.SequenceEqual(new string[]{"b", "d"}));
+
         }
     }
 }
