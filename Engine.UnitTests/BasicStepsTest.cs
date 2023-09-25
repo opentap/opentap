@@ -243,13 +243,38 @@ namespace OpenTap.UnitTests
                 p1,
                 p2
             };
-            string testString = "a,b\nc,d";
-            File.WriteAllText("csvTest.CSV", testString);
-            sweep.SweepValues = "csvTest.CSV";
+            string thisStringDoesNotMatter = "";
+            File.WriteAllText("csvTest.csv2", thisStringDoesNotMatter);
+            sweep.SweepValues = "csvTest.csv2";
             plan.Execute();
-            Assert.IsTrue(step1.RecordedValues.SequenceEqual(new string[]{"a", "c"}));
-            Assert.IsTrue(step2.RecordedValues.SequenceEqual(new string[]{"b", "d"}));
+            Assert.AreEqual("a", step1.RecordedValues[0]);
+            Assert.AreEqual("b", step2.RecordedValues[0]);
+            Assert.AreEqual("c", step1.RecordedValues[1]);
+            Assert.AreEqual("d", step2.RecordedValues[1]);
+            Assert.IsTrue(step1.RecordedValues.SequenceEqual(new []{"a", "c"}));
+            Assert.IsTrue(step2.RecordedValues.SequenceEqual(new []{"b", "d"}));
 
+        }
+    }
+
+    public class TestTableImport : ITableImport
+    {
+
+        public string Extension => ".csv2";
+        public string Name => "supercsv";
+        public string[][] ImportTableValues(string filePath)
+        {
+            return new[]
+            {
+                new[]
+                {
+                    "a", "b"
+                },
+                new[]
+                {
+                    "c", "d"
+                }
+            };
         }
     }
 }
