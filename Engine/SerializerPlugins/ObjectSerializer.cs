@@ -751,11 +751,16 @@ namespace OpenTap.Plugins
                     }
                 }
                 
-                if (obj is ISerializeNotifyAdditionalTypesUsed notifyObject)
+                if (obj is ISerializeNotifyAdditionalTypesUsed notifyObject )
                 {
-                    foreach (var extraUsedType in notifyObject.AdditionalTypes)
+                    var types = notifyObject.AdditionalTypes;
+                    if (types != null)
                     {
-                        Serializer.NotifyTypeUsed(extraUsedType);
+                        foreach (var extraUsedType in notifyObject.AdditionalTypes)
+                        {
+                            if (extraUsedType == null) continue;
+                            Serializer.NotifyTypeUsed(extraUsedType);
+                        }
                     }
                 }
 
