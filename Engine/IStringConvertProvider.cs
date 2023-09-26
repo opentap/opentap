@@ -62,6 +62,7 @@ namespace OpenTap
                         if (count != saveTypes.Count)
                         {
                             var builder = things.ToList();
+                            Dictionary<T, BeforeAttribute[]> orderings = new Dictionary<T, BeforeAttribute[]>();
 
                             foreach (var type in derivedTypes)
                             {
@@ -77,7 +78,9 @@ namespace OpenTap
                                         // if BeforeAttribute is used, insert somewhere before the marked type.
                                         // otherwise insert at the end of the list.
                                         int addIndex = builder.Count;
-                                        foreach (var before in type.GetAttributes<BeforeAttribute>())
+                                        var ordering = type.GetAttributes<BeforeAttribute>().ToArray();
+                                        orderings[newthing] = ordering;
+                                        foreach (var before in ordering)
                                         {
                                             int addIndex2 = builder.IndexWhen(item => before.Before(TypeData.GetTypeData(item)));
                                             if (addIndex2 != -1 && addIndex2 < addIndex)
@@ -92,7 +95,34 @@ namespace OpenTap
                                     } // Ignore errors here.
                                 }
                             }
-                            
+
+                            // iterate to find the correct ordering.
+                            // this is a bit akin to bubble sorting, but the chance that these dependenceny chains gets very long is limited.
+                            // max number of iterations set to 10 to avoid looping infinitely in case of circular dependencies.
+                            for (int it = 0; it < 10; it++)
+                            {
+
+                                bool changed = false;
+                                for (int i = 0; i < builder.Count; i++)
+                                {
+                                    int addIndex = i;
+                                    var type = builder[i];
+                                    foreach (var before in orderings[type])
+                                    {
+                                        int addIndex2 = builder.IndexWhen(item => before.Before(TypeData.GetTypeData(item)));
+                                        if (addIndex2 != -1 && addIndex2 < addIndex)
+                                            addIndex = addIndex2;
+                                    }
+                                    if (addIndex < i)
+                                    {
+                                        changed = true;
+                                        (builder[i], builder[addIndex]) = (builder[addIndex], builder[i]);
+                                    }
+                                }
+
+                                if (!changed) break;
+                            }
+
                             things = builder.ToArray();
                         }
                     }
