@@ -246,7 +246,7 @@ namespace OpenTap.Engine.UnitTests
 
         public override void Run()
         {
-            throw new NotImplementedException();
+            
         }
     }
 

@@ -309,7 +309,7 @@ namespace OpenTap.Package
                 {
                     if (ex is OperationCanceledException)
                         throw;
-                    log.Error("Failed to download OpenTAP package.");
+                    log.Error($"Failed to download '{pkg.Name}' package.");
                     log.Debug(ex);
                     throw;
                 }

@@ -120,13 +120,16 @@ namespace OpenTap.Plugins.BasicSteps
             if (SweepValues.Count == 0)
                 return "No rows selected to sweep.";
             var rowType = SweepValues.Select(TypeData.GetTypeData).FirstOrDefault();
-            var sb = new StringBuilder();
+            
             var numErrors = 0;
 
             string FormatError(string rowDescriptor, string error)
             {
                 return $"{rowDescriptor}: {error}";
             }
+
+            List<string> allRowErrors = new List<string>();
+            List<(int row, string error)> rowErrors = new List<(int row, string error)>();
 
             foreach (var set in sets)
             {
@@ -173,7 +176,7 @@ namespace OpenTap.Plugins.BasicSteps
                         else
                             error += $": {reason}";
 
-                        errorTuple.Add((rowNumber, error));
+                        rowErrors.Add((rowNumber, error));
                         continue;
                     }
 
@@ -184,8 +187,9 @@ namespace OpenTap.Plugins.BasicSteps
                         var errors = step.Error;
                         if (string.IsNullOrWhiteSpace(errors) == false)
                         {
-                            errorTuple.Add((rowNumber, $"{step.GetFormattedName()} - {errors}"));
+                            rowErrors.Add((rowNumber, $"{step.GetFormattedName()} - {errors}"));
                             hasErrors = true;
+                            numErrors += 1;
                         }
                     }
 
@@ -197,24 +201,19 @@ namespace OpenTap.Plugins.BasicSteps
                     errorTuple.Select(t => t.error).Distinct().Count() == 1)
                 {
                     var error = errorTuple.First();
-                    sb.AppendLine(FormatError("All rows", error.error));
+                    allRowErrors.Add(error.error);
                     numErrors += 1;
-                }
-                else
-                {
-                    foreach (var error in errorTuple)
-                    {
-                        sb.AppendLine(FormatError($"Row {error.row}", error.error));
-                        numErrors += 1;
-                        if (numErrors >= maxErrors)
-                            break;
-                    }
                 }
 
                 if (numErrors >= maxErrors)
                     break;
             }
-
+            
+            var sb = new StringBuilder();
+            foreach (var error in allRowErrors.OrderBy(x => x))
+                sb.AppendLine(FormatError($"All rows", error));
+            foreach (var error in rowErrors.OrderBy(x => x.error).ToArray().OrderBy(x =>x.row))
+                sb.AppendLine(FormatError($"Row {error.row}", error.error));
             return sb.ToString();
         }
 

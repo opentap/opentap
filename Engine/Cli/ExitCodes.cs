@@ -64,6 +64,6 @@ namespace OpenTap.Cli
         /// Package resolution Error
         /// </summary>
         [Display("Package Resolution Error", "A package configuration was not able to be resolved.")]
-        PackageResolutionError = 199
+        PackageResolutionError = 199,
     }
 }

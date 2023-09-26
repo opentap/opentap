@@ -29,6 +29,20 @@ namespace OpenTap.UnitTests
             return (int)ExitCodes.Success;
         }
     }
+    
+    [Display("fail", Groups: new[] { "test" }, Description: "Fails a cli action")]
+    public class FailCliAction : ICliAction
+    {
+        [CommandLineArgument("error")]
+        public int ExitCode { get; set; } = 1;
+        public int Execute(CancellationToken cancellationToken)
+        {
+            var log = Log.CreateSource("cli");
+            log.Info("Failing with exit code {0}", ExitCode);
+           
+            return ExitCode;
+        }
+    }
 
     [TestFixture]
     public class ProcessStepTest
@@ -65,6 +79,24 @@ namespace OpenTap.UnitTests
 
             var result = plan.Execute();
             Assert.AreEqual(expectedVerdict, result.Verdict);
+        }
+
+        [Test]
+        public void ProcessStepOutputs()
+        {
+            int exitCode = 5;
+            var plan = new TestPlan();
+            var processStep = new ProcessStep()
+            {
+                Application = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "tap.exe"),
+                WorkingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                Arguments = $"test fail --error {exitCode}",
+            };
+            plan.Steps.Add(processStep);
+            var result = plan.Execute();
+            Assert.AreEqual(exitCode, processStep.ExitCode);
+            Assert.IsTrue(processStep.Output.Contains($"Failing with exit code {exitCode}"));
+            
         }
     }
 }

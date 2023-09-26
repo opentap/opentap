@@ -470,6 +470,47 @@ namespace OpenTap.UnitTests
 
             public void NotifyChanged(object obj, string property) { }
         }
+
+        [Test]
+        public void TestReparameterize()
+        {
+            var testplan = new TestPlan();
+            var seq = new SequenceStep();
+            var delay = new DelayStep();
+            seq.ChildTestSteps.Add(delay);
+            testplan.ChildTestSteps.Add(seq);
+            seq.ChildTestSteps.Add(new VerdictStep() { Verdict = Verdict.Pass });
+
+            var timeDelay = AnnotationCollection.Annotate(delay).GetMember("DelaySecs");
+            var menu = timeDelay.Get<MenuAnnotation>();
+            var icons = menu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+
+            var parameterize = icons[IconNames.ParameterizeOnParent].First();
+            var unparameterize = icons[IconNames.Unparameterize].First();
+
+            void invoke(AnnotationCollection a)
+            {
+                a.Get<IMethodAnnotation>().Invoke();
+            }
+            
+            void run()
+            {
+                var planRun = testplan.Execute();
+                Assert.AreEqual(Verdict.Pass, planRun.Verdict);
+            }
+
+            { // Verify nothing breaks when parameterizing, unparameterizing, and reparameterizing
+                run();
+                invoke(parameterize);
+                run();
+                invoke(unparameterize);
+                run();
+                invoke(parameterize);
+                run();
+                invoke(unparameterize);
+                run();
+            }
+        }
         
         [Test]
         public void MenuAnnotationTest()
@@ -722,7 +763,7 @@ namespace OpenTap.UnitTests
                     p1.Parameterize(plan, sequence, p1.Name);
 
                     var editParameterIcon = AnnotationCollection.Annotate(sequence).GetMember(p1.Name).Get<MenuAnnotation>().MenuItems
-                        .First(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.EditParameter);
+                        .First(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
                     
                     menuInterface.SelectedMode = MenuTestUserInterface.Mode.TestPlan | MenuTestUserInterface.Mode.Error;
                     menuInterface.SelectName = p1.Name;
@@ -1359,6 +1400,7 @@ namespace OpenTap.UnitTests
             }   
         }
 
+        
         [Test]
         public void MultiSelectParameterize()
         {
@@ -1436,6 +1478,62 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(elapsed3.TotalSeconds < 4);
         }
 
+        public class InstrumentStep1 : TestStep
+        {
+            public Instrument Instrument { get; set; }
+            public override void Run()
+            {
+            }
+        }
+        
+        public class InstrumentStep2 : TestStep
+        {
+            public Instrument Instrument { get; set; }
+            public override void Run()
+            {
+            }
+        }
+
+        [Test]
+        public void MultiSelectUnparameterize()
+        {
+            var step1 = new InstrumentStep1();
+            var step2 = new InstrumentStep2();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step1);
+            plan.ChildTestSteps.Add(step2);
+
+            {
+                // 1. parameterize them
+                var a = AnnotationCollection.Annotate(new ITestStep[]
+                {
+                    step1, step2
+                });
+
+                var member = a.GetMember(nameof(step1.Instrument));
+                member.GetIcon(IconNames.ParameterizeOnTestPlan).Get<IMethodAnnotation>()?.Invoke();
+            }
+
+            // 2. check.
+            Assert.IsNotEmpty(TypeData.GetTypeData(plan).GetMembers().OfType<IParameterMemberData>());
+            
+            {
+                // 3. unparameterize them
+                var a = AnnotationCollection.Annotate(new ITestStep[]
+                {
+                    step1, step2
+                });
+
+                var member = a.GetMember(nameof(step1.Instrument));
+                member.GetIcon(IconNames.Unparameterize).Get<IMethodAnnotation>()?
+                    .Invoke();
+            }
+            
+            // 4. check.
+            Assert.IsEmpty(TypeData.GetTypeData(plan).GetMembers().OfType<IParameterMemberData>());
+        }
+        
+        
         [Test]
         public void MultiSelectList()
         {

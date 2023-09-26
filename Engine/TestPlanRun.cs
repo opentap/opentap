@@ -5,13 +5,16 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTap.Plugins;
 
 namespace OpenTap
 {
@@ -203,9 +206,11 @@ namespace OpenTap
         
         internal void AddTestPlanCompleted(HybridStream logStream, bool openCompleted)
         {
-            ScheduleInResultProcessingThread<IResultListener>(r => 
+       
+            void onTestPlanCompleted(IResultListener r)
             {
                 var reslog = ResourceTaskManager.GetLogSource(r);
+
                 if (r.IsConnected)
                 {
                     try
@@ -230,7 +235,25 @@ namespace OpenTap
                     if (!openCompleted)
                         reslog.Warning("Run Completed was not called for '{0}' as it failed to open.", r);
                 }
-            });
+            }
+            
+            ScheduleInResultProcessingThread<IResultListener>(r =>
+            {
+                if (r is IArtifactListener) return;
+                onTestPlanCompleted(r);
+            }, blocking: true);
+            
+            foreach(var kw in resultWorkers)
+            {
+                kw.Value.Wait();
+            }
+            
+            ScheduleInResultProcessingThread<IResultListener>(r =>
+            {
+                if (r is IArtifactListener) { 
+                    onTestPlanCompleted(r);
+                }
+            }, blocking: true);
 
             // now clean up the result listener workers and wait for them to end.
             foreach(var kw in resultWorkers)
@@ -262,6 +285,12 @@ namespace OpenTap
             {
                 if (item.Key is T x)
                 {
+                    if (r is ISkippableInvokable<T, WorkQueue> skippableInvokable)
+                    {
+                        // skip the work if possible.
+                        if (skippableInvokable.Skip(x, item.Value))
+                            continue;
+                    }
                     count++;
                     item.Value.EnqueueWork(r, x, item.Value);
                 }
@@ -447,7 +476,7 @@ namespace OpenTap
             {
                 BreakCondition = breakCondition;
             }
-            resultWorkers = new Dictionary<IResultListener, WorkQueue>();
+            
             this.IsCompositeRun = isCompositeRun;
             Parameters = ResultParameters.GetComponentSettingsMetadata();
             // Add metadata from the plan itself.
@@ -556,6 +585,7 @@ namespace OpenTap
         {
             MainThread = TapThread.Current;
             FailedToStart = false;
+            resultWorkers = new Dictionary<IResultListener, WorkQueue>();
             
             {   // AbortCondition
                 
@@ -612,6 +642,83 @@ namespace OpenTap
         }
         #endregion
 
+        static readonly TraceSource artifactsLog = Log.CreateSource("Artifacts");
+
+        internal void PublishArtifactWithRun(string file, TestRun run)
+        {
+            PublishArtifactWithRun(new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Write | FileShare.Delete), Path.GetFileName(file), run);
+        }
         
+        internal void PublishArtifactWithRun(Stream s, string filename, TestRun run)
+        {
+            // multiple threads might be publishing artifacts at the same time, so this add needs to be done safely.
+            Utils.InterlockedSwap(ref artifacts, () => artifacts.Add(filename));
+           
+            var streamGetters = new BlockingCollection<Stream>();
+            
+            int readerRefCount = 0;
+            TeeStream tee = s is FileStream ? null : new TeeStream(s);
+            ManualResetEventSlim go = new ManualResetEventSlim(false);
+            readerRefCount = ScheduleInResultProcessingThread<IArtifactListener>(l =>
+            {
+                go.Wait();
+                Stream s2;
+                if (s is FileStream fileStream)
+                {
+                    s2 = new FileStream(fileStream.Name, FileMode.Open, FileAccess.Read, FileShare.Read |FileShare.Write | FileShare.Delete);   
+                }
+                else
+                {
+                    while (!streamGetters.TryTake(out s2))
+                    {
+                        TapThread.Sleep(10);
+                    }
+                }
+                try
+                {
+                    l.OnArtifactPublished(run, s2, filename);
+                    s2.Dispose();
+                }
+                catch (Exception e)
+                {
+                    artifactsLog.Error("Error during Test Step Run Start for {0}", l);
+                    artifactsLog.Debug(e);
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref readerRefCount);
+                    if(readerRefCount == 0)
+                        s.Dispose();
+                }
+            });
+            if (tee != null)
+            {
+                var subStreams = tee.CreateClientStreams(readerRefCount);
+                foreach (var str in subStreams)
+                {
+                    streamGetters.Add(str);
+                }
+            }
+            if (readerRefCount == 0)
+            {
+                s.Dispose();
+            }
+            else
+            {
+                go.Set();
+            }
+        }
+        
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        /// <param name="stream"> The artifact data as a stream. When publishing an artifact stream, the stream will be disposed by the callee and does not have to be disposed by the caller.</param>
+        /// <param name="artifactName"> The name of the published artifact. </param>
+        public void PublishArtifact(Stream stream, string artifactName) => PublishArtifactWithRun(stream, artifactName, this);
+        
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        public void PublishArtifact(string file) => PublishArtifactWithRun(file, this);
+
+        /// <summary> Returns a list of all published artifacts. This list will get updated as the test plan progresses.</summary>
+        public IEnumerable<string> Artifacts => artifacts;
+        ImmutableHashSet<string> artifacts = ImmutableHashSet<string>.Empty;
     }
 }

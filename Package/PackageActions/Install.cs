@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
@@ -99,18 +100,7 @@ namespace OpenTap.Package
         public PackageInstallAction()
         {
             Architecture = ArchitectureHelper.GuessBaseArchitecture;
-            switch (Environment.OSVersion.Platform)
-            {
-                case PlatformID.MacOSX:
-                    OS = "MacOS";
-                    break;
-                case PlatformID.Unix:
-                    OS = "Linux";
-                    break;
-                default:
-                    OS = "Windows";
-                    break;
-            }
+            OS = GuessHostOS();
 
             DefaultOs = OS;
         }
@@ -365,6 +355,7 @@ namespace OpenTap.Package
                     log.Warning($"Process elevation failed. Installation will continue without elevation.");
                 }
 
+                // If we need to install system-wide packages and we are not admin, we should install them in an elevated sub-process
                 if (needElevation)
                 {
                     RaiseProgressUpdate(20, "Installing system-wide packages.");
@@ -385,7 +376,10 @@ namespace OpenTap.Package
                             "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan",
                             "UpdateCheck",
                             "Installation"
-                        }
+                        },
+                        // The current install action is a locking package action.
+                        // Setting this flag lets the child process bypass the lock on the installation.
+                        Unlocked = true,
                     };
 
                     var result = processRunner.Run(installStep, true, cancellationToken);
@@ -398,6 +392,11 @@ namespace OpenTap.Package
 
                     var pct = ((double)systemwidePackages.Length / systemwidePackages.Length + packagesToInstall.Count) * 100;
                     RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
+                }
+                // Otherwise if we are admin and we need to install system-wide packages, we can install them in the current process
+                else if (systemwidePackages.Any())
+                {
+                    installer.PackagePaths.AddRange(systemwidePackages);
                 }
 
                 installer.PackagePaths.AddRange(regularPackages);

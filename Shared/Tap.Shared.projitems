@@ -33,5 +33,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)SudoHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)WeakHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)Cache.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)FileLocks.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PosixSignals.cs" />
   </ItemGroup>
 </Project>

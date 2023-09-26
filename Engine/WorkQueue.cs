@@ -213,17 +213,29 @@ namespace OpenTap
         {
             // Take the semaphore then take an object, just like WorkerFunction does.
             if (!addSemaphore.Wait(0))
+            { 
+                // there is a slight delay between pushing the work item and releasing the semaphore
+                // in the case that we are in that space, just return.
                 return null;
+            }
+            
             if (workItems.TryDequeue(out var inv))
             {
-                // when taking an item from the workqueue the countdown and the semaphore must be decremented
+                // when taking an item from the work queue the countdown and the semaphore must be decremented
                 Interlocked.Decrement(ref countdown);
-                
+                Debug.Assert(inv != null);
                 if (inv is IWrappedInvokable wrap)
                     return wrap.InnerInvokable;
                 return inv;
             }
-            return inv;
+            
+            // Of some reason we are not able to dequeue the work item.
+            // in this case bump the semaphore so somebody else can take it.
+            // this should never happen.
+            Debug.Fail("Unable to dequeue element");
+            addSemaphore.Release(1);
+            
+            return null;
         }
 
         interface IWrappedInvokable: IInvokable

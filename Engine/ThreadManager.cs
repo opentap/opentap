@@ -44,6 +44,35 @@ namespace OpenTap
         protected readonly int Index = GetThreadFieldIndex();   
         
         static int GetThreadFieldIndex() => Interlocked.Increment(ref threadFieldIndexer);
+        
+        protected void SetFieldValue(object value)
+        {
+            var currentThread = TapThread.Current;
+            if (currentThread.Fields == null)
+                currentThread.Fields = new object[Index + 1];
+            else if(currentThread.Fields.Length <= Index)
+            {
+                var newArray = new object[Index + 1];
+                currentThread.Fields.CopyTo(newArray, 0);
+                currentThread.Fields = newArray;
+            }
+            currentThread.Fields[Index] = value;
+        }
+
+        protected bool TryGetFieldValue(TapThread thread, out object value)
+        {
+            if (thread.Fields != null && thread.Fields.Length > Index)
+            {
+              var currentValue = thread.Fields[Index];
+              if (currentValue != null)
+              {
+                  value = currentValue;
+                  return true;
+              }
+            }
+            value = null;
+            return false;
+        }
     }
     
     [Flags]
@@ -53,7 +82,11 @@ namespace OpenTap
         /// <summary>  Cached-mode ThreadFields are a bit faster as they dont need to iterate for finding commonly used values.
         /// A value found in the parent thread is upgraded to local cache. Changes in parent thread thread-field values has no effect after it has
         /// been cached the first time.</summary>
-        Cached = 1
+        Cached = 1,
+        /// <summary>
+        /// A flat is a kind of cache that is local to the current thread only. It never inherits to the parent thread value.
+        /// </summary>
+        Flat = 2
     }
     
     /// <summary>
@@ -81,7 +114,7 @@ namespace OpenTap
         public T GetCached()
         {
             var thread = TapThread.Current;
-            if (thread.Fields != null && thread.Fields.Length > Index && thread.Fields[Index] is T x)
+            if (TryGetFieldValue(thread, out var value) && value is T x)
                 return x;
             return default;
         } 
@@ -94,44 +127,35 @@ namespace OpenTap
             // iterate through parent threads.
             while (thread != null)
             {
-                object found;
-                if (thread.Fields != null && thread.Fields.Length > Index && (found = thread.Fields[Index]) != null)
+                if (TryGetFieldValue(thread, out var found))
                 {
                     if (isCached)
                     {
                         if (isParent)
-                            set(found); // set the value on the current thread (not on parent).
+                            SetFieldValue(found); // set the value on the current thread (not on parent).
                         if (ReferenceEquals(found, DefaultCacheMarker))
                             return default;
                     }
                     return (T)found;
                 }
-
+                
+                
+                if ((mode & (int)ThreadFieldMode.Flat) > 0)
+                {
+                    // flat mode: Dont iterate to parent.
+                    return default;
+                }
                 thread = thread.Parent;
                 isParent = true;
             }
 
             if (isCached)
-                set(DefaultCacheMarker);
+                SetFieldValue(DefaultCacheMarker);
 
             return default;
         }
 
-        void set(object value)
-        {
-            var currentThread = TapThread.Current;
-            if (currentThread.Fields == null)
-                currentThread.Fields = new object[Index + 1];
-            else if(currentThread.Fields.Length <= Index)
-            {
-                var newArray = new object[Index + 1];
-                currentThread.Fields.CopyTo(newArray, 0);
-                currentThread.Fields = newArray;
-            }
-            currentThread.Fields[Index] = value;
-        }
-
-        void Set(T value) => set(value);
+        void Set(T value) => SetFieldValue(value);
     }
 
     /// <summary>
@@ -182,6 +206,9 @@ namespace OpenTap
 
         internal object[] Fields;
         #region properties
+
+        static int rootThreadNameId = 0;
+        
         /// <summary>
         /// The currently running TapThread
         /// </summary>
@@ -191,7 +218,8 @@ namespace OpenTap
             {
                 if (ThreadManager.ThreadKey == null)
                 {
-                    ThreadManager.ThreadKey = new TapThread(null, null, null);
+                    var id = Interlocked.Increment(ref rootThreadNameId);
+                    ThreadManager.ThreadKey = new TapThread(null, null, null, id == 1 ? "Main Thread" : $"Root Thread {id-1}");
                 }
                 return ThreadManager.ThreadKey;
             }
@@ -293,6 +321,11 @@ namespace OpenTap
         public void Abort()
         {
             Abort(null);
+        }
+
+        internal void AbortNoThrow()
+        {
+            abortTokenSource.Cancel();
         }
 
         /// <summary>
@@ -539,7 +572,8 @@ namespace OpenTap
             threadManagerThread.Start();
             //ThreadPool.GetMaxThreads(out MaxWorkerThreads, out int _);
         }
-        static readonly int idleThreadCount = 4;
+        internal static int IdleThreadCount { get => idleThreadCount; set => idleThreadCount = value; }
+        static int idleThreadCount = 4;
         void threadManagerWork()
         {
             var handles = new WaitHandle[2];

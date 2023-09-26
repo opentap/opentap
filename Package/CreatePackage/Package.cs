@@ -100,14 +100,17 @@ namespace OpenTap.Package
         {
             try
             {
-                AssemblyName testAssembly = AssemblyName.GetAssemblyName(fullPath);
-                return true;
+                if (File.Exists(fullPath))
+                {
+                    AssemblyName testAssembly = AssemblyName.GetAssemblyName(fullPath);
+                    return true;
+                }
             }
-
             catch (Exception)
             {
-                return false;
+                
             }
+            return false;
         }
 
         /// <summary>

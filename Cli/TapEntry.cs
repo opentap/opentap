@@ -181,7 +181,6 @@ namespace OpenTap.Cli
                 cliTraceListener.TraceEvents(TapInitializer.InitTraceListener.Instance.AllEvents.ToArray());
                 TapInitializer.InitTraceListener.Instance.AllEvents.Clear();
                 AppDomain.CurrentDomain.ProcessExit += (s, e) => cliTraceListener.Flush();
-
             }
 
             TapInitializer.Initialize(); // This will dynamically load OpenTap.dll

@@ -219,24 +219,17 @@ namespace OpenTap
         class StaticPluginTypeCache<T>
         {
             static ReadOnlyCollection<Type> list;
-            static int changeid = 0;
-
+            
             public static ReadOnlyCollection<Type> Get()
             {
-                var changeIdNew = PluginManager.ChangeID;
-                if (changeid != changeIdNew)
-                {
-                    list = null;
-                }
+                return list ??= GetPlugins(typeof(T));
 
-                if (list == null)
-                {
-                    list = GetPlugins(typeof(T));
-                    changeid = changeIdNew;
-                }
-
-                return list;
             }
+            static StaticPluginTypeCache()
+            {
+                CacheState.Updated += (s, e) => list = null;
+            }
+            
         }
         
         /// <summary>
@@ -259,7 +252,7 @@ namespace OpenTap
         {
             searchTask.Reset();
             searcher = null;
-            ChangeID++;
+            CacheState.OnUpdated();
             TapThread.Start(Search);  
             return Task.Run(() => GetSearcher());
         }
@@ -269,7 +262,7 @@ namespace OpenTap
             searchTask.Reset();
             searcher = null;
             assemblyResolver.Invalidate(DirectoriesToSearch);
-            ChangeID++;
+            CacheState.OnUpdated();
             try
             {
                 IEnumerable<string> fileNames = assemblyResolver.GetAssembliesToSearch();
@@ -321,7 +314,12 @@ namespace OpenTap
         /// <summary> Calls PluginManager.Load </summary>
         static PluginManager()
         {
+            CacheState.Updated += (s, e) =>
+            {
+                PluginsChanged?.Invoke(s, new PluginsChangedEventArgs());
+            };
             Load();
+            
         }
 
         /// <summary>
@@ -429,7 +427,12 @@ namespace OpenTap
 
         #region Version ResultParameters
         static Memorizer<Assembly, ResultParameter> AssemblyVersions = new Memorizer<Assembly, ResultParameter>(GetVersionResultParameter);
-        internal static int ChangeID = 0;
+        
+        
+        internal static readonly CacheObservable CacheState = new CacheObservable();
+        
+        /// <summary> This event is invoked when the types found by the plugin manager has changed. </summary>
+        public static EventHandler<PluginsChangedEventArgs> PluginsChanged;
 
         private static ResultParameter GetVersionResultParameter(Assembly assembly)
         {
@@ -702,5 +705,13 @@ namespace OpenTap
             public string Path;
             public AssemblyName Name;
         }
+    }
+    
+
+
+    /// <summary> This event args expresses when plugins inside PluginManager has changed. This is generally used for cache invalidation purposes.</summary>
+    public class PluginsChangedEventArgs : EventArgs
+    {
+        
     }
 }

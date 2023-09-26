@@ -100,4 +100,34 @@ namespace OpenTap
         }
         public MacOsArchitecture(string architecture) => Architecture = architecture;
     }
+    class LinuxArchitecture
+    {
+        public string Architecture { get; }
+        public static readonly LinuxArchitecture x64 = new LinuxArchitecture("x64");
+        public static readonly LinuxArchitecture arm = new LinuxArchitecture("arm");
+        public static readonly LinuxArchitecture arm64 = new LinuxArchitecture("arm64");
+        public static LinuxArchitecture Current { get; }
+        static LinuxArchitecture()
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo("uname", "-m");
+                startInfo.RedirectStandardOutput = true;
+                var process = Process.Start(startInfo);
+                process.WaitForExit(1000);
+                var uname = process?.StandardOutput.ReadToEnd();
+                if (uname.Contains("armv7"))
+                    Current = arm;
+                else if (uname.Contains("arm64"))
+                    Current = arm64;
+                else
+                    Current = x64;
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+        public LinuxArchitecture(string architecture) => Architecture = architecture;
+    }
 }

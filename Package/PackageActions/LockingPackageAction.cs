@@ -5,6 +5,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -55,6 +56,11 @@ namespace OpenTap.Package
         internal static string GetLocalInstallationDir()
         {
             return Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        }
+
+        internal static string GuessHostOS()
+        {
+            return OperatingSystem.Current.Name;
         }
 
         /// <summary>

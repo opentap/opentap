@@ -66,18 +66,7 @@ namespace OpenTap.Package
         public PackageDownloadAction()
         {
             Architecture = ArchitectureHelper.GuessBaseArchitecture;
-            switch (Environment.OSVersion.Platform)
-            {
-                case PlatformID.MacOSX:
-                    OS = "MacOS";
-                    break;
-                case PlatformID.Unix:
-                    OS = "Linux";
-                    break;
-                default:
-                    OS = "Windows";
-                    break;
-            }
+            OS = GuessHostOS();
         }
 
         protected override int LockedExecute(CancellationToken cancellationToken)

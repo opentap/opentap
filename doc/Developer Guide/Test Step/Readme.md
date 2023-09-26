@@ -455,3 +455,126 @@ The ExternalParameterAttribute marks a property that should be an external param
 
 ## Exceptions 
 Exceptions from user code are caught by OpenTAP. This could break the control flow, but all resources will always be closed. If the exception gets caught before PostPlanRun, the steps that had PrePlanRun called will also get PostPlanRun called. When a step fails (by setting the Verdict to *Fail* or *Abort*) or throws an exception, execution can be configured to continue (ignoring the error), or to abort execution, by changing the "Abort Run If" property in Engine settings 
+
+## Expressions
+Expressions provides users with the ability to use mathematical and functional expressions directly within the test step settings. This offers a more dynamic and flexible approach to configuring properties. The feature supports a range of mathematical functions, constants, and operators, as well as string manipulation.
+
+To use expressions you need the `Expressions` plugin which is normally included in the installation or can otherwise be downloaded from https://packages.opentap.io.
+
+It uses basic mathematical syntax to express relationships between settings or to calculate values or manipulate strings.
+
+For example, let's say we want to use time delay for exactly 10 minutes, we can configure Time Delay as the expression: ```10 * 60```, resulting the Time Delay having a value of 600 seconds.
+
+![TimeDelayExpression.png](TimeDelayExpression.png)
+
+For text based settings, expressions can be used to manipulate the text using a `{}` syntax. Take for example a SCPI step and set the expression to: `BANDwidth {2000 * 1000000 / 10}`.
+
+![ScpiCommandExpression.png](ScpiCommandExpression.png)
+
+
+### Basic Syntax
+
+When using the Expressions feature, it's essential to adhere to a specific syntax to ensure accurate evaluation of the expressions. Here's a breakdown of the basic syntax rules:
+
+1. **Numerical Values**:
+    - Expressions can contain floating-point numbers like `3.14` or integers like `7`.
+    - Avoid using commas or other delimiters for large numbers.
+
+2. **Operators**:
+    - Use standard arithmetic operators: `+` for addition, `-` for subtraction, `*` for multiplication, and `/` for division.
+    - The power operation is represented by `^`.
+    - Parentheses `(` and `)` can be used to group expressions or change the precedence of evaluation.
+        * Example: `(1 + 2) * 3` evaluates to `9`.
+
+3. **Functions**:
+    - Function names are always followed by parentheses `()`.
+    - When a function requires multiple arguments, separate each argument with a comma `,`.
+        * Example: `max(1, 2, 3)` or `log(8, 2)`.
+
+4. **Identifiers**:
+    - Settings on test steps like `Time Delay` is a valid identifier and will get the current value of that setting. 
+    - Constants like `π`, `pi` or `e` don't require any additional symbols. Use them as you would use a number.
+        * Example: `2 * π`.
+
+5. **String Interpolation**:
+    - To use expressions with strings, enclose the expression within curly braces `{ }`.
+        * Example: `"The radius is {2 * π * r}."`.
+
+6. **Whitespace**:
+    - Spaces between numbers, operators, and functions are optional but can make your expression more readable.
+    - Avoid adding spaces inside function names or immediately after a function name and before its opening parenthesis.
+        * Correct: `max(2, 3)`.
+        * Incorrect: `max (2, 3)` or `max( 2, 3 )`.
+
+7. **Case Sensitivity**:
+    - While some functions or constants may be case-insensitive, names a generally lower-case. And plugins should try to follow that rule.
+8. **Names Escaping**:
+   - In cases where your expression includes names that might be confused with built-in functions or constants, you can escape these names using single quotes `' '`.
+      * Example: If there's a property named `A/B`, you can distinguish it from the `A / B` expression by writing it as `'A/B'`.
+
+---
+
+Remember, adhering to the correct syntax is crucial for the expressions to evaluate your input accurately. Ensure that your expressions are well-formed to avoid unexpected results or errors.
+
+### Using Expressions
+
+1. **Basic Arithmetic Operations**:
+   You can perform simple mathematical calculations using standard operators such as `+`, `-`, `*`, and `/`.
+
+   Example: `1 * 2 * 3 * 4 * 5` evaluates to `120`.
+
+2. **Functions**:
+
+   - **String Functions**:
+      - `empty(str)`: Checks if the provided string `str` is empty or null. Returns `true` or `false`.
+         * Example: `empty("")` returns `true`.
+
+   - **Trigonometric Functions**:
+      - `sin(v)`: Returns the sine of value `v`.
+      - `asin(v)`: Returns the arcsine (inverse of sine) of value `v`.
+      - `cos(v)`: Returns the cosine of value `v`.
+      - `acos(v)`: Returns the arccosine (inverse of cosine) of value `v`. 
+      - `tan(v)`: Returns the tangent of value `v`.
+      - `atan(v)`: Returns the arctangent of value `v`.
+
+   - **Arithmetic and Rounding Functions**:
+      - `abs(v)`: Returns the absolute value of `v`.
+      - `floor(v)`: Rounds the value `v` down to the nearest integer.
+      - `ceiling(v)`: Rounds the value `v` up to the nearest integer.
+      - `round(v)`: Rounds the value `v` to the nearest integer.
+      - `round(v, decimals)`: Rounds the value `v` to the specified number of `decimals`.
+
+   - **Sign Function**:
+      - `sign(v)`: Returns the sign of `v`. It gives `1` for positive values, `-1` for negative values, and `0` for zero.
+
+   - **MinMax Functions**:
+      - `max(a, b)`: Returns the maximum between values `a` and `b`.
+      - `max(a, b, c)`: Returns the maximum among values `a`, `b`, and `c`.
+      - `max(a, b, c, d)`: Returns the maximum among values `a`, `b`, `c`, and `d`.
+      - `min(a, b)`: Returns the minimum between values `a` and `b`.
+      - `min(a, b, c)`: Returns the minimum among values `a`, `b`, and `c`.
+      - `min(a, b, c, d)`: Returns the minimum among values `a`, `b`, `c`, and `d`.
+
+   - **Logarithmic and Exponential Functions**:
+      - `log2(x)`: Returns the base-2 logarithm of `x`.
+      - `log10(x)`: Returns the base-10 logarithm of `x`.
+      - `log(x, base)`: Returns the logarithm of `x` using the specified `base`.
+      - `exp(x)`: Returns the exponential function of `x`, i.e., e raised to the power `x`.
+
+
+3. **Constants**:
+
+    - `π` or `Pi`: Represents the mathematical constant Pi (π).
+        * Example: `π` or `Pi` returns the value of `Math.PI`.
+
+4. **Power Operation**:
+   You can raise a number to the power of another using the `^` operator.
+
+   Example: `2 ^ 3` evaluates to `8`.
+
+5. **String Interpolation**:
+
+   If the target type is a string, you can embed expressions within a string using curly braces `{ }`. The embedded expression will be evaluated, and the result will be placed in the string.
+
+   Example: `The number is {1 + 2}.` becomes "The number is 3."
+

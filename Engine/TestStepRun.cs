@@ -6,6 +6,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -158,6 +159,7 @@ namespace OpenTap
     [DebuggerDisplay("TestStepRun {TestStepName}")]
     public class TestStepRun : TestRun
     {
+        readonly TestPlanRun testPlanRun;
         /// <summary>
         /// Parent run that is above this run in the <see cref="TestPlan"/> tree.  
         /// </summary>
@@ -279,8 +281,9 @@ namespace OpenTap
             Parent = parent;
         }
         
-        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters = null)
+        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters, TestPlanRun testPlanRun)
         {
+            this.testPlanRun = testPlanRun;
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
             TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
@@ -371,26 +374,66 @@ namespace OpenTap
         
         internal void AfterRun(ITestStep step)
         {
-            var resultMembers = TypeData.GetTypeData(step)
-                .GetMembers()
-                .Where(member => member.HasAttribute<ResultAttribute>())
-                .ToArray();
+            // load member data for results.
+            List<IMemberData> resultMembers = null;
+            List<IMemberData> primitiveMembers = null;
+            foreach (var member in TypeData.GetTypeData(step).GetMembers())
+            {
+                if (member.HasAttribute<ResultAttribute>())
+                {
+                    if (member.TypeDescriptor.IsPrimitive())
+                    {
+                        primitiveMembers ??= new List<IMemberData>();
+                        primitiveMembers.Add(member);
+                    }
+                    else
+                    {
+                        resultMembers ??= new List<IMemberData>();
+                        resultMembers.Add(member);
+                    }
+                }
+                
+            }
+            
 
             void publishResults()
             {
-                foreach (var r in resultMembers)
+                // primitive members are collapsed into one row with several columns with the step
+                // name as a result name, and each (primitive) property as a column.
+                if (primitiveMembers != null)
                 {
-                    var value = r.GetValue(step);
-                    ((ResultSource)ResultSource).Publish(r.GetDisplayAttribute().Name, value);
-                }    
+                    var arrays = primitiveMembers.Select(r =>
+                    {
+                        var value = r.GetValue(step);
+                        var array = Array.CreateInstance(value.GetType(), 1);
+                        array.SetValue(value, 0);
+                        return array;
+                    }).ToArray();
+                    
+                    var names = primitiveMembers.Select(r => r.GetDisplayAttribute().Name).ToList();
+                    ((ResultSource)ResultSource).PublishTable(step.StepRun.TestStepName, names, arrays);
+                }
+                if (resultMembers != null)
+                {
+                    // handle the non-primitive members normally.
+                    foreach (var r in resultMembers)
+                    {
+                        if (r.TypeDescriptor.IsPrimitive())
+                            continue;
+                        var name = r.GetDisplayAttribute().Name;
+                        var value = r.GetValue(step);
+                        ((ResultSource)ResultSource).Publish(name, value);
+                    }
+                }
             }
 
-            if (ResultSource is ResultSource)
+            // ResultSource may be null.
+            if (ResultSource != null && (resultMembers != null || primitiveMembers != null))
             {
                 if (WasDeferred)
                     ResultSource.Defer(publishResults);
                 else
-                    publishResults();
+                    publishResults();   
             }
 
             runDone.Set();
@@ -463,6 +506,15 @@ namespace OpenTap
             stepRuns[stepRun.TestStepId] = stepRun;
             childStarted?.Invoke(stepRun);
         }
+        
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        /// <param name="stream"> The artifact data as a stream. When publishing an artifact stream, the stream will be disposed by the callee and does not have to be disposed by the caller.</param>
+        /// <param name="artifactName"> The name of the published artifact. </param>
+        public void PublishArtifact(Stream stream, string artifactName) 
+            => testPlanRun.PublishArtifactWithRun(stream, artifactName, this);
+        
+        /// <summary> Publishes an artifact file for the test plan run. </summary>
+        public void PublishArtifact(string file) => testPlanRun.PublishArtifactWithRun(file, this); 
     }
 
     class TestStepBreakException : OperationCanceledException

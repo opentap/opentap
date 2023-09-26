@@ -1,0 +1,113 @@
+name: Pages
+
+on: workflow_dispatch
+
+jobs:
+  CheckSecrets:
+    runs-on: ubuntu-latest
+    environment: sign
+    outputs:
+      gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
+      sign_is_set: ${{ steps.check_sign.outputs.is_set }}
+    steps:
+      - id: check_GITLAB_REGISTRY_TOKEN
+        name: Check whether GITLAB_REGISTRY_TOKEN is set
+        run: |
+          if [ -z "${{ secrets.GITLAB_REGISTRY_TOKEN }}" ]; then
+            echo "Not set"
+            echo "is_set=false" >> $GITHUB_OUTPUT
+          else
+            echo "Set"
+            echo "is_set=true" >> $GITHUB_OUTPUT
+          fi
+      - id: check_sign
+        name: Check whether sign secrets are set
+        run: |
+          if [ -z "${{ secrets.SIGN_SERVER_CERT }}" -o \
+               -z "${{ secrets.TAP_SIGN_ADDRESS }}" -o \
+               -z "${{ secrets.TAP_SIGN_AUTH }}"    -o \
+               -z "${{ secrets.S3_KEY_ID }}"        -o \
+               -z "${{ secrets.S3_SECRET }}" ]; then
+            echo "Not set"
+            echo "is_set=false" >> $GITHUB_OUTPUT
+          else
+            echo "Set"
+            echo "is_set=true" >> $GITHUB_OUTPUT
+          fi
+
+  Build-ApiDoc:
+    needs: CheckSecrets
+    if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
+    runs-on: ubuntu-latest
+    container:
+      image: registry.gitlab.com/opentap/buildrunners/doxygen:alpine
+      credentials:
+        username: github
+        password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - run: |
+          mkdir Help API
+          ver=$(grep ^version .gitversion | sed 's/version[ ]*=[ ]*//' | cut -d. -f 1-2)
+          sed -i "s/\$(GitVersion)/$ver/" "doc/API Documentation/Doxyfile"
+          rootdir=`pwd`
+          cd "doc/API Documentation"
+          doxygen Doxyfile
+          cd apiref/html
+          chmcmd index.hhp
+          mv OpenTapApiReference.chm $rootdir/Help/
+          cp -r . $rootdir/API/
+      - name: Upload binaries (CHM)
+        uses: actions/upload-artifact@v3
+        with:
+          name: doc-api-chm
+          retention-days: 5
+          path: Help/OpenTapApiReference.chm
+      - name: Upload binaries (HTML)
+        uses: actions/upload-artifact@v3
+        with:
+          name: doc-api-html
+          retention-days: 5
+          path: API
+
+  Build-Pages:
+    runs-on: ubuntu-latest
+    needs:
+      - Build-ApiDoc
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Prepare
+        run: rm 'doc/User Guide/Readme.md' 'doc/Developer Guide/Readme.md'
+      - name: Download API Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: doc-api-html
+          path: API
+      - name: Pages Cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+      - uses: actions/setup-node@v3
+        name: Setup NPM
+        with:
+          node-version: 14
+      - name: Install
+        run: npm install
+        working-directory: doc
+      - name: Build
+        run: npm run build
+        working-directory: doc
+      - name: Copy API
+        run: cp -r API public/api
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          publish_dir: public
+          deploy_key: ${{ secrets.PAGES_DEPLOY_TOKEN }}
+          publish_branch: main
+          external_repository: opentap/opentap.github.io

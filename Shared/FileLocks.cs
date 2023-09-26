@@ -1,10 +1,13 @@
 using System;
+using System.Buffers.Text;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 
-namespace OpenTap.Package.PackageInstallHelpers
+namespace OpenTap
 {
     internal interface IFileLock : IDisposable
     {
@@ -65,7 +68,7 @@ namespace OpenTap.Package.PackageInstallHelpers
                 {
                     var remaining = timeout - sw.Elapsed;
                     if (remaining.TotalMilliseconds > 1)
-                        TapThread.Sleep(1);
+                        Thread.Sleep(1);
                     else Thread.Yield();
                 }
                 // Otherwise, create the file, thereby claiming the mutex
@@ -170,7 +173,7 @@ namespace OpenTap.Package.PackageInstallHelpers
 
                 var remaining = timeout - sw.Elapsed;
                 if (remaining.TotalMilliseconds > 1)
-                    TapThread.Sleep(1);
+                    Thread.Sleep(1);
                 else Thread.Yield();
             } while (sw.Elapsed < timeout);
 

@@ -47,21 +47,7 @@ namespace OpenTap.Package
         {
             // OS was explicitly specified. This is interpreted as: Show only packages compatible with that OS. 
             bool checkOs = OS != null;
-            if (OS == null)
-            {
-                switch (Environment.OSVersion.Platform)
-                {
-                    case PlatformID.MacOSX:
-                        OS = "MacOS";
-                        break;
-                    case PlatformID.Unix:
-                        OS = "Linux";
-                        break;
-                    default:
-                        OS = "Windows";
-                        break;
-                }
-            }
+            OS ??= GuessHostOS();
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
             List<IPackageRepository> repositories = new List<IPackageRepository>();

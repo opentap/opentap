@@ -27,7 +27,7 @@ namespace OpenTap.Package
         public PackageManagerSettings()
         {
             Repositories = new List<RepositorySettingEntry>();
-            Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = new Uri(Path.GetFullPath(ExecutorClient.ExeDir)).AbsoluteUri });
+            Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = new Uri(Path.GetFullPath(ExecutorClient.ExeDir)).LocalPath });
             Repositories.Add(new RepositorySettingEntry { IsEnabled = true, Url = "https://packages.opentap.io" });
             UseLocalPackageCache = true;
         }

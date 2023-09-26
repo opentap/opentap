@@ -42,6 +42,20 @@ namespace OpenTap
             return false;
         }
         
+        public static T GetBaseType<T>(this ITypeData type) where T: ITypeData
+        {
+            var typeIterator = type;
+            while (typeIterator != null)
+            {
+                if (typeIterator is TypeData)
+                    break;
+                if (typeIterator is T t2)
+                    return t2;
+                typeIterator = typeIterator.BaseType;
+            }
+            return default;
+        }
+        
         /// <summary> Really fast direct descendant test. This checks for reference equality of the type or a base type, and 'baseType'.
         /// Given these constraints are met, this can be 6x faster than DescendsTo, but should only be used in special cases. </summary>
         public static bool DirectInheritsFrom(this ITypeData type, ITypeData baseType)
@@ -365,12 +379,16 @@ namespace OpenTap
             }
         }
 
-        /// <summary>
-        /// Returns true if a type is numeric.
-        /// </summary>
+        /// <summary> Returns true if a type is numeric. </summary>
         public static bool IsNumeric(this ITypeData t)
         {
             return t.AsTypeData()?.Type.IsNumeric() == true;
+        }
+        
+        /// <summary> Returns true if a type is a C# primitive. </summary>
+        public static bool IsPrimitive(this ITypeData t)
+        {
+            return t.AsTypeData()?.Type.IsPrimitive ?? false;
         }
 
         /// <summary> Creates an instance of t with no constructor arguments. </summary>
@@ -487,7 +505,12 @@ namespace OpenTap
             return getMethodsTap(type);
         }
 
-        
+        public static bool MethodOverridden(this Type t, Type baseType, string methodName)
+        {
+            var m1 = baseType.GetMethod(methodName).MethodHandle.Value;
+            var m2 = t.GetMethod(methodName).MethodHandle.Value;
+            return m1 != m2;
+        } 
 
         /// <summary> Get the base C# type of a given type. </summary>
         internal static T As<T>(this ITypeData type) where T: ITypeData
@@ -859,6 +882,27 @@ namespace OpenTap
             del += () => f(v); 
             return del;
         }
+
+        /// <summary>
+        /// Thread-safe and lock free value exchange. valueGen depends on the current value.
+        /// </summary>
+        /// <param name="outPlace"> Where to place the value</param>
+        /// <param name="valueGen"> Function generating a value based on the current value. </param>
+        /// <typeparam name="T"> The type of object. </typeparam>
+        public static void InterlockedSwap<T>(ref T outPlace, Func<T> valueGen) where T: class
+        {
+            while (true)
+            {   
+                // safely add a new item to the list using the compare-and-swap atomic operation.
+                var currentValue = outPlace;
+                var nextValue = valueGen();
+
+                if (Interlocked.CompareExchange(ref outPlace, nextValue, currentValue) == currentValue)
+                {
+                    break;
+                }
+            }
+        }
         
         
     #if DEBUG
@@ -910,18 +954,18 @@ namespace OpenTap
         /// Returns the element for which selector returns the max value.
         /// if IEnumerable is empty, it returns default(T) multiplier gives the direction to search.
         /// </summary>
-        static T FindExtreme<T, C>(this IEnumerable<T> ienumerable, Func<T, C> selector, int multiplier) where C : IComparable
+        static T FindExtreme<T, C>(this IEnumerable<T> sequence, Func<T, C> selector, int multiplier) where C : IComparable
         {
-            if (!ienumerable.Any())
-            {
+            var e = sequence.GetEnumerator();
+            if (!e.MoveNext())
                 return default(T);
-            }
-            T selected = ienumerable.FirstOrDefault();
+            
+            T selected = e.Current;
             C max = selector(selected);
 
-
-            foreach (T obj in ienumerable.Skip(1))
+            while(e.MoveNext())
             {
+                var obj = e.Current;
                 C comparable = selector(obj);
                 if (comparable.CompareTo(max) * multiplier > 0)
                 {
@@ -932,15 +976,8 @@ namespace OpenTap
 
             return selected;
         }
-        /// <summary>
-        /// Returns the element for which selector returns the max value.
-        /// if IEnumerable is empty, it returns default(T).
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <typeparam name="C"></typeparam>
-        /// <param name="ienumerable"></param>
-        /// <param name="selector"></param>
-        /// <returns></returns>
+        
+        /// <summary> Returns the element for which selector returns the max value. if IEnumerable is empty, it returns default(T). </summary>
         public static T FindMax<T, C>(this IEnumerable<T> ienumerable, Func<T, C> selector) where C : IComparable
         {
             return FindExtreme(ienumerable, selector, 1);
@@ -950,11 +987,6 @@ namespace OpenTap
         /// Returns the element for which selector returns the minimum value.
         /// if IEnumerable is empty, it returns default(T).
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <typeparam name="C"></typeparam>
-        /// <param name="ienumerable"></param>
-        /// <param name="selector"></param>
-        /// <returns></returns>
         public static T FindMin<T, C>(this IEnumerable<T> ienumerable, Func<T, C> selector) where C : IComparable
         {
             return FindExtreme(ienumerable, selector, -1);
@@ -1109,13 +1141,7 @@ namespace OpenTap
             return source.Concat(newObjects);
         }
 
-        /// <summary>
-        /// First index where the result of predicate function is true.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="source"></param>
-        /// <param name="pred"></param>
-        /// <returns></returns>
+        /// <summary>  First index where the result of predicate function is true. </summary>
         public static int IndexWhen<T>(this IEnumerable<T> source, Func<T, bool> pred)
         {
             int idx = 0;
@@ -1214,11 +1240,11 @@ namespace OpenTap
         /// <summary> As 'Select and FirstOrDefault' but skipping null values.
         /// Short hand for/more efficient version of 'Select(f).Where(x => x != null).FirstOrDefault()'
         /// </summary>
-        public static T2 FirstNonDefault<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> f) 
+        public static T2 FirstNonDefault<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> selector) 
         {
             foreach (var x in source)
             {
-                var value = f(x);
+                var value = selector(x);
                 if (Equals(value, default(T2)) == false)
                     return value;
             }
@@ -1850,12 +1876,41 @@ namespace OpenTap
                 }
             }
         }
+        
+        /// <summary>
+        ///  process the enumerable source N objects at a time.
+        /// </summary>
+        public static IEnumerable<T> Batch<T>(this IEnumerable<T> src, int N)
+        {
+                var buffer = new T[N];
+                int cnt = 0;
+                foreach (var elem in src)
+                {
+                    buffer[cnt] = elem;
+                    cnt += 1;
+                    if (cnt == N)
+                    {
+                        foreach (var elem2 in buffer)
+                            yield return elem2;
+                        cnt = 0;
+                    }
+                }
+                foreach (var elem2 in buffer.Take(cnt))
+                    yield return elem2;
+        }
 
         public static void Append<T>(ref T[]  array, params T[] appendage)
         {
             int preLen = array.Length;
             Array.Resize(ref array, array.Length + appendage.Length);
             Array.Copy(appendage, 0, array, preLen, appendage.Length);
+        }
+
+        public static T PopAt<T>(this IList<T> list, int index)
+        {
+            var value = list[index];
+            list.RemoveAt(index);
+            return value;
         }
         
         public static IEnumerable<T2> TrySelect<T, T2>(this IEnumerable<T> src, Func<T, T2> f,
@@ -1885,13 +1940,33 @@ namespace OpenTap
     internal class Time
     {
         /// <summary>
-        /// A TimeSpan from seconds that does not truncate at milliseconds.
+        /// A TimeSpan from seconds that does not round to nearest millisecond. (TimeSpan.FromSeconds does that).
         /// </summary>
         /// <param name="seconds"></param>
         /// <returns></returns>
         public static TimeSpan FromSeconds(double seconds)
         {
-            return TimeSpan.FromTicks((long)(seconds * 1E7));
+            try
+            {
+                checked
+                {
+                    // if the multiplication here creates a number greater than
+                    // long.Max (or overflows negatively), we just return
+                    // TimeSpan.MaxValue/MinValue.
+                    long ticks = (long)(seconds * 1e7);
+                    return TimeSpan.FromTicks(ticks);
+                }
+            }
+            catch (OverflowException)
+            {
+                if (double.IsNaN(seconds))
+                    throw new ArithmeticException("Nan is not a supported time value.");
+                if (seconds < 0)
+                    return TimeSpan.MinValue;
+                return TimeSpan.MaxValue;
+            }
+            
+
         }
     }
 

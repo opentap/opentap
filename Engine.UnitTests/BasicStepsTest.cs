@@ -188,5 +188,26 @@ namespace OpenTap.UnitTests
             // verify that each result table came from a different step run
             Assert.AreEqual(200, collectEverythingListener.ResultTableGuids.Distinct().Count());
         }
+        
+        [Test]
+        public void TestSweepLoopAcrossRunsReferencedResources()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepLoop();
+            var delay = new DelayStep();
+            plan.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(delay);
+
+            var b = AnnotationCollection.Annotate(sweep);
+            var members = b.GetMember("SweepMembers");
+            var avail = members.Get<IAvailableValuesAnnotationProxy>();
+            var multi = members.Get<IMultiSelectAnnotationProxy>();
+            multi.SelectedValues = avail.AvailableValues;
+            b.Write();
+            sweep.CrossPlan = SweepLoop.SweepBehaviour.Across_Runs;
+            Assert.IsTrue(sweep.SweepParameters.Any());
+            // if SweepParameters.Count > 0 && across-runs mode was enabled. This could cause an exception.
+            Assert.AreEqual(0, sweep.ReferencedResources.Count());
+        }
     }
 }

@@ -44,31 +44,29 @@ namespace OpenTap
             return res.GetConstProperties().OfType<T>();
         }
 
-        /// <summary>  Const resources are not expected to change for a given resource, so we can optimize this by caching the result. </summary>
-        static readonly ConditionalWeakTable<IResource, IConstResourceProperty[]> constPropertyCache = new ConditionalWeakTable<IResource, IConstResourceProperty[]>();
-
         /// <summary>
         /// Returns all IConstResourceProperty instances on a resource.
         /// </summary>
         /// <param name="res"></param>
         /// <returns></returns>
         public static IEnumerable<IConstResourceProperty> GetConstProperties(this IResource res) =>
-            constPropertyCache.GetValue(res, r => GetConstPropertiesImpl(r).ToArray());
+            GetConstPropertiesImpl(res).ToArray();
         
         static IEnumerable<IConstResourceProperty> GetConstPropertiesImpl(IResource res)
         {
-            foreach (var prop in res.GetType().GetPropertiesTap())
+            foreach (var prop in TypeData.GetTypeData(res).GetMembers())
             {
-                if (prop.PropertyType.DescendsTo(typeof(IConstResourceProperty)))
+                if (prop.Readable == false) continue;
+                if (prop.TypeDescriptor.DescendsTo(typeof(IConstResourceProperty)))
                 {
-                    var value = (IConstResourceProperty)prop.GetValue(res, null);
+                    var value = (IConstResourceProperty)prop.GetValue(res);
                     if (value == null) continue;
 
                     yield return value;
                 }
-                if (prop.PropertyType.DescendsTo(typeof(IEnumerable<IConstResourceProperty>)))
+                if (prop.TypeDescriptor.DescendsTo(typeof(IEnumerable<IConstResourceProperty>)))
                 {
-                    var points = (IEnumerable<IConstResourceProperty>)prop.GetValue(res, null);
+                    var points = (IEnumerable<IConstResourceProperty>)prop.GetValue(res);
                     if (points == null) continue;
                     foreach (var pt in points)
                     {

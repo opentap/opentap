@@ -6,6 +6,7 @@ using System.Threading;
 using System.Xml;
 using System.Xml.Linq;
 using Microsoft.Build.Framework;
+using OpenTap.Authentication;
 using Task = Microsoft.Build.Utilities.Task;
 
 
@@ -119,6 +120,88 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         {
             cts.Cancel();
         }
+
+        /// <summary> Load Authentication tokens from Items into settings. </summary>
+        /// <returns>True if successful.</returns>
+        bool ProcessAuthTokens()
+        {
+            var repo2token = new Dictionary<string, string>(); 
+            {
+                var repoTokens = new List<(string repo, string token)>();
+
+                foreach (var item in Repositories ?? Array.Empty<ITaskItem>())
+                {
+                    // Read token from <OpenTapRepository Repository="X" Token="Y"/>
+                    var repo = item.GetMetadata("Repository")?.Trim();
+                    var token = item.GetMetadata("Token").Trim();
+                    if (string.IsNullOrWhiteSpace(token))
+                        continue;
+
+                    if (string.IsNullOrWhiteSpace(repo))
+                    {
+                        Log.LogError("When Token is used Repository must be specified.");
+                        return false;
+                    }
+                    repoTokens.Add((repo, token));
+
+                }
+                
+                foreach (var package in PackagesToInstall)
+                {
+                    // Read token from <OpenTapPackageReference Include="Z" Version="W" Repository="X" Token="Y"/>
+                    // also applies top AdditionalOpenTapPackage.
+                    var repo = package.GetMetadata("Repository")?.Trim();
+                    var token = package.GetMetadata("Token").Trim();
+                    if (string.IsNullOrWhiteSpace(token))
+                        continue;
+
+                    if (string.IsNullOrWhiteSpace(repo))
+                    {
+                        Log.LogError("When Token is used Repository must be specified.");
+                        return false;
+                    }
+                    repoTokens.Add((repo, token));
+                }
+                foreach (var (repo, token) in repoTokens)
+                {
+                    if (repo2token.TryGetValue(repo, out var token2))
+                    {
+                        if (token == token2)
+                            continue;
+                        Log.LogError($"Repository ({repo}) already specified with a different token.");
+                        return false;
+                    }
+                    repo2token.Add(repo, token);
+                }
+            }
+
+            
+            foreach (var tokenPair in repo2token)
+            {
+                try
+                {
+                    var uri = new Uri(tokenPair.Key, UriKind.RelativeOrAbsolute);
+                    string host;
+                    if (uri.IsAbsoluteUri)
+                    {
+                        host = uri.Host;
+                    }
+                    else
+                    {
+                        host = tokenPair.Key;
+                    }
+
+
+                    AuthenticationSettings.Current.Tokens.Insert(0, new TokenInfo(tokenPair.Value, "", host));
+                }
+                catch (Exception e)
+                {
+                    Log.LogError($"Could not parse URI for token: {e.Message}");
+                    return false;
+                }
+            }
+            return true;
+        }
         
         /// <summary>
         /// We *must* be in an OpenTapContext before calling this method because
@@ -127,6 +210,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// <returns></returns>
         private bool InstallPackages()
         {
+            if (!ProcessAuthTokens())
+                return false;
+            
             var repos = Repositories?.SelectMany(r =>
                     r.ItemSpec.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries))
                 .ToList() ?? new List<string>();

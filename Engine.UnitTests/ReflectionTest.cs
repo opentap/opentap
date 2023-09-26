@@ -42,5 +42,19 @@ namespace OpenTap.UnitTests
             Assert.AreNotEqual(mem1Display, mem2Display);
             Assert.AreEqual(mem1Display, mem1Display2);
         }
+
+        [Test]
+        public void IntTriviaTest()
+        {
+            // let's test some basic sanity.
+            int x = 5;
+            var xType = (TypeData)TypeData.GetTypeData(x);
+            Assert.IsTrue(xType.IsNumeric());
+            Assert.IsTrue(xType.IsValueType);
+            Assert.IsTrue(xType.IsBrowsable());
+            Assert.IsFalse(xType.IsString);
+            Assert.IsTrue(xType.CanCreateInstance);
+            Assert.AreEqual(0, xType.CreateInstance());
+        }
     }
 }

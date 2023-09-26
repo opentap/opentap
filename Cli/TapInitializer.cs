@@ -8,13 +8,13 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using OpenTap.Diagnostic;
 
 namespace OpenTap
 {
     internal static class TapInitializer
     {
-
         public class InitTraceListener : ILogListener {
             public readonly List<Event> AllEvents = new List<Event>();
             public void EventsLogged(IEnumerable<Event> events)

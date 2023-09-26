@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Threading.Tasks;
 using Tap.Shared;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 
@@ -374,6 +375,58 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(inv1.SequenceEqual(new[] { 1, 0 }));
             Assert.IsTrue(inv1.SequenceEqual(inv2));
             Assert.AreEqual(4, exceptionsCaught);
+        }
+
+        [Test]
+        public void TestTimeFromSeconds()
+        {
+            Assert.AreEqual(TimeSpan.Zero, Time.FromSeconds(0));
+            Assert.AreEqual(TimeSpan.MaxValue, Time.FromSeconds(double.PositiveInfinity));
+            Assert.Throws<ArithmeticException>(() => Time.FromSeconds(double.NaN));
+            Assert.AreEqual(TimeSpan.MaxValue, Time.FromSeconds(1000000000000000000000000000.0));
+            Assert.AreEqual(TimeSpan.MinValue, Time.FromSeconds(-1000000000000000000000000000.0));
+        }
+
+        [Test]
+        public void BatchingTest()
+        {
+            var inv = Enumerable.Range(0, 1000).Batch(32).OrderByDescending(x => x).ToArray();
+            Assert.IsTrue(inv.SequenceEqual(Enumerable.Range(0, 1000).OrderByDescending(x => x)));
+        }
+
+        [Test]
+        public void CompareAndExchangeTest()
+        {
+            object X = 1;
+            object Y = 2;
+            Utils.InterlockedSwap(ref X, () => 3);
+            Utils.InterlockedSwap(ref Y, () => 4);
+            Assert.AreEqual(3, X);
+            Assert.AreEqual(4, Y);
+
+            X = 0;
+            Y = 0;
+            int cnt = 5;
+            int adds = 10000;
+            var tasks = new Task[cnt];
+
+            for (int i = 0; i < cnt; i++)
+            {
+                tasks[i] = TapThread.StartAwaitable(() =>
+                {
+                    for (int i = 0; i < adds; i++)
+                    {
+                        Utils.InterlockedSwap(ref X, () => ((int)X + 1));
+                        Utils.InterlockedSwap(ref Y, () => ((int)Y + 2));
+                    }
+                });
+            }
+            for (int i = 0; i < cnt; i++)
+            {
+                tasks[i].Wait();
+            }
+            Assert.AreEqual(X, cnt * adds);
+            Assert.AreEqual(Y, cnt * adds * 2);
         }
     }
 }

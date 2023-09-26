@@ -118,7 +118,7 @@ namespace OpenTap
             // a new method with a different signature.
             Initialize(logFileName, NoExclusiveWriteLock);
         }
-        
+        internal static bool SkipStartupInfo { get; set; }
         /// <summary>
         /// Initializes the logging.
         /// </summary>
@@ -139,7 +139,11 @@ namespace OpenTap
                     // this ensures that System.Runtime.InteropServices.RuntimeInformation.dll is loaded. (issue #4000).
                     .StartNew(PluginManager.Load)
                     // then get the system info on a separate thread (it takes ~1s)
-                    .ContinueWith(tsk => SystemInfo()); 
+                    .ContinueWith(tsk =>
+                    {
+                        if(!SkipStartupInfo)
+                            LogStartupInfo();
+                    }); 
 
                 AppDomain.CurrentDomain.ProcessExit += FlushOnExit;
                 AppDomain.CurrentDomain.UnhandledException += FlushOnExit;
@@ -442,7 +446,7 @@ namespace OpenTap
                 }
             });
         }
-        
+
         static string addLogRotateNumber(string fullname, int cnt)
         {
             if (cnt == 0) return fullname;
@@ -472,7 +476,8 @@ namespace OpenTap
             {
                 log.Warning("Unable to rename log file to {0} as permissions was denied.", path);
                 log.Debug(e);
-            }catch (IOException e)
+            }
+            catch (IOException e)
             { // This could also be an error the the user does not have permissions. E.g OpenTAP installed in C:\\
                 log.Warning("Unable to rename log file to {0} as the file could not be created.", path);
                 log.Debug(e);
@@ -480,17 +485,40 @@ namespace OpenTap
         }
 
         static Task SystemInfoTask;
-        private static void SystemInfo()
+        private static void LogStartupInfo()
         {
-            if (!String.IsNullOrEmpty(RuntimeInformation.OSDescription))
-                log.Debug("{0}{1}", RuntimeInformation.OSDescription, RuntimeInformation.OSArchitecture); // This becomes something like "Microsoft Windows 10.0.14393 X64"
+            TapThread.Sleep(200);
+            foreach (var td in TypeData.GetDerivedTypes<IStartupInfo>().Where(td => td.CanCreateInstance))
+            {
+                IStartupInfo si = null;
+                try 
+                {
+                    si = td.CreateInstance() as IStartupInfo;
+                    if (si == null)
+                    {
+                        log.Debug($"Failed to instantiate '{td.Name}'.");
+                        continue;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log.Debug($"Failed to instantiate '{td.Name}': {ex.Message}");
+                    log.Debug(ex);
+                    continue;
+                }
 
-            if (!String.IsNullOrEmpty(RuntimeInformation.FrameworkDescription))
-                log.Debug(RuntimeInformation.FrameworkDescription); // This becomes something like ".NET Framework 4.6.1586.0"
-            var version = SemanticVersion.Parse(Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion);
-            log.Debug("OpenTAP Engine {0} {1}", version, RuntimeInformation.ProcessArchitecture);
+                try
+                {
+                    si.LogStartupInfo();
+                }
+                catch (Exception ex)
+                {
+                    log.Debug($"Unhandled exception in '{td.Name}.{nameof(si.LogStartupInfo)}': {ex.Message}");
+                    log.Debug(ex);
+                }
+            }
         }
-        
+
         /// <summary>
         /// Flushes the buffered logs. Useful as the last thing to do in case of crash.
         /// </summary>
