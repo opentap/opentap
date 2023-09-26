@@ -3,18 +3,29 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 
 namespace OpenTap.Plugins.BasicSteps
 {
     [AllowAnyChild]
-    [Display("Sweep Parameter From File", "Sweeps the parameters based on a table file format. For example CSV using the CSV plugin..", "Flow Control")]
+    [Display("Sweep From File", "Sweeps the parameters based on a table file format. For example CSV using the CSV plugin..", "Flow Control")]
     public class SweepFileParameterStep : SweepParameterStepBase, ISerializeNotifyAdditionalTypesUsed
     {
 
         [FilePath]
         [Display("File","File containing the swept values.")]
-        public string SweepValues { get; set; }
+        public string File { get; set; }
+
+        public bool ShowInfo => LoadTable().Item1 != null;
+        [Browsable(true)]
+        [Display("First Row", Group: "Info")]
+        [EnabledIf(nameof(ShowInfo), true, HideIfDisabled = true)]
+        public string FirstRow => string.Join(", ", LoadTable().Item1?.FirstOrDefault() ?? Array.Empty<string>());
+        
+        [Browsable(true)]
+        [Display("Length", Group: "Info")]
+        [Unit("rows")]
+        [EnabledIf(nameof(ShowInfo), true, HideIfDisabled = true)]
+        public double Length => LoadTable().Item1?.Length ?? Double.NaN;
 
         /// <summary>
         /// This property declares to the Resource Manager which resources are declared by this test step. 
@@ -35,7 +46,7 @@ namespace OpenTap.Plugins.BasicSteps
                         for (int i = 0; i < row.Length; i++)
                         {
                             var cell = row[i];
-                            var p = parameters.ElementAt(i);
+                            var p = parameters.ElementAtOrDefault(i);
                             if (p != null && p.TypeDescriptor.DescendsTo(typeof(IResource)))
                             {
                                 if(StringConvertProvider.TryFromString(cell, p.TypeDescriptor, this, out var r) && r is IResource r2)
@@ -52,7 +63,7 @@ namespace OpenTap.Plugins.BasicSteps
         public SweepFileParameterStep()
         {
             Name = "Sweep {Parameters}";
-            Rules.Add(() => File.Exists(SweepValues), "Sweep values does not exist.", nameof(SweepValues));
+            Rules.Add(() => System.IO.File.Exists(File), "Sweep values does not exist.", nameof(File));
         }
         
         public override void PrePlanRun()
@@ -66,13 +77,22 @@ namespace OpenTap.Plugins.BasicSteps
         (string[][], ITableImport) LoadTable()
         {
             var importers = TypeData.GetDerivedTypes<ITableImport>();
-            
-            foreach (var importType in importers)
+            if (System.IO.File.Exists(File))
             {
-                var importer = (ITableImport)importType.CreateInstance();
-                if(Path.GetExtension(SweepValues).Equals(importer.Extension, StringComparison.OrdinalIgnoreCase))
+                foreach (var importType in importers)
                 {
-                    return (importer.ImportTableValues(SweepValues), importer);
+                    var importer = (ITableImport)importType.CreateInstance();
+                    if (Path.GetExtension(File).Equals(importer.Extension, StringComparison.OrdinalIgnoreCase))
+                    {
+                        try
+                        {
+                            return (importer.ImportTableValues(File), importer);
+                        }
+                        catch
+                        {
+
+                        }
+                    }
                 }
             }
             return (null, null);
@@ -98,7 +118,8 @@ namespace OpenTap.Plugins.BasicSteps
 
                 for (int j = 0; j < row.Length; j++)
                 {
-                    var p = SelectedParameters[j];
+                    var p = SelectedParameters.ElementAtOrDefault(j);
+                    if (p == null) continue;
 
                     string valueString = row[j];
 

@@ -245,7 +245,7 @@ namespace OpenTap.UnitTests
             };
             string thisStringDoesNotMatter = "";
             File.WriteAllText("csvTest.csv2", thisStringDoesNotMatter);
-            sweep.SweepValues = "csvTest.csv2";
+            sweep.File = "csvTest.csv2";
             plan.Execute();
             Assert.AreEqual("a", step1.RecordedValues[0]);
             Assert.AreEqual("b", step2.RecordedValues[0]);
