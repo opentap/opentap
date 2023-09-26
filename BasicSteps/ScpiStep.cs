@@ -94,18 +94,6 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Column Names", Group: "Results", Order: 1.51, Collapsed: true, Description: "The name of the columns of the resulting groups. The titles must be separated by commas.")]
         public string DimensionTitles { get; set; }
         
-        [Display("Save to Output", Group: "Results", Order: 1.52, Collapsed: true, Description: "If the output of the application should be saved to the output.")]
-        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
-        public bool SaveToOutput { get; set; }
-
-        [Display("Output", Group: "Results", Order: 1.53, Collapsed: true, Description: "The result of the execution.")]
-        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
-        [EnabledIf(nameof(SaveToOutput), true, HideIfDisabled = true)]
-        [Output]
-        [Browsable(true)]
-        [Layout(LayoutMode.Normal, maxRowHeight: 1)]
-        public string Output { get; private set; } = "";
-
         public RegexOutputStep()
         {
             RegularExpressionPattern = new Enabled<string>() { IsEnabled = false, Value = "(.*)" };
@@ -124,9 +112,6 @@ namespace OpenTap.Plugins.BasicSteps
 
         protected void ProcessOutput(string output)
         {
-            if (SaveToOutput)
-                Output = output;
-            else Output = "";
             if (RegularExpressionPattern.IsEnabled)
             {
                 var Matches = Regex.Matches(output, RegularExpressionPattern.Value);
@@ -213,6 +198,11 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Log Header", Order: 0.4, Description: "This string is added to the front of the result of the query.")]
         public string LogHeader { get; set; }
         
+        [Browsable(true)]
+        [Display("Response", "The text response from the instrument. This is only valid when the action type is query.", Group: "Results", Order: 1.55 )]
+        [EnabledIf(nameof(Action), SCPIAction.Query, HideIfDisabled = true)]
+        public string Response { get; private set; }
+        
         public SCPIRegexStep()
         {
             Action = SCPIAction.Query;
@@ -227,6 +217,7 @@ namespace OpenTap.Plugins.BasicSteps
         
         public override void Run()
         {
+            Response = "";
             if (Action == SCPIAction.Command)
             {
                 Instrument.ScpiCommand(Query);
@@ -234,6 +225,7 @@ namespace OpenTap.Plugins.BasicSteps
             else
             {
                 string Result = Instrument.ScpiQuery(Query);
+                Response = Result;
 
                 if (AddToLog)
                     Log.Info(LogHeader + Result);

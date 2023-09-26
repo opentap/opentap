@@ -5,8 +5,9 @@ using OpenTap.Cli;
 namespace OpenTap
 {
     /// <summary> Sets the authentication token for use with a given domain.  </summary>
-    [Display("login",Description: "Log in to a online service. Only supports setting the token directly using '--token'.")]
-    public class LoginAction : ICliAction
+    //[Display("login",Description: "Log in to a online service. Only supports setting the token directly using '--token'.")]
+    // LoginAction currently disabled, but kept around in case we need it in the future.
+    class LoginAction// : ICliAction
     {
         /// <summary>  Gets or sets the domain. </summary>
         [UnnamedCommandLineArgument("url")]

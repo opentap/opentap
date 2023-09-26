@@ -82,7 +82,7 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
-        public void ProcessStepOutputs([Values(true, false)] bool saveToOutput)
+        public void ProcessStepOutputs()
         {
             int exitCode = 5;
             var plan = new TestPlan();
@@ -91,15 +91,12 @@ namespace OpenTap.UnitTests
                 Application = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "tap.exe"),
                 WorkingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                 Arguments = $"test fail --error {exitCode}",
-                SaveToOutput = saveToOutput
             };
             plan.Steps.Add(processStep);
             var result = plan.Execute();
             Assert.AreEqual(exitCode, processStep.ExitCode);
-            if(saveToOutput)
-                Assert.IsTrue(processStep.Output.Contains($"Failing with exit code {exitCode}"));
-            else
-                Assert.IsFalse(processStep.Output.Contains($"Failing with exit code {exitCode}"));
+            Assert.IsTrue(processStep.Output.Contains($"Failing with exit code {exitCode}"));
+            
         }
     }
 }
