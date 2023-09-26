@@ -113,6 +113,15 @@ namespace OpenTap.Plugins.BasicSteps
         ManualResetEvent outputWaitHandle, errorWaitHandle;
         StringBuilder output;
 
+
+        [Display("Output", Group: "Results", Order: 1.53, Collapsed: true, Description: "The result of the execution.")]
+        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
+        [Output]
+        [Browsable(true)]
+        [Layout(LayoutMode.Normal, maxRowHeight: 1)]
+        public string Output => output?.ToString() ?? "";
+
+
         public ProcessStep()
         {
             Rules.Add(HasNoDuplicateEnvironmentVariables, "Environment variable names must be unique.", nameof(EnvironmentVariables));
@@ -134,6 +143,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         public override void Run()
         {
+            output?.Clear();
             ThrowOnValidationError(true);
             if (RunElevated &&!SubProcessHost.IsAdmin())
             {
