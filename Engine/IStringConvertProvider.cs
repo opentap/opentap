@@ -98,11 +98,9 @@ namespace OpenTap
 
                             // iterate to find the correct ordering.
                             // this is a bit akin to bubble sorting, but the chance that these dependenceny chains gets very long is limited.
-                            // max number of iterations set to 10 to avoid looping infinitely in case of circular dependencies.
-                            for (int it = 0; it < 10; it++)
                             {
+                                HashSet<(T, T)> swapPairs = new HashSet<(T, T)>();
 
-                                bool changed = false;
                                 for (int i = 0; i < builder.Count; i++)
                                 {
                                     int addIndex = i;
@@ -115,12 +113,13 @@ namespace OpenTap
                                     }
                                     if (addIndex < i)
                                     {
-                                        changed = true;
+                                        if (swapPairs.Add((builder[addIndex], builder[i])) == false)
+                                            throw new Exception("Circular dependency in BeforeAttribute"); // these has been swapped before - that means there is a circular dependency.
+                                        
                                         (builder[i], builder[addIndex]) = (builder[addIndex], builder[i]);
+                                        i = addIndex;
                                     }
                                 }
-
-                                if (!changed) break;
                             }
 
                             things = builder.ToArray();
