@@ -73,6 +73,7 @@ namespace OpenTap.Package
                         AbsolutePath = Path.GetFullPath(Path.GetDirectoryName(absolutePath));
                     else
                         AbsolutePath = Path.GetFullPath(absolutePath);
+                        
                     AbsolutePath = Uri.UnescapeDataString(AbsolutePath);
 
                     Url = new Uri(AbsolutePath).AbsoluteUri;
