@@ -836,6 +836,43 @@ jobs:
                -H "Auth-Key: $REPO_WWW_PASS" \
                --form 'file=@"'$(pwd)'/OpenTAP"'
 
+  Build-Installer-MacOS:
+    runs-on: macos-latest
+    needs:
+      - GetVersion
+      - Package-Cross
+    env:
+      TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_NATS_ADDRESS }}
+      TAP_SIGN_NATS_USERNAME: ${{ secrets.TAP_SIGN_NATS_USERNAME }}
+      TAP_SIGN_NATS_PASSWORD: ${{ secrets.TAP_SIGN_NATS_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Download MacOS Package
+        uses: actions/download-artifact@v3
+        with:
+          name: MacOS-arm64-package
+          path: .
+      - name: Rename package
+        run: mv OpenTAP.*.MacOS.*.TapPackage Installer/Assets/OpenTAP.TapPackage
+      - name: Setup OpenTAP
+        uses: opentap/setup-opentap@6dcd7a9bb0087174390f545eb5db2e3444585391
+        with:
+          version: 9.19.0
+      - name: Install Sign
+        run: tap package install Resources/Sign.*.TapPackage --non-interactive --no-isolation
+      - name: Install SmartInstaller
+        run: tap package install SmartInstaller*.TapPackage --non-interactive --no-isolation
+      - name: Create installer
+        run: tap installer create "opentap.installer.macos.xml" -v --target-os macos
+        working-directory: Installer/Assets
+      - name: Rename installer
+        run: mv Installer/Assets/Installer.dmg Installer/Assets/OpenTAP.dmg
+      - uses: actions/upload-artifact@v3
+        with:
+          name: installer-macos
+          retention-days: 14
+          path: Installer/Assets/OpenTAP.dmg
 
   Docker-Linux:
     runs-on: ubuntu-20.04
