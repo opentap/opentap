@@ -859,10 +859,9 @@ jobs:
         uses: opentap/setup-opentap@6dcd7a9bb0087174390f545eb5db2e3444585391
         with:
           version: 9.19.0
-      - name: Install Sign
-        run: tap package install Resources/Sign.*.TapPackage --non-interactive --no-isolation
-      - name: Install SmartInstaller
-        run: tap package install SmartInstaller*.TapPackage --non-interactive --no-isolation
+          packages: 'Sign:beta,SmartInstaller:beta'
+          additional-repository: 'https://test-automation.pw.keysight.com/api/packages'
+          additional-repository-token: ${{ secrets.KS8500_REPO_TOKEN }}
       - name: Create installer
         run: tap installer create "opentap.installer.macos.xml" -v --target-os macos
         working-directory: Installer/Assets
