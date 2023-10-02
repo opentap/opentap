@@ -151,7 +151,10 @@ namespace OpenTap.Cli
             {
                 // Turn off the default system behavior when CTRL+C is pressed. 
                 // When Console.TreatControlCAsInput is false, CTRL+C is treated as an interrupt instead of as input.
-                Console.TreatControlCAsInput = false;
+                // Assigning to this property while the property is running in the background will cause it to be suspended until 
+                // it becomes the foreground process. Therefore we should only assign it if it is not already set to false
+                if (Console.TreatControlCAsInput)
+                    Console.TreatControlCAsInput = false;
             }
             catch { }
             var execThread = TapThread.Current;
