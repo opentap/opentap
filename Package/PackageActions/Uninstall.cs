@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using OpenTap.Package.PackageInstallHelpers;
 
 #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
@@ -27,6 +28,15 @@ namespace OpenTap.Package
         [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
         public bool NonInteractive { get; set; } = false;
         
+        /// <summary>
+        /// This will be set only if the install action was started by <see cref="PackageInstallStep"/>
+        /// This is supposed to solve an issue where OpenTAP fails to detect that the process was elevated.
+        /// If one level of elevation was already attempted, it is unlikely that further attempts will cause the check to succeed.
+        /// In this instance, it is better to just try the installation with the current privileges, and fail with whatever
+        /// error if those privileges are not sufficient.
+        /// </summary>
+        internal bool AlreadyElevated { get; set; }
+        
         private int DoExecute(CancellationToken cancellationToken)
         {
             if (Force == false && Packages.Any(p => p == "OpenTAP") && Target == ExecutorClient.ExeDir)
@@ -40,12 +50,10 @@ namespace OpenTap.Package
             if (!IgnoreMissing) 
                 Packages = AutoCorrectPackageNames.Correct(Packages, Array.Empty<IPackageRepository>());
 
-            Installer installer = new Installer(Target, cancellationToken) {DoSleep = false};
-            installer.ProgressUpdate += RaiseProgressUpdate;
-            installer.Error += RaiseError;
-
             var installation = new Installation(Target);
             var installedPackages = installation.GetPackages();
+            var packagePaths = new List<string>();
+            var systemwidePackages = new List<(string path, PackageDef pkg)>();
 
             bool anyUnrecognizedPlugins = false;
             foreach (string pack in Packages)
@@ -54,9 +62,15 @@ namespace OpenTap.Package
 
                 if (package != null && package.PackageSource is InstalledPackageDefSource source)
                 {
-                    installer.PackagePaths.Add(source.PackageDefFilePath);
-                    if (package.IsBundle())
-                        installer.PackagePaths.AddRange(GetPaths(package, installedPackages));
+
+                    if (package.IsSystemWide())
+                        systemwidePackages.Add((source.PackageDefFilePath, package));
+                    else
+                    {
+                        packagePaths.Add(source.PackageDefFilePath);
+                        if (package.IsBundle())
+                            packagePaths.AddRange(GetPaths(package, installedPackages));
+                    }
                 }
                 else if (!IgnoreMissing)
                 {
@@ -71,13 +85,13 @@ namespace OpenTap.Package
             if (!Force)
             {
                 List<PackageDef> additionalToRemove = new List<PackageDef>();
-                switch (CheckPackageAndDependencies(installedPackages, installer.PackagePaths, additionalToRemove))
+                switch (CheckPackageAndDependencies(installedPackages, packagePaths, additionalToRemove))
                 {
                     case ContinueResponse.Cancel:
                         log.Info("Uninstall cancelled by user.");
                         return (int) ExitCodes.UserCancelled;
                     case ContinueResponse.RemoveAll:
-                        installer.PackagePaths.AddRange(additionalToRemove.Select(x =>((InstalledPackageDefSource)x.PackageSource ).PackageDefFilePath));
+                        packagePaths.AddRange(additionalToRemove.Select(x =>((InstalledPackageDefSource)x.PackageSource ).PackageDefFilePath));
                         foreach(var pkg in additionalToRemove)
                             log.Info("Also removing {0} {1}.", pkg.Name, pkg.Version);
                         break;
@@ -86,6 +100,61 @@ namespace OpenTap.Package
                     case ContinueResponse.Error:
                         return (int) PackageExitCodes.PackageUninstallError;    
                 }
+            }
+
+            Installer installer = new Installer(Target, cancellationToken) {DoSleep = false};
+            installer.PackagePaths.AddRange(packagePaths);
+            installer.ProgressUpdate += RaiseProgressUpdate;
+            installer.Error += RaiseError;
+            
+            bool needElevation = !AlreadyElevated && systemwidePackages.Any() && SubProcessHost.IsAdmin() == false;
+            
+            // Warn the user if elevation was already attempted, and we are not currently running as admin
+            if (AlreadyElevated && SubProcessHost.IsAdmin() == false)
+            {
+                log.Warning($"Process elevation failed. Installation will continue without elevation.");
+            }
+
+            // If we need to remove system-wide packages and we are not admin, we should remove them in an elevated sub-process
+            if (needElevation)
+            {
+                RaiseProgressUpdate(10, "Removing system-wide packages.");
+                var installStep = new PackageUninstallStep()
+                {
+                    Packages = systemwidePackages.Select(p => p.pkg.Name).ToArray(),
+                    Force = Force,
+                    Target = PackageDef.SystemWideInstallationDirectory,
+                };
+                
+                var processRunner = new SubProcessHost
+                {
+                    ForwardLogs = true,
+                    MutedSources =
+                    {
+                        "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan",
+                        "UpdateCheck",
+                        "Installation"
+                    },
+                    // The current install action is a locking package action.
+                    // Setting this flag lets the child process bypass the lock on the installation.
+                    Unlocked = true,
+                };
+                
+                var result = processRunner.Run(installStep, true, cancellationToken);
+                if (result != Verdict.Pass)
+                {
+                    var ex = new Exception(
+                        $"Failed installing system-wide packages. Try running the command as administrator.");
+                    RaiseError(ex);
+                } 
+                
+                var pct = (double)systemwidePackages.Count / (systemwidePackages.Count + packagePaths.Count) * 100;
+                RaiseProgressUpdate((int)pct, "Removed system-wide packages.");
+            }
+            // Otherwise if we are admin and we need to install system-wide packages, we can install them in the current process
+            else if (systemwidePackages.Any())
+            {
+                installer.PackagePaths.AddRange(systemwidePackages.Select(p => p.path));
             }
 
             var status = installer.RunCommand(Installer.PrepareUninstall, Force, false);

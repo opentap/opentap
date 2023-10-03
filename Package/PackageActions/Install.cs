@@ -390,7 +390,7 @@ namespace OpenTap.Package
                         RaiseError(ex);
                     }
 
-                    var pct = ((double)systemwidePackages.Length / systemwidePackages.Length + packagesToInstall.Count) * 100;
+                    var pct = ((double)systemwidePackages.Length / (systemwidePackages.Length + packagesToInstall.Count)) * 100;
                     RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
                 }
                 // Otherwise if we are admin and we need to install system-wide packages, we can install them in the current process
