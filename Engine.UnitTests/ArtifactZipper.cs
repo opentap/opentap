@@ -123,7 +123,7 @@ namespace OpenTap.Engine.UnitTests
             using var archive = new ZipArchive(rawStream, ZipArchiveMode.Update, false);
             
             var entry = archive.CreateEntry(artifactName);
-            entry.SetPermissions("644");
+            entry.FixUnixPermissions();
             using var s2 = entry.Open();
             artifactStream.CopyTo(s2);
             artifactStream.Close();
