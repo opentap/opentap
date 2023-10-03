@@ -5,6 +5,36 @@ using System.Threading;
 namespace OpenTap.Package.PackageInstallHelpers
 {
     [Browsable(false)]
+    class PackageUninstallStep : TestStep
+    {
+        public string Target { get; set; }
+        public string[] Packages { get; set; }
+        public bool Force { get; set; }
+        public override void Run()
+        {
+            var action = new PackageUninstallAction()
+            {
+                NonInteractive = true,
+                Force = Force,
+                Packages = Packages,
+                Target = Target,
+                AlreadyElevated = true,
+            };
+            try
+            {
+                var result = action.Execute(CancellationToken.None);
+                UpgradeVerdict(result == 0 ? Verdict.Pass : Verdict.Fail);
+            }
+            catch (Exception e)
+            {
+                Log.Error(e.Message);
+                Log.Debug(e);
+                UpgradeVerdict(Verdict.Error);
+            }
+        }
+    }
+
+    [Browsable(false)]
     class PackageInstallStep : TestStep
     {
         public string Target { get; set; }

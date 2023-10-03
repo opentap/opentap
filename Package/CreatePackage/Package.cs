@@ -767,6 +767,7 @@ namespace OpenTap.Package
                     var sw = Stopwatch.StartNew();
                     var relFileName = file.RelativeDestinationPath;
                     var ZipPart = zip.CreateEntry(relFileName, System.IO.Compression.CompressionLevel.Optimal);
+                    ZipPart.FixUnixPermissions();
                     
                     using (var instream = File.OpenRead(file.FileName))
                     {
@@ -782,6 +783,7 @@ namespace OpenTap.Package
                 // add the metadata xml file:
 
                 var metaPart = zip.CreateEntry(String.Join("/", PackageDef.PackageDefDirectory, pkg.Name, PackageDef.PackageDefFileName), System.IO.Compression.CompressionLevel.Optimal);
+                metaPart.FixUnixPermissions();
                 using(var str = metaPart.Open())
                     pkg.SaveTo(str);
             }

@@ -516,6 +516,10 @@ namespace OpenTap.Package.UnitTests
         [TestCase("", "packages.opentap.io", typeof(HttpPackageRepository))]         // No scheme, top level domain
         [TestCase("", "my-repo.com", typeof(HttpPackageRepository))]                 // No scheme, top level domain
         [TestCase("", ".my.file.repo.", typeof(FilePackageRepository))]              // File path with periods
+        [TestCase("", "test", typeof(FilePackageRepository))]              // Relative path without directory
+        [TestCase("", "./test", typeof(FilePackageRepository))]              // Relative path with current directory
+        [TestCase("", "./", typeof(FilePackageRepository))]              // Current directory
+        [TestCase("", ".", typeof(FilePackageRepository))]              // Current directory (single dot)
         [TestCase("http://opentap.io", "http://packages.opentap.io", typeof(HttpPackageRepository))]  // Http scheme
         [TestCase("http://opentap.io", "https://packages.opentap.io", typeof(HttpPackageRepository))] // Https scheme
         [TestCase("http://opentap.io", "C:/a", typeof(FilePackageRepository))]                        // Windows absolute path
