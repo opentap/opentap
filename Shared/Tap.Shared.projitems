@@ -35,5 +35,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)Cache.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FileLocks.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)PosixSignals.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ZipUtils.cs" />
   </ItemGroup>
 </Project>
