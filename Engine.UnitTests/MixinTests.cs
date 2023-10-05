@@ -134,6 +134,24 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(idx * 10 + 513, y);
             }
         }
+
+        [Test]
+        public void TestAddMixinRestrictions([Values] bool isLocked)
+        {
+            var plan = new TestPlan();
+            var step = new DelayStep();
+            plan.ChildTestSteps.Add(step);
+            plan.Locked = isLocked;
+            var memberAnnotation = AnnotationCollection.Annotate(step).GetMember(nameof(step.DelaySecs));
+            var menu = memberAnnotation.Get<MenuAnnotation>().MenuItems.ToArray();
+            var mixinItem = menu.FirstOrDefault(x => x.Get<IIconAnnotation>()?.IconName == IconNames.AddMixin);
+            var access = mixinItem.GetAll<IAccessAnnotation>();
+            var hidden = access.Any(x => x.IsVisible == false);
+            if (isLocked)
+                Assert.IsTrue(hidden);
+            else
+                Assert.IsFalse(hidden);
+        }
     }
 
     public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin
