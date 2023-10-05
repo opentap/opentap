@@ -62,6 +62,6 @@
       106        : .NET 7 or later if the template is already installed
       -2147352567: Earlier than .NET 7 if the template is already installed
     -->
-		<ActionStep ExpectedExitCodes="0,106,-2147352567" ExeFile="dotnet" Arguments='new --install Packages/SDK/OpenTap.Templates.$(GitLongVersion).nupkg' ActionName="install" Optional="true"/>
+		<ActionStep ExpectedExitCodes="0,106,-2147352567" ExeFile="dotnet" Arguments='new --install Packages/SDK/OpenTap.Templates.$(GitLongVersion).nupkg --verbosity quiet' ActionName="install" Optional="true"/>
 	</PackageActionExtensions>
 </Package>
