@@ -33,17 +33,11 @@ namespace OpenTap
                 return; // cancel
 
             var selectedMixin = ui.SelectedItem;
-            TapSerializer serializer = null;
+            var serializer = new TapSerializer();
             
-            bool first = true;
             foreach (var src2 in Source)
             {
-                if (first)
-                    first = false;
-                else
-                    selectedMixin = Utils.Clone(selectedMixin, ref serializer);
-                
-                var mem = selectedMixin.ToDynamicMember(targetType);
+                var mem = serializer.Clone(selectedMixin).ToDynamicMember(targetType);
                 
                 var remMember = member;
                 var currentValue = remMember.GetValue(src2);

@@ -575,6 +575,8 @@ namespace OpenTap
             return Deserialize(doc);
         }
 
+        internal T Clone<T>(T obj) => (T)Clone((object)obj);
+
         /// <summary> for mapping object to serializer. </summary>
         static System.Runtime.CompilerServices.ConditionalWeakTable<object, TapSerializer> serializerSteps = 
             new System.Runtime.CompilerServices.ConditionalWeakTable<object, TapSerializer>();

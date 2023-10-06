@@ -36,16 +36,10 @@ namespace OpenTap
 
             var selectedMixin = ui.SelectedItem;
     
-            bool first = true;
-            TapSerializer serializer = null;
+            var serializer = new TapSerializer();
             foreach (var src in source)
             {
-                if (first)
-                    first = false;
-                else
-                    selectedMixin = Utils.Clone(selectedMixin, ref serializer);
-                
-                MixinFactory.LoadMixin(src, selectedMixin);
+                MixinFactory.LoadMixin(src, serializer.Clone(selectedMixin));
             }
         }
 

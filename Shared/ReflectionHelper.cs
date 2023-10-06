@@ -883,15 +883,6 @@ namespace OpenTap
             return del;
         }
         
-        /// <summary> Clones a object. creates a new serializer if needed, but reuses an existing one if possible.</summary>
-        public static T Clone<T>(T obj, ref TapSerializer cachedSerializer)
-        {
-            if (obj is ICloneable cloneable)
-                return (T)cloneable.Clone();
-            
-            return (T)(cachedSerializer ??= new TapSerializer()).Clone(obj);
-        }
-        
         /// <summary>
         /// Thread-safe and lock free value exchange. valueGen depends on the current value.
         /// </summary>
