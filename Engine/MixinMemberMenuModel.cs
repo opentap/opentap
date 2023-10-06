@@ -24,6 +24,7 @@ namespace OpenTap
             var targetType = TypeData.GetTypeData(Source.First());
             var builders = MixinFactory.GetMixinBuilders(targetType).ToImmutableArray();
             builders = builders.Replace(builders.FirstOrDefault(x => x.GetType() == src.GetType()), src);
+            src.Initialize(targetType);
 
             var ui = new MixinBuilderUi(builders.ToArray(), src);
             UserInput.Request(ui);
@@ -32,9 +33,17 @@ namespace OpenTap
                 return; // cancel
 
             var selectedMixin = ui.SelectedItem;
+            TapSerializer serializer = null;
+            
+            bool first = true;
             foreach (var src2 in Source)
             {
-                var mem = selectedMixin.Clone().ToDynamicMember(targetType);
+                if (first)
+                    first = false;
+                else
+                    selectedMixin = Utils.Clone(selectedMixin, ref serializer);
+                
+                var mem = selectedMixin.ToDynamicMember(targetType);
                 
                 var remMember = member;
                 var currentValue = remMember.GetValue(src2);

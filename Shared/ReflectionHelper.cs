@@ -882,7 +882,16 @@ namespace OpenTap
             del += () => f(v); 
             return del;
         }
-
+        
+        /// <summary> Clones a object. creates a new serializer if needed, but reuses an existing one if possible.</summary>
+        public static T Clone<T>(T obj, ref TapSerializer cachedSerializer)
+        {
+            if (obj is ICloneable cloneable)
+                return (T)cloneable.Clone();
+            
+            return (T)(cachedSerializer ??= new TapSerializer()).Clone(obj);
+        }
+        
         /// <summary>
         /// Thread-safe and lock free value exchange. valueGen depends on the current value.
         /// </summary>
@@ -913,21 +922,10 @@ namespace OpenTap
         
         static public Action ActionDefault = () => { };
 
-        public static void Swap<T>(ref T a, ref T b)
-        {
-            T buffer = a;
-            a = b;
-            b = buffer;
-        }
-
-        /// <summary>
-        /// Clamps val to be between min and max, returning the result.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="val"></param>
-        /// <param name="min"></param>
-        /// <param name="max"></param>
-        /// <returns></returns>
+        /// <summary> Swaps two variables </summary>
+        public static void Swap<T>(ref T a, ref T b) => (a, b) = (b, a);
+        
+        /// <summary> Clamps val to be between min and max, returning the result. </summary>
         public static T Clamp<T>(this T val, T min, T max) where T : IComparable<T>
         {
             if (val.CompareTo(min) < 0) return min;
@@ -935,16 +933,8 @@ namespace OpenTap
             return val;
         }
 
-        /// <summary>
-        /// Returns arg.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="id"></param>
-        /// <returns></returns>
-        public static T Identity<T>(T id)
-        {
-            return id;
-        }
+        /// <summary> Returns arg. </summary>
+        public static T Identity<T>(T id) => id;
         
         /// <summary> Do nothing. </summary>
         public static void Noop () { }
