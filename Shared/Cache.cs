@@ -51,7 +51,7 @@ namespace OpenTap
         public V AddValue(K key, V value)
         {
             CheckClear();
-            dict = dict.Add(key, value);
+            dict = dict.SetItem(key, value);
             return value;
         }
     }
