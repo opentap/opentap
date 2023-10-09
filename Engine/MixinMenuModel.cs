@@ -6,9 +6,19 @@ namespace OpenTap
     {
         readonly ITypeData type;
 
+        public bool TestPlanLocked
+        {
+            get
+            {
+                var plan2 = source.OfType<ITestStep>()
+                    .Select(step => step is TestPlan plan ? plan : step.GetParent<TestPlan>()).FirstOrDefault();
+                return (plan2?.IsRunning ?? false) || (plan2?.Locked ?? false);
+            }
+        }
+        
         public MixinMenuModel(ITypeData type) => this.type = type;
         bool? showMixins;
-        public bool ShowMixins => showMixins ??= MixinFactory.GetMixinBuilders(type).Any();
+        public bool ShowMixins => (showMixins ??= (MixinFactory.GetMixinBuilders(type).Any()))&& !TestPlanLocked;
         
         [Display("Add Mixin...", "Add a new mixin.", Order: 2.0, Group: "Mixins")]
         [Browsable(true)]
@@ -25,9 +35,12 @@ namespace OpenTap
                 return; // cancel
 
             var selectedMixin = ui.SelectedItem;
-            
+    
+            var serializer = new TapSerializer();
             foreach (var src in source)
-                MixinFactory.LoadMixin(src, selectedMixin.Clone());
+            {
+                MixinFactory.LoadMixin(src, serializer.Clone(selectedMixin));
+            }
         }
 
         object[] source;
