@@ -381,7 +381,9 @@ namespace OpenTap
             {
                 if (member.HasAttribute<ResultAttribute>())
                 {
-                    if (member.TypeDescriptor.IsPrimitive())
+                    var td = member.TypeDescriptor.AsTypeData();
+                    
+                    if (td != null && (td.IsPrimitive() || td.IsString))
                     {
                         primitiveMembers ??= new List<IMemberData>();
                         primitiveMembers.Add(member);
