@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.ComponentModel;
@@ -91,10 +92,8 @@ namespace OpenTap
             var names = name.Split('\\');
             Target = target;
             DeclaringType = TypeData.GetTypeData(target);
-            this.source = source;
-            this.member = member;
-            if (member is IDynamicMemberData)
-                dynamicMembers += 1;
+            parameterMembers = new ParameterMembers(source, member, ImmutableHashSet<(object Source, IMemberData Member)>.Empty);
+            
             Name = name;
 
             var disp = member.GetDisplayAttribute();
@@ -136,9 +135,67 @@ namespace OpenTap
         /// This should always be the same as the argument to GetValue/SetValue. </summary>
         internal object Target { get; }
 
-        object source;
-        IMemberData member;
-        HashSet<(object Source, IMemberData Member)> additionalMembers;
+        /// <summary> Immutable data structure for managing parameter members. </summary>
+        readonly struct ParameterMembers : IEnumerable<(object, IMemberData)>
+        {
+            public readonly object Source;
+            public readonly IMemberData Member;
+            public readonly ImmutableHashSet<(object Source, IMemberData Member)> Additional;
+            public readonly int Count;
+
+            public ParameterMembers(object source, IMemberData member, ImmutableHashSet<(object Source, IMemberData Member)> additionalMembers)
+            {
+                Source = source;
+                Member = member;
+                Additional = additionalMembers;
+                if (source != null)
+                    Count = additionalMembers.Count + 1;
+                else
+                    Count = 0;
+            }
+            
+            public ParameterMembers Add(object newSource, IMemberData newMember)
+            {
+                if (Equals(newSource, Source) && Equals(newMember, Member))
+                    return this;
+                
+                return new ParameterMembers(Source, Member, Additional.Add((newSource, newMember)));
+            }
+
+            public ParameterMembers Remove(object removeSource, IMemberData removeMember)
+            {
+                if (Equals(Source, removeSource) && Equals(Member, removeMember))
+                {
+                    if (Additional.IsEmpty)
+                    {
+                        return new ParameterMembers(null, removeMember, ImmutableHashSet<(object Source, IMemberData Member)>.Empty);
+                    }
+                    var fst = Additional.First();
+                    return new ParameterMembers(fst.Source, fst.Member, Additional.Remove(fst));
+                }
+                return new ParameterMembers(Source,Member , Additional.Remove((removeSource, removeMember)));    
+            }
+            
+            public IEnumerator<(object, IMemberData)> GetEnumerator()
+            {
+                if (Source != null)
+                {
+                    yield return (Source, Member);
+                    
+                    foreach (var member in Additional)
+                        yield return member;
+                }
+            }
+            
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+            
+            public bool Contains(object findSource, IMemberData findMember) => Equals(findSource, Source) && Equals(findMember, Member) || Additional.Contains((findSource, findMember));
+        }
+
+        ParameterMembers parameterMembers;
+        object source => parameterMembers.Source;
+        IMemberData member => parameterMembers.Member;
+        IEnumerable<(object Source, IMemberData Member)> additionalMembers => parameterMembers.Additional;
 
         /// <summary>  Gets the value of this member. </summary>
         public object GetValue(object owner)
@@ -157,32 +214,19 @@ namespace OpenTap
             var cloner = new ObjectCloner(value);
 
             member.SetValue(source, cloner.Clone(true, source, member.TypeDescriptor));
-            if (additionalMembers != null)
+
+            foreach (var (addContext, addMember) in additionalMembers)
             {
-                foreach (var (addContext, addMember) in additionalMembers)
-                {
-                    var cloned = cloner.Clone(false, addContext, addMember.TypeDescriptor);
-                    if (cloned != null)
-                        addMember.SetValue(addContext, cloned); // This will throw an exception if it is not assignable.
-                }
+                var cloned = cloner.Clone(false, addContext, addMember.TypeDescriptor);
+                if (cloned != null)
+                    addMember.SetValue(addContext, cloned); // This will throw an exception if it is not assignable.
             }
         }
 
         /// <summary>  The members and objects that make up the aggregation of this parameter. </summary>
-        public IEnumerable<(object Source, IMemberData Member)> ParameterizedMembers
-        {
-            get
-            {
-                if (source == null) yield break;
-                yield return (source, member);
-                if (additionalMembers != null)
-                    foreach (var item in additionalMembers)
-                        yield return item;
-            }
-        }
+        public IEnumerable<(object Source, IMemberData Member)> ParameterizedMembers => parameterMembers;
 
-        internal bool ContainsMember((object Source, IMemberData Member) memberKey) =>
-            memberKey.Source == source && memberKey.Member == member || (additionalMembers?.Contains(memberKey) == true);
+        internal bool ContainsMember((object Source, IMemberData Member) memberKey) => parameterMembers.Contains(memberKey.Source, memberKey.Member);
 
         /// <summary> The target object type. </summary>
         public ITypeData DeclaringType { get; }
@@ -203,12 +247,8 @@ namespace OpenTap
         {
             if (source == newSource && newMember == member)
                 throw new Exception("Member is already parameterized.");
-            if (additionalMembers == null)
-                additionalMembers = new HashSet<(object Source, IMemberData Member)>();
-            if (!additionalMembers.Add((newSource, newMember)))
-                throw new Exception("Member is already parameterized.");
-            if (newMember is IDynamicMemberData)
-                dynamicMembers += 1;
+            
+            parameterMembers = parameterMembers.Add(newSource, newMember);
         }
 
         /// <summary>
@@ -221,28 +261,15 @@ namespace OpenTap
         /// from the target object.</returns>
         internal bool RemoveMember(IMemberData delMember, object delSource)
         {
-            if (delSource == source && Equals(delMember, member))
+            var count = parameterMembers.Count;
+            parameterMembers = parameterMembers.Remove(delSource, delMember);
+            var newCount = parameterMembers.Count;
+            if (count != newCount)
             {
-                if (delMember is IDynamicMemberData)
-                    dynamicMembers -= 1;
-                if (additionalMembers == null || additionalMembers.Count == 0)
-                {
-                    source = null;
+                if(newCount == 0)
                     DynamicMember.RemoveDynamicMember(Target, this);
-                    return true;
-                }
-                (source, member) = additionalMembers.FirstOrDefault();
-                additionalMembers.Remove((source, member));
+                return true;
             }
-            else
-            {
-                if (additionalMembers?.Remove((delSource, delMember)) ?? false)
-                {
-                    if (delMember is IDynamicMemberData)
-                        dynamicMembers -= 1;
-                }
-            }
-
             return false;
         }
 
@@ -258,7 +285,7 @@ namespace OpenTap
 
         bool IDynamicMemberData.IsDisposed => source == null;
 
-        int dynamicMembers = 0;
+        int dynamicMembers => parameterMembers.Count;
 
         // it can be useful to know if there are any dynamic members because it
         // can make the sanity checks a lot faster. 

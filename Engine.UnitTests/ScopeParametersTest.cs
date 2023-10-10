@@ -84,6 +84,41 @@ namespace OpenTap.UnitTests
             member.Unparameterize(forwardedMember, scope2.ChildTestSteps[1]);
             Assert.IsNull(TypeData.GetTypeData(scope2).GetMember(parameterName)); // last 'Title' removed.
         }
+        
+        [Test]
+        public void ParallelAddParametersTest()
+        {
+            // verify that we can add parameters while somebody else is iterating them.
+            // this issue only previously occured if the number of parameters in the same collection was 
+            // greater than 1.
+            var diag = new DialogStep() {UseTimeout = true};
+            var diag2 = new DialogStep();
+            var diag3 = new DialogStep();
+            var scope = new SequenceStep();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(scope);
+            string parameterName = "param1";
+            scope.ChildTestSteps.Add(diag);
+            scope.ChildTestSteps.Add(diag2);
+            scope.ChildTestSteps.Add(diag3);
+            
+            var member = TypeData.GetTypeData(diag).GetMember("Title");
+            var p1 = member.Parameterize(scope, diag, parameterName);
+            member.Parameterize(scope, diag2, parameterName);
+            int count = 0;
+            foreach (var _ in p1.ParameterizedMembers)
+            {
+                count++;
+                if (count == 2)
+                    member.Parameterize(scope, diag3, parameterName);
+            }
+            Assert.AreEqual(2, count);
+            
+            count = 0;
+            foreach (var _ in p1.ParameterizedMembers)
+                count++;
+            Assert.AreEqual(3, count);
+        }
 
         [Test]
         public void MultiLevelScopeSerialization()
