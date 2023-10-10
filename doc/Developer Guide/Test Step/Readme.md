@@ -335,9 +335,58 @@ For different approaches to publishing results, see the examples in:
 
 -	`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\PublishResults`
 
+## Artifacts
+
+Artifacts are another kind of results, originating from test steps or result listeners. Artifacts are files or named streams that can be processed by other result listeners (artifact listeners).
+This presents an opportunity to do more high-level things with the artifacts, such as telling the user about them, uploading them to the cloud or combining them into more high-level artifacts.
+
+Artifacts can for example be:
+- A log file.
+- A CSV file containing measurements.
+- A screenshot from an instrument.
+- A waveform file.
+
+### Publishing Artifacts
+To publish an artifact, call `TestStepRun.PublishArtifact` or `TestPlanRun.PublishArtifact`. 
+If the artifact is associated with a specific test step run, it is strongly recommended to use `TestStepRun.PublishArtifact`.
+
+Most result listeners should publish artifacts. For example, the `CsvResultListener` publishes each CSV file as such:
+```cs
+    planRun.PublishArtifact(csvFileName);
+```
+
+This ensures that it is communicated to OpenTAP which files are associated with the test plan run.
+
+### Processing Artifacts
+
+When artifacts are published, events occur in the results processing thread for each result listener that support listening to them.
+
+This way, aggregate artifacts can be created which themselves contains other artifacts. For example, imagine you want to create
+a HTML report containing tables of results, but also screenshots from the instruments. This can be done by implementing the 
+IArtifactListener interface.
+
+Another example of this is the ZipArtifactsResultListener, which is included in the examples. It is capable of creating a zip file containing
+all other artifacts from the test plan run and then finally publishing the zip file itself as an artifact.
+
+The lifetime of an artifact varies depending on the artifacts and the environment in which the test plan runs. 
+If it is not wanted for an artifact to stay on the hard drive after the test plan has been run, they can be published as a stream of bytes(MemoryStream) and then deleted. 
+If they are published by name, they will not be automatically deleted.
+
+### Implementing An Artifact Listener
+To create a result listener that can listen to artifacts, implement the IArtifactListener interface. When implementing IArtifactListener, the following method needs to be defined:
+```cs
+    void OnArtifactPublished(TestRun run, Stream artifactStream, string artifactName);
+```
+
+A few notes about the arguments:
+
+- `run` is the run object to which the artifact is associated. It is either a TestPlanRun or TestStepRun.
+- The `artifactStream` object will be disposed after the call to OnArtifactPublished, so it should not be handed over to a different thread for processing.
+- `artifactName` is the name of the artifact, including eventual file extensions, such as ".csv" or ".png". It might not be a file that actually exists.
+
 ## Child Test Steps
 
-Test step can have any number of child test steps. Exactly which can be controlled by using `AllowAnyChildAttribute`, and `AllowChildOfType`. 
+**Test step can have any number** of child test steps. Exactly which can be controlled by using `AllowAnyChildAttribute`, and `AllowChildOfType`. 
 
 To execute child test steps within a test step run, the RunChildStep method can be used to run a single child step or RunChildSteps can be used to run all of them.
 
