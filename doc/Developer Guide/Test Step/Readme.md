@@ -337,8 +337,8 @@ For different approaches to publishing results, see the examples in:
 
 ## Artifacts
 
-Artifacts are another kind of results, originating from test steps or result listeners. Artifacts are files or named streams that can get processed by other result listeners (artifact listeners).
-This presents an opportunity to do more high-level things with the artifacts, such as telling the user about them, uploading them to the cloud or combining them into new.
+Artifacts are another kind of results, originating from test steps or result listeners. Artifacts are files or named streams that can be processed by other result listeners (artifact listeners).
+This presents an opportunity to do more high-level things with the artifacts, such as telling the user about them, uploading them to the cloud or combining them into more high-level artifacts.
 
 Artifacts can for example be:
 - A log file.
@@ -373,7 +373,7 @@ If it is not wanted for an artifact to stay on the hard drive after the test pla
 If they are published by name, they will not be automatically deleted.
 
 ### Implementing An Artifact Listener
-To create a result listener than can listen to artifacts, implement the IArtifactListener interface. When implementing IArtifactListener, the following method needs to be defined:
+To create a result listener that can listen to artifacts, implement the IArtifactListener interface. When implementing IArtifactListener, the following method needs to be defined:
 ```cs
     void OnArtifactPublished(TestRun run, Stream artifactStream, string artifactName);
 ```

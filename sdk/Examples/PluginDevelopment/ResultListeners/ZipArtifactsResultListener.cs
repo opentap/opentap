@@ -19,7 +19,7 @@ using System.IO.Compression;
 namespace OpenTap.Plugins.PluginDevelopment
 {
     // This example shows how to implement IArtifactListener
-    // to make a result listener which zip artifacts from the test plan run.
+    // to make a result listener which can zip artifacts from the test plan run.
     [Display("Artifacts Zip")]
     public class ZipArtifactsResultListener : ResultListener, IArtifactListener
     {
