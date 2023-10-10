@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:6.0-focal as development
+FROM mcr.microsoft.com/dotnet/sdk:6.0-jammy as development
 
 # Update ubuntu
 RUN apt update
@@ -30,7 +30,7 @@ RUN tap -h
 RUN tap package list -v
 
 ################## DOTNET CORE RUNTIME #########################################
-FROM mcr.microsoft.com/dotnet/runtime:6.0-focal as production
+FROM mcr.microsoft.com/dotnet/runtime:6.0-jammy as production
 
 
 COPY --from=development /opt/tap /opt/tap
