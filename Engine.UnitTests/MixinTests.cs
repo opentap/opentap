@@ -194,6 +194,35 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual("123", aMemberValue);
             }
         }
+        
+        [Test]
+        public void TestMixinOnTestPlanDirect()
+        {
+            
+            var planName = nameof(TestMixinOnTestPlanDirect) + Guid.NewGuid() + ".TapPlan";
+            
+            {   // create plan with a mixin that has been parameterized.
+                var plan1 = new TestPlan();
+                var step1 = new DelayStep();
+                plan1.ChildTestSteps.Add(step1);
+                MixinFactory.LoadMixin(plan1, new MixinTestBuilder()
+                {
+                    TestMember = nameof(plan1.Locked)
+                });
+
+                var member = TypeData.GetTypeData(plan1).GetMember("TestMixin.OutputStringValue");
+                member.SetValue(plan1, "123");
+                plan1.Save(planName);
+            }
+            
+            {
+                var plan = TestPlan.Load(planName);
+                var member = TypeData.GetTypeData(plan).GetMember("TestMixin.OutputStringValue");
+                Assert.IsNotNull(member);
+                var aMemberValue = member.GetValue(plan) as string;
+                Assert.AreEqual("123", aMemberValue);
+            }
+        }
     }
 
     public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin
