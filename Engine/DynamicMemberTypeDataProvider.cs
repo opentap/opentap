@@ -285,11 +285,9 @@ namespace OpenTap
 
         bool IDynamicMemberData.IsDisposed => source == null;
 
-        int dynamicMembers => parameterMembers.Count;
-
         // it can be useful to know if there are any dynamic members because it
         // can make the sanity checks a lot faster. 
-        internal bool AnyDynamicMembers => dynamicMembers > 0;
+        internal bool AnyDynamicMembers => parameterMembers.Count > 0;
     }
 
     class AcceleratedDynamicMember<TAccel> : DynamicMember

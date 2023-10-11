@@ -223,6 +223,46 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual("123", aMemberValue);
             }
         }
+        
+        [Test]
+        public void TestParameterizeAndRemoveMixin()
+        {
+            // verify that a parameterized mixin member has the parameter removed when the mixin is removed.
+            var plan1 = new TestPlan();
+            var step1 = new DelayStep();
+            plan1.ChildTestSteps.Add(step1);
+            var numberMember = MixinFactory.LoadMixin(step1, new TestNumberMixinBuilder { Name = "A" });
+            
+            numberMember.Parameterize(plan1, step1, "A");
+            
+            var paramMember0 = TypeData.GetTypeData(plan1).GetMember("A");
+            // now this should _not_ be null.
+            Assert.IsNotNull(paramMember0);
+            
+            MixinFactory.UnloadMixin(step1, numberMember);
+            var paramMember = TypeData.GetTypeData(plan1).GetMember("A");
+            // now this should be null (removed).
+            Assert.IsNull(paramMember);
+            
+            // now try with an embedded member mixin.
+            var embeddedMixin = MixinFactory.LoadMixin(step1, new MixinTestBuilder()
+            {
+                TestMember = nameof(step1.DelaySecs)
+            });
+            var embeddedMember = TypeData.GetTypeData(step1).GetMember("TestMixin.OutputStringValue");
+            embeddedMember.Parameterize(plan1, step1, "B");
+            
+            var paramMember2 = TypeData.GetTypeData(plan1).GetMember("B");
+            // now this should _not_ be null.
+            Assert.IsNotNull(paramMember2);
+            MixinFactory.UnloadMixin(step1, embeddedMixin);
+            
+            var paramMember3 = TypeData.GetTypeData(plan1).GetMember("B");
+            // now this should be null.
+            Assert.IsNull(paramMember3);
+
+
+        }
     }
 
     public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin
@@ -284,6 +324,43 @@ namespace OpenTap.UnitTests
         {
             yield return new EmbedPropertiesAttribute();
             yield return new DisplayAttribute("Test Mixin", Order: 19999);
+        }
+        
+        public IMixinBuilder Clone()
+        {
+            return (IMixinBuilder)this.MemberwiseClone();
+        }
+    }
+    
+    [MixinBuilder(typeof(ITestStepParent))]
+    public class TestNumberMixinBuilder : ValidatingObject, IMixinBuilder
+    {
+        public string Name { get; set; }
+        public TestNumberMixinBuilder()
+        {
+            
+        }
+        
+        public void Initialize(ITypeData targetType)
+        {
+            
+        }
+        public MixinMemberData ToDynamicMember(ITypeData targetType)
+        {
+            return new MixinMemberData(this, () => 0)
+            {
+                TypeDescriptor = TypeData.FromType(typeof(double)),
+                Attributes = GetAttributes().ToArray(),
+                Writable = true,
+                Readable = true,
+                DeclaringType = targetType,
+                Name = "Number." + Name 
+            };
+        }
+        
+        IEnumerable<Attribute> GetAttributes()
+        {
+            yield return new DisplayAttribute(Name, Order: 19999);
         }
         
         public IMixinBuilder Clone()

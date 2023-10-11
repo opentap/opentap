@@ -648,7 +648,7 @@ namespace OpenTap
                     {
                         continue;
                     }
-                    foreach (var fwd in item.ParameterizedMembers.ToArray())
+                    foreach (var fwd in item.ParameterizedMembers)
                     {
                         var src = fwd.Source as ITestStepParent;
                         if (src == null) continue;
@@ -696,6 +696,12 @@ namespace OpenTap
                             isSane &= CheckParameterSanity(src, new[] {member});
                         
                         bool memberDisposed = member is IDynamicMemberData dynamicMember && dynamicMember.IsDisposed;
+                        
+                        if (!memberDisposed && member is EmbeddedMemberData emb)
+                        { // This is a special case, if the member is not as such dynamic, but an embedded member, then the owner member could have been disposed.
+                            if (emb.OwnerMember is IDynamicMemberData dynamicMember2 && dynamicMember2.IsDisposed)
+                                memberDisposed = true;
+                        }
                         if (memberDisposed || isParent == false || unparented)
                         {
                             member.Unparameterize(item, src);

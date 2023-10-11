@@ -23,7 +23,7 @@ namespace OpenTap
             }
         }
         static readonly TraceSource log = Log.CreateSource("Mixins");
-        public static void LoadMixin(object target, IMixinBuilder mixin)
+        public static MixinMemberData LoadMixin(object target, IMixinBuilder mixin)
         {
 
             try
@@ -39,16 +39,30 @@ namespace OpenTap
                     {
                         log.Error($"Unable to load mixin: {TypeData.GetTypeData(mixin)?.GetDisplayAttribute()?.Name ?? mixin.ToString()}");
                     }
-                    return;
+                    return null;
                 }
                 DynamicMember.AddDynamicMember(target, mem);
                 mem.SetValue(target, mem.NewInstance());
+                return mem;
             }
             catch (Exception e)
             {
                 log.Error($"Unable to load mixin: {e.Message}");
                 log.Debug(e);
             }
+            return null;
+        }
+        
+        // Unload and dispose mixin member data
+        public static void UnloadMixin(object src2, MixinMemberData remMember)
+        {
+            var member = DynamicMember.GetDynamicMembers(src2).FirstOrDefault(x => remMember.Name == x.Name);
+            //var member = TypeData.GetTypeData(src2).GetMember(remMember.Name);
+            if (member == null) return;
+            
+            DynamicMember.RemoveDynamicMember(src2, member);
+            if (member is MixinMemberData mixin)
+                mixin.Dispose();
         }
     }
 }

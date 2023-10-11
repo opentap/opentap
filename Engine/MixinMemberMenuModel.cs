@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+    using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Linq;
 namespace OpenTap
@@ -41,8 +41,8 @@ namespace OpenTap
                 
                 var remMember = member;
                 var currentValue = remMember.GetValue(src2);
-                DynamicMember.RemoveDynamicMember(src2, remMember);
-
+                MixinFactory.UnloadMixin(src2, remMember);
+                
                 DynamicMember.AddDynamicMember(src2, mem);
                 
 
@@ -62,7 +62,7 @@ namespace OpenTap
         public void RemoveMixin()
         {
             foreach (var src in Source)
-                DynamicMember.RemoveDynamicMember(src, member);
+                MixinFactory.UnloadMixin(src, member);
         }
     }
 }
