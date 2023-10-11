@@ -214,7 +214,14 @@ namespace OpenTap.Plugins.BasicSteps
                 MaxNumberOfElements = 100
             };
 
-        static XDocument readXmlFile(string path) => dict.Invoke(path);
+        
+        
+        static XDocument ReadCachedXmlFile(string path)
+        {
+            var cached = dict.Invoke(path);
+            // The deserializer may modify the XDocument class so it must be cloned by constructing a new XDocument (this causes a deep clone to be made).
+            return new XDocument(cached);
+        }
 
         internal TestPlan plan;
         string loadedPlanPath;
@@ -279,7 +286,7 @@ namespace OpenTap.Plugins.BasicSteps
 
                     loadedPlanPath = filepath.Text;
 
-                    var doc = readXmlFile(refPlanPath);
+                    var doc = ReadCachedXmlFile(refPlanPath);
                     TestPlan tp = (TestPlan)newSerializer.Deserialize(doc, TypeData.FromType(typeof(TestPlan)), true, refPlanPath) ;
                     plan = tp;
 

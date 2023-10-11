@@ -152,6 +152,48 @@ namespace OpenTap.UnitTests
             else
                 Assert.IsFalse(hidden);
         }
+
+        [Test]
+        public void TestMixinFromReferencedTestPlan()
+        {
+            
+            var planName = nameof(TestMixinFromReferencedTestPlan) + Guid.NewGuid() + ".TapPlan";
+            var plan2Name = nameof(TestMixinFromReferencedTestPlan) + Guid.NewGuid() + ".TapPlan";
+            
+            {   // create plan with a mixin that has been parameterized.
+                var plan1 = new TestPlan();
+                var step1 = new DelayStep();
+                plan1.ChildTestSteps.Add(step1);
+                MixinFactory.LoadMixin(step1, new MixinTestBuilder()
+                {
+                    TestMember = nameof(step1.DelaySecs)
+                });
+
+                var member = TypeData.GetTypeData(step1).GetMember("TestMixin.OutputStringValue");
+                member.Parameterize(plan1, step1, "A");
+
+                plan1.Save(planName);
+            }
+            {
+                var plan2 = new TestPlan();
+                var tpr = new TestPlanReference();
+                tpr.Filepath.Text = planName;
+                plan2.ChildTestSteps.Add(tpr);
+                tpr.LoadTestPlan();
+                var aMember = TypeData.GetTypeData(tpr).GetMember("A");
+                aMember.SetValue(tpr, "123");
+                Assert.IsNotNull(aMember);
+                plan2.Save(plan2Name);
+            }
+            {
+                var plan = TestPlan.Load(plan2Name);
+                var tpr2 = (TestPlanReference)plan.ChildTestSteps[0];
+                var aMember = TypeData.GetTypeData(tpr2).GetMember("A");
+                Assert.IsNotNull(aMember);
+                var aMemberValue = aMember.GetValue(tpr2) as string;
+                Assert.AreEqual("123", aMemberValue);
+            }
+        }
     }
 
     public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin
