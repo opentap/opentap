@@ -1,4 +1,4 @@
-    using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Linq;
 namespace OpenTap
@@ -12,9 +12,9 @@ namespace OpenTap
         }
 
         public object[] Source { get; set; }
-        
-        IMemberData IMemberMenuModel.Member { get;}
-        
+
+        IMemberData IMemberMenuModel.Member { get; }
+
         [Display("Modify Mixin", "Modify custom setting.", Order: 2.0, Group: "Mixins")]
         [Browsable(true)]
         [IconAnnotation(IconNames.ModifyMixin)]
@@ -34,22 +34,23 @@ namespace OpenTap
 
             var selectedMixin = ui.SelectedItem;
             var serializer = new TapSerializer();
-            
+
             foreach (var src2 in Source)
             {
                 var mem = serializer.Clone(selectedMixin).ToDynamicMember(targetType);
-                
+
                 var remMember = member;
                 var currentValue = remMember.GetValue(src2);
                 MixinFactory.UnloadMixin(src2, remMember);
-                
+
                 DynamicMember.AddDynamicMember(src2, mem);
-                
+
 
                 if (currentValue != null && TypeData.GetTypeData(currentValue).DescendsTo(mem.TypeDescriptor))
                 {
                     mem.SetValue(src2, currentValue);
-                } else
+                }
+                else
                 {
                     mem.SetValue(src2, mem.NewInstance());
                 }
