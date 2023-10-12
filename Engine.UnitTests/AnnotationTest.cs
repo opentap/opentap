@@ -2160,5 +2160,45 @@ namespace OpenTap.UnitTests
             a.Read();
             Assert.AreEqual(Overlapping.Z, o.Overlapping);
         }
+
+        class EnabledThings
+        {
+            public double X { get; set; }
+        }
+        
+        class MaybeEnabled : IEnabledAnnotation
+        {
+            public bool IsEnabled { get; set; }
+        }
+        
+        public class TestAnnotator : IAnnotator
+        {
+            public double Priority => 0;
+            public void Annotate(AnnotationCollection annotations)
+            {
+                // Disable 'X' of EnabledThings using multiple IEnabledAnnotations:
+                var member = annotations.Get<IMemberAnnotation>()?.Member;
+                if (member != null && member.Name == "X" && TypeData.FromType(typeof(EnabledThings)).GetMember("X") == member)
+                {
+                    annotations.Add(new MaybeEnabled(){IsEnabled = true});
+                    annotations.Add(new MaybeEnabled(){IsEnabled = false});
+                    annotations.Add(new MaybeEnabled(){IsEnabled = true});
+                    
+                }
+                
+            }
+        }
+
+        [Test]
+        public void TestMultipleEnabled()
+        {
+            var obj = new EnabledThings();
+            var obj2 = new EnabledThings();
+            var x2 = AnnotationCollection.Annotate(new []{obj, obj2}).GetMember("X");
+            // after multi-selecting this should be disabled.
+            // when this issue occured it was not.
+            var enabled = x2.Get<IEnabledAnnotation>().IsEnabled;
+            Assert.IsFalse(enabled);
+        }
     }
 }
