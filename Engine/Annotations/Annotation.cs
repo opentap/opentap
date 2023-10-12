@@ -915,7 +915,7 @@ namespace OpenTap
                     
                     newa.Add(manyAccess);
 
-                    var enabledAnnotations = mergething.SelectValues(x => x.Get<IEnabledAnnotation>()).ToArray();
+                    var enabledAnnotations = mergething.SelectMany(x => x.GetAll<IEnabledAnnotation>()).ToArray();
                     if (enabledAnnotations.Length > 0)
                     {
                         var manyEnabled = new ManyEnabledAnnotation(enabledAnnotations);
