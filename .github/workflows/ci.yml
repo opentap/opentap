@@ -312,7 +312,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
           cd bin/Release
-          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TreatNoTestsAsError=true
+          dotnet vstest OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TreatNoTestsAsError=true
 
   TestWindowsPlan:
     runs-on: windows-2022
@@ -448,6 +448,10 @@ jobs:
         env: 
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
         run:  echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
+      - name: Newtonsoft Hack
+        working-directory: bin/Release-${{ matrix.Architecture }}
+        # Manually copy the correct newtonsoft dll here since it was overwritten by a unittest
+        run: cp ../../Installer/Assets/Newtonsoft.Json.dll .
       - name: Create Package
         working-directory: bin/Release-${{ matrix.Architecture }}
         env: 

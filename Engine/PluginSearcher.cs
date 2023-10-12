@@ -246,6 +246,21 @@ namespace OpenTap
             /// <summary> Manually analyze and add an assembly file. </summary>
             internal AssemblyData AddAssemblyInfo(string file, Assembly loadedAssembly = null)
             {
+                TargetFramework? getFramework(string name, Version v)
+                {
+                    switch (name)
+                    {
+                        case "mscorlib":
+                            return TargetFramework.NetFramework;
+                        case "netstandard":
+                            return TargetFramework.Netstandard;
+                        case "System.Runtime":
+                            return v.Major >= 5 ? TargetFramework.Net : TargetFramework.NetCoreApp;
+                    }
+
+                    return null;
+                }
+                
                 var normalizedFile = PathUtils.NormalizePath(file);
                 if (nameToAsmMap2.TryGetValue(normalizedFile, out AssemblyRef asmRef2))
                 {
@@ -271,14 +286,36 @@ namespace OpenTap
 
                             MetadataReader metadata = header.GetMetadataReader();
                             AssemblyDefinition def = metadata.GetAssemblyDefinition();
+                            thisAssembly.Name = metadata.GetString(def.Name);
+
+                            void logIncompatible(string name, int major)
+                            {
+                                string[] muted = new[] { "tap", "System.Runtime" };
+                                // Mute errors for 'known' incompatible assemblies that are shipped with OpenTAP.
+                                if (name == "tap") return;
+                                log.Warning("Skipping assembly '{0}'. {1}", name, "Incompatible System.Runtime dependency.");
+                                log.Debug(
+                                    $"The current runtime targets major version {CurrentRuntimeMajor}, but this assembly was built targeting {major}.");
+                            }
+                            
+                            if (getFramework(thisAssembly.Name, def.Version) is TargetFramework t)
+                            {
+                                if (def.Version.Major > CurrentRuntimeMajor)
+                                {
+                                    if (def.Version.Major > CurrentRuntimeMajor)
+                                    {
+                                        logIncompatible(thisAssembly.Name, def.Version.Major);
+                                        return null;
+                                    }
+                                }
+                                thisAssembly.targetFramework = t;
+                            }
 
                             // if we were asked to only provide distinct assembly names and 
                             // this assembly name has already been encountered, just return that.
                             var fileIdentifier = Option.HasFlag(Options.IncludeSameAssemblies) ? file : def.GetAssemblyName().FullName;
                             if (asmNameToAsmData.TryGetValue(fileIdentifier, out AssemblyData data))
                                 return data;
-
-                            thisAssembly.Name = metadata.GetString(def.Name);
 
                             if (string.Compare(thisAssembly.Name, Path.GetFileNameWithoutExtension(file), true) != 0)
                                 throw new Exception("Assembly name does not match the file name.");
@@ -312,18 +349,23 @@ namespace OpenTap
 
                             thisAssembly.Version = def.Version;
 
-                            if (!nameToAsmMap.ContainsKey(thisRef))
-                            {
-                                nameToAsmMap.Add(thisRef, thisAssembly);
-                                nameToAsmMap2[PathUtils.NormalizePath(thisAssembly.Location)] = thisRef;
-                            }
-
-                            asmNameToAsmData[fileIdentifier] = thisAssembly;
-
                             foreach (var asmRefHandle in metadata.AssemblyReferences)
                             {
                                 var asmRef = metadata.GetAssemblyReference(asmRefHandle);
                                 var name = metadata.GetString(asmRef.Name);
+
+                                // Detect the target framework of this assembly
+                                if (thisAssembly.targetFramework.HasValue == false &&
+                                    getFramework(name, asmRef.Version) is TargetFramework t2)
+                                {
+                                    if (asmRef.Version.Major > CurrentRuntimeMajor)
+                                    {
+                                        logIncompatible(thisAssembly.Name, asmRef.Version.Major);
+                                        return null;
+                                    }
+                                    thisAssembly.targetFramework = t2;
+                                }
+
                                 var newRef = new AssemblyRef(name, asmRef.Version);
                                 if (UnfoundAssemblies.Contains(newRef))
                                 {
@@ -331,6 +373,14 @@ namespace OpenTap
                                 }
                                 refNames.Add(new AssemblyRef(name, asmRef.Version));
                             }
+                            
+                            if (!nameToAsmMap.ContainsKey(thisRef))
+                            {
+                                nameToAsmMap.Add(thisRef, thisAssembly);
+                                nameToAsmMap2[PathUtils.NormalizePath(thisAssembly.Location)] = thisRef;
+                            }
+
+                            asmNameToAsmData[fileIdentifier] = thisAssembly;
                         }
 
                         List<AssemblyData> refList = null;
@@ -451,6 +501,29 @@ namespace OpenTap
             }
             return PluginTypes;
         }
+        
+        private static TargetFramework? _currentRuntime;
+        internal static TargetFramework CurrentRuntime => _currentRuntime ??= System.Runtime
+            .InteropServices.RuntimeInformation
+            .FrameworkDescription.StartsWith(".NET Framework")
+            ? TargetFramework.NetFramework
+            : TargetFramework.Net;
+
+        private static int GetRuntimeMajor()
+        {
+            foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                var n = asm.GetName();
+                if (n.Name == "System.Runtime") return n.Version.Major;
+            }
+
+            // System.Runtime may not be loaded in .NETFramework. .NETFramework is roughly equivalent to major version 4.
+            return 4;
+        }
+        private static int? _currentRuntimeMajor = null;
+
+        private static int CurrentRuntimeMajor => _currentRuntimeMajor ??= GetRuntimeMajor();
+        
 
         internal readonly TypeData PluginMarkerType = new TypeData(typeof(ITapPlugin).FullName);
 
