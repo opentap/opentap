@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 namespace OpenTap
 {
     /// <summary> Mixin member data </summary>
-    public class MixinMemberData : IMemberData
+    public class MixinMemberData : IMemberData, IDynamicMemberData
     {
         /// <summary> Attributes </summary>
         public IEnumerable<object> Attributes { get; set; } = Array.Empty<object>();
@@ -62,6 +62,15 @@ namespace OpenTap
             Writable = true;
             Readable = true;
             Source = source;
+        }
+        bool isDisposed = false;
+        bool IDynamicMemberData.IsDisposed => isDisposed;
+
+        // declare that this member data has been removed.
+        // this is important for parameterized mixin member data.
+        internal void Dispose()
+        {
+            isDisposed = true;
         }
     }
 }

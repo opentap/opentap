@@ -8,7 +8,7 @@ namespace OpenTap.Plugins
         static readonly XName rootElemName = "OpenTap.Mixins";
         private static readonly XName mixinElemName = "Mixin";
         
-        public override double Order => 0;
+        public override double Order => 1.1;
         
         public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
         {

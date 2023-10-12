@@ -790,9 +790,7 @@ jobs:
       - GetVersion
       - Package-Cross
     container:
-      #This sha hash points to beta.7 (which was also force-overwritten). beta.7 contains a fix which allows the installer
-      #to run in quiet mode when webkit2gtk is not installed
-      image: ghcr.io/opentap/smartinstaller@sha256:a141bb74b33a29d5d224d23202b0dc1c630f7200805b28f5058941ea6d0eacb7
+      image: ghcr.io/opentap/smartinstaller:2.1.0-beta.12
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}

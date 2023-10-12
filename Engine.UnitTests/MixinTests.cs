@@ -152,6 +152,117 @@ namespace OpenTap.UnitTests
             else
                 Assert.IsFalse(hidden);
         }
+
+        [Test]
+        public void TestMixinFromReferencedTestPlan()
+        {
+            
+            var planName = nameof(TestMixinFromReferencedTestPlan) + Guid.NewGuid() + ".TapPlan";
+            var plan2Name = nameof(TestMixinFromReferencedTestPlan) + Guid.NewGuid() + ".TapPlan";
+            
+            {   // create plan with a mixin that has been parameterized.
+                var plan1 = new TestPlan();
+                var step1 = new DelayStep();
+                plan1.ChildTestSteps.Add(step1);
+                MixinFactory.LoadMixin(step1, new MixinTestBuilder()
+                {
+                    TestMember = nameof(step1.DelaySecs)
+                });
+
+                var member = TypeData.GetTypeData(step1).GetMember("TestMixin.OutputStringValue");
+                member.Parameterize(plan1, step1, "A");
+
+                plan1.Save(planName);
+            }
+            {
+                var plan2 = new TestPlan();
+                var tpr = new TestPlanReference();
+                tpr.Filepath.Text = planName;
+                plan2.ChildTestSteps.Add(tpr);
+                tpr.LoadTestPlan();
+                var aMember = TypeData.GetTypeData(tpr).GetMember("A");
+                aMember.SetValue(tpr, "123");
+                Assert.IsNotNull(aMember);
+                plan2.Save(plan2Name);
+            }
+            {
+                var plan = TestPlan.Load(plan2Name);
+                var tpr2 = (TestPlanReference)plan.ChildTestSteps[0];
+                var aMember = TypeData.GetTypeData(tpr2).GetMember("A");
+                Assert.IsNotNull(aMember);
+                var aMemberValue = aMember.GetValue(tpr2) as string;
+                Assert.AreEqual("123", aMemberValue);
+            }
+        }
+        
+        [Test]
+        public void TestMixinOnTestPlanDirect()
+        {
+            
+            var planName = nameof(TestMixinOnTestPlanDirect) + Guid.NewGuid() + ".TapPlan";
+            
+            {   // create plan with a mixin that has been parameterized.
+                var plan1 = new TestPlan();
+                var step1 = new DelayStep();
+                plan1.ChildTestSteps.Add(step1);
+                MixinFactory.LoadMixin(plan1, new MixinTestBuilder()
+                {
+                    TestMember = nameof(plan1.Locked)
+                });
+
+                var member = TypeData.GetTypeData(plan1).GetMember("TestMixin.OutputStringValue");
+                member.SetValue(plan1, "123");
+                plan1.Save(planName);
+            }
+            
+            {
+                var plan = TestPlan.Load(planName);
+                var member = TypeData.GetTypeData(plan).GetMember("TestMixin.OutputStringValue");
+                Assert.IsNotNull(member);
+                var aMemberValue = member.GetValue(plan) as string;
+                Assert.AreEqual("123", aMemberValue);
+            }
+        }
+        
+        [Test]
+        public void TestParameterizeAndRemoveMixin()
+        {
+            // verify that a parameterized mixin member has the parameter removed when the mixin is removed.
+            var plan1 = new TestPlan();
+            var step1 = new DelayStep();
+            plan1.ChildTestSteps.Add(step1);
+            var numberMember = MixinFactory.LoadMixin(step1, new TestNumberMixinBuilder { Name = "A" });
+            
+            numberMember.Parameterize(plan1, step1, "A");
+            
+            var paramMember0 = TypeData.GetTypeData(plan1).GetMember("A");
+            // now this should _not_ be null.
+            Assert.IsNotNull(paramMember0);
+            
+            MixinFactory.UnloadMixin(step1, numberMember);
+            var paramMember = TypeData.GetTypeData(plan1).GetMember("A");
+            // now this should be null (removed).
+            Assert.IsNull(paramMember);
+            
+            // now try with an embedded member mixin.
+            var embeddedMixin = MixinFactory.LoadMixin(step1, new MixinTestBuilder()
+            {
+                TestMember = nameof(step1.DelaySecs)
+            });
+            var embeddedMember = TypeData.GetTypeData(step1).GetMember("TestMixin.OutputStringValue");
+            embeddedMember.Parameterize(plan1, step1, "B");
+            
+            var paramMember2 = TypeData.GetTypeData(plan1).GetMember("B");
+            // now this should _not_ be null.
+            Assert.IsNotNull(paramMember2);
+            MixinFactory.UnloadMixin(step1, embeddedMixin);
+            
+            var paramMember3 = TypeData.GetTypeData(plan1).GetMember("B");
+            // now this should be null.
+            Assert.IsNull(paramMember3);
+
+
+        }
     }
 
     public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin
@@ -213,6 +324,43 @@ namespace OpenTap.UnitTests
         {
             yield return new EmbedPropertiesAttribute();
             yield return new DisplayAttribute("Test Mixin", Order: 19999);
+        }
+        
+        public IMixinBuilder Clone()
+        {
+            return (IMixinBuilder)this.MemberwiseClone();
+        }
+    }
+    
+    [MixinBuilder(typeof(ITestStepParent))]
+    public class TestNumberMixinBuilder : ValidatingObject, IMixinBuilder
+    {
+        public string Name { get; set; }
+        public TestNumberMixinBuilder()
+        {
+            
+        }
+        
+        public void Initialize(ITypeData targetType)
+        {
+            
+        }
+        public MixinMemberData ToDynamicMember(ITypeData targetType)
+        {
+            return new MixinMemberData(this, () => 0)
+            {
+                TypeDescriptor = TypeData.FromType(typeof(double)),
+                Attributes = GetAttributes().ToArray(),
+                Writable = true,
+                Readable = true,
+                DeclaringType = targetType,
+                Name = "Number." + Name 
+            };
+        }
+        
+        IEnumerable<Attribute> GetAttributes()
+        {
+            yield return new DisplayAttribute(Name, Order: 19999);
         }
         
         public IMixinBuilder Clone()
