@@ -404,9 +404,14 @@ namespace OpenTap
                 // name as a result name, and each (primitive) property as a column.
                 if (primitiveMembers != null)
                 {
-                    var arrays = primitiveMembers.Select(r =>
+                    var arrays = primitiveMembers.SelectValues(r =>
                     {
                         var value = r.GetValue(step);
+
+                        // skip null values.
+                        if (value == null) 
+                            return null; 
+
                         var array = Array.CreateInstance(value.GetType(), 1);
                         array.SetValue(value, 0);
                         return array;
@@ -422,8 +427,15 @@ namespace OpenTap
                     {
                         if (r.TypeDescriptor.IsPrimitive())
                             continue;
-                        var name = r.GetDisplayAttribute().Name;
+                        
                         var value = r.GetValue(step);
+                        
+                        // skip null values.
+                        if (value == null) 
+                            continue;
+                        
+                        var name = r.GetDisplayAttribute().Name;
+                        
                         ((ResultSource)ResultSource).Publish(name, value);
                     }
                 }
