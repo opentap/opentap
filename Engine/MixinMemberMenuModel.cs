@@ -24,11 +24,14 @@ namespace OpenTap
                 return (plan2?.IsRunning ?? false) || (plan2?.Locked ?? false);
             }
         }
+
+        public bool StepLocked => Source.OfType<ITestStep>().Any(x => x.ChildTestSteps.IsReadOnly);
         
         [Display("Modify Mixin", "Modify custom setting.", Order: 2.0, Group: "Mixins")]
         [Browsable(true)]
         [IconAnnotation(IconNames.ModifyMixin)]
         [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(StepLocked), false, HideIfDisabled = true)]
         public void ModifyMixin()
         {
             var src = member.Source;
@@ -72,6 +75,7 @@ namespace OpenTap
         [Browsable(true)]
         [IconAnnotation(IconNames.RemoveMixin)]
         [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(StepLocked), false, HideIfDisabled = true)]
         public void RemoveMixin()
         {
             foreach (var src in Source)
