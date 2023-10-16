@@ -226,6 +226,13 @@ namespace OpenTap.Package
         public string ExpectedExitCodes { get; set; } = "0";
 
         /// <summary>
+        /// False; Action stdout and stderr will be forwarded
+        /// True; Action stdout and stderr will be suppressed
+        /// </summary>
+        [XmlAttribute("Quiet")]
+        public bool Quiet { get; set; } = false;
+
+        /// <summary>
         /// False; package installation should fail if the executable does not exist.
         /// True; package installation should continue if the executable does not exist.
         /// </summary>

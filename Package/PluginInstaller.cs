@@ -143,8 +143,8 @@ namespace OpenTap.Package
                     }
                     else
                     {
-                        pi.RedirectStandardOutput = true;
-                        pi.RedirectStandardError = true;
+                        pi.RedirectStandardOutput = step.Quiet == false;
+                        pi.RedirectStandardError = step.Quiet == false;
                         pi.UseShellExecute = false;
 
                         p = Process.Start(pi);

@@ -63,6 +63,6 @@
       -2147352567: Earlier than .NET 7 if the template is already installed
       -2147450735: The error code when .NET runtime is installed, but .NET SDK is not
     -->
-		<ActionStep ExpectedExitCodes="0,106,-2147352567,-2147450735" ExeFile="dotnet" Arguments='new --install Packages/SDK/OpenTap.Templates.$(GitLongVersion).nupkg --verbosity quiet' ActionName="install" Optional="true"/>
+		<ActionStep ExpectedExitCodes="0,106,-2147352567,-2147450735" Quiet="true" ExeFile="dotnet" Arguments='new --install Packages/SDK/OpenTap.Templates.$(GitLongVersion).nupkg' ActionName="install" Optional="true"/>
 	</PackageActionExtensions>
 </Package>
