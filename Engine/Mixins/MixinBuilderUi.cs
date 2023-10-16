@@ -86,7 +86,7 @@ namespace OpenTap
         [Browsable(false)]
         public bool AddMode { get; set; }
         
-        string IDisplayAnnotation.Description => AddMode ? "Add a new mixin." : "Configure a mixin";
+        string IDisplayAnnotation.Description => AddMode ? "Add a new mixin." : "Configure a mixin.";
         string[] IDisplayAnnotation.Group => Array.Empty<string>();
         string IDisplayAnnotation.Name => AddMode ? "Add Mixin" : $"Modify Mixin '{InitialMixinName ?? string.Empty}'";
         double IDisplayAnnotation.Order => 0.0;
