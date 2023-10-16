@@ -30,8 +30,10 @@ namespace OpenTap
         public void AddMixin()
         {
             var builders = MixinFactory.GetMixinBuilders(type);
+            
             // send the user request
-            var ui = new MixinBuilderUi(builders.ToArray());
+            var ui = new MixinBuilderUi(builders.ToArray()) { AddMode = true };
+            
             UserInput.Request(ui);
 
             if (ui.Submit == MixinBuilderUi.OkCancel.Cancel)
