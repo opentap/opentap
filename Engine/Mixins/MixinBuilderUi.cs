@@ -1,10 +1,11 @@
 using System;
+using System.ComponentModel;
 using System.Linq;
 
 namespace OpenTap
 {
-    [Display("Configure Mixin", Description: "Menu for adding or modifying a mixin.")]
-    internal class MixinBuilderUi : ValidatingObject
+    
+    internal class MixinBuilderUi : ValidatingObject, IDisplayAnnotation
     {
         public class TypeDescriber : IDisplayAnnotation
         {
@@ -80,6 +81,21 @@ namespace OpenTap
                     }
                 }
             }
+        }
+        
+        [Browsable(false)]
+        public bool AddMode { get; set; }
+        
+        string IDisplayAnnotation.Description => AddMode ? "Add a new mixin." : "Configure a mixin.";
+        string[] IDisplayAnnotation.Group => Array.Empty<string>();
+        string IDisplayAnnotation.Name => AddMode ? "Add Mixin" : $"Modify Mixin '{InitialMixinName ?? string.Empty}'";
+        double IDisplayAnnotation.Order => 0.0;
+        bool IDisplayAnnotation.Collapsed => false;
+        [Browsable(false)]
+        public string InitialMixinName
+        {
+            get;
+            set;
         }
     }
 }
