@@ -143,14 +143,16 @@ namespace OpenTap.Package
                     }
                     else
                     {
-                        pi.RedirectStandardOutput = step.Quiet == false;
-                        pi.RedirectStandardError = step.Quiet == false;
+                        pi.RedirectStandardOutput = true;
+                        pi.RedirectStandardError = true;
                         pi.UseShellExecute = false;
 
                         p = Process.Start(pi);
 
                         p.ErrorDataReceived += (s, e) =>
                         {
+                            if (step.Quiet) 
+                                return;
                             if (!string.IsNullOrEmpty(e.Data))
                             {
                                 if (isTap)
@@ -161,6 +163,8 @@ namespace OpenTap.Package
                         };
                         p.OutputDataReceived += (s, e) =>
                         {
+                            if (step.Quiet) 
+                                return;
                             if (!string.IsNullOrEmpty(e.Data))
                             {
                                 if (isTap)
