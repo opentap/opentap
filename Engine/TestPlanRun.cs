@@ -647,7 +647,7 @@ namespace OpenTap
             return PublishArtifactWithRunAsync(new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Write | FileShare.Delete), Path.GetFileName(file), run);
         }
 
-        internal Task PublishArtifactWithRunAsync(Stream s, string filename, TestRun run)
+        internal Task PublishArtifactWithRunAsync(Stream inStream, string filename, TestRun run)
         {
             // multiple threads might be publishing artifacts at the same time, so this add needs to be done safely.
             Utils.InterlockedSwap(ref artifacts, () => artifacts.Add(filename));
@@ -655,47 +655,46 @@ namespace OpenTap
             var streamGetters = new BlockingCollection<Stream>();
 
             int readerRefCount = 0;
-            TeeStream tee = s is FileStream ? null : new TeeStream(s);
+            TeeStream tee = inStream is FileStream ? null : new TeeStream(inStream);
             ManualResetEventSlim go = new ManualResetEventSlim(false);
-            SemaphoreSlim finishSem = new SemaphoreSlim(0);
+            
+            // The result type does not matter.
+            TaskCompletionSource<bool> finishedSignal = new TaskCompletionSource<bool>();
+            
             readerRefCount = ScheduleInResultProcessingThread<IArtifactListener>(l =>
             {
+                go.Wait();
+                Stream s2;
+                if (inStream is FileStream fileStream)
+                {
+                    s2 = new FileStream(fileStream.Name, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Write | FileShare.Delete);
+                }
+                else
+                {
+                    while (!streamGetters.TryTake(out s2))
+                    {
+                        TapThread.Sleep(10);
+                    }
+                }
                 try
                 {
-                    go.Wait();
-                    Stream s2;
-                    if (s is FileStream fileStream)
-                    {
-                        s2 = new FileStream(fileStream.Name, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Write | FileShare.Delete);
-                    }
-                    else
-                    {
-                        while (!streamGetters.TryTake(out s2))
-                        {
-                            TapThread.Sleep(10);
-                        }
-                    }
-                    try
-                    {
-                        l.OnArtifactPublished(run, s2, filename);
-                        s2.Dispose();
-                    }
-                    catch (Exception e)
-                    {
-                        artifactsLog.Error("Error during Test Step Run Start for {0}", l);
-                        artifactsLog.Debug(e);
-                    }
-                    finally
-                    {
-                        Interlocked.Decrement(ref readerRefCount);
-                        if (readerRefCount == 0)
-                            s.Dispose();
-
-                    }
+                    l.OnArtifactPublished(run, s2, filename);
+                    s2.Dispose();
+                }
+                catch (Exception e)
+                {
+                    artifactsLog.Error("Error during Test Step Run Start for {0}", l);
+                    artifactsLog.Debug(e);
                 }
                 finally
                 {
-                    finishSem.Release();
+                    Interlocked.Decrement(ref readerRefCount);
+                    if (readerRefCount == 0)
+                    {
+                        inStream.Dispose();
+                        finishedSignal.SetResult(true);
+                    }
+
                 }
             });
             if (tee != null)
@@ -708,20 +707,12 @@ namespace OpenTap
             }
             if (readerRefCount == 0)
             {
-                s.Dispose();
+                inStream.Dispose();
                 return Task.FromResult(0);
             }
-            else
-            {
-                go.Set();
-                return TapThread.StartAwaitable(() =>
-                {
-                    for (int i = 0; i < readerRefCount; i++)
-                    {
-                        finishSem.Wait();
-                    }
-                });
-            }
+            
+            go.Set();
+            return finishedSignal.Task;
         }
 
         /// <summary> Publishes an artifact for the test plan run. </summary>
