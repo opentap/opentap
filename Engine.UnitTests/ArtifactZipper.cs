@@ -80,7 +80,7 @@ namespace OpenTap.Engine.UnitTests
             }
             this.Log.Debug("Wrote file: {0}", Path.GetFullPath(newName));
             
-            planRun.PublishArtifact(File.OpenRead(newName), Path.GetFileName(newName));
+            planRun.PublishArtifactAsync(File.OpenRead(newName), Path.GetFileName(newName));
         }
 
         readonly Dictionary<Guid, Guid> parentMap = new Dictionary<Guid, Guid>();
