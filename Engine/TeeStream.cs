@@ -120,9 +120,8 @@ namespace OpenTap
             var oldEvt = evt;
             var w2 = waiting;
             evt = new SemaphoreSlim(0);
+            Interlocked.Exchange(ref waiting, 0);
             oldEvt.Release(w2);
-            
-            waiting = 0;
         }
         
         SemaphoreSlim evt = new SemaphoreSlim(0);
@@ -140,6 +139,8 @@ namespace OpenTap
             if (blockOffset < 0) 
                 throw new InvalidOperationException("Unexpected position calculated");
             
+            var waitEvent = evt;
+            
             // if the block offset is greater than the size of the block, we need to get/wait for the next block. 
             if (blockOffset >= blockLength)
             {
@@ -151,7 +152,7 @@ namespace OpenTap
                 else
                 {
                     // wait for a new block.
-                    evt.Wait();
+                    waitEvent.Wait();
                 }
                 // new blocks released. start over.
                 return Read(bytes, subStreamPosition, bufferOffset, count);
