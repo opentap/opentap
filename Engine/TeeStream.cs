@@ -104,7 +104,10 @@ namespace OpenTap
                 this.readException = exception;
                 len = 0;
             }
-            mainStreamPosition += len;
+            
+            // user interlocked.add to ensure that other threads will get the updated value.
+            Interlocked.Add(ref mainStreamPosition, len);
+            
             if (len == 0)
             {
                 // We are done. let's stop.
