@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Xml.Serialization;
 
 namespace OpenTap
@@ -525,10 +526,20 @@ namespace OpenTap
         /// <param name="stream"> The artifact data as a stream. When publishing an artifact stream, the stream will be disposed by the callee and does not have to be disposed by the caller.</param>
         /// <param name="artifactName"> The name of the published artifact. </param>
         public void PublishArtifact(Stream stream, string artifactName) 
-            => testPlanRun.PublishArtifactWithRun(stream, artifactName, this);
+            => testPlanRun.PublishArtifactWithRunAsync(stream, artifactName, this).Wait();
+        
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        /// <param name="stream"> The artifact data as a stream. When publishing an artifact stream, the stream will be disposed by the callee and does not have to be disposed by the caller.</param>
+        /// <param name="artifactName"> The name of the published artifact. </param>
+        public Task PublishArtifactAsync(Stream stream, string artifactName) 
+            => testPlanRun.PublishArtifactWithRunAsync(stream, artifactName, this);
+
         
         /// <summary> Publishes an artifact file for the test plan run. </summary>
-        public void PublishArtifact(string file) => testPlanRun.PublishArtifactWithRun(file, this); 
+        public void PublishArtifact(string file) => testPlanRun.PublishArtifactWithRunAsync(file, this).Wait(); 
+        
+        /// <summary> Publishes an artifact file for the test plan run. </summary>
+        public Task PublishArtifactAsync(string file) => testPlanRun.PublishArtifactWithRunAsync(file, this);
     }
 
     class TestStepBreakException : OperationCanceledException

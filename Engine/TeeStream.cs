@@ -62,7 +62,7 @@ namespace OpenTap
         }
 
         public long Length => mainStream.Length;
-        public long Position => mainStream.Position - blockLength;
+        public long Position => mainStreamPosition - blockLength;
         public long blockLength;
             
         readonly Stream mainStream;
@@ -89,12 +89,22 @@ namespace OpenTap
             return result;
         }
         bool done;
+        Exception readException = null;
         
         void ReadNextBlock()
         {
             // at this point everyone is waiting for the next block.
-            
-            int len = mainStream.Read(currentBlock, 0, currentBlock.Length);
+            int len;
+            try
+            {
+                len = mainStream.Read(currentBlock, 0, currentBlock.Length);
+            }
+            catch(Exception exception)
+            {
+                this.readException = exception;
+                len = 0;
+            }
+            mainStreamPosition += len;
             if (len == 0)
             {
                 // We are done. let's stop.
@@ -103,6 +113,7 @@ namespace OpenTap
                 mainStream.Dispose();
             }
             blockLength = len;
+            
             var oldEvt = evt;
             var w2 = waiting;
             evt = new SemaphoreSlim(0);
@@ -114,12 +125,15 @@ namespace OpenTap
         SemaphoreSlim evt = new SemaphoreSlim(0);
         int waiting;
         int clientCount;
+        long mainStreamPosition;
         public int Read(byte[] bytes, long subStreamPosition, int bufferOffset, int count)
         {
             if (done) return 0;
+            if (readException != null)
+                throw readException;
             
             // Offset into the current block.
-            long blockOffset = subStreamPosition - (mainStream.Position - blockLength);
+            long blockOffset = subStreamPosition - (mainStreamPosition - blockLength);
             if (blockOffset < 0) 
                 throw new InvalidOperationException("Unexpected position calculated");
             
@@ -143,7 +157,7 @@ namespace OpenTap
             // read the block byte-by-byte.
             for (int i = 0; i < count; i++)
             {
-                long o2 = subStreamPosition - (mainStream.Position - blockLength) + i;
+                long o2 = subStreamPosition - (mainStreamPosition - blockLength) + i;
                 if (o2 >= blockLength)
                 {
                     // End of the block reached.

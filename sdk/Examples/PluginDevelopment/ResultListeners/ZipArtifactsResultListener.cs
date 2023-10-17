@@ -107,7 +107,8 @@ namespace OpenTap.Plugins.PluginDevelopment
             this.Log.Debug("Wrote file: {0}", Path.GetFullPath(finalName));
 
             // finally publish the artifact.
-            planRun.PublishArtifact(File.OpenRead(finalName), Path.GetFileName(finalName));
+            // This must be done asynchronously as we are currently inside a result processing thread.
+            planRun.PublishArtifactAsync(File.OpenRead(finalName), Path.GetFileName(finalName));
         }
 
         // this map is used to keep track of the parent-child association between step runs and plan runs.
