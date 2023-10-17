@@ -24,11 +24,14 @@ namespace OpenTap
                 return (plan2?.IsRunning ?? false) || (plan2?.Locked ?? false);
             }
         }
+
+        public bool StepLocked => Source.OfType<ITestStep>().Any(x => x.ChildTestSteps.IsReadOnly);
         
-        [Display("Modify Mixin", "Modify custom setting.", Order: 2.0, Group: "Mixins")]
+        [Display("Modify Mixin...", "Modify custom setting.", Order: 2.0, Group: "Mixins")]
         [Browsable(true)]
         [IconAnnotation(IconNames.ModifyMixin)]
         [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(StepLocked), false, HideIfDisabled = true)]
         public void ModifyMixin()
         {
             var src = member.Source;
@@ -37,7 +40,11 @@ namespace OpenTap
             builders = builders.Replace(builders.FirstOrDefault(x => x.GetType() == src.GetType()), src);
             src.Initialize(targetType);
 
-            var ui = new MixinBuilderUi(builders.ToArray(), src);
+            var ui = new MixinBuilderUi(builders.ToArray(), src)
+            {
+                InitialMixinName = member.Name
+            };
+            
             UserInput.Request(ui);
 
             if (ui.Submit == MixinBuilderUi.OkCancel.Cancel)
@@ -72,6 +79,7 @@ namespace OpenTap
         [Browsable(true)]
         [IconAnnotation(IconNames.RemoveMixin)]
         [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(StepLocked), false, HideIfDisabled = true)]
         public void RemoveMixin()
         {
             foreach (var src in Source)

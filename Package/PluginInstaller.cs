@@ -151,6 +151,8 @@ namespace OpenTap.Package
 
                         p.ErrorDataReceived += (s, e) =>
                         {
+                            if (step.Quiet) 
+                                return;
                             if (!string.IsNullOrEmpty(e.Data))
                             {
                                 if (isTap)
@@ -161,6 +163,8 @@ namespace OpenTap.Package
                         };
                         p.OutputDataReceived += (s, e) =>
                         {
+                            if (step.Quiet) 
+                                return;
                             if (!string.IsNullOrEmpty(e.Data))
                             {
                                 if (isTap)
