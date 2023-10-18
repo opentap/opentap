@@ -264,6 +264,8 @@ namespace OpenTap.Package
                 AddWritePair("Repository", repoPkg.RepositoryUrl);
             AddWritePair("Package Type", package.FileType);
             AddWritePair("Package Class", package.Class);
+            AddWritePair("Architecture", package.Architecture.ToString());
+            AddWritePair("Platform", package.OS ?? "");
 
             var tags = package.Tags?.Split(new string[] { " ", "," }, StringSplitOptions.RemoveEmptyEntries);
             if (tags?.Length > 0)
