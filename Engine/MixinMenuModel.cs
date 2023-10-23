@@ -10,7 +10,7 @@ namespace OpenTap
         {
             get
             {
-                var plan2 = source.OfType<ITestStep>()
+                var plan2 = source.OfType<ITestStepParent>()
                     .Select(step => step is TestPlan plan ? plan : step.GetParent<TestPlan>()).FirstOrDefault();
                 return (plan2?.IsRunning ?? false) || (plan2?.Locked ?? false);
             }
