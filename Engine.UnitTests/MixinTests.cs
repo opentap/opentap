@@ -307,6 +307,27 @@ namespace OpenTap.UnitTests
             Assert.IsFalse(isDisabled2);
 
         }
+
+
+        [Test]
+        public void CannotModifyMixinTest()
+        {
+
+            var plan1 = new TestPlan();
+            var step1 = new DelayStep();
+            plan1.ChildTestSteps.Add(step1);
+            MixinFactory.LoadMixin(step1, new MixinTestBuilder()
+            {
+                TestMember = nameof(step1.DelaySecs)
+            });
+
+            var memberAnnotation = AnnotationCollection.Annotate(step1).GetMember("TestMixin.MixinLoadValue");
+            var menuItems = memberAnnotation.Get<MenuAnnotation>().MenuItems.ToArray();
+            var menuModel = menuItems.Select(x => x.Source).OfType<MixinMemberMenuModel>().First() as IMemberMenuModel;
+            Assert.IsNotNull(menuModel.Member);
+
+        }
+
     }
 
     public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin

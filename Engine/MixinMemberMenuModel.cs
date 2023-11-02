@@ -13,7 +13,7 @@ namespace OpenTap
 
         public object[] Source { get; set; }
 
-        IMemberData IMemberMenuModel.Member { get; }
+        IMemberData IMemberMenuModel.Member => member;
         
         public bool TestPlanLocked
         {
