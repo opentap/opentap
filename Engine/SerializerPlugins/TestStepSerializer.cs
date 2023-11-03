@@ -134,27 +134,27 @@ namespace OpenTap.Plugins
         {
             if (false == obj is ITestStep) return false;
             
-            var objp = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
+            // if we are currently serializing a test step, then if that points to another test step,
+            // that should be serialized as a reference.
+            
+            var currentlySerializing = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
 
-            if(objp != null && objp.Object != null)
+            if(currentlySerializing?.Object != null)
             {
-                if (objp.CurrentMember.TypeDescriptor.DescendsTo(typeof(ITestStep)))
+                if (currentlySerializing.CurrentMember.TypeDescriptor.DescendsTo(typeof(ITestStep)))
                 {
                     elem.Attributes("type")?.Remove();
                     elem.Value = ((ITestStep)obj).Id.ToString();
                     return true;
                 }
-                if (objp.CurrentMember.TypeDescriptor is TypeData tp)
+                if (currentlySerializing.CurrentMember.TypeDescriptor is TypeData tp)
                 {
                     // serialize references in list<ITestStep>, only when they are declared by a test step and not a TestStepList.
-                    if ((tp.ElementType?.DescendsTo(typeof(ITestStep)) ?? false) && objp.CurrentMember.DeclaringType.DescendsTo(typeof(ITestStep)))
+                    if (tp.Type != typeof(TestStepList) && (tp.ElementType?.DescendsTo(typeof(ITestStep)) ?? false) && currentlySerializing.CurrentMember.DeclaringType.DescendsTo(typeof(ITestStep)))
                     {
-                        if (tp != TypeData.FromType(typeof(TestStepList)))
-                        {
-                            elem.Attributes("type")?.Remove();
-                            elem.Value = ((ITestStep)obj).Id.ToString();
-                            return true;
-                        }
+                        elem.Attributes("type")?.Remove();
+                        elem.Value = ((ITestStep)obj).Id.ToString();
+                        return true;
                     }
                 }
             }

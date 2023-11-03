@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Threading;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 namespace OpenTap.UnitTests
@@ -260,9 +261,73 @@ namespace OpenTap.UnitTests
             var paramMember3 = TypeData.GetTypeData(plan1).GetMember("B");
             // now this should be null.
             Assert.IsNull(paramMember3);
+        }
 
+        public class ActionStep : TestStep
+        {
+            public Action action { get; set; }
+            
+            public override void Run()
+            {
+                action();
+            }
+            public static ActionStep FromAction(Action action) => new ActionStep()
+            {
+                action = action
+            };
+        }
+        
+        [Test]
+        public void CannotAddMixinWhilePlanRunning()
+        {
+            ManualResetEvent continueEvt = new ManualResetEvent(false);
+            ManualResetEvent started = new ManualResetEvent(false);
+            var step = ActionStep.FromAction(() =>
+            {
+                started.Set();
+                continueEvt.WaitOne();
+            });
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+            var planRun = plan.ExecuteAsync();
+            started.WaitOne();
+            // ok, now the test plan is waiting until we set continueEvt.
+
+            var a = AnnotationCollection.Annotate(step);
+            var addMixin = a.GetIcon(IconNames.AddMixin);
+            Assert.IsNotNull(addMixin);
+            var enabled = addMixin.GetAll<IEnabledAnnotation>();
+            Assert.IsTrue(enabled.Any());
+            var isDisabled = enabled.Any(x => x.IsEnabled == false);
+            Assert.IsTrue(isDisabled);
+            continueEvt.Set();
+            planRun.Wait();
+            a.Read();
+            var isDisabled2 = enabled.Any(x => x.IsEnabled == false);
+            Assert.IsFalse(isDisabled2);
 
         }
+
+
+        [Test]
+        public void CannotModifyMixinTest()
+        {
+
+            var plan1 = new TestPlan();
+            var step1 = new DelayStep();
+            plan1.ChildTestSteps.Add(step1);
+            MixinFactory.LoadMixin(step1, new MixinTestBuilder()
+            {
+                TestMember = nameof(step1.DelaySecs)
+            });
+
+            var memberAnnotation = AnnotationCollection.Annotate(step1).GetMember("TestMixin.MixinLoadValue");
+            var menuItems = memberAnnotation.Get<MenuAnnotation>().MenuItems.ToArray();
+            var menuModel = menuItems.Select(x => x.Source).OfType<MixinMemberMenuModel>().First() as IMemberMenuModel;
+            Assert.IsNotNull(menuModel.Member);
+
+        }
+
     }
 
     public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin
