@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -113,6 +114,89 @@ namespace OpenTap.Package
             return false;
         }
 
+        // TypeData has a PluginTypes property which contains the list of plugins
+        // which it implements. ITypeData does not. Recursively iterate
+        // the basetype hierarchy until we find a TypeData which has populated this property,
+        // or until we find an ITypeData which inherits directly from ITapPlugin
+        static ITypeData[] tdPluginTypes(ITypeData td)
+        {
+            if (td.BaseType == null || td.BaseType == td) return Array.Empty<ITypeData>();
+            if (td.BaseType.IsA(typeof(ITapPlugin))) return new[] { td };
+            if (td is TypeData t)
+            {
+                // If PluginTypes is null, it could be a dynamic typedata whose
+                // basetype has actual pluginTypes (seen with the Python plugin)
+                if (t.PluginTypes == null) return tdPluginTypes(td.BaseType);
+                // Otherwise if it does have plugin types, we can sim
+                return t.PluginTypes.Cast<ITypeData>().ToArray();
+            }
+
+            return tdPluginTypes(td.BaseType);
+        }
+        
+        private static void EnumerateAdditionalPlugins(PackageDef pkgDef)
+        {
+            // Create a lookup of all plugin sources based on source file
+            var sources = TypeData.GetDerivedTypes<ITapPlugin>().Select(TypeData.GetTypeDataSource).Where(src => src.GetType() != typeof(AssemblyData))
+                .ToLookup(src => Path.GetFullPath(src.Location));
+            if (sources.Count == 0) return;
+            
+            foreach (var file in pkgDef.Files)
+            {
+                var loc = Path.GetFullPath(file.FileName);
+                var sourceList = sources[loc].ToArray();
+                if (sourceList.Length == 0) continue;
+                
+                // Iterate all the sources that have generated plugins based on this file
+                foreach (var source in sourceList)
+                {
+                    // Add any relevant dependencies. Note that we only add dependencies on AssemblyData implementations,
+                    // It would probably be more correct if PackageFile.DependentAssemblies was called something like
+                    // PackageFile.PluginFileDependencies, and had a list of ITypeDataSource instead.
+                    var dependencies = source.References.OfType<AssemblyData>().ToArray();
+                    if (dependencies.Any())
+                    {
+                        file.DependentAssemblies.AddRange(dependencies);
+                    }
+                    
+                    string bestName(ITypeData t, DisplayAttribute display = null)
+                    {
+                        display ??= t.GetDisplayAttribute();
+                        return display?.Name ?? t.Name.Split('.', '+').Last();
+                    }
+                    
+                    foreach (var td in source.Types)
+                    {
+                        try
+                        {
+                            var display = td.GetDisplayAttribute();
+                            var pluginTypes = tdPluginTypes(td);
+                            var plug = new PluginFile()
+                            {
+                                BaseType = string.Join(" | ", pluginTypes.Select(t => bestName(t))),
+                                Type = td.Name,
+                                Name = bestName(td, display),
+                                Description = display?.Description ?? "",
+                                Groups = display?.Group,
+                                Collapsed = display?.Collapsed ?? false,
+                                Order = display?.Order ?? -10000,
+                                Browsable = td.GetAttribute<BrowsableAttribute>()?.Browsable ?? true,
+                            };
+                            file.Plugins.Add(plug);
+                        }
+                        catch (Exception ex)
+                        {
+                            log.Error($"Failed to add plugins from '{td.Name}'");
+                            log.Debug(ex);
+                        }
+                    }
+                }
+                
+                // Remove duplicated dependencies (very unlikely)
+                file.DependentAssemblies = file.DependentAssemblies.Distinct().ToList();
+            }
+        }
+
         /// <summary>
         /// Load from an XML package definition file. 
         /// This file is not expected to have info about the plugins in it, so this method will enumerate the plugins inside each dll by loading them.
@@ -190,13 +274,16 @@ namespace OpenTap.Package
             }
 
             var searcher = new PluginSearcher(PluginSearcher.Options.IncludeSameAssemblies);
-            searcher.Search(Directory.GetCurrentDirectory());
+            var plugins = searcher.Search(Directory.GetCurrentDirectory()).ToArray();
             List<AssemblyData> assemblies = searcher.Assemblies.ToList();
 
             // Enumerate plugins if this has not already been done.
             if (!pkgDef.Files.SelectMany(pfd => pfd.Plugins).Any())
             {
+                // Enumerate plugin types from C# assemblies
                 EnumeratePlugins(pkgDef, assemblies);
+                // Enumerate plugin types from other ITypeDataSource implementations
+                EnumerateAdditionalPlugins(pkgDef);
             }
 
             pkgDef.findDependencies(excludeAdd, assemblies);
