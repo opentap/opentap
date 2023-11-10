@@ -136,15 +136,21 @@ namespace OpenTap.Package
         
         private static void EnumerateAdditionalPlugins(PackageDef pkgDef)
         {
+            string normalize(string s) => s.ToLowerInvariant().Replace("\\", "/").Replace("//", "/");
             // Create a lookup of all plugin sources based on source file
             var sources = TypeData.GetDerivedTypes<ITapPlugin>().Select(TypeData.GetTypeDataSource).Where(src => src.GetType() != typeof(AssemblyData))
-                .ToLookup(src => Path.GetFullPath(src.Location));
+                .ToLookup(src => normalize(Path.GetFullPath(src.Location)));
             if (sources.Count == 0) return;
+
+            var tapdir = ExecutorClient.ExeDir;
             
             foreach (var file in pkgDef.Files)
             {
-                var loc = Path.GetFullPath(file.FileName);
-                var sourceList = sources[loc].ToArray();
+                ITypeDataSource[] sourceList = Array.Empty<ITypeDataSource>();
+                if (!string.IsNullOrWhiteSpace(file.RelativeDestinationPath))
+                    sourceList = sources[normalize(Path.Combine(tapdir, file.RelativeDestinationPath))].ToArray();
+                if (sourceList.Length == 0 && !string.IsNullOrWhiteSpace(file.FileName))
+                    sourceList = sources[normalize(Path.Combine(tapdir, file.FileName))].ToArray();
                 if (sourceList.Length == 0) continue;
                 
                 // Iterate all the sources that have generated plugins based on this file
@@ -274,7 +280,7 @@ namespace OpenTap.Package
             }
 
             var searcher = new PluginSearcher(PluginSearcher.Options.IncludeSameAssemblies);
-            var plugins = searcher.Search(Directory.GetCurrentDirectory()).ToArray();
+            searcher.Search(Directory.GetCurrentDirectory());
             List<AssemblyData> assemblies = searcher.Assemblies.ToList();
 
             // Enumerate plugins if this has not already been done.
