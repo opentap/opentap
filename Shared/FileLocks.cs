@@ -191,7 +191,8 @@ namespace OpenTap
         public Win32FileLock(string name)
         {
             // Having backslashes in the mutex name seems to cause issues for some reason. Replace them with slashes.
-            _mutex = new Mutex(false, name.Replace("\\", "/") + "_opentap_named_mutex_");
+            // Prefix with Global\ to make it a global mutex (shared between users).
+            _mutex = new Mutex(false, "Global\\" + name.Replace("\\", "/") + "_opentap_named_mutex_");
         }
 
         public void Dispose()
