@@ -514,11 +514,11 @@ It uses basic mathematical syntax to express relationships between settings or t
 
 For example, let's say we want to use time delay for exactly 10 minutes, we can configure Time Delay as the expression: ```10 * 60```, resulting the Time Delay having a value of 600 seconds.
 
-![TimeDelayExpression.png](TimeDelayExpression.png)
+![Setting a number setting with an expression.](./TimeDelayExpression.png)
 
 For text based settings, expressions can be used to manipulate the text using a `{}` syntax. Take for example a SCPI step and set the expression to: `BANDwidth {2000 * 1000000 / 10}`.
 
-![ScpiCommandExpression.png](ScpiCommandExpression.png)
+![Assigning a string expression to a SCPI command.](./ScpiCommandExpression.png)
 
 
 ### Basic Syntax
