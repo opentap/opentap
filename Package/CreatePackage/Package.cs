@@ -159,11 +159,9 @@ namespace OpenTap.Package
                     // Add any relevant dependencies. Note that we only add dependencies on AssemblyData implementations,
                     // It would probably be more correct if PackageFile.DependentAssemblies was called something like
                     // PackageFile.PluginFileDependencies, and had a list of ITypeDataSource instead.
-                    var dependencies = source.References.OfType<AssemblyData>().ToArray();
-                    if (dependencies.Any())
-                    {
-                        file.DependentAssemblies.AddRange(dependencies);
-                    }
+                    var dependencies = source.References.ToArray();
+                    file.DependentAssemblies.AddRange(dependencies.OfType<AssemblyData>());
+                    file.DependentTypeDataSources.AddRange(dependencies.Where(x => !(x is AssemblyData)));
                     
                     string bestName(ITypeData t, DisplayAttribute display = null)
                     {
@@ -175,6 +173,20 @@ namespace OpenTap.Package
                     {
                         try
                         {
+                            if (td.CanCreateInstance == false) continue;
+                            void addTypeDataDependencies(ITypeData td2)
+                            {
+                                td2 = TypeData.GetTypeData(td2.Name);
+                                var src = TypeData.GetTypeDataSource(td2);
+                                if (src.Location != null)
+                                {
+                                    if (file.DependentTypeDataSources.Contains(src))
+                                        return;
+                                    file.DependentTypeDataSources.Add(src);
+                                }
+                                addTypeDataDependencies(td2.BaseType);
+                            }
+                            addTypeDataDependencies(td.BaseType);
                             var display = td.GetDisplayAttribute();
                             var pluginTypes = tdPluginTypes(td);
                             var plug = new PluginFile()
@@ -500,6 +512,24 @@ namespace OpenTap.Package
                 }
             }
 
+            {
+                
+                // add dependencies which are from different type data sources than AssemblyData (.NET).
+                foreach (var file in pkg.Files)
+                {
+                    foreach (var dep in file.DependentTypeDataSources)
+                    {
+                        var pkg2 = currentInstallation.FindPackageContainingFile(dep.Location);
+                        if (pkg.Dependencies.Any(dep => dep.Name == pkg2.Name))
+                        {
+                            continue;
+                        }
+                        PackageDependency pd = new PackageDependency(pkg2.Name, new VersionSpecifier(pkg2.Version, VersionMatchBehavior.Compatible));
+                        pkg.Dependencies.Add(pd);
+                    }
+                }
+            }
+            
             // Find additional dependencies
             do
             {
@@ -513,6 +543,7 @@ namespace OpenTap.Package
 
                 var anyOffered = offeredByDependencies.Concat(offeredByThis).ToList();
 
+                
                 // Find our dependencies and subtract the above two lists
                 var dependentAssemblyNames = pkg.Files
                     .SelectMany(fs => fs.DependentAssemblies)
