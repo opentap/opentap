@@ -629,14 +629,16 @@ Remember, adhering to the correct syntax is crucial for the expressions to evalu
 
 ## Mixins
 
-Mixins, short for "mix-ins," are small units of functionality that can be integrated or 'mixed in' with an object. 
-In the context of OpenTAP, mixins are can be used for extending the capabilities of a test step.
+Mixins are small units of functionality that can be integrated or 'mixed in' with an object. 
+The term MixIn comes from object-oriented programming where a mix-in is a class that contains extensions for use by other classes.
+In the context of OpenTAP, they are be used for extending the capabilities of e.g. a test step.
 
 ### Getting Started
 
 By default, OpenTAP contains no mixins, but they can be added with packages. Notable packages includes:
 - Expressions: Adds Number and Text mixins.
-- Basic Mixins: Contains a number of basic mixins. For example the Repeat mixins, which enables a test step to repeat itself. Or Artifact which allows adding a file path pointing to a file that should be considered an artifact of the step.
+- Basic Mixins: Contains a number of basic mixins. For example the Repeat mixins, which enables a test step to repeat itself. Limit checks which allows checking a value against a limit.
+Or Artifact which allows adding a file path pointing to a file that should be considered an artifact of the step.
 
 ### Adding Mixins as an End User
 
