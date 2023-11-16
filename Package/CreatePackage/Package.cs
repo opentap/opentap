@@ -525,6 +525,11 @@ namespace OpenTap.Package
                     foreach (var dep in file.DependentTypeDataSources)
                     {
                         var pkg2 = currentInstallation.FindPackageContainingFile(dep.Location);
+                        if (pkg2 == null)
+                        {
+                            log.Debug($"Dependency without a source package dependency: {dep.Name}, depender: {file.FileName}");
+                            continue;
+                        }
                         if (pkg.Dependencies.Any(dep => dep.Name == pkg2.Name))
                         {
                             continue;
