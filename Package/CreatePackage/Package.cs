@@ -143,7 +143,7 @@ namespace OpenTap.Package
             if (sources.Count == 0) return;
 
             var tapdir = ExecutorClient.ExeDir;
-            
+            var workDir = EngineSettings.StartupDir;
             foreach (var file in pkgDef.Files)
             {
                 ITypeDataSource[] sourceList = Array.Empty<ITypeDataSource>();
@@ -151,6 +151,11 @@ namespace OpenTap.Package
                     sourceList = sources[normalize(Path.Combine(tapdir, file.RelativeDestinationPath))].ToArray();
                 if (sourceList.Length == 0 && !string.IsNullOrWhiteSpace(file.FileName))
                     sourceList = sources[normalize(Path.Combine(tapdir, file.FileName))].ToArray();
+                
+                // look in the working directory - tap package create is relative to that.
+                if (sourceList.Length == 0 && !string.IsNullOrWhiteSpace(file.FileName))
+                    sourceList = sources[normalize(Path.Combine(workDir, file.FileName))].ToArray();
+                
                 if (sourceList.Length == 0) continue;
                 
                 // Iterate all the sources that have generated plugins based on this file
