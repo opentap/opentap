@@ -192,7 +192,8 @@ namespace OpenTap.Package
                         while (true)
                         {
                             var src = TypeData.GetTypeDataSource(type2);
-                            if (!usedSources.Add(src))
+                            
+                            if (src != null && !usedSources.Add(src))
                                 break;
                             if (type2 is TypeData)
                                 break;
