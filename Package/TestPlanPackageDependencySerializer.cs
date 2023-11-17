@@ -192,9 +192,15 @@ namespace OpenTap.Package
                         while (true)
                         {
                             var src = TypeData.GetTypeDataSource(type2);
-                            
-                            if (src != null && !usedSources.Add(src))
+
+                            if (src != null)
+                            {
+                                // Technically base types of type2 might also be a dependency, but
+                                // those should be handled by package dependencies (not test plan dependencies).
+                                usedSources.Add(src);
                                 break;
+                            }
+
                             if (type2 is TypeData)
                                 break;
                             
