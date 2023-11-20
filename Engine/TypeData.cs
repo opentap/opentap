@@ -650,7 +650,7 @@ namespace OpenTap
                         if (searcher is ITypeDataSourceProvider sp)
                         {
                             var source = sp.GetSource(typeData);
-                            if (source != null)
+                            if (source != null && source.Location != null)
                                 return typeDataSourceLookup.GetValue(typeData0, td => source);
                         }
                     }

@@ -158,7 +158,7 @@ namespace OpenTap.Package
                 return null;
 
             // Ensure the file is in a subdirectory of the installation. Otherwise it is not contained in a package.
-            if (!abs.StartsWith(installDir))
+            if (!abs.StartsWith(installDir, StringComparison.InvariantCultureIgnoreCase))
                 return null;
 
             // Compute the relative path and normalize directory separators
