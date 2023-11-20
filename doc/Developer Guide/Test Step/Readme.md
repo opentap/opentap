@@ -514,11 +514,11 @@ It uses basic mathematical syntax to express relationships between settings or t
 
 For example, let's say we want to use time delay for exactly 10 minutes, we can configure Time Delay as the expression: ```10 * 60```, resulting the Time Delay having a value of 600 seconds.
 
-![TimeDelayExpression.png](TimeDelayExpression.png)
+![Setting a number setting with an expression.](./TimeDelayExpression.png)
 
 For text based settings, expressions can be used to manipulate the text using a `{}` syntax. Take for example a SCPI step and set the expression to: `BANDwidth {2000 * 1000000 / 10}`.
 
-![ScpiCommandExpression.png](ScpiCommandExpression.png)
+![Assigning a string expression to a SCPI command.](./ScpiCommandExpression.png)
 
 
 ### Basic Syntax
@@ -626,4 +626,106 @@ Remember, adhering to the correct syntax is crucial for the expressions to evalu
    If the target type is a string, you can embed expressions within a string using curly braces `{ }`. The embedded expression will be evaluated, and the result will be placed in the string.
 
    Example: `The number is {1 + 2}.` becomes "The number is 3."
+
+## Mixins
+
+Mixins are small units of functionality that can be integrated or 'mixed in' with an object. 
+The term MixIn comes from object-oriented programming where a mix-in is a class that contains extensions for use by other classes.
+In the context of OpenTAP, they are be used for extending the capabilities of e.g. a test step.
+
+### Getting Started
+
+By default, OpenTAP contains no mixins, but they can be added with packages. Notable packages includes:
+- Expressions: Adds Number and Text mixins.
+- Basic Mixins: Contains a number of basic mixins. For example the Repeat mixins, which enables a test step to repeat itself. Limit checks which allows checking a value against a limit.
+Or Artifact which allows adding a file path pointing to a file that should be considered an artifact of the step.
+
+### Adding Mixins as an End User
+
+The mixins are available through the settings context menu. Right-click a setting or in the settings area and click "Add Mixin". 
+Then a window will pop up guiding you through adding the mixin. Proceeding through this menu will cause the test step 
+to have one or more new settings. To remove the mixin, use the context for any of the new settings and click "remove mixin".
+
+### Mixin Types
+
+Mixins can add functionality in several ways. 
+1. Adding new settings to the test step. This is the behavior for all mixins.
+2. ITestStepPostRunMixin: This type of mixin does something after the step has been executed.
+3. ITestStepPreRunMixin: This type of mixin does something before the step has been executed. 
+4. ITestPlanPreRunMixin: This adds functionality that is executed once during test plan execution.
+
+The way Mixins works is that they add a new dynamic property to the object. This is similar to the way parameters work. 
+The added property can use the EmbedProperties attribute to add more than one additional setting. If the embedding object 
+implements one of the interfaces mentioned above, those will get invoked at the appropriate time.
+
+See for example the following implementation if a ITestStepPostRunMixin.
+```cs
+
+// this defines the mixin. It implements ITestStepPostRunMixin and adds "SomeSetting" to the embedder class.
+public class EmbeddingClassMixin : ITestStepPostRunMixin {
+    [Display("Some Setting")]
+    public string SomeSetting{get;set;} = "123";
+    static readonly TraceSource log = Log.CreateSource("test");
+    public void OnPostRun(TestStepPostRunEventArgs eventArgs){
+        log.Info($"OnPostRun executed. SomeSetting was {SomeSetting}");
+    }
+}
+
+public class EmbedderTestStep : TestStep {
+    // this adds the functionality of embeddingClassMixin to EmbedderTestStep.
+    [EmbedProperties]
+    public EmbeddingClassMixin Embed {get;} = new EmbeddingClass();
+}
+```
+
+When you think of mixins you normally think of something added manually, but by using EmbedProperties directly in the test step,
+you can take advantage of the feature in the implementation as well. This could be used for making your code more composable 
+and for sharing functionality between different test steps without resorting to inheritance.
+
+### Adding new Mixin Plugins
+To make a new Mixin available to the user, the IMixinBuilder interface needs to be implemented. This is done once for each new type of mixin. 
+The implementation for doing this is a bit advanced because it is reflection-heavy. 
+
+```cs
+
+// This builds a bit on the example from before.
+[Display("My Mixin Name", "This is an example of a mixin.")]
+// the MixinBuilderAttribute must be used to specify which subclasses the mixin supports. ITestStepParent, covers both test steps and test plans.
+[MixinBuilder(typeof(ITestStepParent))]
+public class MyMixinBuilder : IMixinBuilder {
+    // add more settings here.
+    public string MemberName{get;set;} = "";
+
+    public MyMixinBuilder()
+    {
+        // if MyMixinBuilder implemented ValidatingObject, rules should be added here.
+    }
+
+
+    public void Initialize(ITypeData type){
+        // here you can initialize the settings 
+        // and get the names of other types to avoid name collision with other mixins or settings.
+        
+    }
+
+    public MixinMemberData ToDynamicMember(ITypeData targetType){
+        // create a new mixin memberdata nad define how the initial value is created.
+        return new MixinMemberData(this, () => new EmbeddingClassMixin()){
+            // set the name of the member (this is hidden from the user)
+            Name = "MyMixinBuider:" + MemberName,
+            // Set the type to the target type of the property.
+            TypeDescriptor = TypeData.FromType(typeof (EmbeddingClassMixin)),
+            // Add the DisplayAttribute to form the group
+            Attributes = new object[]{new DisplayAttribute(MemberName), 
+            // Add EmbedPropertiesAttribute
+            new EmbedPropertiesAttribute()},
+            DeclaringType = TypeData.FromType(typeof(ITestStep))
+        };
+    }
+}
+
+```
+
+After adding this class, the user should have access to the mixin type in the context menu of the test step.
+
 
