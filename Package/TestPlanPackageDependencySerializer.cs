@@ -180,7 +180,35 @@ namespace OpenTap.Package
                 {
                     var pluginsNode = new XElement(PackageDependenciesName);
 
-                    var usedTypes = Serializer.GetUsedTypes().Select(t => t.AsTypeData()).Distinct().ToArray();
+                    var usedSources = new HashSet<ITypeDataSource>();
+
+                    foreach (var usedType in Serializer.GetUsedTypes())
+                    {
+                        // a type data might have multiple levels of dependencies.
+                        // therefore we iterate to find all of them.
+                        // if it is a C# type data, we assume the rest of the dependencies are
+                        // taken care of.
+                        var type2 = usedType;
+                        while (true)
+                        {
+                            var src = TypeData.GetTypeDataSource(type2);
+
+                            if (src != null)
+                            {
+                                // Technically base types of type2 might also be a dependency, but
+                                // those should be handled by package dependencies (not test plan dependencies).
+                                usedSources.Add(src);
+                                break;
+                            }
+
+                            if (type2 is TypeData)
+                                break;
+                            
+                            type2 = type2.BaseType;
+                        }
+                    }
+                    
+                    
                     var allFiles = Serializer.GetUsedFiles().ToArray();
 
                     var nodes = new Dictionary<PackageDef, XElement>();
@@ -199,16 +227,16 @@ namespace OpenTap.Package
                     // Maybe enable this feature in a future release
                     bool addUsedTypes = false;
                     
-                    foreach (var typeData in usedTypes)
+                    foreach (var src in usedSources)
                     {
-                        var source = Installation.Current.FindPackageContainingType(typeData);
+                        var source = Installation.Current.FindPackageContainingFile(src.Location);
                         if (source != null)
                         {
                             var node = nodes.GetOrCreateValue(source, createValue);
                             if (addUsedTypes)
                             {
                                 var typeNode = new XElement(TypeDependencyName);
-                                typeNode.Add(new XAttribute(NameName, typeData.Name));
+                                typeNode.Add(new XAttribute(NameName, src.Name));
                                 node.Add(typeNode);
                             }
                         }
