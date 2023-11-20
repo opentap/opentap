@@ -286,10 +286,6 @@ jobs:
         with:
           name: win-x64-bin
           path: bin/
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v1
-        with:
-          dotnet-version: '6.0.x'
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"
@@ -311,10 +307,6 @@ jobs:
         with:
           name: win-x64-bin
           path: bin/Release
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v1
-        with:
-          dotnet-version: '6.0.x'
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"
