@@ -157,6 +157,9 @@ namespace OpenTap.Package
                     sourceList = sources[normalize(Path.Combine(workDir, file.FileName))].ToArray();
                 
                 if (sourceList.Length == 0) continue;
+
+                // discinct by provider type (if a file has more than one plugin in it from the same provider, that provider is going to be in the list several times)
+                sourceList = sourceList.GroupBy(src => src.GetType()).Select(grp => grp.First()).ToArray();
                 
                 // Iterate all the sources that have generated plugins based on this file
                 foreach (var source in sourceList)
