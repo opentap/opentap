@@ -3017,7 +3017,6 @@ namespace OpenTap
             {
                 get
                 {
-                    var stringer = (a.Get<IAnnotationStringer>());
                     IEnumerable values;
                     if (annotations != null)
                     {
