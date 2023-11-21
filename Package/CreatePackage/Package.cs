@@ -189,7 +189,8 @@ namespace OpenTap.Package
                                         return;
                                     file.DependentTypeDataSources.Add(src);
                                 }
-                                addTypeDataDependencies(td2.BaseType);
+                                if(td2.BaseType != null)
+                                    addTypeDataDependencies(td2.BaseType);
                             }
                             addTypeDataDependencies(td.BaseType);
                             var display = td.GetDisplayAttribute();
