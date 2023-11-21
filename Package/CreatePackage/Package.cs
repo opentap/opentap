@@ -138,7 +138,7 @@ namespace OpenTap.Package
         {
             string normalize(string s) => s.ToLowerInvariant().Replace("\\", "/").Replace("//", "/");
             // Create a lookup of all plugin sources based on source file
-            var sources = TypeData.GetDerivedTypes<ITapPlugin>().Select(TypeData.GetTypeDataSource).Where(src => src.GetType() != typeof(AssemblyData))
+            var sources = TypeData.GetDerivedTypes<ITapPlugin>().Where(t => t.CanCreateInstance).Select(TypeData.GetTypeDataSource).Where(src => src.GetType() != typeof(AssemblyData))
                 .ToLookup(src => normalize(Path.GetFullPath(src.Location)));
             if (sources.Count == 0) return;
 
