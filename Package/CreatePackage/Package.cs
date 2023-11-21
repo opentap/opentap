@@ -534,6 +534,8 @@ namespace OpenTap.Package
                         {
                             continue;
                         }
+                        if (pkg.Name == pkg2.Name) // don't have the package depend on itself. This can happen if the package.xml getting created is already in a location as if it was installed (e.g. ./Packages/<pluginname>/package.xml)
+                            continue;
                         PackageDependency pd = new PackageDependency(pkg2.Name, new VersionSpecifier(pkg2.Version, VersionMatchBehavior.Compatible));
                         pkg.Dependencies.Add(pd);
                     }
