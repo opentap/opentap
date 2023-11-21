@@ -182,8 +182,6 @@ namespace OpenTap.Package
                             void addTypeDataDependencies(ITypeData td2)
                             {
                                 if (td2 == null) return;
-                                td2 = TypeData.GetTypeData(td2.Name);
-                                if (td2 == null) return;
                                 
                                 var src = TypeData.GetTypeDataSource(td2);
                                 if (src.Location != null)
