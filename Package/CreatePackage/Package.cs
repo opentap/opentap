@@ -136,6 +136,13 @@ namespace OpenTap.Package
         
         private static void EnumerateAdditionalPlugins(PackageDef pkgDef)
         {
+            bool sourcesEqual(ITypeDataSource a, ITypeDataSource b)
+            {
+                if (a == null || b == null) return a == b;
+                if (ReferenceEquals(a, b)) return true;
+                return a.GetType() == b.GetType() && a.Location == b.Location;
+            }
+
             string normalize(string s) => s.ToLowerInvariant().Replace("\\", "/").Replace("//", "/");
             // Create a lookup of all plugin sources based on source file
             var sources = TypeData.GetDerivedTypes<ITapPlugin>().Select(TypeData.GetTypeDataSource).Where(src => src.GetType() != typeof(AssemblyData))
@@ -157,10 +164,16 @@ namespace OpenTap.Package
                     sourceList = sources[normalize(Path.Combine(workDir, file.FileName))].ToArray();
                 
                 if (sourceList.Length == 0) continue;
-                
+
+                List<ITypeDataSource> _added = new List<ITypeDataSource>();
                 // Iterate all the sources that have generated plugins based on this file
                 foreach (var source in sourceList)
                 {
+                    // Skip this iteration if the source was already checked
+                    if (_added.Any(a => sourcesEqual(a, source)))
+                        continue;
+                    _added.Add(source);
+                    
                     // Add any relevant dependencies. Note that we only add dependencies on AssemblyData implementations,
                     // It would probably be more correct if PackageFile.DependentAssemblies was called something like
                     // PackageFile.PluginFileDependencies, and had a list of ITypeDataSource instead.
