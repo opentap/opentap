@@ -1209,6 +1209,17 @@ namespace OpenTap
             this.AvailableMember = annotation;
         }
     }
+    
+    /// <summary>
+    /// This is interface is used for generating something from a string.
+    /// Currently it is used only for PluginTypeSelectorAttribute
+    /// </summary>
+    interface IAnnotationStringer : IAnnotation
+    {
+        /// <summary> Gets the string value of an object.  </summary>
+        string GetString(AnnotationCollection item);
+    }
+
 
     /// <summary> The default data annotator plugin. This normally forms the basis for annotation. </summary>
     public class DefaultDataAnnotator : IAnnotator
@@ -2556,8 +2567,15 @@ namespace OpenTap
             }
         }
 
-        class PluginTypeSelectAnnotation : IAvailableValuesAnnotation
+  
+        class PluginTypeSelectAnnotation : IAvailableValuesAnnotation, IAnnotationStringer
         {
+            /// <summary> This is used for generating strings for available and selected values. </summary>
+            public string GetString(AnnotationCollection item)
+            {
+                return item.Get<IDisplayAnnotation>()?.Name;
+            }
+            
             IEnumerable<object> selection;
             public IEnumerable AvailableValues {
                 get
@@ -2575,24 +2593,38 @@ namespace OpenTap
                     {
                         var currentType = TypeData.GetTypeData(currentValue);
                         List<object> selection = new List<object>();
-                        foreach (var type in PluginManager.GetPlugins(cst.Type))
+                        
+                        if (attrib.ObjectSourceProperty != null)
                         {
-                            try
+                            // if there is a source property, look for that. 
+                            var obj = annotation.ParentAnnotation.Source;
+                            var mem = TypeData.GetTypeData(obj).GetMember(attrib.ObjectSourceProperty);
+                            var src = mem.GetValue(obj) as IEnumerable;
+                            foreach (var item in src)
+                                selection.Add(item);
+                        }
+                        else
+                        {
+                            // there is no objects source, so just generate them from the plugins.
+                            foreach (var type in PluginManager.GetPlugins(cst.Type))
                             {
-                                var cstt = TypeData.FromType(type);
-                                if (cstt == currentType)
+                                try
                                 {
-                                    selection.Add(currentValue);
+                                    var cstt = TypeData.FromType(type);
+                                    if (cstt == currentType)
+                                    {
+                                        selection.Add(currentValue);
+                                    }
+                                    else
+                                    {
+                                        var obj = Activator.CreateInstance(type);
+                                        selection.Add(obj);
+                                    }
                                 }
-                                else
+                                catch
                                 {
-                                    var obj = Activator.CreateInstance(type);
-                                    selection.Add(obj);
-                                }
-                            }
-                            catch
-                            {
 
+                                }
                             }
                         }
                         this.selection = selection;
@@ -3051,6 +3083,12 @@ namespace OpenTap
                         {
                             var da2 = a.AnnotateSub(TypeData.GetTypeData(obj), obj, readOnly,
                                 new AvailableMemberAnnotation(a));
+                            
+                            // the annotation stringer is just used for PluginTypeSelector
+                            var annotationStringer = a.Get<IAnnotationStringer>();
+                            if (annotationStringer != null)
+                                da2.Add(new ConstStringAnnotation(annotationStringer.GetString(da2)));
+                            
                             lst.Add(da2);
                         }
                     }
@@ -3060,6 +3098,14 @@ namespace OpenTap
                     return annotations;
                 }
             }
+
+            /// <summary>  This is just a constant string shown in the UI. </summary>
+            class ConstStringAnnotation : IStringReadOnlyValueAnnotation
+            {
+                public ConstStringAnnotation(string str) => Value = str;
+                public string Value { get; }
+            }
+            
             public AnnotationCollection SelectedValue
             {
                 get
@@ -3080,7 +3126,14 @@ namespace OpenTap
                         }
                     }
 
-                    return a.AnnotateSub(TypeData.GetTypeData(current), current, new ReadOnlyMemberAnnotation(), new AvailableMemberAnnotation(a));
+                    var a3 = a.AnnotateSub(TypeData.GetTypeData(current), current, new ReadOnlyMemberAnnotation(), new AvailableMemberAnnotation(a));
+
+                    {   // the annotation stringer is just used for PluginTypeSelector
+                        var stringer = a.Get<IAnnotationStringer>();
+                        if (stringer != null) a3.Add(new ConstStringAnnotation(stringer.GetString(a3)));
+                    }
+
+                    return a3;
                 }
                 set
                 {

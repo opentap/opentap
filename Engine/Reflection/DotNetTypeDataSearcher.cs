@@ -25,7 +25,9 @@ namespace OpenTap
 
         ITypeDataSource ITypeDataSourceProvider.GetSource(ITypeData typeData)
         {
-            return (typeData as TypeData)?.Assembly;
+            if (typeData is TypeData td && td.Assembly.Location != null)
+                return td.Assembly;
+            return null;
         }
     }
 }
