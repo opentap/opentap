@@ -133,6 +133,12 @@ namespace OpenTap.Package
         /// </summary>
         [XmlIgnore]
         internal List<AssemblyData> DependentAssemblies { get; set; }
+        
+        /// <summary> Other type data dependency sources (e.g Python type data) </summary>
+        [XmlIgnore]
+        internal List<ITypeDataSource> DependentTypeDataSources { get; set; }
+
+        internal IEnumerable<ITypeDataSource> AllDependencies => DependentAssemblies.Concat(DependentTypeDataSources);
 
         /// <summary>
         /// License required by the plugin file.
@@ -147,6 +153,7 @@ namespace OpenTap.Package
         public PackageFile()
         {
             DependentAssemblies = new List<AssemblyData>();
+            DependentTypeDataSources = new List<ITypeDataSource>();
             Plugins = new List<PluginFile>();
             IgnoredDependencies = new List<string>();
             CustomData = new List<ICustomPackageData>();

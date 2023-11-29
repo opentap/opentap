@@ -7,43 +7,15 @@ namespace OpenTap
     
     internal class MixinBuilderUi : ValidatingObject, IDisplayAnnotation
     {
-        public class TypeDescriber : IDisplayAnnotation
-        {
-            public override string ToString() => Name;
-            public string Description { get; }
-            public string[] Group { get; }
-            public string Name { get; }
-            public double Order { get; }
-            public bool Collapsed
-            {
-                get;
-            }
-            public TypeDescriber(ITypeData type)
-            {
-                var display = type.GetDisplayAttribute();
-                Name = display.Name;
-                Description = display.Description;
-                Group = display.Group;
-                Order = display.Order;
-                Collapsed = display.Collapsed;
-            }
-        }
         
-        TypeDescriber selectedType;
         public IMixinBuilder[] Items { get; }
-        public TypeDescriber[] ItemTypes { get; }
 
-        [AvailableValues(nameof(ItemTypes))]
+        [PluginTypeSelector(ObjectSourceProperty = nameof(Items))]
         [Display("Mixin", Order: -10001)]
-        public TypeDescriber SelectedType
+        public IMixinBuilder SelectedType
         {
-            get => selectedType;
-            set
-            {
-                selectedType = value;
-                var idx = Array.IndexOf(ItemTypes, value);
-                SelectedItem = Items[idx];
-            }
+            get => SelectedItem;
+            set => SelectedItem = value;
         }
 
         public IMixinBuilder SelectedItem { get; private set; }
@@ -56,11 +28,11 @@ namespace OpenTap
         public MixinBuilderUi(IMixinBuilder[] items, IMixinBuilder selected = null)
         {
             Items = items;
-            ItemTypes = items.Select(x => new TypeDescriber(TypeData.GetTypeData(x))).ToArray();
-            SelectedType = ItemTypes.First();
-            if (selected != null)
-                SelectedType = ItemTypes[Array.IndexOf(items, selected)];
-            
+            SelectedItem = selected;
+            if (SelectedItem == null)
+            {
+                SelectedItem = Items.FirstOrDefault();
+            }
             
             { // redirect validation rules.
                 foreach (var mixinBuilder in items)
