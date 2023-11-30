@@ -53,14 +53,18 @@ namespace OpenTap.Package
         /// <summary>
         /// Get or set the version of the repository
         /// </summary>
+        [Obsolete("This is the version of the repository, and is not related to the API version it supports. You should not rely on this version for the purposes of API compatibility.")]
         public SemanticVersion Version
         {
             get
             {
                 if (_version == null)
-                    CheckRepoApiVersion();
-
-                return _version;
+                    CheckDeployedRepoVersion();
+                // The version of the repo is not important. 
+                // The primary purpose of the check is to see if the repo is available.
+                // Return version 3.11.0-legacy to mitigate old package managers that use a faulty 
+                // compatibility check that relies on this property.
+                return new SemanticVersion(3, 11, 0, "legacy", null);
             }
         }
 
@@ -173,7 +177,7 @@ namespace OpenTap.Package
             catch (Exception ex)
             {
                 if (ex is WebException)
-                    CheckRepoApiVersion();
+                    CheckDeployedRepoVersion();
 
                 var exception = new WebException("Error communicating with repository at '" + defaultUrl + "'.", ex);
 
@@ -192,7 +196,7 @@ namespace OpenTap.Package
 
         static readonly TimeSpan updateRepoVersionHoldOff = TimeSpan.FromSeconds(60);
         readonly object updateVersionLock = new object();
-        private void CheckRepoApiVersion()
+        private void CheckDeployedRepoVersion()
         {
             lock (updateVersionLock)
             {
@@ -414,7 +418,7 @@ namespace OpenTap.Package
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             // force update version to check for errors.
-            CheckRepoApiVersion();
+            CheckDeployedRepoVersion();
             if (IsInError()) return Array.Empty<PackageVersion>();
 
             var parameters = GetQueryParameters(name: packageName);
