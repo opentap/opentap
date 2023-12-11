@@ -45,6 +45,7 @@ module.exports = {
                     ["/Developer Guide/What is OpenTAP/", "OpenTAP Overview"],
                     ["/Developer Guide/Getting Started in Visual Studio/", "Getting Started"],
                     ["/Developer Guide/Development Essentials/", "Development Essentials"],
+                    ["/Developer Guide/Properties/", "Properties"],
                     ["/Developer Guide/Test Step/", "Test Step"],
                     ["/Developer Guide/Resources/", "Resources"],
                     ["/Developer Guide/Result Listener/", "Result Listener"],

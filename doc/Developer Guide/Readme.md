@@ -24,6 +24,7 @@ Table of Contents
 	- [Developing Using Interfaces](Development Essentials#developing-using-interfaces)
 	- [Working with User Input](Development Essentials#working-with-user-input)
 	- [Best Practices for Plugin Development](Development Essentials#best-practices-for-plugin-development)
+- [Properties](Properties/Readme.md)
 - [Test Step](Test Step/Readme.md)
 	- [Default Implementation](Test Step#default-implementation)
 	- [TestStep Hierarchy](Test Step#teststep-hierarchy)
