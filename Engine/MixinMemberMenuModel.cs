@@ -50,20 +50,24 @@ namespace OpenTap
             if (ui.Submit == MixinBuilderUi.OkCancel.Cancel)
                 return; // cancel
 
-            var selectedMixin = ui.SelectedItem;
+            var selectedMixinBuilder = ui.SelectedItem;
             var serializer = new TapSerializer();
 
             foreach (var src2 in Source)
             {
-                var mem = serializer.Clone(selectedMixin).ToDynamicMember(targetType);
+                // save the current value of the mixin so that it can be used
+                // note that the type may have to change since ToDynamicMember may decide to return a new type of member.
+                var currentValue = member.GetValue(src2);
+                
+                // make sure to unload the mixin before calling ToDynamicMember
+                MixinFactory.UnloadMixin(src2, member);
 
-                var remMember = member;
-                var currentValue = remMember.GetValue(src2);
-                MixinFactory.UnloadMixin(src2, remMember);
+                // Clone the mixin builder before applying it - Each mixin member keeps track of their own builder.
+                var mem = serializer.Clone(selectedMixinBuilder).ToDynamicMember(TypeData.GetTypeData(src2));
 
                 DynamicMember.AddDynamicMember(src2, mem);
 
-
+                // if the saved value fits the member type, use it, Otherwise create a new value for it. 
                 if (currentValue != null && TypeData.GetTypeData(currentValue).DescendsTo(mem.TypeDescriptor))
                 {
                     mem.SetValue(src2, currentValue);
