@@ -325,7 +325,39 @@ namespace OpenTap.UnitTests
             var menuItems = memberAnnotation.Get<MenuAnnotation>().MenuItems.ToArray();
             var menuModel = menuItems.Select(x => x.Source).OfType<MixinMemberMenuModel>().First() as IMemberMenuModel;
             Assert.IsNotNull(menuModel.Member);
+        }
 
+        public class UserInputOverride : IUserInputInterface
+        {
+            public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+            {
+
+            }
+        }
+
+        [Test]
+        public void ModifyMixinTest()
+        {
+            var plan1 = new TestPlan();
+            var step1 = new DelayStep();
+            plan1.ChildTestSteps.Add(step1);
+            var mixinMember = MixinFactory.LoadMixin(step1, new MixinTestBuilder()
+            {
+                TestMember = nameof(step1.DelaySecs)
+            });
+            var memberMenuModel = new MixinMemberMenuModel(mixinMember)
+            {
+                Source = new object[]{step1}
+            };
+            using (Session.Create(SessionOptions.None))
+            {
+                UserInput.SetInterface(new UserInputOverride());
+                
+                // previously this would have thrown an exception
+                // because the mixin does not allow itself to be defined twice.
+                // this was really only because we added the new one before removing the old.
+                memberMenuModel.ModifyMixin();
+            }
         }
 
     }
@@ -372,8 +404,13 @@ namespace OpenTap.UnitTests
         }
         public MixinMemberData ToDynamicMember(ITypeData targetType)
         {
-            if (string.IsNullOrWhiteSpace(TestMember))
-                return null;
+            if (!string.IsNullOrWhiteSpace(Error))
+                throw new Exception($"{Error}");
+            // targetType is wrapped in an EmbeddedMember data object that hides TestMixin on the outside.
+            if (targetType.BaseType.GetMember("TestMixin") != null)
+            {
+                throw new Exception("Target type already has a TestMixin member.");
+            }
             return new MixinMemberData(this, () => new MixinTest(TestMember))
             {
                 TypeDescriptor = TypeData.FromType(typeof(MixinTest)),
