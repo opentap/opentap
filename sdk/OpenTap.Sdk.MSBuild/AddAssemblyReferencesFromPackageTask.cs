@@ -11,7 +11,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
-using System.Xml.XPath;
 using DotNet.Globbing;
 using DotNet.Globbing.Token;
 using Microsoft.Build.Framework;
@@ -150,6 +149,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     public class AddAssemblyReferencesFromPackage : Task
     {
         private XElement _document;
+        private BuildVariableExpander Expander { get; set; }
 
         internal XElement Document
         {
@@ -246,15 +246,28 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 writer.WriteLine("</Project>");
             }
         }
-        
+
+        /// <summary>
+        /// Get the preferred path separator, based on what is used in the expansion of '$(OutDir)'.
+        /// This is necessary because dotnet core throws up in certain circumstances when path separators are repeatedly flipped
+        /// </summary>
+        private string Separator { get; set; }
+        private bool ShouldAppendSeparator { get; set; }
+
         private void WriteItemGroup(IEnumerable<string> assembliesInPackage)
         {
             Result.AppendLine("  <ItemGroup>");
 
+            var OutDir = "$(OutDir)";
+            if (ShouldAppendSeparator) OutDir += Separator;
+
             foreach (var asmPath in assembliesInPackage)
             {
+                // Replace all path separators the preferred path separator based on '$(OutDir)'.
+                var asm = Separator == "\\" ? asmPath.Replace("/", Separator) : asmPath.Replace("\\", Separator);
+
                 Result.AppendLine($"    <Reference Include=\"{Path.GetFileNameWithoutExtension(asmPath)}\">");
-                Result.AppendLine($"      <HintPath>$(OutDir){asmPath.Replace("/", "\\")}</HintPath>");
+                Result.AppendLine($"      <HintPath>{OutDir}{asm}</HintPath>");
                 Result.AppendLine("    </Reference>");
             }
 
@@ -268,6 +281,23 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 Write(); // write an "empty" file in this case, so msbuild does not think that the task failed, and re runs it endlessly
                 Log.LogMessage("Got 0 OpenTapPackageReference targets.");
                 return true;
+            }
+
+
+            // Compute some values related to path separators in the generated props file
+            {
+                Expander = new BuildVariableExpander(SourceFile);
+                string[] pathSeparators = { "\\", "/" };
+                var outDir = Expander.ExpandBuildVariables("$(OutDir)");
+                // A separator should be appended if '$(OutDir)' does not end with a path separator already
+                ShouldAppendSeparator = pathSeparators.Contains(outDir.Last().ToString()) == false;
+                if (ShouldAppendSeparator)
+                {
+                    // If it does not end with a path separator, use the last path separator in '$(OutDir)' as the separator.
+                    var separatorCharIndex = pathSeparators.Max(outDir.LastIndexOf);
+                    Separator = separatorCharIndex > -1 ? outDir[separatorCharIndex].ToString() : "/";
+                }
+                else Separator = "/";
             }
             
             if (TargetMsBuildFile == null)

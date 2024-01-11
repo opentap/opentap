@@ -158,7 +158,7 @@ namespace OpenTap.Engine.UnitTests
         public IInstrument Instrument { get; set; }
         public override void Run()
         {
-
+            Assert.IsTrue(Instrument.IsConnected);
         }
     }
 

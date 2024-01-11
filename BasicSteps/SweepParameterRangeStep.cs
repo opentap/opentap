@@ -1,3 +1,4 @@
+using Microsoft.CodeAnalysis;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -41,7 +42,12 @@ namespace OpenTap.Plugins.BasicSteps
 
         [Display("Points",  Group:"Sweep",Order: 1, Description: "The number of points to sweep.")]
         public uint SweepPoints { get; set; }
-        
+
+        private int iteration = 0;
+        [Output(OutputAvailability.BeforeRun)]
+        [Display("Iteration", "Shows the iteration of the sweep that is currently running or about to run.", "Sweep", Order: 1.5)]
+        public string IterationInfo => $"{iteration} of {SweepPoints}";
+
         [Display("Behavior",  Group:"Sweep",Order: -3, Description: "Linear or exponential growth.")]
         public SweepBehavior SweepBehavior { get; set; }
 
@@ -159,9 +165,11 @@ namespace OpenTap.Plugins.BasicSteps
             
             if (disps.Count > 1)
                 names = string.Format("{{{0}}}", names);
-            
+
+            iteration = 0;
             foreach (var Value in range)
             {
+                iteration++;
                 var val = StringConvertProvider.GetString(Value, CultureInfo.InvariantCulture);
                 foreach (var set in selected)
                 {
@@ -186,9 +194,11 @@ namespace OpenTap.Plugins.BasicSteps
 
                 Log.Info("Running child steps with {0} = {1} ", names, Value);
 
-                var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
+                var runs = RunChildSteps(AdditionalParams, BreakLoopRequested, throwOnBreak: false).ToArray();
                 if (BreakLoopRequested.IsCancellationRequested) break;
                 runs.ForEach(r => r.WaitForCompletion());
+                if (runs.LastOrDefault()?.BreakConditionsSatisfied() == true)
+                    break;
                 
             }
             for (int i = 0; i < selected.Length; i++)

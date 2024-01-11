@@ -6,9 +6,11 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Xml.Serialization;
 
 namespace OpenTap
@@ -59,7 +61,10 @@ namespace OpenTap
             }
             protected internal set => Parameters.SetIndexed((nameof(Verdict), GROUP), ref verdictIndex, value);
         }
-
+        
+        /// <summary> Exception causing the Verdict to be 'Error'. </summary>
+        public Exception Exception { get; internal set; }
+        
         /// <summary> Length of time it took to run. </summary>
         public virtual TimeSpan Duration
         {
@@ -155,6 +160,7 @@ namespace OpenTap
     [DebuggerDisplay("TestStepRun {TestStepName}")]
     public class TestStepRun : TestRun
     {
+        readonly TestPlanRun testPlanRun;
         /// <summary>
         /// Parent run that is above this run in the <see cref="TestPlan"/> tree.  
         /// </summary>
@@ -276,8 +282,9 @@ namespace OpenTap
             Parent = parent;
         }
         
-        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters = null)
+        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters, TestPlanRun testPlanRun)
         {
+            this.testPlanRun = testPlanRun;
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
             TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
@@ -307,24 +314,19 @@ namespace OpenTap
         
         #endregion
 
-        internal bool IsBreakCondition()
+        /// <summary> Returns true if the break conditions are satisfied for the test step run.</summary>
+        public bool BreakConditionsSatisfied()
         {
             var verdict = Verdict;
             if (OutOfRetries 
                 || (verdict == Verdict.Fail && BreakCondition.HasFlag(BreakCondition.BreakOnFail)) 
                 || (verdict == Verdict.Error && BreakCondition.HasFlag(BreakCondition.BreakOnError))
-                || (verdict == Verdict.Inconclusive && BreakCondition.HasFlag(BreakCondition.BreakOnInconclusive)))
+                || (verdict == Verdict.Inconclusive && BreakCondition.HasFlag(BreakCondition.BreakOnInconclusive))
+                || (verdict == Verdict.Pass && BreakCondition.HasFlag(BreakCondition.BreakOnPass)))
             {
                 return true;
             }
-
             return false;
-        }
-        
-        internal void CheckBreakCondition()
-        {
-            if(IsBreakCondition())
-                ThrowDueToBreakConditions();
         }
         
         internal bool OutOfRetries { get; set; }
@@ -335,20 +337,33 @@ namespace OpenTap
             throw new TestStepBreakException(TestStepName, Verdict);
         }
 
-        internal void WaitForOutput(OutputAvailability mode)
+        internal bool IsStepChildOf(ITestStep step, ITestStep possibleParent)
         {
+            do
+            {
+                step = step.Parent as ITestStep;
+            }
+            while (step != null && step != possibleParent);
+            return step != null;
+        }
+
+        internal void WaitForOutput(OutputAvailability mode, ITestStep waitingFor)
+        {
+            ITestStep currentStep = TestStepExtensions.currentlyExecutingTestStep;
             var currentThread = TapThread.Current;
             switch (mode)
             {
                 case OutputAvailability.BeforeRun: 
                     return;
                 case OutputAvailability.AfterDefer:
-                    if (StepThread == currentThread && runDone.Wait(0) == false)
+                    if ((StepThread == currentThread && runDone.Wait(0) == false) ||
+                        (currentStep != null && IsStepChildOf(currentStep, waitingFor)))
                         throw new Exception("Deadlock detected");
                     deferDone.Wait(TapThread.Current.AbortToken);
                     break; 
                 case OutputAvailability.AfterRun:
-                    if (StepThread == currentThread && runDone.Wait(0) == false)
+                    if ((StepThread == currentThread && runDone.Wait(0) == false) ||
+                        (currentStep != null && IsStepChildOf(currentStep, waitingFor)))
                         throw new Exception("Deadlock detected");
                     runDone.Wait(TapThread.Current.AbortToken);
                     break;
@@ -360,26 +375,80 @@ namespace OpenTap
         
         internal void AfterRun(ITestStep step)
         {
-            var resultMembers = TypeData.GetTypeData(step)
-                .GetMembers()
-                .Where(member => member.HasAttribute<ResultAttribute>())
-                .ToArray();
+            // load member data for results.
+            List<IMemberData> resultMembers = null;
+            List<IMemberData> primitiveMembers = null;
+            foreach (var member in TypeData.GetTypeData(step).GetMembers())
+            {
+                if (member.HasAttribute<ResultAttribute>())
+                {
+                    var td = member.TypeDescriptor.AsTypeData();
+                    
+                    if (td != null && (td.IsPrimitive() || td.IsString))
+                    {
+                        primitiveMembers ??= new List<IMemberData>();
+                        primitiveMembers.Add(member);
+                    }
+                    else
+                    {
+                        resultMembers ??= new List<IMemberData>();
+                        resultMembers.Add(member);
+                    }
+                }
+                
+            }
+            
 
             void publishResults()
             {
-                foreach (var r in resultMembers)
+                // primitive members are collapsed into one row with several columns with the step
+                // name as a result name, and each (primitive) property as a column.
+                if (primitiveMembers != null)
                 {
-                    var value = r.GetValue(step);
-                    ((ResultSource)ResultSource).Publish(r.GetDisplayAttribute().Name, value);
-                }    
+                    var arrays = primitiveMembers.SelectValues(r =>
+                    {
+                        var value = r.GetValue(step);
+
+                        // skip null values.
+                        if (value == null) 
+                            return null; 
+
+                        var array = Array.CreateInstance(value.GetType(), 1);
+                        array.SetValue(value, 0);
+                        return array;
+                    }).ToArray();
+                    
+                    var names = primitiveMembers.Select(r => r.GetDisplayAttribute().Name).ToList();
+                    ((ResultSource)ResultSource).PublishTable(step.StepRun.TestStepName, names, arrays);
+                }
+                if (resultMembers != null)
+                {
+                    // handle the non-primitive members normally.
+                    foreach (var r in resultMembers)
+                    {
+                        if (r.TypeDescriptor.IsPrimitive())
+                            continue;
+                        
+                        var value = r.GetValue(step);
+                        
+                        // skip null values.
+                        if (value == null) 
+                            continue;
+                        
+                        var name = r.GetDisplayAttribute().Name;
+                        
+                        ((ResultSource)ResultSource).Publish(name, value);
+                    }
+                }
             }
 
-            if (ResultSource is ResultSource)
+            // ResultSource may be null.
+            if (ResultSource != null && (resultMembers != null || primitiveMembers != null))
             {
                 if (WasDeferred)
                     ResultSource.Defer(publishResults);
                 else
-                    publishResults();
+                    publishResults();   
             }
 
             runDone.Set();
@@ -452,6 +521,25 @@ namespace OpenTap
             stepRuns[stepRun.TestStepId] = stepRun;
             childStarted?.Invoke(stepRun);
         }
+        
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        /// <param name="stream"> The artifact data as a stream. When publishing an artifact stream, the stream will be disposed by the callee and does not have to be disposed by the caller.</param>
+        /// <param name="artifactName"> The name of the published artifact. </param>
+        public void PublishArtifact(Stream stream, string artifactName) 
+            => testPlanRun.PublishArtifactWithRunAsync(stream, artifactName, this).Wait();
+        
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        /// <param name="stream"> The artifact data as a stream. When publishing an artifact stream, the stream will be disposed by the callee and does not have to be disposed by the caller.</param>
+        /// <param name="artifactName"> The name of the published artifact. </param>
+        public Task PublishArtifactAsync(Stream stream, string artifactName) 
+            => testPlanRun.PublishArtifactWithRunAsync(stream, artifactName, this);
+
+        
+        /// <summary> Publishes an artifact file for the test plan run. </summary>
+        public void PublishArtifact(string file) => testPlanRun.PublishArtifactWithRunAsync(file, this).Wait(); 
+        
+        /// <summary> Publishes an artifact file for the test plan run. </summary>
+        public Task PublishArtifactAsync(string file) => testPlanRun.PublishArtifactWithRunAsync(file, this);
     }
 
     class TestStepBreakException : OperationCanceledException

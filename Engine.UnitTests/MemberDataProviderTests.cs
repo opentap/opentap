@@ -2,6 +2,8 @@ using OpenTap.Plugins.BasicSteps;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Linq;
 using System.Xml.Serialization;
@@ -40,7 +42,8 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(types.All(t => t.DescendsTo(baseType)));
         }
 
-        public class TypeDataSearcherTestImpl : ITypeDataSearcher, ITypeDataProvider
+        [PluginOrder(before: typeof(DotNetTypeDataSearcher))]
+        public class TypeDataSearcherTestImpl : ITypeDataSearcher, ITypeDataProvider, ITypeDataSearcherCacheInvalidated, ITypeDataSourceProvider
         {
             public class MemberDataTestImpl : IMemberData
             {
@@ -115,19 +118,39 @@ namespace OpenTap.Engine.UnitTests
                 }
             }
 
+            class TestTypeSource : ITypeDataSource
+            {
+                public string Name => "TestTypeSource";
+                List<ITypeData> types = new List<ITypeData>();
+                public string Location => ":test:";
+                public IEnumerable<ITypeData> Types => types.AsReadOnly();
+                public IEnumerable<object> Attributes => Array.Empty<object>();
+                public IEnumerable<ITypeDataSource> References { get; } = Array.Empty<ITypeDataSource>();
+                public string Version => "1.0.0";
+                internal void AddType(ITypeData type) => types.Add(type);
+                
+            }
 
-            static List<ITypeData> hardcodedTypes = new List<ITypeData>
+            static readonly TestTypeSource TypeSource = new TestTypeSource();
+            
+            static readonly ObservableCollection<ITypeData> hardcodedTypes = new ObservableCollection<ITypeData>
             {
                 new TypeDataTestImpl( "UnitTestType", TypeData.FromType(typeof(IResultListener)),null),
                 new TypeDataTestImpl( "UnitTestCliActionType", TypeData.FromType(typeof(ICliAction)),() => new SomeTestAction())
             };
+
+            static TypeDataSearcherTestImpl()
+            {
+                hardcodedTypes.ForEach(TypeSource.AddType);
+            }
 
             public static void AddType(string name, ITypeData baseType)
             {
                 hardcodedTypes.Add(new TypeDataTestImpl(name, baseType, null));
             }
 
-            public static bool Enable { get; set; }
+            static SessionLocal<bool> enabled = new SessionLocal<bool>();
+            public static bool Enable { get => enabled.Value; set => enabled.Value = value; }
 
             private List<ITypeData> _types = new List<ITypeData>();
             public IEnumerable<ITypeData> Types => Enable ? (_types.Count != hardcodedTypes.Count ? null : _types) : Enumerable.Empty<ITypeData>();
@@ -135,6 +158,13 @@ namespace OpenTap.Engine.UnitTests
             public void Search()
             {
                 _types = hardcodedTypes.ToList();
+            }
+
+            public ITypeDataSource GetSource(ITypeData typeData)
+            {
+                if (typeData is TypeDataTestImpl)
+                    return TypeSource;
+                return null;
             }
 
             public double Priority => 1;
@@ -146,6 +176,32 @@ namespace OpenTap.Engine.UnitTests
                 if (obj is SomeTestAction)
                     return hardcodedTypes.Last();
                 return null;
+            }
+
+            event EventHandler<TypeDataCacheInvalidatedEventArgs> cacheInvalidated;
+            public event EventHandler<TypeDataCacheInvalidatedEventArgs> CacheInvalidated
+            {
+                add
+                {
+                    if (cacheInvalidated == null)
+                    {
+                        hardcodedTypes.CollectionChanged += HardcodedTypesOnCollectionChanged;
+                    }
+                    cacheInvalidated += value;
+                }
+                remove
+                {
+                    cacheInvalidated -= value;
+                    if (cacheInvalidated == null)
+                    {
+                        hardcodedTypes.CollectionChanged -= HardcodedTypesOnCollectionChanged;
+                    }
+                }
+            }
+
+            void HardcodedTypesOnCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+            {
+                cacheInvalidated?.Invoke(sender, new TypeDataCacheInvalidatedEventArgs());
             }
         }
         
@@ -178,6 +234,11 @@ namespace OpenTap.Engine.UnitTests
             TypeData.GetDerivedTypes<ITestStep>().Count();
             TypeDataSearcherTestImpl.Enable = true;
             TypeData.GetDerivedTypes<ITestStep>().Count();
+            int invalidated = 0;
+            TypeData.TypeCacheInvalidated += (obj, evt) =>
+            {
+                invalidated += 1;
+            };
             try
             {
                 ITypeData baseType = TypeData.FromType(typeof(IResultListener));
@@ -193,6 +254,7 @@ namespace OpenTap.Engine.UnitTests
                 var c3 = TypeData.GetDerivedTypes<IResultListener>().Count();
                 Assert.IsTrue(c1 + 1 == c2);
                 Assert.IsTrue(c2 + 1 == c3);
+                Assert.IsTrue(invalidated == 2);
 
             }
             finally
@@ -240,6 +302,28 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        [Test]
+        public void ITypeDataSourceTest2()
+        {
+            var td2= TypeData.GetTypeData(new DelayStep());
+            var td3= TypeData.GetTypeData(new DialogStep());
+            var source = TypeData.GetTypeDataSource(td2);
+            var v1 = source.Version;
+            var a1 =td2.AsTypeData().Assembly;
+            var v2 = a1.Version;
+            var v3 = a1.SemanticVersion;
+            Assert.IsTrue(source.Location.Contains("OpenTap.Plugins.BasicSteps.dll"));
+            Assert.IsTrue(TypeData.GetTypeDataSource(td3) == TypeData.GetTypeDataSource(td2));
+            Assert.IsTrue(source.Types.Contains(td2.AsTypeData()));
+            Assert.IsTrue(source.Types.Contains(td3.AsTypeData()));
+            
+            using (Session.Create())
+            {
+                TypeDataSearcherTestImpl.Enable = true;
+                var td = TypeData.GetTypeData("UnitTestType");
+                Assert.AreEqual(2, TypeData.GetTypeDataSource(td).Types.Count());
+            }
+        }
     }
 
     public interface IExpandedObject
@@ -680,7 +764,7 @@ namespace OpenTap.Engine.UnitTests
         {
             var sval = AnnotationCollection.Annotate(DataInterfaceTestClass.SingleEnum.A).Get<IStringValueAnnotation>().Value;
             Assert.AreEqual("AAA", sval);
-            InstrumentSettings.Current.Add(new GenericScpiInstrument());
+            InstrumentSettings.Current.Add(new ScpiInstrument());
             DataInterfaceTestClass testobj = new DataInterfaceTestClass();
 
             AnnotationCollection annotations = AnnotationCollection.Annotate(testobj, Array.Empty<IAnnotation>());
@@ -1592,7 +1676,6 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
-
         public class EmbeddedTest
         {
             // this should give EmbeddedTest all the virtual properties of DataInterfaceTestClass.
@@ -1600,105 +1683,10 @@ namespace OpenTap.Engine.UnitTests
             [EmbedProperties(PrefixPropertyName = false)]
             public DataInterfaceTestClass EmbeddedThings { get; set; } = new DataInterfaceTestClass();
         }
-
-        [Test]
-        public void EmbeddedPropertiesReflectionAndAnnotation()
-        {
-            var obj = new EmbeddedTest();
-            obj.EmbeddedThings.SimpleNumber = 3145.2;
-            var type = TypeData.GetTypeData(obj);
-            var display = type.GetMembers().First().GetDisplayAttribute();
-            Assert.IsTrue(display.Group[0] == "Embedded Things"); // test that the name gets transformed.
-            var emba = type.GetMember(nameof(DataInterfaceTestClass.SimpleNumber));
-            Assert.AreEqual(obj.EmbeddedThings.SimpleNumber, (double)emba.GetValue(obj));
-            var embb = type.GetMember(nameof(DataInterfaceTestClass.FromAvailable));
-            Assert.AreEqual(obj.EmbeddedThings.FromAvailable, (double)embb.GetValue(obj));
-
-            var annotated = AnnotationCollection.Annotate(obj);
-            annotated.Read();
-            var same = annotated.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member == emba);
-            Assert.AreEqual("3145.2 Hz", same.Get<IStringValueAnnotation>().Value);
-        }
-
         [Test]
         public void EmbeddedPropertiesReflectionAndAnnotationBig()
         {
             dataInterfaceProviderInnerTest(new EmbeddedTest());
-        }
-
-        [Test]
-        public void EmbeddedPropertiesSerialization()
-        {
-            var ts = new TapSerializer();
-            var obj = new EmbeddedTest();
-            obj.EmbeddedThings.SimpleNumber = 500;
-            var str = ts.SerializeToString(obj);
-            obj = (EmbeddedTest)ts.DeserializeFromString(str);
-            Assert.AreEqual(500, obj.EmbeddedThings.SimpleNumber);
-        }
-
-        public class EmbA
-        {
-            public double X { get; set; }
-        }
-
-        public class EmbB
-        {
-            [EmbedProperties(PrefixPropertyName = false)]
-            public EmbA A { get; set; } = new EmbA();
-
-            [EmbedProperties(Prefix = "A")]
-            public EmbA A2 { get; set; } = new EmbA();
-        }
-
-        public class EmbC
-        {
-            [EmbedProperties]
-            public EmbB B { get; set; } = new EmbB();
-        }
-
-        [Test]
-        public void NestedEmbeddedTest()
-        {
-            var c = new EmbC();
-            c.B.A2.X = 5;
-            c.B.A.X = 35;
-            var embc_type = TypeData.GetTypeData(c);
-
-            var members = embc_type.GetMembers();
-            Assert.AreEqual(2, members.Count());
-
-            var mem = embc_type.GetMember("B.A.X");
-            
-            Assert.AreEqual(c.B.A2.X, (double)mem.GetValue(c));
-            mem.SetValue(c, 20);
-            Assert.AreEqual(c.B.A2.X, 20.0);
-
-            var mem2 = embc_type.GetMember("B.X");
-            Assert.AreEqual(c.B.A.X, (double)mem2.GetValue(c));
-
-            var ts = new TapSerializer();
-            var str = ts.SerializeToString(c);
-            var c2 = (EmbC)ts.DeserializeFromString(str);
-            Assert.AreNotEqual(c, c2);
-            Assert.AreEqual(c.B.A.X, c2.B.A.X);
-
-        }
-
-        public class EmbD
-        {
-            [EmbedProperties]
-            public EmbD B { get; set; }
-            public int X { get; set; }
-        }
-
-        [Test]
-        public void RecursiveEmbeddedTest()
-        {
-            var d = new EmbD();
-            var t = TypeData.GetTypeData(d);
-            var members = t.GetMembers(); // this will throw a StackOverflowException if the Embedding does not take care of the potential problem.
-            Assert.AreEqual(2, members.Count());
         }
 
         interface IReferencingStep : ITestStep
@@ -1970,6 +1958,65 @@ namespace OpenTap.Engine.UnitTests
             var step3 = Utils.DeserializeFromString<DelayStep>(xml);
             Assert.AreEqual(descriptionString, (string)TypeData.GetTypeData(step).GetMember(descriptionName).GetValue(step3));
             
+        }
+        
+        class AvailableStep1 : TestStep
+        {
+            [Browsable(false)]
+            public string[] Available { get; set; } = new[] { "On", "Off" };
+            [AvailableValues(nameof(Available))]
+            public string MyValue { get; set; }
+            public override void Run()
+            {
+                throw new NotImplementedException();
+            }
+        }
+        class AvailableStep2 : TestStep
+        {
+            private string[] avail = new[] {"Blue", "Green", "Red"};
+            [Browsable(false)]
+            public string[] Available { 
+                get => avail;
+                set
+                {
+                    if (!avail.SequenceEqual(value))
+                        throw new InvalidOperationException();
+                    avail = value;
+                }
+            }
+            [AvailableValues(nameof(Available))]
+            public string MyValue { get; set; }
+            public override void Run()
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        [Test]
+        public void TestSweepSameNamedAvailableValues()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            var step1 = new AvailableStep1();
+            var step2 = new AvailableStep2();
+            plan.Steps.Add(sweep);
+            sweep.ChildTestSteps.Add(step1);
+            sweep.ChildTestSteps.Add(step2);
+            string name = nameof(AvailableStep1.MyValue);
+            
+            ParameterManager.Parameterize(sweep, TypeData.GetTypeData(step1).GetMember(name), new ITestStepParent[]{step1}, name);
+            ParameterManager.Parameterize(sweep, TypeData.GetTypeData(step2).GetMember(name), new ITestStepParent[]{step2}, name);
+
+            var valParam = (ParameterMemberData)TypeData.GetTypeData(sweep).GetMember(name);
+            Assert.IsNotNull(valParam);
+
+            var annotation = AnnotationCollection.Annotate(sweep);
+            var strings = annotation.GetMember(name).Get<IAvailableValuesAnnotation>().AvailableValues.Cast<string>().ToArray();
+            annotation.Write();
+            
+            Assert.IsFalse(step1.Available.SequenceEqual(step2.Available));
+
+
         }
     }
 }

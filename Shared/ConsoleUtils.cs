@@ -45,5 +45,32 @@ namespace OpenTap
                 Console.WriteLine();
             }
         }
+        public static async Task ReportProgressTillEndAsync(Task task, string header, Func<long> pos, Func<long> len,
+            Action<string, long, long> updateProgress, int updateDelayMs = 1000)
+        {
+            updateProgress ??= ((h, p, l) => { });
+
+            if (task == await Task.WhenAny(task, Task.Delay(updateDelayMs)))
+                return;
+            
+            try
+            {
+                do
+                {
+                    updateProgress(header, pos(), len());
+                    
+                    //Task.WhenAny returns the completed task.
+                    // if task is completed we can stop iterating.
+                } while (task != await Task.WhenAny(task, Task.Delay(updateDelayMs)));
+                
+                if(task.IsCanceled == false && task.IsFaulted == false)
+                    updateProgress(header, len(), len()); // print 100%
+                await task; // throw exceptions if necessary.
+            }
+            finally
+            {
+                Console.WriteLine();
+            }
+        }
     }
 }

@@ -32,12 +32,12 @@ namespace OpenTap
         /// <summary>
         /// Creates an object from stringdata. The returned object should be of type 'type'. Returns null if it cannot convert stringdata to type.
         /// </summary>
-        /// <param name="stringdata"></param>
+        /// <param name="stringData"></param>
         /// <param name="type"></param>
         /// <param name="contextObject">The object on which the value is set.</param>
         /// <param name="culture">The culture used for the conversion. This value can will default to InvariantCulture if nothing else is selected.</param>
         /// <returns></returns>
-        object FromString(string stringdata, ITypeData type, object contextObject, CultureInfo culture);
+        object FromString(string stringData, ITypeData type, object contextObject, CultureInfo culture);
     }
     
     /// <summary>
@@ -62,17 +62,32 @@ namespace OpenTap
                         if (count != saveTypes.Count)
                         {
                             var builder = things.ToList();
+                            Dictionary<T, BeforeAttribute[]> orderings = new Dictionary<T, BeforeAttribute[]>();
 
                             foreach (var type in derivedTypes)
                             {
                                 if (type.CanCreateInstance == false) continue;
+                                
                                 if (saveTypes.ContainsKey(type) == false)
                                 {
                                     try
                                     {
                                         var newthing = (T)type.CreateInstance();
                                         saveTypes.Add(type, newthing);
-                                        builder.Add(newthing);
+                                        
+                                        // if BeforeAttribute is used, insert somewhere before the marked type.
+                                        // otherwise insert at the end of the list.
+                                        int addIndex = builder.Count;
+                                        var ordering = type.GetAttributes<BeforeAttribute>().ToArray();
+                                        orderings[newthing] = ordering;
+                                        foreach (var before in ordering)
+                                        {
+                                            int addIndex2 = builder.IndexWhen(item => before.Before(TypeData.GetTypeData(item)));
+                                            if (addIndex2 != -1 && addIndex2 < addIndex)
+                                                addIndex = addIndex2;
+                                        }
+                                        
+                                        builder.Insert(addIndex, newthing);
                                     }
                                     catch
                                     {
@@ -80,6 +95,33 @@ namespace OpenTap
                                     } // Ignore errors here.
                                 }
                             }
+
+                            // iterate to find the correct ordering.
+                            // this is a bit akin to bubble sorting, but the chance that these dependenceny chains gets very long is limited.
+                            {
+                                HashSet<(T, T)> swapPairs = new HashSet<(T, T)>();
+
+                                for (int i = 0; i < builder.Count; i++)
+                                {
+                                    int addIndex = i;
+                                    var type = builder[i];
+                                    foreach (var before in orderings[type])
+                                    {
+                                        int addIndex2 = builder.IndexWhen(item => before.Before(TypeData.GetTypeData(item)));
+                                        if (addIndex2 != -1 && addIndex2 < addIndex)
+                                            addIndex = addIndex2;
+                                    }
+                                    if (addIndex < i)
+                                    {
+                                        if (swapPairs.Add((builder[addIndex], builder[i])) == false)
+                                            throw new Exception("Circular dependency in BeforeAttribute"); // these has been swapped before - that means there is a circular dependency.
+                                        
+                                        (builder[i], builder[addIndex]) = (builder[addIndex], builder[i]);
+                                        i = addIndex;
+                                    }
+                                }
+                            }
+
                             things = builder.ToArray();
                         }
                     }
@@ -109,9 +151,9 @@ namespace OpenTap
                     return str;
                 }
 
-                public object FromString(string stringdata, ITypeData type, object contextObject, CultureInfo culture)
+                public object FromString(string stringData, ITypeData type, object contextObject, CultureInfo culture)
                 {
-                    object obj = inner.FromString(stringdata, type, contextObject, culture);
+                    object obj = inner.FromString(stringData, type, contextObject, culture);
                     if (obj != null)
                         Popularity += 1;
                     return obj;
@@ -165,7 +207,7 @@ namespace OpenTap
         static IEnumerable<IStringConvertProvider> Providers => StringConvertCacheOptimizer.GetValue();
         
         /// <summary>
-        /// Turn value to a string if an IStringConvertProvider plugin supports the value.
+        /// Turn value to a string if an IStringConvertProvider plugin supports the value. Returns null if the input value is null.
         /// </summary>
         /// <param name="value">The value to be converted to a string.</param>
         /// <param name="culture">If null, invariant culture is used.</param>
@@ -293,27 +335,27 @@ namespace OpenTap
         internal class ConvertibleStringConvertProvider : IStringConvertProvider
         {
             /// <summary> Returns an IConvertible if applicable. </summary>
-            public object FromString(string stringdata, ITypeData _type, object contextObject, CultureInfo culture)
+            public object FromString(string stringData, ITypeData _type, object contextObject, CultureInfo culture)
             {
                 var type = (_type as TypeData)?.Type;
                 if (type == null) return null;
                 if (type == typeof(DateTime))
                 {
-                    return DateTime.ParseExact(stringdata, "yyyy-MM-dd HH-mm-ss", culture);
+                    return DateTime.ParseExact(stringData, "yyyy-MM-dd HH-mm-ss", culture);
                 }
                 if (type.IsNumeric())
                 {
-                    if(new NumberFormatter(culture).TryParseNumber(stringdata, type, out object val))
+                    if(new NumberFormatter(culture).TryParseNumber(stringData, type, out object val))
                     {
                         return val;
                     }
                     return null;
                 }
                 else if (type == typeof(string))
-                    return stringdata;
+                    return stringData;
                 else if(type == typeof(bool))
                 {
-                    if (bool.TryParse(stringdata, out bool value))
+                    if (bool.TryParse(stringData, out bool value))
                         return value;
                     return null;
                 }
@@ -322,7 +364,7 @@ namespace OpenTap
                 {
                     try
                     {
-                        return Convert.ChangeType(stringdata, type, culture);
+                        return Convert.ChangeType(stringData, type, culture);
                     }
                     catch
                     {
@@ -363,26 +405,26 @@ namespace OpenTap
             }
 
             /// <summary> Creates an Enabled from a string. </summary>
-            public object FromString(string stringdata, ITypeData _type, object contextObject, CultureInfo culture)
+            public object FromString(string stringData, ITypeData _type, object contextObject, CultureInfo culture)
             {
                 Type type = (_type as TypeData)?.Type;
                 if (type == null) return null;
                 if (type.DescendsTo(typeof(IEnabledValue)) == false)
                     return null;
-                stringdata = stringdata.Trim();
+                stringData = stringData.Trim();
                 var disabled = "(disabled)";
                 IEnabledValue enabled = (IEnabledValue)Activator.CreateInstance(type);
                 var elemType = GetEnabledElementType(type);
-                if (stringdata.StartsWith(disabled))
+                if (stringData.StartsWith(disabled))
                 {
-                    if (StringConvertProvider.TryFromString(stringdata.Substring(disabled.Length).Trim(), TypeData.FromType(elemType), null, out object obj, culture))
+                    if (StringConvertProvider.TryFromString(stringData.Substring(disabled.Length).Trim(), TypeData.FromType(elemType), null, out object obj, culture))
                         enabled.Value = obj;
                     else return null;
                     enabled.IsEnabled = false;
                 }
                 else
                 {
-                    if (StringConvertProvider.TryFromString(stringdata, TypeData.FromType(elemType), null, out object obj, culture))
+                    if (StringConvertProvider.TryFromString(stringData, TypeData.FromType(elemType), null, out object obj, culture))
                         enabled.Value = obj;
                     else return null;
                     enabled.IsEnabled = true;
@@ -486,13 +528,13 @@ namespace OpenTap
             }
 
             /// <summary> Creates an enum from a string. </summary>
-            public object FromString(string stringdata, ITypeData type, object contextObject, CultureInfo culture)
+            public object FromString(string stringData, ITypeData type, object contextObject, CultureInfo culture)
             {
                 if (type is TypeData cst)
                 {
                     if (false == cst.Type.IsEnum) return null;
                     Enum result;
-                    if (tryParseEnumString(stringdata, cst.Type, out result) == false)
+                    if (tryParseEnumString(stringData, cst.Type, out result) == false)
                         return null;
                     return result;
                 }
@@ -557,7 +599,7 @@ namespace OpenTap
         internal class ListStringConvertProvider : IStringConvertProvider
         {
             /// <summary> Creates a sequence from string. </summary>
-            public object FromString(string stringdata, ITypeData _type, object contextObject, CultureInfo culture)
+            public object FromString(string stringData, ITypeData _type, object contextObject, CultureInfo culture)
             {
                 var type = (_type as TypeData)?.Type;
                 if (type.DescendsTo(typeof(IEnumerable)) == false) return null;
@@ -570,7 +612,7 @@ namespace OpenTap
                 if (elemType.IsNumeric())
                 {
                     var fmt = new NumberFormatter(culture);
-                    var data = fmt.Parse(stringdata);
+                    var data = fmt.Parse(stringData);
                     if (data.GetType().DescendsTo(type))
                         return data;
                     seq = data.CastTo(elemType).Cast<object>().ToArray();
@@ -580,12 +622,12 @@ namespace OpenTap
                     // unescape nested strings and put them into 'parsedStrings'.
                     // after this they will be handled individually.
                     List<string> parsedStrings = new List<string>();
-                    if (stringdata.Length > 0)
+                    if (stringData.Length > 0)
                     {
                         StringBuilder buffer = new StringBuilder();
-                        for (int i = 0; i < stringdata.Length; i++)
+                        for (int i = 0; i < stringData.Length; i++)
                         {
-                            var chr = stringdata[i];
+                            var chr = stringData[i];
                             if (chr == ',')
                             {
                                 parsedStrings.Add(buffer.ToString());
@@ -595,12 +637,12 @@ namespace OpenTap
 
                             if (chr == '"')
                             {
-                                for (i += 1; i < stringdata.Length; i++)
+                                for (i += 1; i < stringData.Length; i++)
                                 {
-                                    chr = stringdata[i];
+                                    chr = stringData[i];
                                     if (chr == '"')
                                     {
-                                        if (stringdata.Length > i + 1 && stringdata[i + 1] == '"')
+                                        if (stringData.Length > i + 1 && stringData[i + 1] == '"')
                                             i += 1; // skip escaped quotes and remove extra \".
                                         else break;
                                     }
@@ -731,11 +773,11 @@ namespace OpenTap
                 }
             }
             /// <summary> Finds a IResource based on strings. Only works on things loaded in Component Settings. </summary>
-            public object FromString(string stringdata, ITypeData type, object contextObject, CultureInfo culture)
+            public object FromString(string stringData, ITypeData type, object contextObject, CultureInfo culture)
             {
                 if (type.DescendsTo(typeof(IResource)) == false) return null;
                 if (type is TypeData)
-                    return allResources.FirstOrDefault(x => x.Name == stringdata && TypeData.GetTypeData(x).DescendsTo(type));
+                    return allResources.FirstOrDefault(x => x.Name == stringData && TypeData.GetTypeData(x).DescendsTo(type));
                 return null;
             }
 
@@ -786,21 +828,29 @@ namespace OpenTap
         /// <summary> String convert provider for TestStep </summary>
         internal class TestStepConvertProvider : IStringConvertProvider
         {
+            internal static ITestStep GetStepFromContext(ITestStepParent context, Guid id)
+            {
+                ITestStepParent plan = context;
+                while (plan.Parent != null) 
+                    plan = plan.Parent;
+                return Utils.FlattenHeirarchy(plan.ChildTestSteps, x => x.ChildTestSteps)
+                    .FirstOrDefault(x => x.Id == id);
+            }
             /// <summary>
             /// Gets a TestStep from a string value. This will be a step from the test plan context object.
             /// </summary>
-            /// <param name="stringdata"></param>
+            /// <param name="stringData"></param>
             /// <param name="type"></param>
             /// <param name="contextObject"></param>
             /// <param name="culture"></param>
             /// <returns></returns>
-            public object FromString(string stringdata, ITypeData type, object contextObject, CultureInfo culture)
+            public object FromString(string stringData, ITypeData type, object contextObject, CultureInfo culture)
             {
                 if (type.DescendsTo(typeof(ITestStep)) && contextObject is ITestStepParent parent)
                 {
-                    if(Guid.TryParse(stringdata, out Guid id))
+                    if(Guid.TryParse(stringData, out Guid id))
                     {
-                        return parent.ChildTestSteps.GetStep(id);
+                        return GetStepFromContext(parent, id);
                     }
                 }
                 return null;
@@ -822,31 +872,34 @@ namespace OpenTap
         internal class InputStringConvertProvider : IStringConvertProvider
         {
             /// <summary> Creates an Input from a string. contextObject must be an ITestStep.</summary>
-            /// <param name="stringdata"></param>
+            /// <param name="stringData"></param>
             /// <param name="type"></param>
             /// <param name="contextObject"></param>
             /// <param name="culture"></param>
             /// <returns></returns>
-            public object FromString(string stringdata, ITypeData type, object contextObject, CultureInfo culture)
+            public object FromString(string stringData, ITypeData type, object contextObject, CultureInfo culture)
             {
-
-                var s = stringdata.Split(':');
+                if (!type.DescendsTo(typeof(IInput))) return null;
+                
+                var s = stringData.Split(':');
                 var step = contextObject as ITestStep;
                 if (step == null) return null;
                 if (s.Length != 2) return null;
-                Guid id;
-                if (!Guid.TryParse(s[0], out id))
+                    
+                if (!Guid.TryParse(s[0], out var id))
                     return null;
                 var property = s[1];
 
-                ITestStepParent plan = contextObject as ITestStepParent;
-                while (plan.Parent != null)
-                    plan = plan.Parent;
-                var step2 = Utils.FlattenHeirarchy(plan.ChildTestSteps, x => x.ChildTestSteps).FirstOrDefault(x => x.Id == id);
-                if (step2 == null) return null;
                 var inp = (IInput)type.CreateInstance(Array.Empty<object>());
+                if (id == Guid.Empty)
+                    return inp;
+
+                var step2 = TestStepConvertProvider.GetStepFromContext(step, id);
+                if (step2 == null) return null;
                 inp.Step = step2;
-                inp.Property = TypeData.GetTypeData(step2).GetMember(property);
+                    
+                if (!string.IsNullOrWhiteSpace(property))
+                    inp.Property = TypeData.GetTypeData(step2).GetMember(property);
 
                 return inp;
             }
@@ -859,8 +912,7 @@ namespace OpenTap
             {
                 var val = value as IInput;
                 if (val == null) return null;
-                if (val.Step == null || val.Property == null) return null;
-                return string.Format("{0}:{1}", val.Step.Id, val.Property.Name);
+                return $"{val.Step?.Id ?? Guid.Empty}:{val.Property?.Name ?? ""}";
             }
         }
 
@@ -868,11 +920,11 @@ namespace OpenTap
         internal class BoolConverter : IStringConvertProvider
         {
             /// <summary> Creates a bool from a string. </summary>
-            public object FromString(string stringdata, ITypeData type, object ctx, CultureInfo culture)
+            public object FromString(string stringData, ITypeData type, object ctx, CultureInfo culture)
             {
                 if (type.IsA(typeof(bool)))
                 {
-                    var sd = stringdata.ToLower();
+                    var sd = stringData.ToLower();
 
                     switch (sd)
                     {

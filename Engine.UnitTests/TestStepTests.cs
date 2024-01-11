@@ -1,5 +1,9 @@
+using System;
+using System.Collections.Generic;
+using System.Threading;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
+using OpenTap.UnitTests;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -40,6 +44,61 @@ namespace OpenTap.Engine.UnitTests
             plan.ChildTestSteps.Add(logStep);
             var run = plan.Execute();
             Assert.AreEqual(Verdict.NotSet, run.Verdict);
+        }
+
+        [Test]
+        public void TestGetObjectSettings()
+        {
+            // A race condition issue occured inside GetObjectSettings.
+            // to reproduce it, do it in two synchronized threads.
+            // the mix of threads and semaphores below are to ensure that the threadsa
+            // starts as much in sync as possible.
+            var steps = new ITestStep[]
+            {
+                new DelayStep(), new SequenceStep(), new LockStep(), new SequenceStep(),
+                new DialogStep(), new BusyStep(), new ArtifactStep(), new SerializeEnumTest.Step1(), new SerializeEnumTest.Step2(),
+                new MemberDataProviderTests.Delay2Step(), new ResultTest.ActionStep(), new DutStep2(), new IfStep()
+            };
+            HashSet<object> values = new HashSet<object>();
+            int threadCount = 2;
+            var threadWaitSem = new Semaphore(0, threadCount);
+            var mainWaitSem = new Semaphore(0, threadCount);
+            Exception error = null;
+            for (int i = 0; i < threadCount; i++)
+            {
+                TapThread.Start(() =>
+                {
+                    //signal the main thread that we are ready to go.
+                    mainWaitSem.Release();
+                    // wait for the main thread to signal back.
+                    threadWaitSem.WaitOne();
+                    try
+                    {
+                        TestStepExtensions.GetObjectSettings<object, ITestStep, object>(steps, false, (t, data) => t, values);
+                    }
+                    catch (Exception e)
+                    {
+                        error = e;
+                    }
+                    //signal the main thread that we are done.
+                    mainWaitSem.Release();
+                });
+            }
+
+            // wait for the threads to be ready.
+            for(int i = 0; i < threadCount; i++)
+                mainWaitSem.WaitOne();
+            
+            // signal that the threads can start.
+            threadWaitSem.Release(threadCount);
+            
+            // Wait for all to complete.
+            for(int i = 0; i < threadCount; i++)
+                mainWaitSem.WaitOne();
+            
+            // the issue should cause an exception when reproduced.
+            // if its fixed the error will be null.
+            Assert.IsNull(error);
         }
     }
 }

@@ -62,13 +62,14 @@ namespace OpenTap
 
         readonly object threadCreationLock = new object();
         readonly CancellationTokenSource cancel = new CancellationTokenSource();
+        readonly TapThread threadContext = null;
 
         //this should always be either 1(thread was started) or 0(thread is not started yet)
         int threadCount = 0;
 
-        const int semaphoreMaxCount = 1024 * 1024;
+        internal static int semaphoreMaxCount = 1024 * 1024;
         // the addSemaphore counts the current number of things in the tasklist.
-        readonly SemaphoreSlim addSemaphore = new SemaphoreSlim(0,semaphoreMaxCount); 
+        readonly SemaphoreSlim addSemaphore = new SemaphoreSlim(0, semaphoreMaxCount); 
 
         int countdown = 0;
         
@@ -87,47 +88,58 @@ namespace OpenTap
                 average = new TimeSpanAverager();
             Name = name;
         }
+        
+        /// <summary> Creates a new instance of WorkQueue.</summary>
+        /// <param name="options">Options.</param>
+        /// <param name="name">A name to identify a work queue.</param>
+        /// <param name="threadContext"> The thread context in which to run work jobs. The default value causes the context to be the parent of an enqueuing thread.</param>
+        public WorkQueue(Options options, string name = "", TapThread threadContext = null) :this(options, name)
+        {
+            this.threadContext = threadContext;
+        }
+
 
         /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
         public void EnqueueWork(Action a) => EnqueueWork(new ActionInvokable(a));
         internal void EnqueueWork<T1, T2>(IInvokable<T1, T2> v, T1 a1, T2 a2) =>  EnqueueWork(new WrappedInvokable<T1,T2>(v, a1, a2));
 
-        /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
-        internal void EnqueueWork(IInvokable f)
+        /// <summary>
+        /// This method in in charge of processing the work queue.
+        /// </summary>
+        void WorkerFunction()
         {
-            void threadGo()
+            try
             {
-                try
+                var awaitArray = new WaitHandle[] {addSemaphore.AvailableWaitHandle, cancel.Token.WaitHandle};
+                while (true)
                 {
-                    var awaitArray = new WaitHandle[] { addSemaphore.AvailableWaitHandle, cancel.Token.WaitHandle };
-                    while (true)
+                    retry:
+                    awaitArray[1] = cancel.Token.WaitHandle;
+                    int cancelIndex = 0;
+                    if (longRunning)
+                        cancelIndex = WaitHandle.WaitAny(awaitArray);
+                    else
+                        cancelIndex = WaitHandle.WaitAny(awaitArray, Timeout);
+                    if (cancelIndex == 0 && !addSemaphore.Wait(0))
+                        goto retry;
+                    bool ok = cancelIndex == 0;
+
+                    if (!ok)
                     {
-                        retry:
-                        awaitArray[1] = cancel.Token.WaitHandle;
-                        int thing = 0;
-                        if (longRunning)
-                            thing = WaitHandle.WaitAny(awaitArray);
-                        else
-                            thing = WaitHandle.WaitAny(awaitArray, Timeout);
-                        if (thing == 0 && !addSemaphore.Wait(0))
-                            goto retry;
-                        bool ok = thing == 0;
-
-                        if (!ok)
+                        if (cancel.IsCancellationRequested == false && longRunning) continue;
+                        lock (threadCreationLock)
                         {
-                            if (cancel.IsCancellationRequested == false && longRunning) continue;
-                            lock (threadCreationLock)
-                            {
-                                if (workItems.Count > 0)
-                                    goto retry;
-                                break;
-                            }
+                            if (workItems.Count > 0)
+                                goto retry;
+                            break;
                         }
+                    }
 
-                        IInvokable run;
-                        while (!workItems.TryDequeue(out run))
-                            Thread.Yield();
-                        
+                    IInvokable run;
+                    while (!workItems.TryDequeue(out run))
+                        Thread.Yield();
+                    try
+                    {
                         if (average != null)
                         {
                             var sw = Stopwatch.StartNew();
@@ -138,24 +150,31 @@ namespace OpenTap
                         {
                             run.Invoke();
                         }
+                    }
+                    finally
+                    {
                         Interlocked.Decrement(ref countdown);
                     }
                 }
-                finally
+            }
+            finally
+            {
+                lock (threadCreationLock)
                 {
-                    lock (threadCreationLock)
-                    {
-                        threadCount--;
-                    }
+                    threadCount--;
                 }
             }
+        }
 
+        /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
+        internal void EnqueueWork(IInvokable f)
+        {
             while (addSemaphore.CurrentCount >= semaphoreMaxCount - 10)
             {
                 // #4246: this is incredibly rare, but can happen if millions of results are pushed at once.
                 //        the solution is to just slow a bit down when it happens.
                 //        100 ms sleep is OK, because it needs to do around 1M things before it's idle.
-                TapThread.Sleep(100);
+                Thread.Sleep(100);
             }
             Interlocked.Increment(ref countdown);
             workItems.Enqueue(f);
@@ -167,7 +186,7 @@ namespace OpenTap
                 {
                     if (threadCount == 0)
                     {
-                        TapThread.Start(threadGo, Name);
+                        TapThread.Start(WorkerFunction, null, Name, threadContext);
                         threadCount++;
                     }
                 }
@@ -192,14 +211,31 @@ namespace OpenTap
 
         internal object Dequeue()
         {
+            // Take the semaphore then take an object, just like WorkerFunction does.
+            if (!addSemaphore.Wait(0))
+            { 
+                // there is a slight delay between pushing the work item and releasing the semaphore
+                // in the case that we are in that space, just return.
+                return null;
+            }
+            
             if (workItems.TryDequeue(out var inv))
             {
+                // when taking an item from the work queue the countdown and the semaphore must be decremented
                 Interlocked.Decrement(ref countdown);
+                Debug.Assert(inv != null);
                 if (inv is IWrappedInvokable wrap)
                     return wrap.InnerInvokable;
                 return inv;
             }
-            return inv;
+            
+            // Of some reason we are not able to dequeue the work item.
+            // in this case bump the semaphore so somebody else can take it.
+            // this should never happen.
+            Debug.Fail("Unable to dequeue element");
+            addSemaphore.Release(1);
+            
+            return null;
         }
 
         interface IWrappedInvokable: IInvokable

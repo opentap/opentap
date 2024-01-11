@@ -84,6 +84,41 @@ namespace OpenTap.UnitTests
             member.Unparameterize(forwardedMember, scope2.ChildTestSteps[1]);
             Assert.IsNull(TypeData.GetTypeData(scope2).GetMember(parameterName)); // last 'Title' removed.
         }
+        
+        [Test]
+        public void ParallelAddParametersTest()
+        {
+            // verify that we can add parameters while somebody else is iterating them.
+            // this issue only previously occured if the number of parameters in the same collection was 
+            // greater than 1.
+            var diag = new DialogStep() {UseTimeout = true};
+            var diag2 = new DialogStep();
+            var diag3 = new DialogStep();
+            var scope = new SequenceStep();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(scope);
+            string parameterName = "param1";
+            scope.ChildTestSteps.Add(diag);
+            scope.ChildTestSteps.Add(diag2);
+            scope.ChildTestSteps.Add(diag3);
+            
+            var member = TypeData.GetTypeData(diag).GetMember("Title");
+            var p1 = member.Parameterize(scope, diag, parameterName);
+            member.Parameterize(scope, diag2, parameterName);
+            int count = 0;
+            foreach (var _ in p1.ParameterizedMembers)
+            {
+                count++;
+                if (count == 2)
+                    member.Parameterize(scope, diag3, parameterName);
+            }
+            Assert.AreEqual(2, count);
+            
+            count = 0;
+            foreach (var _ in p1.ParameterizedMembers)
+                count++;
+            Assert.AreEqual(3, count);
+        }
 
         [Test]
         public void MultiLevelScopeSerialization()
@@ -287,6 +322,52 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(20, param.Value);
             }
         }
+        
+        [Test]
+        public void SweepLoopRange4Test()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterRangeStep();
+            var seq = new SequenceStep();
+            var delay = new DelayStep();
+            plan.ChildTestSteps.Add(seq);
+            seq.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(delay);
+            
+            var a = AnnotationCollection.Annotate(delay).GetMember(nameof(delay.DelaySecs));
+            var menu = a.Get<MenuAnnotation>();
+            var icons = menu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+            var parameterize = icons[IconNames.ParameterizeOnParent].First();
+            parameterize.Get<IMethodAnnotation>().Invoke();
+            
+            a = AnnotationCollection.Annotate(sweep).GetMember("Parameters \\ Time Delay");
+            menu = a.Get<MenuAnnotation>();
+            icons = menu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+            
+            // It should not be possible to parameterize (parameterized) properties which are selected for sweeping.
+            var names = new [] {IconNames.ParameterizeOnTestPlan, IconNames.Parameterize, IconNames.ParameterizeOnParent };
+            foreach (var name in names)
+            {
+                parameterize = icons[name].First();
+                Assert.IsTrue(parameterize.GetAll<IEnabledAnnotation>().Any(x => x.IsEnabled == false));
+            }
+
+            sweep.SelectedParameters.Clear();
+            a.Read();
+            
+            // It should be possible to parameterize (parameterized) properties which are not selected for sweeping.
+            foreach (var name in names)
+            {
+                parameterize = icons[name].First();
+                Assert.IsFalse(parameterize.GetAll<IEnabledAnnotation>().Any(x => x.IsEnabled == false));
+            }
+
+            // Now parameterize it (sweep -> sequence step).
+            icons[IconNames.ParameterizeOnParent].First().Get<IMethodAnnotation>().Invoke();
+            
+            // It should not be possible to select a parameterized property to be swept.
+            Assert.IsTrue(!sweep.AvailableParameters.Any());
+        }
 
         [Test]
         public void SweepLoop2Test()
@@ -315,7 +396,7 @@ namespace OpenTap.UnitTests
                 // verify Enabled<T> works with SweepParameterStep.
                 var annotation = AnnotationCollection.Annotate(sweep);
                 var col = annotation.GetMember(nameof(SweepParameterStep.SelectedParameters)).Get<IStringReadOnlyValueAnnotation>().Value;
-                Assert.AreEqual("A, EnabledTest", col);
+                Assert.AreEqual("EnabledTest, A", col);
                 var elements = annotation.GetMember(nameof(SweepParameterStep.SweepValues))
                     .Get<ICollectionAnnotation>().AnnotatedElements
                     .Select(elem => elem.GetMember(nameof(ScopeTestStep.EnabledTest)))
@@ -349,7 +430,7 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(((ScopeTestStep)sweep2.ChildTestSteps[0]).Collection.SequenceEqual(new[] {10, 20}));
 
             var name = sweep.GetFormattedName();
-            Assert.AreEqual("Sweep A, EnabledTest", name);
+            Assert.AreEqual("Sweep EnabledTest, A", name);
 
             { // Testing that sweep parameters are automatically removed after unparameterization.
                 var p = (ParameterMemberData) TypeData.GetTypeData(sweep2).GetMember("Parameters \\ A");
@@ -525,7 +606,7 @@ namespace OpenTap.UnitTests
                 var a = AnnotationCollection.Annotate(s)
                     .GetMember(nameof(step1.A))
                     .Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
-                        x.Get<IconAnnotationAttribute>().IconName == IconNames.ParameterizeOnTestPlan);
+                        x.Get<IconAnnotationAttribute>()?.IconName == IconNames.ParameterizeOnTestPlan);
                 var enabled = a.Get<IEnabledAnnotation>().IsEnabled;
                 if (s == step1)
                 {
@@ -558,7 +639,7 @@ namespace OpenTap.UnitTests
                 var a = AnnotationCollection.Annotate(s)
                     .GetMember(nameof(s.SweepValues))
                     .Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
-                        x.Get<IconAnnotationAttribute>().IconName == IconNames.ParameterizeOnTestPlan);
+                        x.Get<IconAnnotationAttribute>()?.IconName == IconNames.ParameterizeOnTestPlan);
                 var enabled = a.Get<IEnabledAnnotation>().IsEnabled;
                 if (s == step1)
                 {
@@ -641,6 +722,24 @@ namespace OpenTap.UnitTests
 
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Error, run.Verdict);
+        }
+
+        [Test]
+        public void SweepParameterErrorTest()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            plan.ChildTestSteps.Add(sweep);
+            var testStep = new DelayStep();
+            sweep.ChildTestSteps.Add(testStep);
+            TypeData.GetTypeData(testStep).GetMember(nameof(testStep.DelaySecs)).Parameterize(sweep, testStep, "A");
+            sweep.SweepValues.Add(new SweepRow());
+            sweep.SweepValues[0].Values["A"] = -1;
+
+            var result = plan.Execute();
+            result.Start();
+
+            Assert.AreEqual(Verdict.Error, result.Verdict);
         }
 
         [Test]
@@ -756,5 +855,36 @@ namespace OpenTap.UnitTests
                 Assert.IsNull(m2);
             }
         }
+        
+        [Test]
+        public void DynamicTypeDataEqualityTest()
+        {
+            // the ITypeData implementation if DynamicTestStepTypeData did not implement Equals / GetHashCode.
+            // this gives rise to issues with caching caching, leading to possible leaks. 
+            
+            var plan = new TestPlan();
+            var scope = new SequenceStep();
+            var scope2 = new SequenceStep();
+            plan.ChildTestSteps.Add(scope);
+            scope.ChildTestSteps.Add(scope2);
+
+            Dictionary<ITypeData, int> dict = new Dictionary<ITypeData, int>();
+            
+            var newMem = TypeData.GetTypeData(scope2).GetMember(nameof(scope2.Name)).Parameterize(scope, scope2, "param");
+            scope.Name = "Test {param}";
+            var tp0 = TypeData.GetTypeData(scope);
+
+            Assert.IsNotNull(newMem);
+            for (int i = 0; i < 5; i++)
+            {
+                var tp1 = TypeData.GetTypeData(scope);
+                Assert.IsTrue(object.ReferenceEquals(tp1, tp0));
+                dict[tp1] = i;
+            }
+
+            // all the values should be inserted at the same key location.
+            Assert.AreEqual(1, dict.Count);
+        }
+        
     }
 }

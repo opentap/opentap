@@ -42,14 +42,9 @@ namespace OpenTap.EngineUnitTestUtils
             log.FilePath.Text = logFilePath;
             TestPlanRun planRun = plan.Execute(ResultSettings.Current.Concat(new IResultListener[] { pl }));
             
-                List<string> allowedMessages = new List<string>
-            {
-                "DUT chipset is not verified to work with this application."
-            };
-
             ResultSettings.Current.Remove(log);
             Log.RemoveListener(trace);
-            trace.AssertErrors(allowedMessages);
+            trace.AssertErrors();
             foreach (var stepRun in pl.StepRuns)
             {
                 Assert.IsTrue(stepRun.Verdict <= Verdict.Pass, "TestPlan ran to completion but verdict was '{1}' on step '{0}'.\r\nLog:\r\n{2}",

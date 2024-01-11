@@ -10,6 +10,7 @@ using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using OpenTap.EngineUnitTestUtils;
+using OpenTap.UnitTests;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -229,6 +230,11 @@ namespace OpenTap.Engine.UnitTests
     public class DummyInstrument : Instrument
     {
 
+    }
+
+    public class DummyReferencingInstrument : Instrument
+    {
+        public Instrument Other { get; set; }
     }
 
     [DisplayName("Test\\UnitTest resultListener2")]
@@ -453,44 +459,6 @@ namespace OpenTap.Engine.UnitTests
     }
 
     [TestFixture]
-    public class AllowChildTest
-    {
-        
-        private class BaseAutomationStep : TestStep
-        {
-            public override void Run()
-            {
-            }
-        }
-
-        [AllowAsChildIn(typeof(BaseAutomationStep))]
-        private class AutomationStep : BaseAutomationStep
-        {
-        }
-
-        [AllowAsChildIn(typeof(BaseAutomationStep))]
-        [AllowAnyChild]
-        private class LoopStep : BaseAutomationStep
-        {
-        }
-
-        [Test]
-        public void TestAllowChildren()
-        {
-            LoopStep step = new LoopStep();
-            step.ChildTestSteps.Add(new AutomationStep());
-        }
-
-        [Test]
-        public void TestGuid()
-        {
-            var a = new DelayStep();
-            var b = new DelayStep();
-            Assert.AreNotEqual(a.Id, b.Id);
-        }
-    }
-
-    [TestFixture]
     public class BasicTestStepTests
     {
         public class FunkyArrayStep : TestStep
@@ -605,22 +573,55 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void ContinueLoop()
         {
-            var sequence = new SequenceStep();
-            var verdict1 = new VerdictStep {VerdictOutput = Verdict.Pass};
+            var repeat = new RepeatStep() {Action = RepeatStep.RepeatStepAction.Fixed_Count};
+            
+            var passStep = new VerdictStep {VerdictOutput = Verdict.Pass};
             var ifstep = new IfStep() {Action = IfStep.IfStepAction.ContinueLoop, TargetVerdict = Verdict.Pass};
-            ifstep.InputVerdict.Property = TypeData.GetTypeData(verdict1).GetMember(nameof(VerdictStep.Verdict));
-            ifstep.InputVerdict.Step = verdict1;
+            ifstep.InputVerdict.Property = TypeData.GetTypeData(passStep).GetMember(nameof(VerdictStep.Verdict));
+            ifstep.InputVerdict.Step = passStep;
             var verdict2 = new VerdictStep() {VerdictOutput = Verdict.Fail};
-            sequence.ChildTestSteps.Add(verdict1);
-            sequence.ChildTestSteps.Add(ifstep); // instructed to skip the last verdict step
-            sequence.ChildTestSteps.Add(verdict2); // if this step runs the plan will get the verdict 'fail'.
+            repeat.ChildTestSteps.Add(passStep);
+            repeat.ChildTestSteps.Add(ifstep); // instructed to skip the last verdict step
+            repeat.ChildTestSteps.Add(verdict2); // if this step runs the plan will get the verdict 'fail'.
             var plan = new TestPlan();
-            plan.ChildTestSteps.Add(sequence);
-
+            plan.ChildTestSteps.Add(repeat);
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
         }
 
+        [Test]
+        public void ContinueLoop2()
+        {
+            var repeat = new RepeatStep()
+            {
+                Action = RepeatStep.RepeatStepAction.Fixed_Count,
+                Count = 3
+            };
+            var sequence = new SequenceStep();
+            repeat.ChildTestSteps.Add(sequence);
+            // add some arbitrary depth to the loop.
+            var seq2 = new SequenceStep();
+            var seq3 = new SequenceStep();
+            var seq4 = new SequenceStep();
+
+            var verdict1 = new VerdictStep {VerdictOutput = Verdict.Pass};
+            var ifstep = new IfStep() {Action = IfStep.IfStepAction.ContinueLoop, TargetVerdict = Verdict.Pass};
+            ifstep.InputVerdict.Property = TypeData.GetTypeData(verdict1).GetMember(nameof(VerdictStep.Verdict));
+            ifstep.InputVerdict.Step = verdict1;
+            var failStep = new VerdictStep() {VerdictOutput = Verdict.Fail};
+            sequence.ChildTestSteps.Add(verdict1);
+            sequence.ChildTestSteps.Add(seq2);
+            seq2.ChildTestSteps.Add(seq3);
+            seq3.ChildTestSteps.Add(seq4);
+            seq4.ChildTestSteps.Add(ifstep); // instructed to skip the last verdict step
+            sequence.ChildTestSteps.Add(failStep); // if this step runs the plan will get the verdict 'fail'.
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(repeat);
+
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
+        } 
+        
         class ThrowsOnValidationErrorStep : TestStep
         {
             public bool ValidationFails { get; set; }
@@ -649,6 +650,33 @@ namespace OpenTap.Engine.UnitTests
             var run2 = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run2.Verdict);
         }
+        
+        [Test]
+        public void RefInstrumentDeletedTest()
+        {
+            using (Session.Create())
+            {
+                InstrumentSettings.Current.Clear();
+                var inst1 = new DummyInstrument();
+                var inst2 = new DummyReferencingInstrument
+                {
+                    Other = inst1
+                };
+                InstrumentSettings.Current.AddRange(new Instrument[]{inst1, inst2});
+
+                InstrumentSettings.Current.Remove(inst1);
+
+                var plan = new TestPlan();
+                plan.ChildTestSteps.Add(new AnnotationTest.InstrumentStep {Instrument = inst2});
+                var r = plan.Execute();
+                Assert.IsTrue(r.FailedToStart);
+                
+                var xml = new TapSerializer().SerializeToString(InstrumentSettings.Current);
+                var inst3 = (new TapSerializer().DeserializeFromString(xml) as InstrumentSettings)[0] as DummyReferencingInstrument;
+                Assert.IsNull(inst3.Other);
+            }
+        }
+
         
     }
 
@@ -733,6 +761,7 @@ namespace OpenTap.Engine.UnitTests
                 AssertFormatName("{Input String Array}", "tom, dick");
                 AssertFormatName("{Input String List}", "One, Two, Three");
             }
+            
 
             private void SetOutputProperty(AnnotationCollection inputAnnotation)
             {

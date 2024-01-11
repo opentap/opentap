@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan" Locked="false">
+  <Steps>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="a6a2a4e0-2a7c-4f3f-9543-c37fa2a1ba35">
+      <ExpectedVerdict>Pass</ExpectedVerdict>
+      <Enabled>true</Enabled>
+      <Name>Expect pass</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="72d4d5d8-8cd7-4ecc-b642-82660dfdb02d">
+          <Application>tap</Application>
+          <Arguments>test envvariables print</Arguments>
+          <WorkingDirectory></WorkingDirectory>
+          <EnvironmentVariables>
+            <EnvironmentVariable>
+              <Name>t</Name>
+              <Value>normal name</Value>
+            </EnvironmentVariable>
+            <EnvironmentVariable>
+              <Name>
+                <Base64>IHQ=</Base64>
+              </Name>
+              <Value>leading whitespace</Value>
+            </EnvironmentVariable>
+            <EnvironmentVariable>
+              <Name>
+                <Base64>dCA=</Base64>
+              </Name>
+              <Value>trailing whitespace</Value>
+            </EnvironmentVariable>
+            <EnvironmentVariable>
+              <Name>
+                <Base64>IA==</Base64>
+              </Name>
+              <Value>whitespace</Value>
+            </EnvironmentVariable>
+            <EnvironmentVariable>
+              <Name>=</Name>
+              <Value>equals symbol</Value>
+            </EnvironmentVariable>
+            <EnvironmentVariable>
+              <Name>'</Name>
+              <Value>special character 1</Value>
+            </EnvironmentVariable>
+            <EnvironmentVariable>
+              <Name>`</Name>
+              <Value>special character 2</Value>
+            </EnvironmentVariable>
+            <EnvironmentVariable>
+              <Name>&amp;</Name>
+              <Value>special character 3</Value>
+            </EnvironmentVariable>
+            <EnvironmentVariable>
+              <Name>/</Name>
+              <Value>special character 4</Value>
+            </EnvironmentVariable>
+            <EnvironmentVariable>
+              <Name>\</Name>
+              <Value>special character 5</Value>
+            </EnvironmentVariable>
+            <EnvironmentVariable>
+              <Name>µ</Name>
+              <Value>special character 6</Value>
+            </EnvironmentVariable>
+          </EnvironmentVariables>
+          <WaitForEnd>true</WaitForEnd>
+          <Timeout>0</Timeout>
+          <AddToLog>false</AddToLog>
+          <CheckExitCode>true</CheckExitCode>
+          <RegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </RegularExpressionPattern>
+          <VerdictOnMatch>Pass</VerdictOnMatch>
+          <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+          <ResultRegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </ResultRegularExpressionPattern>
+          <ResultName>Regex Result</ResultName>
+          <Behavior>GroupsAsDimensions</Behavior>
+          <DimensionTitles></DimensionTitles>
+          <Enabled>true</Enabled>
+          <Name>Run Program</Name>
+          <ChildTestSteps />
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+      </ChildTestSteps>
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Version="0.0.0" Id="449d8a7e-7925-4444-883f-48dbdbba8d71">
+      <ExpectedVerdict>Error</ExpectedVerdict>
+      <Enabled>true</Enabled>
+      <Name>Expect fail</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Version="9.4.0-Development" Id="6a6d9fa9-8a62-4977-a309-3f47e93e3fbb">
+          <Application>tap</Application>
+          <Arguments>test envvariables print</Arguments>
+          <WorkingDirectory></WorkingDirectory>
+          <EnvironmentVariables>
+            <EnvironmentVariable>
+              <Name></Name>
+              <Value>empty</Value>
+            </EnvironmentVariable>
+          </EnvironmentVariables>
+          <WaitForEnd>true</WaitForEnd>
+          <Timeout>0</Timeout>
+          <AddToLog>false</AddToLog>
+          <CheckExitCode>true</CheckExitCode>
+          <RegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </RegularExpressionPattern>
+          <VerdictOnMatch>Pass</VerdictOnMatch>
+          <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+          <ResultRegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </ResultRegularExpressionPattern>
+          <ResultName>Regex Result</ResultName>
+          <Behavior>GroupsAsDimensions</Behavior>
+          <DimensionTitles></DimensionTitles>
+          <Enabled>true</Enabled>
+          <Name>Run Program</Name>
+          <ChildTestSteps />
+          <BreakConditions>Inherit</BreakConditions>
+        </TestStep>
+      </ChildTestSteps>
+      <BreakConditions>Inherit</BreakConditions>
+    </TestStep>
+  </Steps>
+  <BreakConditions>Inherit</BreakConditions>
+  <OpenTap.Description />
+</TestPlan>

@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -95,10 +94,16 @@ namespace OpenTap
 
         internal static void PrintWaitingMessage(IEnumerable<IResource> resources)
         {
-            Log.Info("Waiting for resources to open:");
-            foreach (var resource in resources)
+            // Save disconnected ressources to avoid race conditions.
+            var waitingRessources = resources.Where(r => !r.IsConnected).ToArray();
+            if (waitingRessources.Length == 0)
             {
-                if (resource.IsConnected) continue;
+                return;
+            }
+
+            Log.Info("Waiting for resources to open:");
+            foreach (var resource in waitingRessources)
+            {
                 Log.Info(" - {0}", resource);
             }
         }
@@ -152,6 +157,10 @@ namespace OpenTap
             try
             {
                 execStage.StepsWithPrePlanRun.Clear();
+                
+                // Invoke test plan pre run event mixins.
+                TestPlanPreRunEvent.Invoke(this);
+                
                 if (!runPrePlanRunMethods(steps, execStage))
                 {
                     return failState.StartFail;
@@ -180,7 +189,11 @@ namespace OpenTap
                     var run = step.DoRun(execStage, execStage);
                     if (!run.Skipped)
                         runs.Add(run);
-                    run.CheckBreakCondition();
+                    if (run.BreakConditionsSatisfied())
+                    {
+                        run.LogBreakCondition();
+                        break;
+                    }
 
                     // note: The following is copied inside TestStep.cs
                     if (run.SuggestedNextStep is Guid id)
@@ -306,7 +319,9 @@ namespace OpenTap
                     logStream.Flush();
 
                     run.AddTestPlanCompleted(logStream, runWentOk != failState.StartFail);
-
+                    
+                    if(PrintTestPlanRunSummary)
+                        summaryListener.PrintArtifactsSummary();
                     run.ResourceManager.EndStep(this, TestPlanExecutionStage.Execute);
 
                     if (!run.IsCompositeRun)
@@ -320,10 +335,9 @@ namespace OpenTap
                         item.ExitTestPlanRun(run);
             }
         }
-        /// <summary>
-        /// When true, prints the test plan run summary at the end of a run.  
-        /// </summary>
+        /// <summary> When true, prints the test plan run summary at the end of a run. </summary>
         [XmlIgnore]
+        [AnnotationIgnore]
         public bool PrintTestPlanRunSummary { get; set; }
             
         /// <summary>
@@ -420,11 +434,21 @@ namespace OpenTap
             return Execute(ResultSettings.Current, null);
         }
 
-        /// <summary> </summary>
-        /// <returns></returns>
+        /// <summary>Executes the test plan asynchronously </summary>
+        /// <returns>A task returning the test plan run.</returns>
         public Task<TestPlanRun> ExecuteAsync()
         {
             return ExecuteAsync(ResultSettings.Current, null,null, TapThread.Current.AbortToken);
+        }
+        
+        /// <summary>
+        /// Executes the test plan asynchronously.
+        /// </summary>
+        /// <param name="abortToken">This abort token can be used to abort the operation.</param>
+        /// <returns>A task returning the test plan run.</returns>
+        public Task<TestPlanRun> ExecuteAsync(CancellationToken abortToken)
+        {
+            return ExecuteAsync(ResultSettings.Current, null,null, abortToken);
         }
         
         readonly TestPlanRunSummaryListener summaryListener = new TestPlanRunSummaryListener();
@@ -481,8 +505,10 @@ namespace OpenTap
         private TestPlanRun DoExecute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
         {
             if (resultListeners == null)
-                throw new ArgumentNullException("resultListeners");
-
+                throw new ArgumentNullException(nameof(resultListeners));
+            
+            ResultParameters.ParameterCache.LoadCache();
+            
             if (PrintTestPlanRunSummary && !resultListeners.Contains(summaryListener))
                 resultListeners = resultListeners.Concat(new IResultListener[] { summaryListener });
             resultListeners = resultListeners.Where(r => r is IEnabledResource ? ((IEnabledResource)r).IsEnabled : true);
@@ -544,16 +570,14 @@ namespace OpenTap
 
             if (currentExecutionState != null)
             {
+                currentExecutionState.ResultListenersSealed = false;
                 // load result listeners that are _not_ used in the previous runs.
                 // otherwise they wont get opened later.
                 foreach (var rl in resultListeners)
                 {
-                    if (!currentExecutionState.ResultListeners.Contains(rl))
-                        currentExecutionState.ResultListeners.Add(rl);
+                    currentExecutionState.AddResultListener(rl);
                 }
             }
-
-            var currentListeners = currentExecutionState != null ? currentExecutionState.ResultListeners : resultListeners;
 
             TestPlanRun execStage;
             bool continuedExecutionState = false;
@@ -590,7 +614,7 @@ namespace OpenTap
             {
                 execStage.FailedToStart = true; // Set it here in case OpenInternal throws an exception. Could happen if a step is missing an instrument
 
-                OpenInternal(execStage, continuedExecutionState, currentListeners.Cast<IResource>().ToList(), allEnabledSteps);
+                OpenInternal(execStage, continuedExecutionState, allEnabledSteps);
                     
                 execStage.WaitForSerialization();
                 execStage.ResourceManager.BeginStep(execStage, this, TestPlanExecutionStage.Execute, TapThread.Current.AbortToken);
@@ -623,11 +647,13 @@ namespace OpenTap
                 }
                 else if (e is System.ComponentModel.LicenseException)
                 {
+                    execStage.Exception = e;
                     Log.Error(e.Message);
                     execStage.UpgradeVerdict(Verdict.Error);
                 }
                 else
                 {
+                    execStage.Exception = e;
                     Log.Warning("TestPlan aborted.");
                     Log.Error(e.Message);
                     Log.Debug(e);
@@ -674,9 +700,11 @@ namespace OpenTap
             return Execute(resultListeners, metaDataParameters, null);
         }
 
-        private TestPlanRun currentExecutionState = null;
+        TestPlanRun currentExecutionState = null;
 
+        
         /// <summary> true if the plan is in its open state. </summary>
+        [AnnotationIgnore]
         public bool IsOpen { get { return currentExecutionState != null; } }
         
         /// <summary>
@@ -711,7 +739,7 @@ namespace OpenTap
                 Stopwatch timer = Stopwatch.StartNew();
                 currentExecutionState = new TestPlanRun(this, listeners.ToList(), DateTime.Now, Stopwatch.GetTimestamp(), true);
                 currentExecutionState.Start();
-                OpenInternal(currentExecutionState, false, listeners.Cast<IResource>().ToList(), allSteps);
+                OpenInternal(currentExecutionState, false, allSteps);
                 try
                 {
                     currentExecutionState.ResourceManager.WaitUntilAllResourcesOpened(TapThread.Current.AbortToken);
@@ -740,23 +768,19 @@ namespace OpenTap
             }
         }
         
-        private void OpenInternal(TestPlanRun run, bool isOpen, List<IResource> resources, List<ITestStep> steps)
+        private void OpenInternal(TestPlanRun run, bool isOpen, List<ITestStep> steps)
         {
             monitors = TestPlanRunMonitors.GetCurrent();
-            try
-            {
-                // Enter monitors
-                foreach (var item in monitors)
-                    item.EnterTestPlanRun(run);
-            }
-            finally   // We need to make sure OpenAllAsync is always called (even when CheckResources throws an exception). 
-            {         // Otherwise we risk that e.g. ResourceManager.WaitUntilAllResourcesOpened() will hang forever.
-                run.ResourceManager.EnabledSteps = steps;
-                run.ResourceManager.StaticResources = resources;
 
-                if (!isOpen)
-                    run.ResourceManager.BeginStep(run, this, TestPlanExecutionStage.Open, TapThread.Current.AbortToken);
-            }
+            // Enter monitors
+            foreach (var item in monitors)
+                item.EnterTestPlanRun(run);
+            
+            run.ResourceManager.EnabledSteps = steps;
+            run.ResourceManager.StaticResources = run.ResultListeners.ToArray();
+            run.ResultListenersSealed = true;
+            if (!isOpen)
+                run.ResourceManager.BeginStep(run, this, TestPlanExecutionStage.Open, TapThread.Current.AbortToken);
         }
 
         /// <summary>

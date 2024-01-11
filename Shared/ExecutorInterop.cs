@@ -6,7 +6,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
@@ -105,7 +104,7 @@ namespace OpenTap
             string pipename = pipeName = Guid.NewGuid().ToString().Replace("-", "");
             try
             {
-                return new NamedPipeServerStream(pipename, PipeDirection.In, 10, PipeTransmissionMode.Message, PipeOptions.WriteThrough);
+                return new NamedPipeServerStream(pipename, PipeDirection.In, 10);
             }
             catch (UnauthorizedAccessException)
             {
@@ -214,7 +213,10 @@ namespace OpenTap
 
         internal void MessageServer(string newname)
         {
-            pipeConnect.Wait();
+            if (!pipeConnect.Wait(TimeSpan.FromSeconds(10)))
+            {
+                throw new TimeoutException("Isolated process failed to connect to host process within reasonable time.");
+            }
             var toWrite = Encoding.UTF8.GetBytes(newname);
             pipe.Write(toWrite, 0, toWrite.Length);
         }

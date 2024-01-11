@@ -4,7 +4,7 @@ As you may have noticed, a test plan consists of XML. You *could* modify and ext
 using the tools we have developed.
 
 You currently have two options:
-1. [Developer’s System Community Edition](https://packages.opentap.io/index.html#/?name=Developer's%20System%20CE) - mature, feature-rich GUI (recommended)
+1. [Developer’s System](https://www.keysight.com/find/tapinstall) - mature, feature-rich GUI available with a commercial or community license (recommended)
 2. [TUI](https://packages.opentap.io/index.html#/?name=TUI) - open source cross-platform text-based user interface for usage in terminals (beta)
 
 ## The responsibility of an editor
@@ -14,13 +14,13 @@ running testplans, clearly organizing the output of a testplan. E.g.
 2. Display log output at various points throughout a run
 3. Breaking down the data associated with a test run in a way that empowers the user to analyze the results (results viewer)
 
-## Developer’s System Community Edition
+## Developer’s System
 
-Install the community edition version of the editor with the following command:
+Install the Developer's System (commercial or community license) from the following page:
 
-> tap package install "Editor CE"
+[https://www.keysight.com/find/tapinstall](https://www.keysight.com/find/tapinstall)
 
-and run it with `tap editor`.
+and run it with `tap editor` or `tap editorx` or launch from the app menu.
 
 ## TUI
 

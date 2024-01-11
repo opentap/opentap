@@ -139,6 +139,47 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(10)]
+        public void ParallelIfVerdictDeadlock(int n)
+        {
+            var plan = new TestPlan();
+            ParallelStep parallelStep = new ParallelStep();
+            plan.Steps.Add(parallelStep);
+            for (int i = 1; i < n; i++)
+            {
+                var step = new ParallelStep();
+                parallelStep.ChildTestSteps.Add(step);
+                parallelStep = step;
+            }
+            var ifVerdictStep = new IfStep();
+            parallelStep.ChildTestSteps.Add(ifVerdictStep);
+            ifVerdictStep.InputVerdict.Step = parallelStep;
+            ifVerdictStep.InputVerdict.Property = TypeData.GetTypeData(parallelStep).GetMember(nameof(parallelStep.Verdict));
+            
+            Assert.AreEqual(plan.Execute().Verdict, Verdict.Error);
+        }
+
+        [Test]
+        public void MovingStepWithInputTest()
+        {
+            var plan = new TestPlan();
+            var ifVerdict = new IfStep
+            {
+            };
+            var ifVerdict2 = new IfStep{};
+            plan.ChildTestSteps.Add(ifVerdict);
+            plan.ChildTestSteps.Add(ifVerdict2);
+            ifVerdict2.InputVerdict.Step = ifVerdict;
+            ifVerdict2.InputVerdict.Step = null;
+            plan.ChildTestSteps.Remove(ifVerdict);
+            plan.ChildTestSteps.Insert(0, ifVerdict);
+            
+            // this should still be null, but was not because of a (fixed) bug.
+            Assert.IsNull(ifVerdict2.InputVerdict.Step);
+        }
+
         [Test]
         public void RepeatVerdictTest()
         {
@@ -205,7 +246,7 @@ namespace OpenTap.Engine.UnitTests
 
         public override void Run()
         {
-            throw new NotImplementedException();
+            
         }
     }
 

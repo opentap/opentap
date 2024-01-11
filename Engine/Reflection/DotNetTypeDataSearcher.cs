@@ -6,19 +6,28 @@ using System.Collections.Generic;
 
 namespace OpenTap
 {
-    internal class DotNetTypeDataSearcher : ITypeDataSearcher
+    /// <summary> Searches for .NET types. This is the default TypeData searcher. </summary>
+    [Display(".NET Type Data Searcher", "Provides .NET plugin types.")]
+    public class DotNetTypeDataSearcher : ITypeDataSourceProvider
     {
         /// <summary>
         /// Get all types found by the search. 
         /// </summary>
-        public IEnumerable<ITypeData> Types { get; private set; }
+        IEnumerable<ITypeData> ITypeDataSearcher.Types => types;
 
-        /// <summary>
-        /// Performs an implementation specific search for types. Generates ITypeData objects for all types found Types property.
-        /// </summary>
-        public void Search()
+        IEnumerable<ITypeData> types;
+        
+        /// <summary> Performs an implementation specific search for types. Generates ITypeData objects for all types found Types property. </summary>
+        void ITypeDataSearcher.Search()
         {
-            Types = PluginManager.GetSearcher().AllTypes.Values;
+            types = PluginManager.GetSearcher().AllTypes.Values;
+        }
+
+        ITypeDataSource ITypeDataSourceProvider.GetSource(ITypeData typeData)
+        {
+            if (typeData is TypeData td && td.Assembly.Location != null)
+                return td.Assembly;
+            return null;
         }
     }
 }

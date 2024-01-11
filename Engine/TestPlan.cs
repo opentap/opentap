@@ -22,19 +22,17 @@ namespace OpenTap
     public partial class TestPlan : INotifyPropertyChanged, ITestStepParent
     {
         internal static readonly TraceSource Log = OpenTap.Log.CreateSource(nameof(TestPlan));        
-        private TestStepList _Steps;
-        private ITestPlanRunMonitor[] monitors; // For locking/unlocking or generally monitoring test plan start/stop.
+        TestStepList _Steps;
+        ITestPlanRunMonitor[] monitors; // For locking/unlocking or generally monitoring test plan start/stop.
         
-        /// <summary>
-        /// Field for external test plan parameters.
-        /// </summary>
+        /// <summary>  Field for external test plan parameters. </summary>
         [XmlIgnore]
-        public ExternalParameters ExternalParameters { get; private set; }
+        [AnnotationIgnore]
+        public ExternalParameters ExternalParameters { get; }
 
-        /// <summary>
-        /// A collection of TestStepBase steps.
-        /// </summary>
+        /// <summary> A collection of TestStepBase steps. </summary>
         [Browsable(false)]
+        [AnnotationIgnore]
         public TestStepList Steps
         {
             get => _Steps;
@@ -51,6 +49,7 @@ namespace OpenTap
         /// <summary>
         /// List of test steps that make up this plan.  
         /// </summary>
+        [AnnotationIgnore]
         public TestStepList ChildTestSteps => _Steps;
 
 
@@ -59,22 +58,16 @@ namespace OpenTap
         /// </summary>
         [XmlIgnore]
         [Browsable(false)]
+        [AnnotationIgnore]
         public ITestStepParent Parent { get => null; set { } }
 
-        /// <summary>
-        /// Gets the subset of steps that are enabled.
-        /// </summary>
+        /// <summary> Gets the subset of steps that are enabled. </summary>
         [XmlIgnore]
-        public ReadOnlyCollection<ITestStep> EnabledSteps
-        {
-            get
-            {
-                return Steps
-                    .GetSteps(TestStepSearch.EnabledOnly)
-                    .ToList()
-                    .AsReadOnly();
-            }
-        }
+        [AnnotationIgnore]
+        public ReadOnlyCollection<ITestStep> EnabledSteps => Steps
+            .GetSteps(TestStepSearch.EnabledOnly)
+            .ToList()
+            .AsReadOnly();
 
         /// <summary>
         /// Gets or sets the name. This is usually the name of the file where the test plan is saved, without the .TapPlan extension.
@@ -100,9 +93,8 @@ namespace OpenTap
         /// </summary>
         public event EventHandler<BreakOfferedEventArgs> BreakOffered;
 
-        /// <summary>
-        /// True if the test plan is waiting in a break.
-        /// </summary>
+        /// <summary>  True if the test plan is waiting in a break. </summary>
+        [AnnotationIgnore]
         public bool IsInBreak => breakRefCount > 0; 
 
         int breakRefCount = 0;
@@ -140,6 +132,7 @@ namespace OpenTap
         /// </summary>
         [XmlAttribute]
         [Display("Locked", "Checking this makes the test plan read-only.", Order: 2)]
+        [DefaultValue(false)]
         public bool Locked
         {
             get => locked;
@@ -165,6 +158,7 @@ namespace OpenTap
         }
 
         /// <summary> True if this TestPlan is currently running. </summary>
+        [AnnotationIgnore]
         public bool IsRunning => CurrentRun != null;
 
         /// <summary> </summary>
@@ -177,6 +171,7 @@ namespace OpenTap
         
         /// <summary>  Gets or sets if the test plan XML for this test plan should be cached. </summary>
         [XmlIgnore]
+        [AnnotationIgnore]
         public bool CacheXml { get; set; }
 
         byte[] xmlCache = null;
@@ -291,7 +286,8 @@ namespace OpenTap
             public string Name { get; private set; } = "Errors occured while loading test plan.";
             [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
             [Submit]
-            public PlanLoadErrorResponse Response { get; set; } = PlanLoadErrorResponse.Ignore;
+            // this should be Abort by default, so that --non-interactive fails to start.
+            public PlanLoadErrorResponse Response { get; set; } = PlanLoadErrorResponse.Abort; 
         }
 
         /// <summary> Load a TestPlan. </summary>
@@ -414,10 +410,12 @@ namespace OpenTap
         /// Gets where this plan was last saved or loaded from. It might be null.
         /// </summary>
         [XmlIgnore]
+        [AnnotationIgnore]
         public string Path { get; internal set; }
 
         /// <summary> The directory where the test plan is stored.</summary>
         [MetaData(macroName: "TestPlanDir")]
+        [AnnotationIgnore]
         public string Directory
         {
             get

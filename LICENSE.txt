@@ -2,7 +2,7 @@ Additional licenses for OpenTAP dependencies are contained within their dependen
 ------------------------------------------------
 
 OpenTAP
-© Keysight Technologies 2012-2021
+© Keysight Technologies 2012-2023
 ------------------------------------------------
 Mozilla Public License
 Version 2.0

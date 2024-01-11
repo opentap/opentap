@@ -16,8 +16,8 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
 using System.Threading.Tasks;
-using NuGet.Packaging;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 
 namespace OpenTap.Package
 {
@@ -133,13 +133,19 @@ namespace OpenTap.Package
         /// </summary>
         [XmlIgnore]
         internal List<AssemblyData> DependentAssemblies { get; set; }
+        
+        /// <summary> Other type data dependency sources (e.g Python type data) </summary>
+        [XmlIgnore]
+        internal List<ITypeDataSource> DependentTypeDataSources { get; set; }
+
+        internal IEnumerable<ITypeDataSource> AllDependencies => DependentAssemblies.Concat(DependentTypeDataSources);
 
         /// <summary>
         /// License required by the plugin file.
         /// </summary>
         [XmlAttribute("LicenseRequired")]
-        [DefaultValue(null)]
-        public string LicenseRequired { get; set; }
+        [DefaultValue("")]
+        public string LicenseRequired { get; set; } = "";
 
         /// <summary>
         /// Creates a new instance of PackageFile.
@@ -147,6 +153,7 @@ namespace OpenTap.Package
         public PackageFile()
         {
             DependentAssemblies = new List<AssemblyData>();
+            DependentTypeDataSources = new List<ITypeDataSource>();
             Plugins = new List<PluginFile>();
             IgnoredDependencies = new List<string>();
             CustomData = new List<ICustomPackageData>();
@@ -226,6 +233,20 @@ namespace OpenTap.Package
         public string ExpectedExitCodes { get; set; } = "0";
 
         /// <summary>
+        /// False; Action stdout and stderr will be forwarded
+        /// True; Action stdout and stderr will be suppressed
+        /// </summary>
+        [XmlAttribute("Quiet")]
+        public bool Quiet { get; set; } = false;
+
+        /// <summary>
+        /// False; package installation should fail if the executable does not exist.
+        /// True; package installation should continue if the executable does not exist.
+        /// </summary>
+        [XmlAttribute("Optional")]
+        public bool Optional { get; set; } = false;
+
+        /// <summary>
         /// Arguments to the exe file.
         /// </summary>
         [XmlAttribute("Arguments")]
@@ -292,12 +313,42 @@ namespace OpenTap.Package
         /// Holds additional metadata for a package
         /// </summary>
         public Dictionary<string, string> MetaData { get; } = new Dictionary<string, string>();
-        
+
+        string loadedHash;
+        bool hashVerified;
+        const int oldHashLength = 40;
         /// <summary>
         /// The hash of the package. This is based on hashes of each payload file as well as metadata in the package definition.
         /// </summary>
         [DefaultValue(null)]
-        public string Hash { get; set; }
+        public string Hash
+        {
+            get
+            {
+                // in OpenTAP 9.18 and earlier weak / invalid hash values were calculated.
+                // in 9.19, its fixed, but to distinguish a different length of hashes are used.
+                // the previous hash length was always 40.
+                
+                if (!hashVerified && loadedHash != null)
+                {
+                    hashVerified = true;
+                    if (loadedHash.Length == oldHashLength)
+                    {
+                        var hash2 = ComputeHash();
+                        if (hash2 != null)
+                            loadedHash = hash2;
+                    }
+                }
+                
+                return loadedHash;
+            }
+            set
+            {
+                if (loadedHash == value) return;
+                loadedHash = value;
+                hashVerified = loadedHash?.Length != oldHashLength;
+            }
+        }
 
         /// <summary>
         /// A description of this package.
@@ -367,8 +418,8 @@ namespace OpenTap.Package
         /// Bundle packages (<see cref="Class"/> is 'bundle') can use this property to show licenses that are required by the bundle dependencies. 
         /// </summary>
         [XmlAttribute]
-        [DefaultValue(null)]
-        public string LicenseRequired { get; set; }
+        [DefaultValue("")]
+        public string LicenseRequired { get; set; } = "";
 
         /// <summary>
         /// The package class, this can be either 'package', 'bundle' or 'solution'.
@@ -469,16 +520,16 @@ namespace OpenTap.Package
             var root = XElement.Load(stream);
 
             var xns = root.GetDefaultNamespace();
-            var filesElement = root.Element(xns + "Files");
+            var filesElement = root.Element(xns.GetName("Files"));
             if (filesElement != null)
             {
-                var fileElements = filesElement.Elements(xns + "File");
+                var fileElements = filesElement.Elements(xns.GetName("File"));
                 foreach (var file in fileElements)
                 {
-                    var plugins = file.Element(xns + "Plugins");
+                    var plugins = file.Element(xns.GetName("Plugins"));
                     if (plugins == null) continue;
 
-                    var pluginElements = plugins.Elements(xns + "Plugin");
+                    var pluginElements = plugins.Elements(xns.GetName("Plugin"));
                     foreach (var plugin in pluginElements)
                     {
                         if (!plugin.HasElements && !plugin.IsEmpty)
@@ -503,32 +554,37 @@ namespace OpenTap.Package
             new TapSerializer().Serialize(stream, this);
         }
 
+        
         /// <summary>
         /// Writes this package definition to a file.
         /// </summary>
         public static void SaveManyTo(Stream stream, IEnumerable<PackageDef> packages)
         {
-            XDocument xdoc = new XDocument();
-            var root = new XElement("ArrayOfPackages");
-            xdoc.Add(root);
-            foreach (PackageDef package in packages)
+            using var writer = XmlWriter.Create(stream);
+            using var _ = TypeData.WithTypeDataCache();
+            
+            writer.WriteStartDocument();
+            writer.WriteStartElement("ArrayOfPackages");
+            // Write fragments because we manually insert the start and end of the document.
+            // This way, if the stream is outgoing from the process, we avoid having to store all the document
+            // in memory. This can be useful as 'packages' may come from a stream itself.
+            var serializer = new TapSerializer { WriteFragments = true };
+            
+            // added batching as a speculative performance improvement.
+            foreach (PackageDef package in packages.Batch(32))
             {
-                using (Stream str = new MemoryStream())
+                try
                 {
-                    try
-                    {
-                        package.SaveTo(str);
-                        str.Seek(0, 0);
-                        var pkgElement = XElement.Load(str);
-                        root.Add(pkgElement);
-                    }
-                    catch (Exception ex)
-                    {
-                        log.Error(ex);
-                    }
+                    serializer.Serialize(writer, package);
+                }
+                catch (Exception ex)
+                {
+                    log.Error(ex);
                 }
             }
-            xdoc.Save(stream);
+            
+            writer.WriteEndElement();
+            writer.Flush();
         }
 
         /// <summary>
@@ -543,11 +599,11 @@ namespace OpenTap.Package
             {
                 using (Stream str = new MemoryStream())
                 {
-                    if (node is XElement)
+                    if (node is XElement nodeElement)
                     {
-                        (node as XElement).Save(str);
+                        nodeElement.Save(str);
                         str.Seek(0, 0);
-                        var package = PackageDef.FromXml(str);
+                        var package = FromXml(str);
                         if (package != null)
                         {
                             lock (packages)
@@ -614,7 +670,7 @@ namespace OpenTap.Package
                 {
                     foreach (var part in zip.Entries)
                     {
-                        FileSystemHelper.EnsureDirectory(part.FullName);
+                        FileSystemHelper.EnsureDirectoryOf(part.FullName);
                         var instream = part.Open();
                         using (var outstream = File.Create(part.FullName))
                         {
@@ -660,10 +716,10 @@ namespace OpenTap.Package
         /// </summary>
         public static PackageDef FromXml(string path)
         {
-            using (var stream = File.OpenRead(path))
-                return PackageDef.FromXml(stream);
+            using var stream = File.OpenRead(path);
+            return FromXml(stream);
         }
-
+        
         /// <summary>
         /// Returns the XML schema for a package definition XML file.
         /// </summary>
@@ -832,8 +888,8 @@ namespace OpenTap.Package
         /// <returns>A base64 encoded SHA1 hash of relevant fields in the package definition</returns>
         public string ComputeHash()
         {
-            using (MemoryStream str = new MemoryStream())
-            using (TextWriter wtr = new StreamWriter(str))
+            using MemoryStream str = new MemoryStream();
+            using (TextWriter wtr = new StreamWriter(str, Encoding.Default, 4096, true))
             {
                 wtr.Write(this.Name);
                 wtr.Write(this.Version);
@@ -844,27 +900,25 @@ namespace OpenTap.Package
                 wtr.Write(string.Join("", this.Dependencies.OrderBy(d => d.Name).Select(d => d.Name + d.Version)));
                 foreach (PackageFile file in this.Files.OrderBy(f => f.FileName))
                 {
-                    FileHashPackageAction.Hash fileHash = file.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
+                    FileHashPackageAction.Hash fileHash =
+                        file.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
                     if (fileHash != null)
-                    {
                         wtr.Write(fileHash.Value);
-                    }
-                    else if (File.Exists(file.FileName))
-                    {
-                        wtr.Write(Convert.ToBase64String(FileHashPackageAction.hashFile(file.FileName)));
-                    }
                     else
-                        throw new Exception($"Missing hash of payload file {file.FileName} (file does not exist).");
+                        wtr.Write(file.FileName);
                 }
-
-                str.Seek(0, 0);
-                HashAlgorithm algorithm = SHA1.Create();
-                var bytes = algorithm.ComputeHash(str);
-                return BitConverter.ToString(bytes).Replace("-", "");
             }
+
+            str.Seek(0, SeekOrigin.Begin);
+            using var algorithm = SHA1.Create();
+            var bytes = algorithm.ComputeHash(str);
+            return Utils.Base64UrlEncode(bytes);
         }
+
+        internal PackageSpecifier GetSpecifier() => new PackageSpecifier(Name, Version.AsExactSpecifier(), Architecture, OS);
     }
 
+    
     // helper class to ignore namespaces when de-serializing
     internal class NamespaceIgnorantXmlTextReader : XmlTextReader
     {
@@ -929,10 +983,9 @@ namespace OpenTap.Package
                 if ((HostArchitecture == CpuArchitecture.arm) || (HostArchitecture == CpuArchitecture.arm64)) currentArchitecture = HostArchitecture;
 
                 // And finally try to use the actual information in the package xml.
-                var installDir = Path.GetDirectoryName(typeof(PluginManager).Assembly.Location);
-                if(File.Exists(PackageDef.GetDefaultPackageMetadataPath("OpenTap", installDir))){
-                    currentArchitecture = PackageDef.FromXml(PackageDef.GetDefaultPackageMetadataPath("OpenTap", installDir)).Architecture;
-                }
+                var opentapPackage = Installation.Current.GetOpenTapPackage();
+                if (opentapPackage != null)
+                    currentArchitecture = opentapPackage.Architecture;
 
                 return currentArchitecture;
             }

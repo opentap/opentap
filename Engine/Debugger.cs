@@ -17,6 +17,12 @@ namespace OpenTap
 
     /// <summary> Class for managing debuggers. Set the OPENTAP_DEBUGGER_ASSEMBLY environment variable to make it possible to attach debuggers. 
     /// The environment variable should contain paths to assemblies with IDebugger implementations. </summary>
+    /// <remarks>
+    /// To use this feature with Visual Studio, first install the Visual Studio SDK:
+    ///    C:\git\opentap\bin\Debug\tap package install "Visual Studio SDK"
+    /// Then set the environment variable to the location of the debugger dll in that package:
+    ///    $env:OPENTAP_DEBUGGER_ASSEMBLY="C:\git\opentap\bin\Debug\Packages\Visual Studio SDK\OpenTap.VSSdk.Debugger.dll"
+    /// </remarks>
     public static class DebuggerAttacher
     {
         const string DebuggerAssemblyEnv = "OPENTAP_DEBUGGER_ASSEMBLY";

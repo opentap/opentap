@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading;
+using OpenTap.Package.PackageInstallHelpers;
 
 #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
 namespace OpenTap.Package
@@ -27,6 +28,15 @@ namespace OpenTap.Package
         [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
         public bool NonInteractive { get; set; } = false;
         
+        /// <summary>
+        /// This will be set only if the install action was started by <see cref="PackageInstallStep"/>
+        /// This is supposed to solve an issue where OpenTAP fails to detect that the process was elevated.
+        /// If one level of elevation was already attempted, it is unlikely that further attempts will cause the check to succeed.
+        /// In this instance, it is better to just try the installation with the current privileges, and fail with whatever
+        /// error if those privileges are not sufficient.
+        /// </summary>
+        internal bool AlreadyElevated { get; set; }
+        
         private int DoExecute(CancellationToken cancellationToken)
         {
             if (Force == false && Packages.Any(p => p == "OpenTAP") && Target == ExecutorClient.ExeDir)
@@ -36,11 +46,14 @@ namespace OpenTap.Package
                 return (int) ExitCodes.ArgumentError;
             }
 
-            Installer installer = new Installer(Target, cancellationToken) {DoSleep = false};
-            installer.ProgressUpdate += RaiseProgressUpdate;
-            installer.Error += RaiseError;
+            // Skip auto-correction if ignore-missing is specified
+            if (!IgnoreMissing) 
+                Packages = AutoCorrectPackageNames.Correct(Packages, Array.Empty<IPackageRepository>());
 
-            var installedPackages = new Installation(Target).GetPackages();
+            var installation = new Installation(Target);
+            var installedPackages = installation.GetPackages();
+            var packagePaths = new List<string>();
+            var systemwidePackages = new List<(string path, PackageDef pkg)>();
 
             bool anyUnrecognizedPlugins = false;
             foreach (string pack in Packages)
@@ -49,9 +62,15 @@ namespace OpenTap.Package
 
                 if (package != null && package.PackageSource is InstalledPackageDefSource source)
                 {
-                    installer.PackagePaths.Add(source.PackageDefFilePath);
-                    if (package.IsBundle())
-                        installer.PackagePaths.AddRange(GetPaths(package, source, installedPackages));
+
+                    if (package.IsSystemWide())
+                        systemwidePackages.Add((source.PackageDefFilePath, package));
+                    else
+                    {
+                        packagePaths.Add(source.PackageDefFilePath);
+                        if (package.IsBundle())
+                            packagePaths.AddRange(GetPaths(package, installedPackages));
+                    }
                 }
                 else if (!IgnoreMissing)
                 {
@@ -64,18 +83,84 @@ namespace OpenTap.Package
                 return (int) PackageExitCodes.InvalidPackageName;
 
             if (!Force)
-                if (!CheckPackageAndDependencies(installedPackages, installer.PackagePaths, out var userCancelled))
+            {
+                List<PackageDef> additionalToRemove = new List<PackageDef>();
+                switch (CheckPackageAndDependencies(installedPackages, packagePaths, additionalToRemove))
                 {
-                    if (userCancelled)
-                    {
+                    case ContinueResponse.Cancel:
                         log.Info("Uninstall cancelled by user.");
                         return (int) ExitCodes.UserCancelled;
-                    }
-
-                    return (int) PackageExitCodes.PackageDependencyError;
+                    case ContinueResponse.RemoveAll:
+                        packagePaths.AddRange(additionalToRemove.Select(x =>((InstalledPackageDefSource)x.PackageSource ).PackageDefFilePath));
+                        foreach(var pkg in additionalToRemove)
+                            log.Info("Also removing {0} {1}.", pkg.Name, pkg.Version);
+                        break;
+                    case ContinueResponse.Continue:
+                        break;
+                    case ContinueResponse.Error:
+                        return (int) PackageExitCodes.PackageUninstallError;    
                 }
+            }
 
-            var status = installer.RunCommand("uninstall", Force, true);
+            Installer installer = new Installer(Target, cancellationToken) {DoSleep = false};
+            installer.PackagePaths.AddRange(packagePaths);
+            installer.ProgressUpdate += RaiseProgressUpdate;
+            installer.Error += RaiseError;
+            
+            bool needElevation = !AlreadyElevated && systemwidePackages.Any() && SubProcessHost.IsAdmin() == false;
+            
+            // Warn the user if elevation was already attempted, and we are not currently running as admin
+            if (AlreadyElevated && SubProcessHost.IsAdmin() == false)
+            {
+                log.Warning($"Process elevation failed. Installation will continue without elevation.");
+            }
+
+            // If we need to remove system-wide packages and we are not admin, we should remove them in an elevated sub-process
+            if (needElevation)
+            {
+                RaiseProgressUpdate(10, "Removing system-wide packages.");
+                var installStep = new PackageUninstallStep()
+                {
+                    Packages = systemwidePackages.Select(p => p.pkg.Name).ToArray(),
+                    Force = Force,
+                    Target = PackageDef.SystemWideInstallationDirectory,
+                };
+                
+                var processRunner = new SubProcessHost
+                {
+                    ForwardLogs = true,
+                    MutedSources =
+                    {
+                        "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan",
+                        "UpdateCheck",
+                        "Installation"
+                    },
+                    // The current install action is a locking package action.
+                    // Setting this flag lets the child process bypass the lock on the installation.
+                    Unlocked = true,
+                };
+                
+                var result = processRunner.Run(installStep, true, cancellationToken);
+                if (result != Verdict.Pass)
+                {
+                    var ex = new Exception(
+                        $"Failed installing system-wide packages. Try running the command as administrator.");
+                    RaiseError(ex);
+                } 
+                
+                var pct = (double)systemwidePackages.Count / (systemwidePackages.Count + packagePaths.Count) * 100;
+                RaiseProgressUpdate((int)pct, "Removed system-wide packages.");
+            }
+            // Otherwise if we are admin and we need to install system-wide packages, we can install them in the current process
+            else if (systemwidePackages.Any())
+            {
+                installer.PackagePaths.AddRange(systemwidePackages.Select(p => p.path));
+            }
+
+            var status = installer.RunCommand(Installer.PrepareUninstall, Force, false);
+            if (status == (int) ExitCodes.GeneralException)
+                return (int) PackageExitCodes.PackageUninstallError;
+            status = installer.RunCommand(Installer.Uninstall, Force, true);
             if (status == (int) ExitCodes.GeneralException)
                 return (int) PackageExitCodes.PackageUninstallError;
             return status;
@@ -101,8 +186,7 @@ namespace OpenTap.Package
             }
         }
 
-        private List<string> GetPaths(PackageDef package, InstalledPackageDefSource source,
-            List<PackageDef> installedPackages)
+        private List<string> GetPaths(PackageDef package, List<PackageDef> installedPackages)
         {
             if (NonInteractive)
             {
@@ -115,14 +199,37 @@ namespace OpenTap.Package
 
             var result = new List<string>(package.Dependencies.Count);
 
+            // Get the names of all dependencies including the name of the bundle containing them
+            var depNames = package.Dependencies.Select(d => d.Name).ToHashSet();
+            depNames.Add(package.Name);
+            // Get all currently installed packages that are NOT part of this bundle
+            var currentlyInstalled = installedPackages
+                .Where(p => depNames.Contains(p.Name) == false).ToArray();
+
             foreach (var dependency in package.Dependencies)
             {
+                // Never offer to uninstall OpenTAP as this will lead to a broken install.
+                if (dependency.Name == "OpenTAP") continue;
+                // Detect if any other package depends on a package from this bundle
+                // If another package depends on it, don't offer to uninstall itg
+                var otherDepender =
+                    currentlyInstalled.FirstOrDefault(c =>
+                        c.Dependencies.Any(d => d.Name == dependency.Name));
+
+                if (otherDepender != null)
+                {
+                    log.Info(
+                        $"Package '{dependency.Name}' will not be uninstalled because '{otherDepender.Name}' still depends on it.");
+                    continue;
+                }
+
                 var dependencyPackage = installedPackages.FirstOrDefault(p => p.Name == dependency.Name);
-                
-                if (dependencyPackage != null && dependencyPackage.PackageSource is InstalledPackageDefSource source2)
+
+                if (dependencyPackage?.PackageSource is XmlPackageDefSource source2)
                 {
                     var question =
-                        $"Package '{dependency.Name}' is a member of the bundle '{package.Name}'.\nDo you wish to uninstall '{dependency.Name}'?";
+                        $"Package '{dependency.Name}' is a member of the bundle '{package.Name}'.\n" +
+                        $"Do you wish to uninstall '{dependency.Name}'?";
 
                     var req = new UninstallRequest(question) {Response = UninstallResponse.No};
                     UserInput.Request(req, true);
@@ -135,10 +242,14 @@ namespace OpenTap.Package
             return result;
         }
 
-        private bool CheckPackageAndDependencies(List<PackageDef> installed, List<string> packagePaths, out bool userCancelled)
+        private ContinueResponse CheckPackageAndDependencies(List<PackageDef> installed, List<string> packagePaths, List<PackageDef> removeAdditional)
         {
-            userCancelled = false;
-            var packages = packagePaths.Select(PackageDef.FromXml).ToList();
+            var packages = packagePaths.Select(str =>
+            {
+                var pkg = PackageDef.FromXml(str);
+                pkg.PackageSource = new XmlPackageDefSource{PackageDefFilePath = str};
+                return pkg;
+            }).ToList();
             installed.RemoveIf(i => packages.Any(u => u.Name == i.Name && u.Version == i.Version));
             var analyzer = DependencyAnalyzer.BuildAnalyzerContext(installed);
             var packagesWithIssues = new List<PackageDef>();
@@ -152,7 +263,7 @@ namespace OpenTap.Package
             if (packages.Any(p => p.Files.Any(f => f.FileName.ToLower().EndsWith("OpenTap.dll"))))
             {
                 log.Error("OpenTAP cannot be uninstalled.");
-                return false;
+                return ContinueResponse.Error;
             }
 
             if (packagesWithIssues.Any())
@@ -163,27 +274,33 @@ namespace OpenTap.Package
                     string.Join(" and ", packages.Select(p => p.Name)),
                     string.Join("\n", packagesWithIssues.Select(p => p.Name + " " + p.Version)));
 
-                var req = new ContinueRequest { message = question, Response = ContinueResponse.Continue };
+                var req = new ContinueRequest { message = question, Response = ContinueResponse.Cancel };
                 UserInput.Request(req, true);
-
-                if (req.Response == ContinueResponse.Continue)
-                    return true;
-                userCancelled = true;
-                return false;
+                if (req.Response == ContinueResponse.RemoveAll)
+                {
+                    removeAdditional.AddRange(packagesWithIssues);
+                }
+                return req.Response;
             }
 
-            return true;
+            return ContinueResponse.Continue;
         }
     }
 
-    [Obfuscation(Exclude = true)]
     enum ContinueResponse
     {
+        [Display("Remove all the packages")]
+        RemoveAll,
+        // This will break the installation, so lets not present this as an option to the user.
+        // --force can be used to force remove packages.
+        [Browsable(false)] 
         Continue,
-        Cancel
+        Cancel,
+        [Browsable(false)]
+        Error,
+
     }
 
-    [Obfuscation(Exclude = true)]
     class ContinueRequest
     {
         [Browsable(true)]
@@ -197,14 +314,12 @@ namespace OpenTap.Package
         public ContinueResponse Response { get; set; }
     }
 
-    [Obfuscation(Exclude = true)]
     enum UninstallResponse
     {
+        No,
         Yes,
-        No
     }
-    
-    [Obfuscation(Exclude = true)]
+
     [Display("Uninstall bundled package?")]
     class UninstallRequest
     {
@@ -212,7 +327,7 @@ namespace OpenTap.Package
         {
             Message = message;
         }
-        
+
         [Browsable(true)]
         [Layout(LayoutMode.FullRow)]
         public string Message { get; }

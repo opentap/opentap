@@ -3,7 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Xml.Serialization;
@@ -122,28 +121,42 @@ namespace OpenTap
             }
         }
 
+        // the step ID is used for storing the step ID when moving the Step owning the Input.
+        // otherwise, after moving the step (taking it out of the test plan and moving it back in) the Step might be null.
         Guid stepId;
         void ChildTestSteps_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
-            if(Step != null && e.OldItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove)
+            if (Step != null && e.OldItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove)
             {
                 if (e.OldItems.Contains(step) || Step.GetParents().Any(e.OldItems.Contains))
                 {
                     stepId = Step.Id;
                     Step = null;
                 }
-            }else if(e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
+            }
+            else if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
             {
-                if(Step != null)
-                  stepId = Step.Id;
+                if (Step != null)
+                    stepId = Step.Id;
                 Step = null;
-            }else  if(e.NewItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
+            }
+            else if (e.NewItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
             {
+                // Update the Step value when the step has moved inside the test plan.
+                // We do this because we want to set the Input to null if the test plan changes in a way
+                //     where the target step disappears.
+
+                // Avoid setting the Step if the property name is null - this usually means that 
+                //     the property has been set to null, but the stepId still has a remaining value.
+                //     this should be ok to ignore.
+                if (Property == null)
+                    return;
+
                 var steps = e.NewItems.OfType<ITestStep>();
                 var allSteps = Utils.FlattenHeirarchy(steps, x => x.ChildTestSteps).Distinct();
-                foreach(var step in allSteps)
+                foreach (var step in allSteps)
                 {
-                    if(step.Id == stepId)
+                    if (step.Id == stepId)
                     {
                         Step = step;
                         return;
@@ -166,22 +179,17 @@ namespace OpenTap
                 return (T)InputOutputRelation.GetOutput(Property, Step); 
             }
         }
-        
-        /// <summary>Constructor for the Input class.</summary>
-        public Input()
-        {
-            
-        }
 
+        T GetValueNonBlocking()
+        {
+            if (Step != null && Property?.GetValue(Step) is T v)
+                return v;
+            return default;
+        }
+        
         /// <summary> Converts the value of this instance to its equivalent string representation. </summary>
         /// <returns> The string representation of the value of this instance. </returns>
-        public override string ToString()
-        {
-            if (Step == null|| Property == null)
-                return "";
-            var value = Value == null ? "" : StringConvertProvider.GetString(Value);
-            return value ?? "";
-        }
+        public override string ToString() =>  StringConvertProvider.GetString(GetValueNonBlocking()) ?? "";
 
         /// <summary> Compares one Input to another. </summary>
         /// <param name="obj"></param>

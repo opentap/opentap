@@ -6,6 +6,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -113,7 +114,7 @@ namespace OpenTap
     }
 
     /// <summary>
-    /// A vector containing a number of results with matching names, column name, and types. 
+    /// A result table containing rows of results with matching names, column name, and types. 
     /// </summary>
     [Serializable]
     public class ResultTable : IResultTable
@@ -133,7 +134,7 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Indicates how many rows of results this vector contains.
+        /// Indicates how many rows of results this table contains.
         /// </summary>
         public int Rows { get; private set; }
 
@@ -162,7 +163,7 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Creates an empty vector.
+        /// Creates an empty results table.
         /// </summary>
         public ResultTable()
         {
@@ -172,10 +173,10 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Creates a new vector.
+        /// Creates a new result table.
         /// </summary>
-        /// <param name="name">The name of the result vector.</param>
-        /// <param name="resultColumns">The columns of the vector.</param>
+        /// <param name="name">The name of the result table.</param>
+        /// <param name="resultColumns">The columns of the table.</param>
         public ResultTable(string name, ResultColumn[] resultColumns)
         {
             if (name == null) throw new ArgumentNullException(nameof(name));
@@ -566,7 +567,7 @@ namespace OpenTap
 
         internal bool WasDeferred => deferWorker != null;
 
-        class PublishResultTableInvokable : IInvokable<IResultListener, WorkQueue>
+        class PublishResultTableInvokable : IInvokable<IResultListener, WorkQueue>, ISkippableInvokable<IResultListener, WorkQueue>
         {
             readonly ResultTable table;
             readonly ResultSource proxy;
@@ -587,22 +588,42 @@ namespace OpenTap
             /// <returns>An optimized table or the original one if it is not possible to optimize.</returns>
             ResultTable CreateOptimizedTable(WorkQueue workQueue)
             {
+                // optimization: only allocate the list if there are more than one mergeable table.
                 List<ResultTable> mergeTables = null;
+                
                 while (workQueue?.Peek() is PublishResultTableInvokable p)
                 {
-                    if (!CanMerge(p.table, table))
+                    // this can occur if two steps are publishing results in parallel.
+                    // in this case, the tables should not be combined.
+                    if(p.proxy != proxy)
                         break;
+                    
+                    // check if the tables can be merged.
+                    if (!ResultTableOptimizer.CanMerge(p.table, table) )
+                        break;
+                    
+                    // pop the peeked object
+                    var dq = workQueue.Dequeue();
+                    if (dq != p)
+                    {
+                        if (dq == null)
+                            // we weren't able to dequeue the object - just give up on the optimization.
+                            break; 
+                        
+                        // This should never happen.
+                        // If it did, something went really wrong.
+                        Debug.Fail("Peeked object not in front of queue.");
+                        throw new InvalidOperationException("Peeked object not in front of queue.");
+                    }
+
+                    // optimization: only allocate a list if it helps. Also initialize it two long to avoid more allocations.
                     if (mergeTables == null)
-                        mergeTables = new List<ResultTable>();
-                    mergeTables.Add(p.table);
-                    workQueue.Dequeue();
+                        mergeTables = new List<ResultTable>{table, p.table};
+                    else mergeTables.Add(p.table);
                 }
 
                 if (mergeTables != null)
-                {
-                    mergeTables.Add(table);
-                    return MergeTables(mergeTables);
-                }
+                    return ResultTableOptimizer.MergeTables(mergeTables);
 
                 return table;
             }
@@ -611,7 +632,15 @@ namespace OpenTap
             {
                 try
                 {
-                    a.OnResultPublished(proxy.stepRun.Id, CreateOptimizedTable(queue));
+                    // only merge result tables where it is explicitly supported by the result listener.
+                    if (a is IMergedTableResultListener)
+                    {
+                        a.OnResultPublished(proxy.stepRun.Id, CreateOptimizedTable(queue));    
+                    }
+                    else
+                    {
+                        a.OnResultPublished(proxy.stepRun.Id, table);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -621,47 +650,13 @@ namespace OpenTap
                 }
             }
 
-            /// <summary>
-            /// Tables can be merged if they have the same name, and the same count, types and names of columns.
-            /// </summary>
-            static bool CanMerge(ResultTable table1, ResultTable table2)
+            // Skip the invocation if the result listener does not implement OnResultPublished.
+            public bool Skip(IResultListener a, WorkQueue b)
             {
-                if (table2.Name != table1.Name)
-                    return false;
-
-                if (table2.Columns.Length != table1.Columns.Length)
-                    return false;
-                var count = table1.Columns.Length;
-                for (var columnIdx = 0; columnIdx < count; columnIdx++)
-                {
-                    var c1 = table1.Columns[columnIdx];
-                    var c2 = table2.Columns[columnIdx];
-                    if (c1.Name != c2.Name || c1.ObjectType != c2.ObjectType)
-                        return false;
-                }
-
-                return true;
-            }
-
-            /// <summary> Merges a set of result tables. This assumes that CanMerge has been called and returned true for all elements in the list. </summary>
-            static ResultTable MergeTables(IReadOnlyList<ResultTable> tables)
-            {
-                int columnSize = tables.Sum(x => x.Rows);
-                var columns = tables[0].Columns.Select((v, i) =>
-                {
-                    var elem = v.Data.GetType().GetElementType();
-                    int offset = 0;
-                    var newA = Array.CreateInstance(elem, columnSize);
-                    for (var j = 0; j < tables.Count; j++)
-                    {
-                        var newData = tables[j].Columns[i].Data;
-                        newData.CopyTo(newA, offset);
-                        offset += newData.Length;
-                    }
-
-                    return new ResultColumn(v.Name, newA);
-                }).ToArray();
-                return new ResultTable(tables[0].Name, columns);
+                if (a is ResultListener r)
+                    return ResultListener.ImplementsOnResultsPublished(r) == false;
+                
+                return false;
             }
         }
     }

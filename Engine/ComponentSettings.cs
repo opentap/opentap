@@ -50,6 +50,13 @@ namespace OpenTap
     {
     }
 
+    internal interface IComponentSettingsList : IList
+    {
+        /// <summary> Return the objects which have been removed but still alive (non-GC'd) resources.
+        /// This requires using a list of WeakReferences.</summary>
+        IResource[] GetRemovedAliveResources();
+    }
+
     ///<summary>
     /// Contains some extra functionality for the ComponentSettingsList.
     /// Created so that it is possible to know which (generic) ComponentSettingsList
@@ -164,11 +171,17 @@ namespace OpenTap
     /// </summary>
     /// <typeparam name="DerivedType"></typeparam>
     /// <typeparam name="ContainedType"></typeparam>
-    public abstract class ComponentSettingsList<DerivedType, ContainedType> : ComponentSettings<DerivedType>, INotifyCollectionChanged, IList, IList<ContainedType>
+    public abstract class ComponentSettingsList<DerivedType, ContainedType> : ComponentSettings<DerivedType>, 
+        INotifyCollectionChanged, IList, IList<ContainedType>, IComponentSettingsList
         where DerivedType : ComponentSettingsList<DerivedType, ContainedType>
     {
         readonly ObservableCollection<ContainedType> list;
         readonly IList ilist;
+
+        // Keep track of all the still living, but previously touched objects.
+        // this is only used if ContainedType is a resource type.
+        private readonly WeakHashSet<IResource> touchedResources = new WeakHashSet<IResource>(); 
+
         /// <summary>
         /// Gets the first or default instance in the component settings list.
         /// </summary>
@@ -195,13 +208,19 @@ namespace OpenTap
             ilist = list;
         }
 
+        IResource[] IComponentSettingsList.GetRemovedAliveResources()
+        {
+            return touchedResources.GetElements().Where(x => Contains(x) == false).ToArray();
+        }
+
         void list_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.Action == NotifyCollectionChangedAction.Add)
             {
-                var _newItem = e.NewItems.Cast<ContainedType>().First() ;
+                var _newItem = e.NewItems.Cast<ContainedType>().First();
                 if (_newItem is IResource newItem)
                 {
+                    this.touchedResources.Add(newItem);
                     var sameName = this.FirstOrDefault(itm => (itm as IResource).Name == newItem.Name && (itm as IResource) != newItem);
                     int number = 0;
                     while (sameName != null)
@@ -479,6 +498,7 @@ namespace OpenTap
     /// </remarks>
     public abstract class ComponentSettings : ValidatingObject, IComponentSettings
     {
+        internal XmlError[] loadErrors;
         string groupName;
         /// <summary> Settings group of this settings class. </summary>
         public string GroupName
@@ -607,19 +627,35 @@ namespace OpenTap
         /// <summary>
         /// Sets current settings for a component setting based on a stream of the file contents of a ComponentSettings XML file.
         /// </summary>
+        /// <exception cref="InvalidDataException">If the input stream is not valid XML</exception>
         /// <param name="xmlFileStream">The component settings stream to be set</param>
         /// <returns></returns>
-        public static void SetCurrent(Stream xmlFileStream) =>
-            context.SetCurrent(xmlFileStream);
+        public static void SetCurrent(Stream xmlFileStream) => context.SetCurrent(xmlFileStream);
+
+        /// <summary>
+        /// Sets current settings for a component setting based on a stream of the file contents of a ComponentSettings XML file.
+        /// </summary>
+        /// <param name="xmlFileStream">The component settings stream to be set</param>
+        /// <param name="errors">Any XML errors that occurred during deserialization</param>
+        /// <returns></returns>
+        public static void SetCurrent(Stream xmlFileStream, out IEnumerable<XmlError> errors) => context.SetCurrent(xmlFileStream, out errors);
 
         /// <summary>
         /// Gets current settings for a specified component. This is either an instance of the settings class previously loaded, or a new instance loaded from the associated file.
         /// </summary>
         /// <param name="settingsType">The type of the component settings requested (this type must be a descendant of <see cref="ComponentSettings"/>).</param>
         /// <returns>Returns the loaded components settings. Null if it was not able to load the settings type.</returns>
-        public static ComponentSettings GetCurrent(ITypeData settingsType) =>
-            context.GetCurrent(settingsType.AsTypeData().Type);
-
+        public static ComponentSettings GetCurrent(ITypeData settingsType)
+        {
+            var td = settingsType.AsTypeData()?.Type;
+            // in some rare cases, the type can be null
+            // for example if the assembly could not be loaded(32/64bit incompatible), but it could be reflected.
+            // in this case just return null.
+            if (td == null)
+                return null;
+            return context.GetCurrent(td);
+        }
+        
         /// <summary>
         /// Gets current settings for a specified component from cache.
         /// </summary>

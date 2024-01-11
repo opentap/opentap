@@ -4,19 +4,10 @@
     <AssemblyName>OpenTap.Cli</AssemblyName>
     <RootNamespace>OpenTap.Cli</RootNamespace>
   </PropertyGroup>
-  
-  <PropertyGroup Condition="$(IsDebug)">
-    <!--
-    This makes debugging easier if you install OpenTAP in the output dir (avoids two copies of OpenTap.Cli.dll)
-    Only enabled in debug mode for now to avoid messing with the build script (which deletes the entire Packages folder)
-    -->
-    <OutputPath>$(OutputPath)Packages\OpenTAP\</OutputPath>
-  </PropertyGroup>
-  
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
     <PackageReference Include="System.Reflection.Metadata" Version="1.6.0" />
-    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.1" />
+    <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
   </ItemGroup>
   <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />

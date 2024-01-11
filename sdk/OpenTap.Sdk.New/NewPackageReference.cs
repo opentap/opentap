@@ -21,7 +21,7 @@ namespace OpenTap.Sdk.New
 
         [CommandLineArgument("repository",
             Description = "The package repository to use (default: packages.opentap.io)")]
-        public string PackageRepository { get; set; } = "packages.opentap.io";
+        public string PackageRepository { get; set; } = "https://packages.opentap.io";
 
         [CommandLineArgument("no-reference",
             Description = "Specify if the assemblies in the package should not be referenced by the project.")]

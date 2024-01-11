@@ -1,8 +1,6 @@
-
-using System.Diagnostics;
+using System;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text.RegularExpressions;
@@ -66,6 +64,12 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
         }
     }
 
+    public enum VersionType
+    {
+        FileVersion,
+        SemanticVersion
+    }
+
     [Display("Read Assembly Version", Group: "Tests")]
     public class ReadAssemblyVersionStep : TestStep
     {
@@ -73,12 +77,16 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
         public string File { get; set; }
         
         public string MatchVersion { get; set; }
-        
-        public override void Run()
+        public VersionType VersionType { get; set; }
+
+        void CheckFileVersion()
         {
-            if (false == System.IO.File.Exists(File))
-                throw new FileNotFoundException("File does not exist", File);
             var semver = GetVersion(File);
+            if (semver == null)
+            {
+                Log.Error("Unable to read version info.");
+            }
+
             if (string.IsNullOrWhiteSpace(MatchVersion) == false)
             {
                 if (Equals(semver.ToString(), MatchVersion))
@@ -91,22 +99,83 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
                 }
             }
             Log.Info("Read Version {0}", semver.ToString());
+            
+        }
+
+        void CheckSemanticVersion()
+        {
+            if (!SemanticVersion.TryParse(MatchVersion, out var semver))
+            {
+                Log.Error($"{MatchVersion} is not a semantic version.");
+                UpgradeVerdict(Verdict.Error);
+                return;
+            }
+            
+            var s = PluginManager.GetSearcher();
+            s.AddAssembly(File, null);
+
+            string normalize(string s)
+            {
+                return Path.GetFullPath(s).TrimEnd('/', '\\');
+            }
+
+            var nf = normalize(File);
+            var asm = s.Assemblies.FirstOrDefault(a => normalize(a.Location).Equals(nf, StringComparison.InvariantCultureIgnoreCase));
+
+            if (asm == null)
+            {
+                Log.Error("Assembly not loaded.");
+                UpgradeVerdict(Verdict.Error);
+                return;
+            }
+
+            var asmVer = asm.SemanticVersion;
+
+            if (Equals(asmVer.ToString(), semver.ToString()))
+            {
+                UpgradeVerdict(Verdict.Pass);
+            }
+            else
+            {
+                UpgradeVerdict(Verdict.Fail);
+            }
+            Log.Info("Read Version {0}", asmVer.ToString());
+        }
+
+        public override void Run()
+        {
+            if (false == System.IO.File.Exists(File))
+                throw new FileNotFoundException("File does not exist", File);
+
+            switch (VersionType)
+            {
+                case VersionType.FileVersion:
+                    CheckFileVersion();
+                    break;
+                case VersionType.SemanticVersion:
+                    CheckSemanticVersion();
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
         }
 
         public static SemanticVersion GetVersion(string path)
         {
             var searcher = new PluginSearcher();
             searcher.Search(new[] {path});
-
+            Log.Debug("Searching {0}", path);
             var asm = searcher.Assemblies.First();
             using (FileStream file = new FileStream(asm.Location, FileMode.Open, FileAccess.Read))
             using (PEReader header = new PEReader(file, PEStreamOptions.LeaveOpen))
             {
                 var CurrentReader = header.GetMetadataReader();
-
+                Log.Debug("Opened file");
                 foreach (CustomAttributeHandle attrHandle in CurrentReader.GetAssemblyDefinition().GetCustomAttributes())
                 {
+                    
                     CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
+                    Log.Info("attribute: {0}",attr.Constructor.Kind);
                     if (attr.Constructor.Kind == HandleKind.MemberReference)
                     {
                         var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle) attr.Constructor);
@@ -121,6 +190,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
                             var r = CurrentReader.GetTypeReference((TypeReferenceHandle)ctor.Parent);
                             attributeFullName = string.Format("{0}.{1}", CurrentReader.GetString(r.Namespace), CurrentReader.GetString(r.Name));
                         }
+                        Log.Info("Found attribute: {0}", attributeFullName);
 
                         if (attributeFullName == typeof(System.Reflection.AssemblyInformationalVersionAttribute).FullName)
                         {
@@ -131,7 +201,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
                     }
                 }
             }
-
+            Log.Warning("No Version found");
             return null;
         }
 
@@ -166,7 +236,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
     public class RunOnOs : TestStep
     {
 
-        public string[] AvailableOperatingSystems => new []{"Linux", "Windows"};
+        public string[] AvailableOperatingSystems => new []{ "MacOS", "Linux", "Windows"};
 
         [AvailableValues(nameof(AvailableOperatingSystems))]
         public string OperatingSystem { get; set; } = "Windows";
@@ -213,5 +283,4 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
             UpgradeVerdict(Verdict.Fail);
         }
     }
-    
 }

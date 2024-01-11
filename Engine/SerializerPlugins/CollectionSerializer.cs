@@ -16,11 +16,15 @@ namespace OpenTap.Plugins
     {
         /// <summary> Order of this serializer.   </summary>
         public override double Order { get; } = 1;
+        
+        /// <summary> Current serializing element type. </summary>
+        public Type CurrentElementType { get; private set; }
 
         /// <summary> Deserialization implementation. </summary>
         public override bool Deserialize( XElement element, ITypeData _t, Action<object> setResult)
         {
             object prevobj = this.Object;
+            var prevElementType = CurrentElementType;
             try
             {
                 var t = (_t as TypeData)?.Type;
@@ -28,6 +32,7 @@ namespace OpenTap.Plugins
 
                 IEnumerable finalValues = null;
                 Type genericType = t.GetEnumerableElementType() ?? typeof(object);
+                CurrentElementType = genericType;
                 if (t.IsArray == false && t.HasInterface<IList>() && t.GetConstructor(Type.EmptyTypes) != null &&
                     genericType.IsValueType == false)
                 {
@@ -233,6 +238,7 @@ namespace OpenTap.Plugins
             finally
             {
                 this.Object = prevobj;
+                CurrentElementType = prevElementType;
             }
         }
 
@@ -261,6 +267,10 @@ namespace OpenTap.Plugins
                 foreach (object obj in sourceEnumerable)
                 {
                     var step = new XElement(Element);
+                    // We need to add the step to the document immediately so each serializer call 
+                    // has access to the element's parents.
+                    elem.Add(step);
+
                     if (obj != null)
                     {
                         type = obj.GetType();
@@ -271,6 +281,12 @@ namespace OpenTap.Plugins
                         {
                             Serializer.Serialize(step, obj, expectedType: TypeData.FromType(genericTypeArg));
                         }
+                        catch
+                        {
+                            // Remove the element from the document in case serialization fails
+                            step.Remove();
+                            throw;
+                        }
                         finally
                         {
                             if (isComponentSettings)
@@ -278,7 +294,6 @@ namespace OpenTap.Plugins
                         }
                     }
 
-                    elem.Add(step);
                 }
             }
             finally

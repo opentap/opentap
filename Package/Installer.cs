@@ -66,6 +66,8 @@ namespace OpenTap.Package
                 {
                     try
                     {
+                        progressPercent += 30 / PackagePaths.Count();
+
                         log.Info($"Installing {fileName}");
                         OnProgressUpdate(progressPercent, "Installing " + Path.GetFileNameWithoutExtension(fileName));
                         Stopwatch timer = Stopwatch.StartNew();
@@ -73,7 +75,6 @@ namespace OpenTap.Package
 
                         log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
 
-                        progressPercent += 30 / PackagePaths.Count();
 
                         if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
                         {
@@ -128,8 +129,13 @@ namespace OpenTap.Package
 
         internal void UninstallThread()
         {
-            RunCommand("uninstall", false, true);
+            RunCommand(PrepareUninstall, false, false);
+            RunCommand(Uninstall, false, true);
         }
+
+        internal const string Uninstall = "uninstall";
+        internal const string PrepareUninstall = "prepareuninstall";
+        internal const string Install = "install";
 
         internal int RunCommand(string command, bool force, bool modifiesPackageFiles)
         {
@@ -163,6 +169,8 @@ namespace OpenTap.Package
                 foreach (string fileName in PackagePaths)
                 {
                     PackageDef pkg = PackageDef.FromXml(fileName);
+                    pkg.PackageSource = new XmlPackageDefSource{PackageDefFilePath = fileName};
+                    
                     OnProgressUpdate((int)progressPercent, $"Running command '{command}' on '{pkg.Name}'");
                     Stopwatch timer = Stopwatch.StartNew();
                     var res = pi.ExecuteAction(pkg, command, force, TapDir);
@@ -179,7 +187,7 @@ namespace OpenTap.Package
                     }
                     else if(res == ActionResult.NothingToDo)
                     {
-                        log.Info($"Tried to {command} {pkg.Name}, but there was nothing to do.");
+                        log.Debug($"Tried to {command} {pkg.Name}, but there was nothing to do.");
                     }
                     else
                         log.Info(timer, $"{verb} {pkg.Name} version {pkg.Version}.");
@@ -205,6 +213,7 @@ namespace OpenTap.Package
                 if (ex is OperationCanceledException)
                     return (int)ExitCodes.UserCancelled;
 
+                log.Debug(ex);
                 return (int) ExitCodes.GeneralException;
             }
 
@@ -264,14 +273,14 @@ namespace OpenTap.Package
                 var tries = 0;
                 const int maxTries = 10;
                 var delaySeconds = 3;
-                var noninteractive = UserInput.GetInterface() is NonInteractiveUserInputInterface;
+                var noninteractive = NonInteractiveUserInputInterface.IsSet();
                 var inUseString = BuildString(filesInUse);
                 if (noninteractive)
                     log.Warning(inUseString);
 
                 while (isPackageFilesInUse(tapDir, packagePaths, exclude))
                 {
-                    var req = new AbortOrRetryRequest(inUseString) {Response = AbortOrRetryResponse.Abort};
+                    var req = new AbortOrRetryRequest("Package Files Are In Use", inUseString) {Response = AbortOrRetryResponse.Abort};
                     UserInput.Request(req, waitForFilesTimeout, true);
 
                     if (req.Response == AbortOrRetryResponse.Abort)
@@ -353,6 +362,11 @@ namespace OpenTap.Package
                 // the file doesn't even exist!
                 return false;
             }
+            catch (UnauthorizedAccessException)
+            {
+              log.Warning($"File {file.FullName} cannot be deleted by the current user. ({Environment.UserName})");
+              throw;
+            }
             catch (IOException)
             {
                 return true;
@@ -389,21 +403,21 @@ namespace OpenTap.Package
         }
     }
 
-    [Obfuscation(Exclude = true)]
     enum AbortOrRetryResponse
     {
         Abort,
         Retry
     }
 
-    [Obfuscation(Exclude = true)]
-    [Display("Package files are in use")]
     class AbortOrRetryRequest
     {
-        public AbortOrRetryRequest(string message)
+        public AbortOrRetryRequest(string title, string message)
         {
             Message = message;
+            Name = title;
         }
+        
+        [Browsable(false)] public string Name { get; }
 
         [Browsable(true)]
         [Layout(LayoutMode.FullRow)]

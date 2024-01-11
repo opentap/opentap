@@ -3,12 +3,16 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTap.Package.PackageInstallHelpers;
 using Tap.Shared;
 
 namespace OpenTap.Package
@@ -18,18 +22,65 @@ namespace OpenTap.Package
     /// </summary>
     public class FilePackageRepository : IPackageRepository, IPackageDownloadProgress
     {
-        #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
+        
+#pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
         private static TraceSource log = Log.CreateSource("FilePackageRepository");
         internal const string TapPluginCache = ".PackageCache";
-        private static object cacheLock = new object();
-        private static object loadLock = new object();
+        static readonly object cacheLock = new object();
+        static readonly object loadLock = new object();
 
         private List<string> allFiles = new List<string>();
         private PackageDef[] allPackages;
-        
+
+        /// <summary>
+        /// Constructs a FilePackageRepository for a directory
+        /// </summary>
+        /// <param name="path">Relative or absolute path or URI to a directory or a file. If file, the repository will be the directory containing the file</param>
+        /// <exception cref="NotSupportedException">Path is not a valid file package repository</exception>
         public FilePackageRepository(string path)
         {
-            Url = File.Exists(path) ? Path.GetDirectoryName(path) : path.Trim();
+            // if path is the path root, for example C: and the path is not "/".
+            // then we need to add a '\' so "C:" becomes "C:\".
+            // On other systems (Linux, mac, .. where path == "/") we do nothing.
+            if (Path.IsPathRooted(path) && path !="/" && Path.GetPathRoot(path) == path)
+            {
+                path = Path.GetPathRoot(path).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            }
+            
+            if (Uri.TryCreate(path, UriKind.RelativeOrAbsolute, out Uri uri))
+            {
+                // This is true for UNC paths on Windows
+                if (uri.IsAbsoluteUri && uri.HostNameType is UriHostNameType.Dns or UriHostNameType.IPv4 or UriHostNameType.IPv6)
+                {
+                    AbsolutePath = uri.LocalPath;
+                    Url = uri.AbsoluteUri.TrimEnd(new[] { '\\', '/' });;
+                }
+                else
+                {
+                    string absolutePath = null;
+                    if (uri.IsAbsoluteUri)
+                    {
+                        if (uri.Scheme != Uri.UriSchemeFile)
+                            throw new NotSupportedException($"Scheme {uri.Scheme} is not supported as a file package repository ({path}).");
+                        absolutePath = uri.AbsolutePath;
+                    }
+                    else
+                    {
+                        absolutePath = Path.GetFullPath(path);
+                    }
+
+                    if (File.Exists(absolutePath))
+                        AbsolutePath = Path.GetFullPath(Path.GetDirectoryName(absolutePath));
+                    else
+                        AbsolutePath = Path.GetFullPath(absolutePath);
+                        
+                    AbsolutePath = Uri.UnescapeDataString(AbsolutePath);
+
+                    Url = new Uri(AbsolutePath).AbsoluteUri;
+                }
+            }
+            else
+                throw new NotSupportedException($"{path} is not supported as a file package repository.");
         }
         public void Reset()
         {
@@ -41,13 +92,13 @@ namespace OpenTap.Package
         {
             if (allPackages != null)
                 return;
-            
-            if (File.Exists(Url) || Directory.Exists(Url) == false)
-            {
-                allPackages = new PackageDef[0];
 
-                if (Url != PackageDef.SystemWideInstallationDirectory) // Let's ignore this error if the repo is the system wide directory.
-                    throw new DirectoryNotFoundException(string.Format("File package repository directory not found at: {0}", Url));
+            if (File.Exists(AbsolutePath) || Directory.Exists(AbsolutePath) == false)
+            {
+                allPackages = Array.Empty<PackageDef>();
+
+                if (AbsolutePath.TrimEnd('/', '\\') != PackageDef.SystemWideInstallationDirectory.TrimEnd('/', '\\')) // Let's ignore this error if the repo is the system wide directory.
+                    throw new DirectoryNotFoundException($"File package repository directory not found at: {Url}");
 
                 return;
             }
@@ -56,27 +107,39 @@ namespace OpenTap.Package
             {
                 if (allPackages != null)
                     return;
-                
-                allFiles = GetAllFiles(Url, cancellationToken);
+
+                allFiles = GetAllFiles(AbsolutePath, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
                 allPackages = GetAllPackages(allFiles).ToArray();
 
-                var caches = PackageManagerSettings.Current.Repositories.Select(p => GetCache(p.Url).CacheFileName);
+                // the following code tries to delete unused cache files
+                // It loops through all files and checks if they are a .PackageCache file
+                // if they are and they are not used by any current repository, delete it.
+
+                var caches = PackageManagerSettings.Current.Repositories.Select(x => x.Url)
+                    .Append(PackageCacheHelper.PackageCacheDirectory)
+                    .Select(p => GetCache(p).CacheFileName)
+                    .ToHashSet();
                 foreach (var file in allFiles)
                 {
                     var filename = Path.GetFileName(file);
                     if (filename.StartsWith(TapPluginCache) == false) continue;
-                    if (caches.Any(r => r == filename)) continue;
+                    if (caches.Contains(filename)) continue;
                     try
                     {
                         File.Delete(file);
                     }
-                    catch { }
+                    catch
+                    {
+                        // This is fine
+                    }
                 }
             }
         }
-        
+
         Action<string, long, long> IPackageDownloadProgress.OnProgressUpdate { get; set; }
+
+        internal string AbsolutePath;
 
         #region IPackageRepository Implementation
         public string Url { get; set; }
@@ -100,10 +163,10 @@ namespace OpenTap.Package
             try
             {
                 var packageFilePath = (packageDef?.PackageSource as FilePackageDefSource)?.PackageFilePath;
-                
+
                 if (packageDef == null || packageFilePath == null)
                     throw new Exception($"Could not download '{package.Name}', because it does not exists");
-                
+
                 if (PathUtils.AreEqual(packageFilePath, destination))
                 {
                     finished = true;
@@ -127,7 +190,7 @@ namespace OpenTap.Package
                     if (string.IsNullOrEmpty(path) == false)
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        fileCopy(path, destination);
+                        FileCopy(path, destination);
                         finished = true;
                     }
 
@@ -140,7 +203,7 @@ namespace OpenTap.Package
                 else
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    fileCopy(packageFilePath, destination);
+                    FileCopy(packageFilePath, destination);
                     finished = true;
                 }
             }
@@ -160,32 +223,44 @@ namespace OpenTap.Package
 
         // Copying files can be very slow if it is from a network location.
         // this file-copy action copies and notifies of progress.
-        void fileCopy(string source, string destination)
+        void FileCopy(string source, string destination)
         {
-            var tmpDestination = destination + ".part-" + System.Guid.NewGuid().ToString();
-            
-            using(var readStream = File.OpenRead(source))
-            using (var writeStream = File.OpenWrite(tmpDestination))
+            var tmpDestination = destination + ".part-" + Guid.NewGuid();
+            using (FileLock.Create(destination + ".lock"))
             {
-                var task = Task.Run(() => readStream.CopyTo(writeStream));
-                ConsoleUtils.ReportProgressTillEnd(task, "Downloading",
-                    () => writeStream.Position,
-                    () => readStream.Length,
-                    (header, pos, len) =>
-                    {
-                        ConsoleUtils.printProgress(header, pos, len);
-                        (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
-                    });
-            }
+                if (File.Exists(destination) && PathUtils.CompareFiles(source, destination))
+                    return;
 
-            File.Delete(destination);
-            // on most operative systems the same folder would be on the same disk, so this is a no-op.
-            File.Move(tmpDestination, destination);
+                using (var readStream = File.OpenRead(source))
+                using (var writeStream = File.OpenWrite(tmpDestination))
+                {
+                    var task = Task.Run(() => readStream.CopyTo(writeStream));
+                    ConsoleUtils.ReportProgressTillEnd(task, $"Copying {source} to {destination}",
+                        () => writeStream.Position,
+                        () => readStream.Length,
+                        (header, pos, len) =>
+                        {
+                            ConsoleUtils.printProgress(header, pos, len);
+                            (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
+                        });
+                }
+
+                File.Delete(destination);
+                // on most operative systems the same folder would be on the same disk, so this is a no-op.
+                try
+                {
+                    File.Move(tmpDestination, destination);
+                }
+                catch
+                {
+
+                }
+            }
         }
         public string[] GetPackageNames(CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             LoadPath(cancellationToken);
-            
+
             if (this.allPackages == null || this.allFiles == null) return null;
             var packages = this.allPackages.ToList();
 
@@ -193,7 +268,7 @@ namespace OpenTap.Package
             compatibleWith = CheckCompatibleWith(compatibleWith);
             if (compatibleWith != null)
                 packages = packages.Where(p => p.Dependencies.All(d => compatibleWith.All(r => IsCompatible(d, r)))).ToList();
-            
+
             return packages
                 .Select(p => p.Name)
                 .Distinct()
@@ -219,28 +294,35 @@ namespace OpenTap.Package
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             LoadPath(cancellationToken);
-            
+
             if (this.allPackages == null || this.allFiles == null) return null;
             var packages = this.allPackages.ToList();
-            
+
             // Check if package dependencies are compatible
             compatibleWith = CheckCompatibleWith(compatibleWith);
             if (compatibleWith != null)
                 packages = packages.Where(p => p.Dependencies.All(d => compatibleWith.All(r => IsCompatible(d, r)))).ToList();
-            
+
             return packages
                 .Where(p => p.Name == packageName)
-                .Select(p => new PackageVersion(packageName, p.Version, p.OS, p.Architecture, p.Date, 
+                .Select(p => new PackageVersion(packageName, p.Version, p.OS, p.Architecture, p.Date,
                     p.Files.Where(f => string.IsNullOrWhiteSpace(f.LicenseRequired) == false).Select(f => f.LicenseRequired).ToList()))
                 .Distinct()
                 .ToArray();
         }
+
+        public PackageDef[] GetAllPackages(CancellationToken cancellationToken)
+        {
+            LoadPath(cancellationToken);
+            return allPackages;
+        }
+        
         public PackageDef[] GetPackages(PackageSpecifier pid, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             LoadPath(cancellationToken);
-            
+
             if (this.allPackages == null || this.allFiles == null) return null;
-            
+
             // Filter packages
             var openTapIdentifier = new PackageIdentifier("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString(), CpuArchitecture.Unspecified, null);
             var packages = new List<PackageDef>();
@@ -285,9 +367,9 @@ namespace OpenTap.Package
         public  PackageDef[] CheckForUpdates(IPackageIdentifier[] packages, CancellationToken cancellationToken)
         {
             LoadPath(cancellationToken);
-            
+
             if (allPackages == null || allFiles == null) return null;
-            
+
             List<PackageDef> latestPackages = new List<PackageDef>();
             var openTapIdentifier = new PackageIdentifier("OpenTAP", PluginManager.GetOpenTapAssembly().SemanticVersion.ToString(), CpuArchitecture.Unspecified, null);
 
@@ -296,7 +378,7 @@ namespace OpenTap.Package
             {
                 if (packageIdentifier == null)
                     continue;
-                
+
                 var package = new PackageIdentifier(packageIdentifier);
 
                 // Try finding a OpenTAP package
@@ -311,30 +393,26 @@ namespace OpenTap.Package
             return latestPackages.ToArray();
         }
         #endregion
-        
+
         #region file system
         private void CreatePackageCache(IEnumerable<PackageDef> packages, FileRepositoryCache cache)
         {
-            // Serialize all packages
-            string xmlText;
-            using (Stream stream = new MemoryStream())
-            {
-                PackageDef.SaveManyTo(stream, packages);
-                stream.Position = 0;
-                xmlText = new StreamReader(stream).ReadToEnd();
-            }
-
             string currentDir = FileSystemHelper.GetCurrentInstallationDirectory();
             // Delete existing cache
             List<string> caches = Directory.GetFiles(currentDir, $"{TapPluginCache}.{cache.Hash}*").ToList();
             caches.ForEach(File.Delete);
             
-            // Save cache
             string fullPath = Path.Combine(currentDir, cache.CacheFileName);
-            if (File.Exists(fullPath))
-                File.SetAttributes(fullPath, FileAttributes.Normal);
-            File.WriteAllText(fullPath, xmlText);
-            File.SetAttributes(fullPath, FileAttributes.Hidden);
+
+
+            // Serialize all packages and Save cache
+            using(var f = File.OpenWrite(fullPath))
+            {
+                using (var gz = new GZipStream(f, CompressionLevel.Optimal, leaveOpen: true))
+                {
+                    PackageDef.SaveManyTo(gz, packages);
+                }
+            }
         }
         private List<string> GetAllFiles(string path, CancellationToken cancellationToken)
         {
@@ -360,7 +438,7 @@ namespace OpenTap.Package
                     log.Debug($"Access to path {dir.FullName} denied. Ignoring.");
                 }
             }
-
+            
             return result;
         }
         private PackageDef[] loadPackagesFromFile(IEnumerable<FileInfo> allFiles)
@@ -429,7 +507,7 @@ namespace OpenTap.Package
                     allPackages.Add(package);
                 }
             });
-            
+
             return allPackages.ToArray();
         }
 
@@ -441,6 +519,8 @@ namespace OpenTap.Package
             // Find TapPackages in repo
             var allFileInfos = allFiles.Select(f => new FileInfo(f)).Where(f => f.Extension.ToLower() == ".tapplugin" || f.Extension.ToLower() == ".tappackage" || f.Extension.ToLower() == ".tappackages").ToList();
 
+            cache.CachePackageCount = allFileInfos.Count;
+            
             List<PackageDef> allPackages = null;
             lock (cacheLock)
             {
@@ -450,10 +530,13 @@ namespace OpenTap.Package
                     {
                         if (allFileInfos.Count == cache.CachePackageCount)
                         {
+                            var sw = Stopwatch.StartNew();
                             // Load cache
                             using (var str = File.OpenRead(cache.CacheFileName))
-                                allPackages = PackageDef.ManyFromXml(str).ToList();
+                                allPackages = PackageDef.ManyFromXml(new GZipStream(str, CompressionMode.Decompress)).ToList();
     
+                            log.Debug(sw, "Loading cache: {0}", cache.CacheFileName);
+                            
                             // Check if any files has been replaced
                             if (allPackages.Any(p => !allFiles.Any(f =>
                             {
@@ -461,7 +544,7 @@ namespace OpenTap.Package
                                 return string.IsNullOrWhiteSpace(packageFilePath) == false && PathUtils.AreEqual(f, Path.GetFullPath(packageFilePath));
                             })))
                                 allPackages = null;
-    
+
                             // Check if the cache is the newest file
                             if (allPackages != null && allFileInfos.Any() && (allFileInfos.Max(f => f.LastWriteTimeUtc) > new FileInfo(cache.CacheFileName).LastWriteTimeUtc))
                                 allPackages = null;
@@ -477,11 +560,14 @@ namespace OpenTap.Package
                 if (allPackages == null)
                 {
                     // Get all packages
+                    var sw = Stopwatch.StartNew();
                     allPackages = loadPackagesFromFile(allFileInfos).ToList();
                     cache.CachePackageCount = allFileInfos.Count;
+                    
 
                     // Create cache
                     CreatePackageCache(allPackages, cache);
+                    log.Debug(sw, "Rebuilding cache: {0}", cache.CacheFileName);
                 }
             }
 
@@ -491,7 +577,7 @@ namespace OpenTap.Package
             return allPackages;
         }
         #endregion
-        
+
         #region helper
         private static bool IsCompatible(PackageDependency dep, IPackageIdentifier packageIdentifier)
         {
@@ -523,7 +609,7 @@ namespace OpenTap.Package
                     new PackageIdentifier("TAP Base", openTap.Version, openTap.Architecture, openTap.OS)
                 });
             }
-            
+
             return list?.ToArray();
         }
 
@@ -544,13 +630,8 @@ namespace OpenTap.Package
             return new FileRepositoryCache() {Hash = hash};
         }
         #endregion
-    }
-
-    class FileRepositoryCache
-    {
-        public int CachePackageCount { get; set; }
-        public string Hash { get; set; }
-
-        public string CacheFileName => $"{FilePackageRepository.TapPluginCache}.{Hash}.{CachePackageCount}.xml";
+        
+        /// <summary>  Creates a display friendly string of this. </summary>
+        public override string ToString() =>  $"[FilePackageRepository: {Url}]";
     }
 }

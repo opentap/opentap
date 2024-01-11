@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Installer>
+  <ID>B63BFBDD-14E3-49AE-BFF3-ABE2BBA91ADB</ID>
+
+  <Name>OpenTAP 9</Name>
+
+  <DefaultInstallDir>OpenTAP</DefaultInstallDir>
+  <Publisher>Keysight Technologies</Publisher>
+  <URL>http://opentap.io</URL>
+  <SetupIcon>opentap.ico</SetupIcon>
+
+  <TopImage>LogoTop.bmp</TopImage>
+  <SideImage>LogoSide.bmp</SideImage>
+  
+  <EULA></EULA>
+  <SignCert>Keysight Technologies, Inc</SignCert>
+
+  <OpenTap>
+    <PackageSpecifier Name="OpenTAP.TapPackage" />
+  </OpenTap>
+  
+</Installer>

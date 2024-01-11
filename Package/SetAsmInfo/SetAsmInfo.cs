@@ -9,8 +9,9 @@ using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
+using Mono.Cecil.Cil;
 
 namespace OpenTap.Package.SetAsmInfo
 {
@@ -275,7 +276,7 @@ namespace OpenTap.Package.SetAsmInfo
             }
         }
         
-        public static void SetInfo(string filename, Version version, Version fileVersion, SemanticVersion infoVersion)
+        public static void SetInfo(string filename, Version version, Version fileVersion, SemanticVersion infoVersion, bool writePdb = false)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
@@ -334,9 +335,35 @@ namespace OpenTap.Package.SetAsmInfo
 
             var resolver = new TapMonoResolver();
             bool anyWritten = false;
-            var asm = AssemblyDefinition.ReadAssembly(filename,
-                new ReaderParameters
-                    {AssemblyResolver = resolver, InMemory = true, ReadingMode = ReadingMode.Immediate});
+
+            AssemblyDefinition asm;
+            try
+            {
+                asm = AssemblyDefinition.ReadAssembly(filename,
+                    new ReaderParameters
+                    {
+                        AssemblyResolver = resolver, InMemory = true, ReadingMode = ReadingMode.Deferred,
+                        ReadSymbols = writePdb
+                    });
+            }
+            catch (Exception ex)
+            {
+                var log = Log.CreateSource("Version Injector");
+                if (ex is SymbolsNotMatchingException)
+                    log.Debug($"Symbols were found but are not matching the assembly '{Path.GetFileName(filename)}'.");
+                else if (ex is SymbolsNotFoundException)
+                    log.Debug($"No symbols found for the assembly '{Path.GetFileName(filename)}'.");
+                else throw;
+
+                // Continue updating the version without updating symbols
+                writePdb = false;
+                asm = AssemblyDefinition.ReadAssembly(filename,
+                    new ReaderParameters
+                    {
+                        AssemblyResolver = resolver, InMemory = true, ReadingMode = ReadingMode.Deferred,
+                        ReadSymbols = writePdb
+                    });
+            }
 
             if (version != null)
             {
@@ -394,7 +421,7 @@ namespace OpenTap.Package.SetAsmInfo
                 anyWritten = true;
             }
             if (anyWritten)
-                asm.Write(filename);
+                asm.Write(filename, new WriterParameters { WriteSymbols = writePdb });
             asm.Dispose();
         }
 
@@ -441,27 +468,49 @@ namespace OpenTap.Package.SetAsmInfo
 
         private class TapMonoResolver : BaseAssemblyResolver
         {
-            ILookup<string, AssemblyData> searchedAssemblies = PluginManager.GetSearcher().Assemblies.ToLookup(asm => asm.Name);
+            readonly GacResolver gacResolver = new GacResolver();
+            ILookup<string, AssemblyData> searchedAssemblies =
+                PluginManager.GetSearcher().Assemblies.ToLookup(asm => asm.Name);
 
-            public override AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters)
+            private ConditionalWeakTable<AssemblyNameReference, AssemblyDefinition> lookup =
+                new ConditionalWeakTable<AssemblyNameReference, AssemblyDefinition>();
+
+            private AssemblyDefinition resolve(AssemblyNameReference name, ReaderParameters parameters)
             {
                 var subset = searchedAssemblies[name.Name];
 
-                var found = subset.FirstOrDefault(asm => asm.Version == name.Version) ?? subset.FirstOrDefault(asm => OpenTap.Utils.Compatible(asm.Version, name.Version));
+                var found = subset.FirstOrDefault(asm => asm.Version == name.Version) ??
+                            subset.FirstOrDefault(asm => OpenTap.Utils.Compatible(asm.Version, name.Version));
 
-                ReaderParameters customParameters = new ReaderParameters() { AssemblyResolver = new TapMonoResolver() };
+                ReaderParameters customParameters = new ReaderParameters { AssemblyResolver = this };
 
                 if (found == null) // Try find dependency from already loaded assemblies
                 {
                     var neededAssembly = new AssemblyName(name.ToString());
-                    var loadedAssembly = AppDomain.CurrentDomain.GetAssemblies().FirstOrDefault(s => s.GetName().Name == neededAssembly.Name);
+                    var loadedAssembly = AppDomain.CurrentDomain.GetAssemblies()
+                        .FirstOrDefault(s => s.GetName().Name == neededAssembly.Name);
                     if (loadedAssembly != null)
                         return AssemblyDefinition.ReadAssembly(loadedAssembly.Location, customParameters);
+                }
+                try
+                {
+                    var ld2 = gacResolver.Resolve(name, parameters);
+                    if (ld2 != null)
+                        return ld2;
+                }
+                catch
+                {  // An exception was thrown when trying to resolve the assembly in the GAC.
+                   // this is ok, if everything else fails too another exception will be thrown.
                 }
 
                 if (found != null)
                     return AssemblyDefinition.ReadAssembly(found.Location, customParameters);
                 return base.Resolve(name, parameters);
+            }
+
+            public override AssemblyDefinition Resolve(AssemblyNameReference name, ReaderParameters parameters)
+            {
+                return lookup.GetValue(name, _ => resolve(name, parameters));
             }
         }
     }

@@ -13,12 +13,21 @@
     <PackageReference Include="Microsoft.Build.Utilities.Core" Version="16.0.461" />
     <PackageReference Include="Microsoft.Build" Version="16.0.461" />
     <PackageReference Include="DotNet.Glob" Version="3.0.1" />
+    <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
   </ItemGroup>
   
   <ItemGroup>
     <None Include="..\..\nuget\build\OpenTap.targets">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <Content Include="$(NugetPackageRoot)/dotnet.glob/3.0.1/lib/netstandard1.1/DotNet.Glob.dll"
+             CopyToOutputDirectory="PreserveNewest"
+             Link="DotNet.Glob.NetStandard1.1.dll" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\..\Engine\Tap.Engine.csproj" />
+    <ProjectReference Include="..\..\Package\Tap.Package.csproj" />
   </ItemGroup>
 
 

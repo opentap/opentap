@@ -123,12 +123,6 @@ namespace OpenTap.Package
             var brokenFiles = new List<(PackageFile, string)>();
             foreach (var file in pkg.Files)
             {
-                var filename = Path.GetFileName(file.FileName);
-                if (pkg.Name == "OpenTAP" && (filename == "tap.exe" || filename == "tap" || filename == "tap.dll"))
-                {
-                    log.Debug("Skipping {0}.", filename);
-                    continue;
-                }
                 var hash = file.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
                 if (hash == null)
                 {
@@ -145,7 +139,11 @@ namespace OpenTap.Package
                         log.Debug("Replacing '\\' with '/' in {0}", file.FileName);
                         file.FileName = repl;
                     }
-                    string fullpath = Path.Combine(Target, file.FileName);
+
+                    string fullpath =
+                        Path.Combine(pkg.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : Target,
+                            file.FileName);
+                    
                     var hash2 = new FileHashPackageAction.Hash(FileHashPackageAction.hashFile(fullpath));
                     if (false == hash2.Equals(hash))
                     {

@@ -19,6 +19,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)ExecutorInterop.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FileSystemHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ICliActionExtensions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)HttpUtils.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)License\LicenseParser.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)License\LicenseScanner.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)License\LicenseTree.cs" />
@@ -26,6 +27,14 @@
     <Compile Include="$(MSBuildThisFileDirectory)PathUtils.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ReflectionHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ShortTimeSpan.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)VersionChecker.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SubProcessHost.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ProcessCliAction.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PipeReader.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)SudoHelper.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)WeakHashSet.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Cache.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)FileLocks.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PosixSignals.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)ZipUtils.cs" />
   </ItemGroup>
 </Project>

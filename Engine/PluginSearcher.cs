@@ -12,8 +12,6 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
-using System.Text;
-using System.Threading.Tasks;
 using Tap.Shared;
 
 [assembly: OpenTap.PluginAssembly(true)]
@@ -206,6 +204,45 @@ namespace OpenTap
             private ILookup<string, string> nameToFileMap;
             HashSet<AssemblyRef> UnfoundAssemblies; // for assemblies that are not in the files.
 
+            ImmutableDictionary<Assembly, AssemblyData> assemblyToAssemblyDataLookup = ImmutableDictionary<Assembly, AssemblyData>.Empty;
+
+            /// <summary>
+            /// Find the AssemblyData for a specific loaded Assembly. If not found, it will analyze it and cache it.
+            /// </summary>
+            internal AssemblyData FindAssemblyData(Assembly asm)
+            {
+                if (!assemblyToAssemblyDataLookup.TryGetValue(asm, out var asmData))
+                {
+                    var name = asm.FullName;
+                    if (asmNameToAsmData.TryGetValue(name, out var asmData2))
+                    {
+                        asmData = asmData2;
+                    }else if (nameToAsmMap2.TryGetValue(asm.Location?.ToUpper() ?? "", out var asmRef) && nameToAsmMap.TryGetValue(asmRef, out var asmData3))
+                    {
+                        asmData = asmData3;
+                    }
+
+                    if (asmData == null)
+                    {
+                        foreach (var assembly in Assemblies)
+                        {
+                            if (assembly.GetCached() == asm)
+                            {
+                                asmData = assembly;
+                                break;
+                            }
+                        }
+                    }
+                    if (asmData == null)
+                    {
+                        asmData = AddAssemblyInfo(asm.Location, asm);
+                    }
+                    assemblyToAssemblyDataLookup = assemblyToAssemblyDataLookup.Add(asm, asmData);
+                }
+                
+                return asmData;
+            }
+            
             /// <summary> Manually analyze and add an assembly file. </summary>
             internal AssemblyData AddAssemblyInfo(string file, Assembly loadedAssembly = null)
             {
@@ -216,6 +253,8 @@ namespace OpenTap
                 }
                 try
                 {
+                    if (file.Contains(".resources.dll"))
+                        return null;
                     var thisAssembly = new AssemblyData(file, loadedAssembly);
                     
                     List<AssemblyRef> refNames = new List<AssemblyRef>();
@@ -223,6 +262,8 @@ namespace OpenTap
                     {
                         if(str.Length > int.MaxValue)
                             return null; // otherwise PEReader() will throw.
+                        if(str.Length < 50) 
+                            return null; // Don't consider super small assemblies.
                         using (PEReader header = new PEReader(str, PEStreamOptions.LeaveOpen))
                         {
                             if (!header.HasMetadata)
@@ -231,10 +272,10 @@ namespace OpenTap
                             MetadataReader metadata = header.GetMetadataReader();
                             AssemblyDefinition def = metadata.GetAssemblyDefinition();
 
-                            // if we were asked to only prvide distinct assembly names and 
+                            // if we were asked to only provide distinct assembly names and 
                             // this assembly name has already been encountered, just return that.
-                            var fileIdentifer = Option.HasFlag(Options.IncludeSameAssemblies) ? file : def.GetAssemblyName().FullName;
-                            if (asmNameToAsmData.TryGetValue(fileIdentifer, out AssemblyData data))
+                            var fileIdentifier = Option.HasFlag(Options.IncludeSameAssemblies) ? file : def.GetAssemblyName().FullName;
+                            if (asmNameToAsmData.TryGetValue(fileIdentifier, out AssemblyData data))
                                 return data;
 
                             thisAssembly.Name = metadata.GetString(def.Name);
@@ -242,6 +283,32 @@ namespace OpenTap
                             if (string.Compare(thisAssembly.Name, Path.GetFileNameWithoutExtension(file), true) != 0)
                                 throw new Exception("Assembly name does not match the file name.");
                             var thisRef = new AssemblyRef(thisAssembly.Name, def.Version);
+
+                            var prov = new CustomAttributeTypeProvider();
+                            foreach (CustomAttributeHandle attrHandle in def.GetCustomAttributes())
+                            {
+                                CustomAttribute attr = metadata.GetCustomAttribute(attrHandle);
+
+                                if (attr.Constructor.Kind == HandleKind.MemberReference)
+                                {
+                                    var ctor = metadata.GetMemberReference((MemberReferenceHandle)attr.Constructor);
+                                    string attributeFullName = GetFullName(metadata, ctor.Parent);
+                                    if (attributeFullName == typeof(AssemblyInformationalVersionAttribute).FullName)
+                                    {
+                                        var valueString = attr.DecodeValue(prov).FixedArguments[0].Value?.ToString();
+                                        if (SemanticVersion.TryParse(valueString, out _))
+                                            thisAssembly.RawVersion = valueString;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            // If the semantic version was not set, fall back to using the version
+                            // from the AssemblyDefinition
+                            if (string.IsNullOrWhiteSpace(thisAssembly.RawVersion))
+                            {
+                                thisAssembly.RawVersion = def.Version.ToString();
+                            }
 
                             thisAssembly.Version = def.Version;
 
@@ -251,7 +318,7 @@ namespace OpenTap
                                 nameToAsmMap2[PathUtils.NormalizePath(thisAssembly.Location)] = thisRef;
                             }
 
-                            asmNameToAsmData[fileIdentifer] = thisAssembly;
+                            asmNameToAsmData[fileIdentifier] = thisAssembly;
 
                             foreach (var asmRefHandle in metadata.AssemblyReferences)
                             {
@@ -339,17 +406,27 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<TypeData> Search(string dir)
         {
-            IEnumerable<string> files = Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories);
-            files = files.Where(f => Path.GetExtension(f) == ".dll" || Path.GetExtension(f) == ".exe").ToList();
+            var finder = new AssemblyFinder() { Quiet = true, IncludeDependencies = true, DirectoriesToSearch = new[] { dir } };
+            IEnumerable<string> files = finder.AllAssemblies();
 
             return Search(files);
         }
 
+
         /// <summary> Adds an assembly outside the 'search' context. </summary>
-        internal void AddAssembly(string path, Assembly loadedAssembly)
+        internal AssemblyData AddAssembly(string path, Assembly loadedAssembly)
         {
             var asm = graph.AddAssemblyInfo(path, loadedAssembly);
             PluginsInAssemblyRecursive(asm);
+            return asm;
+        }
+        
+        /// <summary> Adds an assembly outside the 'search' context. </summary>
+        internal AssemblyData AddAssembly(Assembly loadedAssembly)
+        {
+            var asm = graph.AddAssemblyInfo(loadedAssembly.Location, loadedAssembly);
+            PluginsInAssemblyRecursive(asm);
+            return asm;
         }
 
         /// <summary>
@@ -375,10 +452,7 @@ namespace OpenTap
             return PluginTypes;
         }
 
-        internal TypeData PluginMarkerType = new TypeData
-        {
-            Name = typeof(ITapPlugin).FullName
-        };
+        internal readonly TypeData PluginMarkerType = new TypeData(typeof(ITapPlugin).FullName);
 
         private void PluginsInAssemblyRecursive(AssemblyData asm)
         {
@@ -408,7 +482,7 @@ namespace OpenTap
                     if(isPluginAssemblyAttribute)
                     {
                         var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
-                        ReadPrivateTypesInCurrentAsm = bool.Parse(valueString.FixedArguments.First().Value.ToString());
+                        ReadPrivateTypesInCurrentAsm = (bool)valueString.FixedArguments[0].Value;
                         if (valueString.FixedArguments.Count() > 1)
                         {
                             string initMethodName = valueString.FixedArguments.ElementAt(1).Value.ToString();
@@ -428,6 +502,7 @@ namespace OpenTap
                     }
                     catch
                     {
+                        // fixes an issue in the plugin searcher if it tries to scan an assembly with native types in it.
                     }
                 }
             }
@@ -477,10 +552,70 @@ namespace OpenTap
         private TypeData PluginFromTypeRef(TypeReferenceHandle handle)
         {
             string ifaceFullName = GetFullName(CurrentReader,handle);
-            if (AllTypes.ContainsKey(ifaceFullName))
-                return AllTypes[ifaceFullName];
+            if (AllTypes.TryGetValue(ifaceFullName, out var tp))
+                return tp;
+            return null; // This is not a type that we care about (not defined in any of the files the searcher is given)
+        }
+
+        private static string valueTypeName = typeof(ValueType).FullName;
+        private static readonly ConcurrentDictionary<string, bool> ValueTypeMap = new ConcurrentDictionary<string, bool>(); 
+        private bool IsValueType(TypeDefinition typeDef, string typeName = null)
+        {
+            
+            bool helper(string s)
+            {
+                try
+                {
+                    if (s == valueTypeName) return true;
+
+                    var baseType = typeDef.BaseType;
+                    switch (baseType.Kind)
+                    {
+                        case HandleKind.TypeReference:
+                            var tr = (TypeReferenceHandle)baseType;
+                            var r = CurrentReader.GetTypeReference(tr);
+                            return CurrentReader.GetString(r.Name) == "ValueType";
+                        case HandleKind.TypeDefinition:
+                            var td = (TypeDefinitionHandle)baseType;
+                            if (td.IsNil) return false;
+                            var d = CurrentReader.GetTypeDefinition(td);
+                            return IsValueType(d);
+                        default:
+                            return false;
+                    }
+                }
+                catch
+                {
+                    // This should be rare, and if the reader can't resolve some base type we can't do anything about it.
+                    // Just assume it isn't a valuetype and move on.
+                    return false;
+                }
+            }
+
+            typeName ??= GetTypeName(typeDef);
+            return ValueTypeMap.GetOrAdd(typeName, helper);
+        }
+
+        private string GetTypeName(TypeDefinition td)
+        {
+            string typeName;
+
+            TypeDefinitionHandle declaringTypeHandle = td.GetDeclaringType();
+            if (declaringTypeHandle.IsNil)
+            {
+                typeName = string.Format("{0}.{1}", CurrentReader.GetString(td.Namespace),
+                    CurrentReader.GetString(td.Name));
+            }
             else
-                return null; // This is not a type that we care about (not defined in any of the files the searcher is given)
+            {
+                // This is a nested type
+                TypeData declaringType = PluginFromTypeDefRecursive(declaringTypeHandle);
+                if (declaringType == null)
+                    return null;
+                typeName = string.Format("{0}+{1}", declaringType.Name, CurrentReader.GetString(td.Name));
+            }
+
+            return typeName;
         }
 
         private TypeData PluginFromTypeDefRecursive(TypeDefinitionHandle handle)
@@ -504,23 +639,10 @@ namespace OpenTap
                     return null;
             }
 
-            TypeData plugin = new TypeData();
-            TypeDefinitionHandle declaringTypeHandle = typeDef.GetDeclaringType();
-            if (declaringTypeHandle.IsNil)
+            var typeName = GetTypeName(typeDef);
+            if (typeName == null) return null;
+            if (AllTypes.TryGetValue(typeName, out var existingPlugin))
             {
-                plugin.Name = string.Format("{0}.{1}", CurrentReader.GetString(typeDef.Namespace), CurrentReader.GetString(typeDef.Name));
-            }
-            else
-            {
-                // This is a nested type
-                TypeData declaringType = PluginFromTypeDefRecursive(declaringTypeHandle);
-                if (declaringType == null)
-                    return null;
-                plugin.Name = string.Format("{0}+{1}", declaringType.Name, CurrentReader.GetString(typeDef.Name));
-            }
-            if (AllTypes.ContainsKey(plugin.Name))
-            {
-                var existingPlugin = AllTypes[plugin.Name];
                 if (existingPlugin.Assembly.Name == CurrentAsm.Name)
                 {
                     // we assume this is the same plugin, just in another copy of the dll
@@ -536,6 +658,7 @@ namespace OpenTap
                 }
                 return existingPlugin;
             }
+            TypeData plugin = new TypeData(typeName);
             if (plugin.Name == PluginMarkerType.Name)
             {
                 PluginMarkerType.Assembly = CurrentAsm;
@@ -630,6 +753,19 @@ namespace OpenTap
                 {
                     plugin.CanCreateInstance = false;
                 }
+                // It is not possible to instantiate types if they have unresolved generic parameters.
+                // Since we are currently reflecing an unloaded assembly, it is impossible for generic parameters
+                // to be resolved. If there are generic parameters, this typedata must therefore be unconstroctable.
+                // Once the type is actually loaded, whether an instance can be created for resolved instances
+                // of this type will be computed differently in the TypeData implementation.
+                else if (typeDef.GetGenericParameters().Count != 0)
+                {
+                    plugin.CanCreateInstance = false;
+                }
+                else if (IsValueType(typeDef, typeName))
+                {
+                    plugin.CanCreateInstance = true;
+                }
                 else
                 {
                     // The type can only be instantiated if it has a parameter-less constructor which does not require type arguments
@@ -646,6 +782,18 @@ namespace OpenTap
                     foreach (var methodHandle in typeDef.GetMethods())
                     {
                         var m = CurrentReader.GetMethodDefinition(methodHandle);
+
+                        // This method is applicable if it is public, non-static, and has the RTSpecialName attribute
+                        // The RTSpecialName attribute means that the method has a special significance explained by its name.
+                        // All constructors will have this attribute, but most user-defined methods will not.
+                        var attributes = m.Attributes;
+                        var applicable = attributes.HasFlag(MethodAttributes.Public) &&
+                                         attributes.HasFlag(MethodAttributes.Static) == false &&
+                                         attributes.HasFlag(MethodAttributes.RTSpecialName);
+
+                        if (!applicable)
+                            continue;
+
                         if (CurrentReader.GetString(m.Name) != ".ctor")
                             continue;
 
@@ -667,7 +815,7 @@ namespace OpenTap
                 PluginTypes.Add(plugin);
                 CurrentAsm.AddPluginType(plugin);
 
-                if(!plugin.Assembly.IsSemanticVersionSet)
+                if(plugin.Assembly.RawVersion == null)
                 {
                     foreach (CustomAttributeHandle attrHandle in CurrentReader.GetAssemblyDefinition().GetCustomAttributes())
                     {
@@ -677,17 +825,13 @@ namespace OpenTap
                         {
                             var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle)attr.Constructor);
                             string attributeFullName = GetFullName(CurrentReader, ctor.Parent);
-                            if(attributeFullName == typeof(System.Reflection.AssemblyInformationalVersionAttribute).FullName)
+                            if(attributeFullName == typeof(AssemblyInformationalVersionAttribute).FullName)
                             {
                                 var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
-                                if(SemanticVersion.TryParse(GetStringIfNotNull(valueString.FixedArguments[0].Value), out SemanticVersion infoVer)) // the first argument to the DisplayAttribute constructor is the InformationalVersion string
-                                {
-                                    plugin.Assembly.SemanticVersion = infoVer;
-                                }
+                                plugin.Assembly.RawVersion = GetStringIfNotNull(valueString.FixedArguments[0].Value);
                             }
                         }
                     }
-                    plugin.Assembly.IsSemanticVersionSet = true;
                 }
             }
             return plugin;
@@ -853,12 +997,12 @@ namespace OpenTap
 
             public TypeData GetPrimitiveType(PrimitiveTypeCode typeCode)
             {
-                return new TypeData { Name = "System." + typeCode.ToString() };
+                return new TypeData("System." + typeCode);
             }
 
             public TypeData GetSZArrayType(TypeData elementType)
             {
-                return elementType != null ? new TypeData { Name = elementType.Name } : null;
+                return elementType != null ? new TypeData(elementType.Name) : null;
             }
 
             public TypeData GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte rawTypeKind)
@@ -877,414 +1021,7 @@ namespace OpenTap
             }
         }
         #endregion
-    }
-
-    /// <summary>
-    /// Representation of a C#/dotnet type including its inheritance hierarchy. Part of the object model used in the PluginManager
-    /// </summary>
-    [DebuggerDisplay("{Name}")]
-    public partial class TypeData
-    {
-        /// <summary>
-        /// Gets the fully qualified name of the type, including its namespace but not its assembly.
-        /// </summary>
-        public string Name { get; internal set; }
-
-        /// <summary>
-        /// Gets the TypeAttributes for this type. This can be used to check if the type is abstract, nested, an interface, etc.
-        /// </summary>
-        public TypeAttributes TypeAttributes { get; internal set; }
-        
-        /// <summary>
-        /// Gets the Assembly that defines this type.
-        /// </summary>
-        public AssemblyData Assembly { get; internal set; }
-
-        // Used to mark when no display attribute is present.
-        static readonly DisplayAttribute noDisplayAttribute = new DisplayAttribute("<<Null>>");
-        
-        DisplayAttribute display;
-        /// <summary>
-        /// Gets.the DisplayAttribute for this type. Null if the type does not have a DisplayAttribute
-        /// </summary>
-        public DisplayAttribute Display
-        {
-            get
-            {
-                if (display is null && attributes != null)
-                {
-                    display = noDisplayAttribute;
-                    foreach (var attr in attributes)
-                    {
-                        if (attr is DisplayAttribute displayAttr)
-                        {
-                            display = displayAttr;
-                            break;
-                        }
-                    }
-                    
-                }
-
-                if (ReferenceEquals(display, noDisplayAttribute)) 
-                    return null;
-                return display;
-            }
-            internal set => display = value;
-        }
-
-
-        ICollection<TypeData> baseTypes;
-        
-        /// <summary> Gets a list of base types (including interfaces) </summary>
-        internal ICollection<TypeData> BaseTypes => baseTypes;
-
-        internal void FinalizeCreation()
-        {
-            baseTypes = baseTypes?.ToArray();
-            pluginTypes = pluginTypes?.ToArray();
-        }
-        internal void AddBaseType(TypeData typename)
-        {
-            if (baseTypes == null)
-                baseTypes = new HashSet<TypeData>();
-            baseTypes.Add(typename);
-        }
-
-        ICollection<TypeData> pluginTypes;
-        /// <summary>
-        /// Gets a list of plugin types (i.e. types that directly implement ITapPlugin) that this type inherits from/implements
-        /// </summary>
-        public IEnumerable<TypeData> PluginTypes => pluginTypes;
-
-        internal void AddPluginType(TypeData typename)
-        {
-            if (typename == null)
-                return;
-            if (pluginTypes == null)
-                pluginTypes = new HashSet<TypeData>();
-            pluginTypes.Add(typename);
-        }
-        internal void AddPluginTypes(IEnumerable<TypeData> types)
-        {
-            if (types == null)
-                return;
-            if (pluginTypes == null)
-                pluginTypes = new HashSet<TypeData>();
-            foreach (var t in types)
-                pluginTypes.Add(t);
-        }
-
-        ICollection<TypeData> derivedTypes;
-
-        /// <summary>
-        /// Gets a list of types that has this type as a base type (including interfaces)
-        /// </summary>
-        public IEnumerable<TypeData> DerivedTypes => derivedTypes ?? Array.Empty<TypeData>();
-
-        /// <summary>
-        /// False if the type has a System.ComponentModel.BrowsableAttribute with Browsable = false.
-        /// </summary>
-        public bool IsBrowsable { get; internal set; }
-
-        internal void AddDerivedType(TypeData typename)
-        {
-            if (derivedTypes == null)
-                derivedTypes = new HashSet<TypeData>();
-            else if (derivedTypes.Contains(typename))
-                return;
-            derivedTypes.Add(typename);
-            if (BaseTypes != null)
-            {
-                foreach (TypeData b in BaseTypes)
-                    b.AddDerivedType(typename);
-            }
-        }
-
-        internal TypeData()
-        {
-            IsBrowsable = true;
-        }
-        
-        private bool failedLoad;
-
-        /// <summary>
-        /// Returns the System.Type corresponding to this. 
-        /// If the assembly in which this type is defined has not yet been loaded, this call will load it.
-        /// </summary>
-        public Type Load()
-        {
-            if (failedLoad) return null;
-            if (type == null)
-            {
-                var asm = Assembly.Load();
-                if(asm == null)
-                {
-                    failedLoad = true;
-                    return null;
-                }
-                try
-                {
-                    type = asm.GetType(this.Name,true);
-                    dict.GetValue(type, t => this);
-                }
-                catch (Exception ex)
-                {
-                    failedLoad = true;
-                    log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", Name, Assembly.Location, ex.Message);
-                    log.Debug(ex);
-                }
-            }
-            return type;
-        }
-
-        /// <summary> The loaded state of the type. </summary>
-        internal LoadStatus Status => type != null ? LoadStatus.Loaded : (failedLoad ? LoadStatus.FailedToLoad : LoadStatus.NotLoaded);
-
-        static TraceSource log = Log.CreateSource("PluginManager");
-
-        /// <summary>
-        /// Returns the DisplayAttribute.Name if the type has a DisplayAttribute, otherwise the FullName without namespace
-        /// </summary>
-        /// <returns></returns>
-        public string GetBestName()
-        {
-            return Display != null ? Display.Name : Name.Split('.', '+').Last();
-        }
-    }
-
-    /// <summary>
-    /// The status of the loading operation for TypeData and AssemblyData.
-    /// </summary>
-    internal enum LoadStatus
-    {
-        /// <summary> Loading has not been done yet. </summary>
-        NotLoaded = 1,
-        /// <summary> This has been loaded. </summary>
-        Loaded = 2,
-        /// <summary> It failed to load. </summary>
-        FailedToLoad = 3
-    }
+        internal AssemblyData GetAssemblyData(Assembly asm) => graph.FindAssemblyData(asm);
     
-
-    /// <summary>
-    /// Representation of an assembly including its dependencies. Part of the object model used in the PluginManager
-    /// </summary>
-    [DebuggerDisplay("{Name} ({Location})")]
-    public class AssemblyData
-    {
-        private static readonly TraceSource log = Log.CreateSource("PluginManager");
-        /// <summary>
-        /// The name of the assembly. This is the same as the filename without extension
-        /// </summary>
-        public string Name { get; internal set; }
-
-        /// <summary>
-        /// The file from which this assembly can be loaded. The information contained in this AssemblyData object comes from this file.
-        /// </summary>
-        public string Location { get; }
-
-        /// <summary>
-        /// <see cref="PluginAssemblyAttribute"/> decorating assembly, if included
-        /// </summary>
-        public PluginAssemblyAttribute PluginAssemblyAttribute { get; internal set; }
-
-        /// <summary>
-        /// A list of Assemblies that this Assembly references.
-        /// </summary>
-        public IEnumerable<AssemblyData> References { get; internal set; }
-
-        List<TypeData> pluginTypes;
-        
-        /// <summary>
-        /// Gets a list of plugin types that this Assembly defines
-        /// </summary>
-        public IEnumerable<TypeData> PluginTypes =>pluginTypes;
-
-        internal void AddPluginType(TypeData typename)
-        {
-            if (typename == null)
-                return;
-            if (pluginTypes == null)
-                pluginTypes = new List<TypeData>();
-            pluginTypes.Add(typename);
-        }
-
-        /// <summary> The loaded state of the assembly. </summary>
-        internal LoadStatus Status => assembly != null ? LoadStatus.Loaded : (failedLoad ? LoadStatus.FailedToLoad : LoadStatus.NotLoaded);
-
-        /// <summary>
-        /// Gets the version of this Assembly
-        /// </summary>
-        public Version Version { get; internal set; }
-        
-        /// <summary>
-        /// Gets the version of this Assembly as a <see cref="SemanticVersion"/>
-        /// </summary>
-        public SemanticVersion SemanticVersion { get; internal set; }
-
-        internal AssemblyData(string location, Assembly preloadedAssembly = null)
-        {
-            Location = location;
-            this.preloadedAssembly = preloadedAssembly;
-        }
-
-        /// <summary>  Optionally set for preloaded assemblies.  </summary>
-        readonly Assembly preloadedAssembly;
-        Assembly assembly;
-
-        bool failedLoad;
-        internal bool IsSemanticVersionSet;
-
-        /// <summary>
-        /// Returns the System.Reflection.Assembly corresponding to this. 
-        /// If the assembly has not yet been loaded, this call will load it.
-        /// </summary>
-        public Assembly Load()
-        {
-            if (failedLoad)
-                return null;
-            if (assembly == null)
-            {
-                try
-                {
-                    var watch = Stopwatch.StartNew();
-                    if (preloadedAssembly != null)
-                        assembly = preloadedAssembly;
-                    else
-                    {
-                        var _asm = AppDomain.CurrentDomain.GetAssemblies()
-                            .FirstOrDefault(asm => !asm.IsDynamic && !string.IsNullOrWhiteSpace(asm.Location) && PathUtils.AreEqual(asm.Location, this.Location));
-                        assembly = _asm;
-                    }
-
-                    if (assembly == null)
-                    {
-                        if (this.Name == "OpenTap")
-                        {
-                            assembly = typeof(PluginSearcher).Assembly;
-                        }
-                        else
-                        {
-                            assembly = Assembly.LoadFrom(Path.GetFullPath(this.Location));
-                        }
-                    }
-                    //TODO 
-                    try
-                    {
-                        // Find attribute
-                        if (PluginAssemblyAttribute != null && PluginAssemblyAttribute.PluginInitMethod != null)
-                        {
-                            string fullName = PluginAssemblyAttribute.PluginInitMethod;
-                            // Break into namespace, class, and method name
-                            string[] names = fullName.Split('.');
-                            if (names.Count() < 3)
-                                throw new Exception($"Could not find method {fullName} in assembly: {Location}");
-                            string methodName = names.Last();
-                            string className = names.ElementAt(names.Count() - 2);
-                            string namespacePath = string.Join(".", names.Take(names.Count() - 2));
-                            Type initClass = assembly.GetType($"{namespacePath}.{className}");
-                            // Check if loaded class exists and is static (abstract and sealed) and is public
-                            if (initClass == null || !initClass.IsClass || !initClass.IsAbstract || !initClass.IsSealed || !initClass.IsPublic)
-                                throw new Exception($"Could not find method {fullName} in assembly: {Location}");
-                            MethodInfo initMethod = initClass.GetMethod(methodName);
-                            // Check if loaded method exists and is static and returns void and is public
-                            if (initMethod == null || !initMethod.IsStatic || initMethod.ReturnType != typeof(void) || !initMethod.IsPublic)
-                                throw new Exception($"Could not find method {fullName} in assembly: {Location}");
-                            // Invoke the method and unwrap the InnerException to get meaningful error message
-                            try
-                            {
-                                initMethod.Invoke(null, null);
-                            }
-                            catch (TargetInvocationException exc)
-                            {
-                                throw exc.InnerException;
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        failedLoad = true;
-                        assembly = null;
-                        log.Error($"Failed to load plugins from {this.Location}");
-                        log.Debug(ex);
-
-                        return null;
-                    }
-                    log.Debug(watch, "Loaded {0}.", this.Name);
-                }
-                catch (SystemException ex)
-                {
-                    failedLoad = true;
-                    StringBuilder sb = new StringBuilder(String.Format("Failed to load plugins from {0}", this.Location));
-                    bool addedZoneInfo = false;
-                    try
-                    {
-                        var zonetype = Type.GetType("System.Security.Policy.Zone");
-                        if (zonetype != null)
-                        {               
-                            // Hack to support .net core without having to build separate assemblies.
-                            dynamic zone = zonetype.GetMethod("CreateFromUrl").Invoke(null, new object[] { this.Location });
-                            var sec = zone.SecurityZone.ToString();
-                            if (sec.Contains("Internet") || sec.Contains("Untrusted"))
-
-                            {
-                                // The file is in an NTFS Windows operating system blocked state
-                                sb.Append(" The file came from another computer and might be blocked to help protect this computer. Please unblock the file in Windows.");
-                                addedZoneInfo = true;
-                            }
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        log.Error("Failed to check Security policy for file.");
-                        log.Debug(e);
-                        addedZoneInfo = true;
-                    }
-
-                    if (!addedZoneInfo)
-                        sb.Append(" Error: "  + ex.Message);
-                    log.Error(sb.ToString());
-                    log.Debug(ex);
-                }
-            }
-            if(assembly != null)
-                AssemblyExtensions.lookup[assembly] = this.SemanticVersion;
-            return assembly;
-        }
     }
-
-    internal static class AssemblyExtensions
-    {
-        // TODO: Change this to mapping from Assembly to AssemblyData instead.
-        internal static ConcurrentDictionary<Assembly, SemanticVersion> lookup = new ConcurrentDictionary<Assembly, SemanticVersion>();
-        internal static SemanticVersion GetSemanticVersion(this Assembly asm)
-        {
-            if (!lookup.ContainsKey(asm) || lookup[asm] == null)
-            {
-                string verString = asm.GetCustomAttributes<AssemblyInformationalVersionAttribute>().FirstOrDefault()?.InformationalVersion;
-                SemanticVersion ver = default(SemanticVersion);
-                if (String.IsNullOrEmpty(verString) || !SemanticVersion.TryParse(verString, out ver))
-                    verString = asm.GetCustomAttributes<AssemblyVersionAttribute>().FirstOrDefault()?.Version;
-                if (String.IsNullOrEmpty(verString) || !SemanticVersion.TryParse(verString, out ver))
-                    verString = asm.GetCustomAttributes<AssemblyFileVersionAttribute>().FirstOrDefault()?.Version;
-                if (String.IsNullOrEmpty(verString) || !SemanticVersion.TryParse(verString, out ver))
-                {
-                    if(asm.IsDynamic == true || string.IsNullOrWhiteSpace(asm.Location))
-                        verString = "0.0.0";
-                    else if(Version.TryParse(FileVersionInfo.GetVersionInfo(asm.Location).ProductVersion, out Version pv))
-                        verString = pv.ToString(3);
-                    else if(Version.TryParse(FileVersionInfo.GetVersionInfo(asm.Location).FileVersion, out Version fv))
-                        verString = fv.ToString(3);
-                    else
-                        verString = "0.0.0";
-
-                }
-                if (String.IsNullOrEmpty(verString) || !SemanticVersion.TryParse(verString, out ver))
-                    Debug.Assert(false);
-                lookup[asm] = ver;
-            }
-            return lookup[asm];
-        }
-    }
-
 }

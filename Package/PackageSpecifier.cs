@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -14,9 +14,15 @@ namespace OpenTap.Package
     /// <summary>
     /// Holds search parameters that specifies a range of packages in the OpenTAP package system.
     /// </summary>
-    [DebuggerDisplay("{Name} ({Version.ToString()})")]
     public class PackageSpecifier
     {
+        /// <summary> Gets a readable string for this package specifier. </summary>
+        public override string ToString()
+        {
+            var versionString = Version == VersionSpecifier.AnyRelease ? "Any Release" : Version.ToString();
+            return $"[{Name} ({versionString})]";
+        }
+
         /// <summary>
         /// Search for parameters that specifies a range of packages in the OpenTAP package system. Unset parameters will be treated as 'any'.
         /// </summary>
@@ -66,8 +72,14 @@ namespace OpenTap.Package
         /// <summary>
         /// The VersionSpecifier that will match any version. VersionSpecifier.Any.IsCompatible always returns true.
         /// </summary>
-        public static readonly VersionSpecifier Any = new VersionSpecifier(null, null, null, null, null, VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease);
+        public static readonly VersionSpecifier Any = new VersionSpecifier(null, null, null, null, null,  VersionMatchBehavior.Exact | VersionMatchBehavior.AnyPrerelease);
 
+        /// <summary>
+        /// The VersionSpecifier that will match any version. VersionSpecifier.Any.IsCompatible always returns true.
+        /// </summary>
+        public static readonly VersionSpecifier AnyRelease = new VersionSpecifier(null, null, null, null, null, VersionMatchBehavior.Exact);
+
+        
         /// <summary>
         /// Major version. When not null, <see cref="SemanticVersion.IsCompatible"/> will return false for <see cref="SemanticVersion"/>s with a Major version different from this.
         /// </summary>
@@ -133,6 +145,13 @@ namespace OpenTap.Package
                     ver = VersionSpecifier.Any;
                     return true;
                 }
+
+                if (string.IsNullOrEmpty(version))
+                {
+                    ver = AnyRelease;
+                    return true;
+                }
+
                 var m = parser.Match(version);
                 if (m.Success)
                 {
@@ -178,6 +197,8 @@ namespace OpenTap.Package
         {
             if (this == VersionSpecifier.Any)
                 return "Any";
+            if (this == VersionSpecifier.AnyRelease)
+                return "";
 
             var formatter = versionFormatter.Value;
             formatter.Clear();
@@ -269,6 +290,8 @@ namespace OpenTap.Package
         {
             if (ReferenceEquals(this, VersionSpecifier.Any))
                 return true; // this is just a small performance shortcut. The below logic would have given the same result.
+            if (ReferenceEquals(this, VersionSpecifier.AnyRelease))
+                return actualVersion.PreRelease == null; // this is just a small performance shortcut. The below logic would have given the same result.
 
             if (MatchBehavior == VersionMatchBehavior.Exact)
                 return MatchExact(actualVersion);
@@ -327,7 +350,7 @@ namespace OpenTap.Package
                 return true;
 
             // We want ^1.0.0 to accept 1.0.1-beta or 1.1.0-beta as compatible versions
-            if(PreRelease == null && actualVersion.PreRelease != null)
+            if(actualVersion.PreRelease != null)
             {
                 if (Minor.HasValue && Minor.Value < actualVersion.Minor)
                     return true;
@@ -391,6 +414,55 @@ namespace OpenTap.Package
 
             return ComparePreRelease(PreRelease, other.PreRelease);
         }
+        
+        class PartialComparer : IComparer<SemanticVersion>
+        {
+            readonly VersionSpecifier pkg;
+            public PartialComparer(VersionSpecifier pkg) => this.pkg = pkg;
+            
+            public int Compare(SemanticVersion a, SemanticVersion b)
+            {
+                // If pre-releases are not wanted, put them at the very last.
+                if (pkg.PreRelease == null && (a.PreRelease != null || b.PreRelease != null))
+                {
+                    if (a.PreRelease == null && b.PreRelease != null) return -1;
+                    if (a.PreRelease != null && b.PreRelease == null) return 1;
+                }
+                
+                if (pkg.Major.HasValue)
+                {
+                    var m = a.Major.CompareTo(b.Major);
+                    if (m != 0) return m;
+                }
+                if (pkg.Minor.HasValue)
+                {
+                    var m = a.Minor.CompareTo(b.Minor);
+                    if (m != 0) return m;
+                }
+                
+                if (pkg.Patch.HasValue)
+                {
+                    var m = a.Patch.CompareTo(b.Patch);
+                    if (m != 0) return m;
+                }
+
+                if (a.PreRelease == b.PreRelease) return 0;
+                if (a.PreRelease == null && b.PreRelease != null) return 1;
+                if (a.PreRelease != null && b.PreRelease == null) return -1;
+
+                return ComparePreRelease(a.PreRelease, b.PreRelease);
+            }
+        }
+
+        /// <summary>
+        /// This sorts versions based on a partially defined version set. For example ^1 would sort based on major version only, but ignore the rest.
+        /// This is useful when using in connection with other stable sortings. 
+        /// </summary>
+        internal IComparer<SemanticVersion> SortPartial => new PartialComparer(this);
+
+        ///<summary> A version is exact if the match behavior is exact and all version fields are specified. </summary>
+        internal bool IsExact => MatchBehavior == VersionMatchBehavior.Exact && Major.HasValue && Minor.HasValue &&
+                               Patch.HasValue;
 
         private static int ComparePreRelease(string p1, string p2)
         {
@@ -445,6 +517,22 @@ namespace OpenTap.Package
         {
             return !(a == b);
         }
+
+        
+        internal bool TryAsExactSemanticVersion(out SemanticVersion semver)
+        {
+            if (MatchBehavior == VersionMatchBehavior.Exact && Major.HasValue && Minor.HasValue && Patch.HasValue)
+            {
+                semver = new SemanticVersion(Major.Value, Minor.Value, Patch.Value, PreRelease, BuildMetadata);
+                return true;
+            }
+
+            semver = default;
+            return false;
+        }
+
+        internal VersionSpecifier WithMatchBehavior(VersionMatchBehavior matchBehavior) => new VersionSpecifier(Major, Minor, Patch, PreRelease, BuildMetadata, matchBehavior);
+        
     }
 
     /// <summary>

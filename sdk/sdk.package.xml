@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Package Name="SDK" xmlns="http://opentap.io/schemas/package" InfoLink="http://www.keysight.com/find/TAP" Version="$(GitVersion)" OS="Windows,Linux" Tags="SDK">
+<Package Name="SDK" xmlns="http://opentap.io/schemas/package" InfoLink="http://www.keysight.com/find/TAP" Version="$(GitVersion)" OS="Windows,Linux,MacOS" Tags="SDK">
   <Description>OpenTAP’s SDK contains code example files, an MSBuild task to help create TapPackage files and the developer guide. This package demonstrates the core capabilities of OpenTAP and makes it faster and simpler to develop custom Test Automation solutions, especially for new developers.
     <Status>Released</Status>
     <Organisation>Keysight Technologies</Organisation>
   </Description>
-  <SourceUrl>https://gitlab.com/OpenTAP/opentap</SourceUrl>
+  <SourceUrl>https://github.com/opentap/opentap</SourceUrl>
   <Owner>OpenTAP</Owner>
   <Dependencies>
     <PackageDependency Package="OpenTAP" Version="^$(GitVersion)" />
@@ -18,6 +18,7 @@
     </File>
     <File Path="OpenTap.xml"/>
     <File Path="OpenTap.Package.xml"/>
+    <File Path="Packages/SDK/OpenTap.Templates.$(GitLongVersion).nupkg"/>
     <File Path="Packages/SDK/PackageSchema.xsd"/>
     <File Path="Packages/SDK/OpenTAP Developer Guide.pdf" SourcePath="Packages/SDK/Examples/OpenTAP Developer Guide.pdf"/>
     <File Path="Packages/SDK/Examples/.OpenTapIgnore"/>
@@ -47,6 +48,7 @@
     <File Path="Packages/SDK/Examples/PluginDevelopment.Gui/PluginDevelopment.Gui.csproj"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment.Gui/Properties/*"/>
     <File Path="Packages/SDK/Examples/PluginDevelopment.Gui/GUI/*.cs"/>
+    <File Path="Packages/SDK/Examples/PluginDevelopment/GUI/SomeInstrument.png"/>
     <File Path="Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/BuildTestPlan.Api.csproj"/>
     <File Path="Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/Program.cs"/>
     <File Path="Packages/SDK/Examples/TestPlanExecution/BuildTestPlan.Api/Properties/AssemblyInfo.cs"/>
@@ -54,4 +56,13 @@
     <File Path="Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/RunTestPlan.Api.csproj"/>
     <File Path="Packages/SDK/Examples/TestPlanExecution/RunTestPlan.Api/Properties/AssemblyInfo.cs"/>
   </Files>
+	<PackageActionExtensions>
+		<!-- 
+      The template install will fail with various exit codes dependening on the dotnet version, and whether or not the templates are already installed:
+      106        : .NET 7 or later if the template is already installed
+      -2147352567: Earlier than .NET 7 if the template is already installed
+      -2147450735: The error code when .NET runtime is installed, but .NET SDK is not
+    -->
+		<ActionStep ExpectedExitCodes="0,106,-2147352567,-2147450735" Quiet="true" ExeFile="dotnet" Arguments='new --install Packages/SDK/OpenTap.Templates.$(GitLongVersion).nupkg' ActionName="install" Optional="true"/>
+	</PackageActionExtensions>
 </Package>

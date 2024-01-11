@@ -5,6 +5,7 @@
 
 using System;
 using System.IO;
+using Tap.Shared;
 
 namespace OpenTap.Package
 {
@@ -16,7 +17,21 @@ namespace OpenTap.Package
         // Resolves to:
         // - Linux: /home/<USER>/.local/share/OpenTAP/PackageCache
         // - Windows: C:\Users\<USER>\AppData\Local\OpenTAP\PackageCache
-        public static string PackageCacheDirectory { get; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTap", "PackageCache");
+        //
+        // Unless OPENTAP_PACKAGE_CACHE_DIR is set, then that path will be used instead.
+        public static string PackageCacheDirectory
+        {
+            get
+            {
+                var alt = Environment.GetEnvironmentVariable(PackageCacheOverrideEnvironmentVariable);
+                if (string.IsNullOrWhiteSpace(alt) == false)
+                    return alt;
+                return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTap", "PackageCache");
+            }
+        } 
+
+        const string PackageCacheOverrideEnvironmentVariable = "OPENTAP_PACKAGE_CACHE_DIR";
+        
         readonly static TraceSource log =  Log.CreateSource("PackageCache");
 
         static PackageCacheHelper()
@@ -41,6 +56,9 @@ namespace OpenTap.Package
                 throw new FileNotFoundException(filename);
 
             string newFilename = Path.Combine(PackageCacheDirectory, Path.GetFileName(filename));
+            
+            // return early to avoid multiple processes interfering with each other. 
+            if (File.Exists(newFilename) && PathUtils.CompareFiles(filename,newFilename)) return;
 
             if (filename == newFilename)
                 return;

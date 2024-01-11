@@ -6,7 +6,7 @@ To make it easier to develop plugins we created two options you can choose from 
 
 - Using the OpenTAP NuGet Package - This is the recommended way to get OpenTAP if you are developing plugin projects. The NuGet package is available on [nuget.org](https://www.nuget.org/packages/OpenTAP/).
 - Using the OpenTAP SDK Package - This provides templates for many types of common OpenTAP plugins and can be used via:
-  - The **OpenTAP Visual Studio Integration** - This allows you to use Visual Studio to create your plugins. You need Visual Studio 2015, 2017 or 2019. If you are using the KS8400A PathWave Test Automation Developer's System, this is already included. Otherwise, it can be downloaded from the the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=OpenTAP.opentapsdkce).
+  - The **OpenTAP Visual Studio Integration** - This allows you to use Visual Studio to create your plugins. You need Visual Studio 2017 or newer. If you are using the KS8400A PathWave Test Automation Developer's System, this is already included. Otherwise, it can be downloaded from the the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=OpenTAP.opentapsdkce).
   - The **Command Line** - This allows you to create project code templates from the command line. You can learn how in [The OpenTAP SDK Templates](#opentap-sdk-templates) section.
 
 ## NuGet Package
@@ -41,26 +41,39 @@ The NuGet package also adds build features to help packaging your plugins as a \
 
 #### Reference Other OpenTAP Packages
 
-When using the OpenTAP NuGet package, you can reference other TapPackages you need directly. TapPackages referenced like this will be installed into your projects output directory (e.g. bin/Debug/) along with OpenTAP itself.
+When using the OpenTAP NuGet package, you can reference other TapPackages you need directly. TapPackages referenced like this will be installed into your projects output directory (usually ./bin/Debug/) along with OpenTAP itself.
 
 You can specify an OpenTAP package that your project should reference. You do this by adding the following to your csproj file:
 ```xml
 <ItemGroup>
-  <OpenTapPackageReference Include="DMM API" Version="2.1.2" Repository="packages.opentap.io" UnpackOnly="false" IncludeAssemblies="pattern1;pattern2" ExcludeAssemblies="pattern3;pattern4" />
+  <!-- OpenTAP package sources -->
+  <OpenTapPackageRepository Include="packages.opentap.io"/>
+  <OpenTapPackageRepository Include="$HOME/Downloads;$HOME/Documents"/>
+
+  <!-- Packages to reference  -->
+  <OpenTapPackageReference Include="DMM API" Version="2.1.2" UnpackOnly="false" IncludeAssemblies="pattern1;pattern2" ExcludeAssemblies="pattern3;pattern4" />
 </ItemGroup>
 ```
-This should be very similar to the way you add a NuGet package using `<PackageReference>`. 
+This is similar to the way you add a NuGet package using `<PackageReference/>`. The `<OpenTapPackageRepository/>` element
+is similar to the concept of [NuGet Sources](https://docs.microsoft.com/en-us/nuget/reference/cli-reference/cli-ref-sources). It specifies from where
+OpenTAP packages should be resolved. The element can be specified multiple times, or the repository sources can be separated by a semicolon (`;`). All instances of this element will be joined during compilation. Http repositories and directory names are both valid sources. `packages.opentap.io` is always included by default, and cannot be excluded. It is included here only as an example.
 
-When referencing a package in this way, assemblies belonging to that package are also referenced in your project.
+When referencing a package in this way, assemblies belonging to that package are automatically referenced in your project.
 
-All attributes except `Include` are optional. `Version` and `Repository` attributes default to latest release, and packages.opentap.io if omitted. `UnpackOnly` defaults to false and can be used to suppress any install actions from running as part of the package being installed in the output dir. The `IncludeAssemblies` and `ExcludeAssemblies` attributes control which assemblies are referenced. The supplied value is interpreted as one or more glob patterns. 
-If not specified, they take on a default value. The default value of `IncludeAssemblies` is `**`, and the default value of ExcludeAssemblies is `Dependencies/**`.
-You can specify several glob patterns, separated by semicolons (`;`). By leveraging glob patterns, your project can target specific dependencies of other packages. 
+All attributes except `Include` are optional. `Version` defaults to the latest release if omitted. `UnpackOnly` defaults to false, and can be used to suppress any install actions from running as part of the package being installed in the output dir. 
+
+
+The `IncludeAssemblies` and `ExcludeAssemblies` attributes control which assemblies are referenced. The supplied value is interpreted as one or more glob patterns, separated by semicolons (`;`). If not specified, they use the default values `IncludeAssemblies="**"` and `ExcludeAssemblies="Dependencies/**"`, meaning that all DLLs from the package are referenced if they are not in a subdirectory of the `Dependencies` folder. By leveraging glob patterns, your project can target specific dependencies of other packages. 
+
+
 Glob patterns are tested in order of specificity, meaning that the evaluation order of patterns in IncludeAssemblies and ExcludeAssemblies can be interleaved. Specificity is measured by the number of tokens used in the expression.
-By tokens, we mean the components of the expression, and not the characters. The components of `Dependencies/**` are `[Dependencies, /, **]`, for instance.
-Because `Dependencies/**` is more specific than `**`, no DLLs in the Dependencies folder are referenced by default.
-Building on this, the pattern `Dependencies/*AspNet*/**` will match all ASP.NET dependencies that the referenced package contains, and will take precedence over the default exclude pattern because this expression contains more tokens, and is thus more specific. In case of ties, Include patterns take precedence over Exclude patterns.
-There is one exception to this rule: any pattern ending with `.dll`, except patterns ending with `*.dll`, are considered literal expressions, and will always take precedence regardless of the number of tokens, thus allowing for easily targeting a specific dll by using a pattern like `**NameOfDll.dll`. Note however that specifying an empty pattern, e.g. ExcludeAssemblies="", will not override the default value of this attribute, and will still exclude `Dependencies/**`. In order to not include or exclude anything, you must provide a dummy value instead.
+By tokens, we mean the *components* of the expression, and not the characters. The components of `"Dependencies/**"` are `["Dependencies", "/", "**"]`, for instance. Because `Dependencies/**` is more specific than `**`, no DLLs in the Dependencies folder are referenced by default.
+
+
+Building on this, the pattern `Dependencies/*AspNet*/**` will match all ASP.NET dependencies that the referenced package contains, and will take precedence over the default exclude pattern because it contains more components, and is thus more specific. In case of ties, Include patterns take precedence over Exclude patterns.
+
+
+There is one exception to this rule: any pattern ending with `.dll`, except patterns ending with `*.dll`, are considered literal expressions, and will always take precedence regardless of the number of tokens, thus allowing for easily targeting a specific dll by using a pattern like `**NameOfDll.dll`. Note however that specifying an empty pattern, e.g. ExcludeAssemblies="", will not override the default value of this attribute, and will still exclude `Dependencies/**`. In order to not include or exclude anything, you must provide a placeholder value instead.
 
 
 Note that OpenTAP uses the [DotNet.Glob](https://github.com/dazinator/DotNet.Glob#patterns) library to generate matches, which uses unix-like globbing syntax. 
@@ -68,7 +81,7 @@ Note that OpenTAP uses the [DotNet.Glob](https://github.com/dazinator/DotNet.Glo
 You can also specify a package that you just want installed (in e.g. bin/Debug/) but don't want your project to reference. This can be useful for defining a larger context in which to debug. It is done as follows:
 ```xml
 <ItemGroup>
-  <AdditionalOpenTapPackage Include="DMM Instruments" Version="2.1.2" Repository="packages.opentap.io"/>
+  <AdditionalOpenTapPackage Include="DMM Instruments" Version="2.1.2"/>
 </ItemGroup>
 ```
 

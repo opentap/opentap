@@ -3,9 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
+using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 
 namespace OpenTap
 {
@@ -14,6 +13,7 @@ namespace OpenTap
     {
         public static readonly OperatingSystem Windows = new OperatingSystem(nameof(Windows));
         public static readonly OperatingSystem Linux = new OperatingSystem(nameof(Linux));
+        public static readonly OperatingSystem MacOS = new OperatingSystem(nameof(MacOS));
         public static readonly OperatingSystem Unsupported = new OperatingSystem(nameof(Unsupported));
         public override string ToString() => Name;
         public string Name { get; }
@@ -31,12 +31,35 @@ namespace OpenTap
             }
             else
             {
-                if (Directory.Exists("/proc/"))
+                if (isMacOs())
+                {
+                    return OperatingSystem.MacOS;
+                }
+                else if (Directory.Exists("/proc/"))
                 {
                     return OperatingSystem.Linux;
                 }
             }
             return OperatingSystem.Unsupported;
+        }
+        
+        static bool isMacOs()
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo("uname");
+                startInfo.RedirectStandardOutput = true;
+                var process = Process.Start(startInfo);
+                process.WaitForExit(1000);
+                var uname = process.StandardOutput.ReadToEnd();
+                return uname.ToLowerInvariant().Contains("darwin");
+            }
+            catch
+            {
+                // ignored
+            }
+
+            return false;
         }
 
         static OperatingSystem current;
@@ -52,64 +75,59 @@ namespace OpenTap
             }
         }
     }
-
-    /// <summary> Detection of the specific linux variant. </summary>
-    class LinuxVariant
+    
+    class MacOsArchitecture
     {
-        public string Name { get; }
-        public static readonly LinuxVariant Debian = new LinuxVariant("debian");
-        public static readonly LinuxVariant Ubuntu = new LinuxVariant("ubuntu");
-        public static readonly LinuxVariant RedHat = new LinuxVariant("redhat");
-        public static readonly LinuxVariant Unknown = new LinuxVariant("linux-x64");
-
-        static LinuxVariant()
+        public string Architecture { get; }
+        public static readonly MacOsArchitecture Intel = new MacOsArchitecture("x64");
+        public static readonly MacOsArchitecture Apple = new MacOsArchitecture("arm64");
+        public static MacOsArchitecture Current { get; }
+        static MacOsArchitecture()
         {
-            if (OperatingSystem.Current == OperatingSystem.Linux)
+            try
             {
-                var os_release_file = new FileInfo("/etc/os-release");
-                if (os_release_file.Exists)
-                {
-                    Current = Unknown;
-                    using (var str = new StreamReader(os_release_file.OpenRead()))
-                    {
-                        
-                        string line;
-                        while ((line = str.ReadLine()) != null)
-                        {
-                            if(line.Contains("NAME=\"Debian GNU/Linux\""))
-                            {
-                                Current = Debian;
-                                return;
-                            }
-                            if(line.Contains("NAME=\"Ubuntu\""))
-                            {
-                                Current = Ubuntu;
-                                return;
-                            }
-                            
-                            if (line.Contains("NAME=\"Red Hat"))
-                            {
-                                Current = RedHat;
-                                return;
-                            }
-
-                            if (line.Contains("NAME=\"CentOS Linux\""))
-                            {
-                                // pretend CentOS is Red Hat for simplicity.
-                                Current = RedHat;
-                                return;
-                            }
-                        }
-                    }
-                }
+                var startInfo = new ProcessStartInfo("uname", "-m");
+                startInfo.RedirectStandardOutput = true;
+                var process = Process.Start(startInfo);
+                process.WaitForExit(1000);
+                var uname = process?.StandardOutput.ReadToEnd();
+                Current = uname.Contains("arm64") ? Apple : Intel;
+            }
+            catch
+            {
+                // ignored
             }
         }
-        
-        
-        public static LinuxVariant Current { get; }
-
-        public LinuxVariant(string name) => Name = name;
-
+        public MacOsArchitecture(string architecture) => Architecture = architecture;
     }
-    
+    class LinuxArchitecture
+    {
+        public string Architecture { get; }
+        public static readonly LinuxArchitecture x64 = new LinuxArchitecture("x64");
+        public static readonly LinuxArchitecture arm = new LinuxArchitecture("arm");
+        public static readonly LinuxArchitecture arm64 = new LinuxArchitecture("arm64");
+        public static LinuxArchitecture Current { get; }
+        static LinuxArchitecture()
+        {
+            try
+            {
+                var startInfo = new ProcessStartInfo("uname", "-m");
+                startInfo.RedirectStandardOutput = true;
+                var process = Process.Start(startInfo);
+                process.WaitForExit(1000);
+                var uname = process?.StandardOutput.ReadToEnd();
+                if (uname.Contains("armv7"))
+                    Current = arm;
+                else if (uname.Contains("arm64"))
+                    Current = arm64;
+                else
+                    Current = x64;
+            }
+            catch
+            {
+                // ignored
+            }
+        }
+        public LinuxArchitecture(string architecture) => Architecture = architecture;
+    }
 }

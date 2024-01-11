@@ -101,7 +101,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         int iteration;
         
-        [Output]
+        [Output(OutputAvailability.BeforeRun)]
         [Display("Iteration", "Shows the iteration of the sweep that is currently running or about to run.", "Sweep", Order: 3)]
         public string IterationInfo => $"{iteration} of {SweepValues.Count(x => x.Enabled)}";
 
@@ -120,13 +120,16 @@ namespace OpenTap.Plugins.BasicSteps
             if (SweepValues.Count == 0)
                 return "No rows selected to sweep.";
             var rowType = SweepValues.Select(TypeData.GetTypeData).FirstOrDefault();
-            var sb = new StringBuilder();
+            
             var numErrors = 0;
 
             string FormatError(string rowDescriptor, string error)
             {
                 return $"{rowDescriptor}: {error}";
             }
+
+            List<string> allRowErrors = new List<string>();
+            List<(int row, string error)> rowErrors = new List<(int row, string error)>();
 
             foreach (var set in sets)
             {
@@ -173,7 +176,7 @@ namespace OpenTap.Plugins.BasicSteps
                         else
                             error += $": {reason}";
 
-                        errorTuple.Add((rowNumber, error));
+                        rowErrors.Add((rowNumber, error));
                         continue;
                     }
 
@@ -184,8 +187,9 @@ namespace OpenTap.Plugins.BasicSteps
                         var errors = step.Error;
                         if (string.IsNullOrWhiteSpace(errors) == false)
                         {
-                            errorTuple.Add((rowNumber, $"{step.GetFormattedName()} - {errors}"));
+                            rowErrors.Add((rowNumber, $"{step.GetFormattedName()} - {errors}"));
                             hasErrors = true;
+                            numErrors += 1;
                         }
                     }
 
@@ -197,24 +201,19 @@ namespace OpenTap.Plugins.BasicSteps
                     errorTuple.Select(t => t.error).Distinct().Count() == 1)
                 {
                     var error = errorTuple.First();
-                    sb.AppendLine(FormatError("All rows", error.error));
+                    allRowErrors.Add(error.error);
                     numErrors += 1;
-                }
-                else
-                {
-                    foreach (var error in errorTuple)
-                    {
-                        sb.AppendLine(FormatError($"Row {error.row}", error.error));
-                        numErrors += 1;
-                        if (numErrors >= maxErrors)
-                            break;
-                    }
                 }
 
                 if (numErrors >= maxErrors)
                     break;
             }
-
+            
+            var sb = new StringBuilder();
+            foreach (var error in allRowErrors.OrderBy(x => x))
+                sb.AppendLine(FormatError($"All rows", error));
+            foreach (var error in rowErrors.OrderBy(x => x.error).ToArray().OrderBy(x =>x.row))
+                sb.AppendLine(FormatError($"Row {error.row}", error.error));
             return sb.ToString();
         }
 
@@ -245,8 +244,9 @@ namespace OpenTap.Plugins.BasicSteps
             var originalValues = sets.Select(set => set.GetValue(this)).ToArray();
 
             var rowType = SweepValues.Select(TypeData.GetTypeData).FirstOrDefault();
-            foreach (var Value in SweepValues)
+            for (int i = 0; i < SweepValues.Count; i++)
             {
+                SweepRow Value = SweepValues[i];
                 if (Value.Enabled == false) continue;
                 var AdditionalParams = new ResultParameters();
 
@@ -273,10 +273,7 @@ namespace OpenTap.Plugins.BasicSteps
                     }
                     catch (TargetInvocationException ex)
                     {
-                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name,
-                            ex.InnerException?.Message, valueString);
-                        Log.Debug(ex.InnerException);
-                        UpgradeVerdict(Verdict.Error);
+                        throw new ArgumentException($"Unable to set '{set.GetDisplayAttribute()}' to '{valueString}' on row {i}: {ex.InnerException.Message}", ex.InnerException);
                     }
                 }
 
@@ -286,9 +283,11 @@ namespace OpenTap.Plugins.BasicSteps
 
                 Log.Info("Running child steps with {0}", Value.GetIterationString());
 
-                var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
+                var runs = RunChildSteps(AdditionalParams, BreakLoopRequested, throwOnBreak: false).ToArray();
                 if (BreakLoopRequested.IsCancellationRequested) break;
                 runs.ForEach(r => r.WaitForCompletion());
+                if (runs.LastOrDefault()?.BreakConditionsSatisfied() == true)
+                    break;
             }
 
             for (int i = 0; i < sets.Length; i++)

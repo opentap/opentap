@@ -171,6 +171,7 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        [Retry(3)]
         public void RedirectedLogTest2()
         {
             var listener = new MemoryTraceListener();
@@ -201,7 +202,7 @@ namespace OpenTap.UnitTests
             sem.WaitOne();
             log.Debug("This is not redirected2");
             log.Flush();
-            Assert.AreEqual(3, listener.Events.Count);
+            Assert.AreEqual(3, listener.Events.Count, string.Join(Environment.NewLine, listener.Events.Select(evt => evt.Message)));
 
             Assert.IsTrue(listener1.Events[0].Message == msg1);
             Assert.IsTrue(listener1.Events[1].Message == msg2);
@@ -401,6 +402,35 @@ namespace OpenTap.UnitTests
             }
 
             Assert.AreEqual(0, DutSettings.Current.Count);
+        }
+
+        [Test]
+        public void TestPlanReferenceDetectChangesTest()
+        {
+            var planName = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + ".TapPlan");
+            var subPlan = new TestPlan();
+            var delay = new DelayStep();
+            
+            delay.DelaySecs = 0.1;
+            subPlan.Steps.Add(delay);
+
+            var mainPlan = new TestPlan();
+            var tpr = new TestPlanReference() { Filepath = { Text = planName } };
+            mainPlan.ChildTestSteps.Add(tpr);
+
+            string saveAndRun()
+            {
+                subPlan.Save(planName);
+                tpr.LoadTestPlan();
+                var hash = mainPlan.Execute().Hash;
+                Assert.IsFalse(string.IsNullOrWhiteSpace(hash));
+                return hash;
+            }
+
+            var firstHash = saveAndRun();
+            Assert.AreEqual(firstHash, saveAndRun(), "Expected hash to be the same.");
+            delay.DelaySecs = 0.01;
+            Assert.AreNotEqual(firstHash, saveAndRun(), "Expected hash to be different.");
         }
 
         [Test]

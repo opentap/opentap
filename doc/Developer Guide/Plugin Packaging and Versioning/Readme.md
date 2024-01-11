@@ -46,7 +46,7 @@ The root element of the configuration file is `Package` and it supports the foll
 
 | **Attribute** | **Description** |
 | ---- | -------- |
-| **Name** | The package name determines where the package definition will be installed, relative to the Packages directory in the OpenTAP installation. Forward slashes are allowed. E.g. the package definition of a package named `MyPackage/MyDutDriver` will be installed to `./Packages/MyPackage/MyDutDriver/package.xml`. Must not include the following characters: `"`, `<`, `>`, `\|`, `\0`, `\u0001`, `\u0002`, `\u0003`, `\u0004`, `\u0005`, `\u0006`, `\a`, `\b`, `\t`, `\n`, `\v`, `\f`, `\r`, `\u000e`, `\u000f`, `\u0010`, `\u0011`, `\u0012`, `\u0013`, `\u0014`, `\u0015`, `\u0016`, `\u0017`, `\u0018`, `\u0019`, `\u001a`, `\u001b`, `\u001c`, `\u001d`, `\u001e`, `\u001f`, `:`, `*`, `?`, `\`. |
+| **Name** | We advise to make the names human readable, i.e. not Camel Case, no underscores, etc. No need to add "plugin" in the package name, as OpenTAP packages typically contain OpenTAP plugins. The package name determines where the package definition will be installed, relative to the Packages directory in the OpenTAP installation. E.g. the package definition of a package named `My Dut Driver` will be installed to `./Packages/My Dut Driver/package.xml`. Forward slashes are strongly discouraged because they can't be published to the package repository. The following characters are not allowed: `"`, `<`, `>`, `\|`, `\0`, `\u0001`, `\u0002`, `\u0003`, `\u0004`, `\u0005`, `\u0006`, `\a`, `\b`, `\t`, `\n`, `\v`, `\f`, `\r`, `\u000e`, `\u000f`, `\u0010`, `\u0011`, `\u0012`, `\u0013`, `\u0014`, `\u0015`, `\u0016`, `\u0017`, `\u0018`, `\u0019`, `\u001a`, `\u001b`, `\u001c`, `\u001d`, `\u001e`, `\u001f`, `:`, `*`, `?`, `\`. |
 | **InfoLink**   | Specifies a location where additional information about the package can be found. It is visible in the Package Manager as the **More Information** link.  |
 | **Version**  | The version of the package. This field supports the $(GitVersion) macro. The version is displayed in the Package Manager. See [Versioning](#versioning) for more details. |
 | **OS**   | Which operating systems the package is compatible with. This is a comma separated list. It is used to filter packages which are compatible with the operating system the Package Manager is running on. If the attribute is not specified, the default, Windows, is used. Example: `OS="Windows,Linux"`. The following OS values are currently supported by the package manager for automatic detection: Windows, Linux and OSX. Using one of these is recommended. |
@@ -96,7 +96,43 @@ The **SourceUrl** element in the configuration file is a link to the package sou
 #### SourceLicense Element
 The license of the open sources project. Must be a [SPDX identifier](https://spdx.org/licenses/).
 
+#### Dependency Element
+OpenTAP will automatically add dependencies to other packages if they are referenced in the plugin code. 
+In some cases, it is necessary to add dependencies to packages that are not referenced in this way.
+The **Dependency** element can be used to manually specify such dependencies:
+
+```xml
+<Package Name="MyPackage">
+  <Description>My Plugin Package.</Description>
+  <Dependencies>
+    <PackageDependency Package="CSV" Version="^9.1" />
+    <PackageDependency Package="Demonstration" Version="^9.3" />
+  </Dependencies>
+</Package>
+```
+
+
+
+
 #### File Element
+
+The File element inside the Files element denotes files that are included inside the package file. Any type of file can be added to be inserted anywhere in the deployment folder. 
+
+If the file is a .NET DLL, DLL reference dependencies will automatically get included in the package, for example if your project references System.Text.Json.dll, the DLL will be added automatically to the TapPackage file. So this is how the package.xml file looks after creating the package.
+```xml
+<Files>
+    <File Path="Packages/MyPlugin/OpenTAP.Plugins.MyPlugin.dll">
+        <!-- This plugin file 'needs' System.Text.Json.dll --> 
+    </File>
+    <File Path="Dependencies/System.Text.Json.4.0.1.2/System.Text.Json.dll">
+        <!-- This dependency is automatically added when the package is created.-->
+    </File>
+</Files>
+```
+
+If it is not wanted to include a .NET DLL dependency, the `IgnoreDependency` element can be added. See the example below.
+
+
 The **File** element inside the configuration file supports the following attributes:
 
 | **Attribute** | **Description** |
@@ -107,6 +143,7 @@ The **File** element inside the configuration file supports the following attrib
 
 The **File** element can optionally contain custom elements supported by OpenTAP packages. The example below includes the `SetAssemblyInfo` element, which is supported by the OpenTAP package. When `SetAssemblyInfo` is set to `Version`, AssemblyVersion, AssemblyFileVersion and AssemblyInformationalVersion attributes of the file are set according to the package's version.
 
+
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
@@ -114,13 +151,15 @@ The **File** element can optionally contain custom elements supported by OpenTAP
      ...
  <Files>
     <File Path="Packages/MyPlugin/OpenTAP.Plugins.MyPlugin.dll">
+      
+      <!-- Set the Assembly Version to the same version as this package (GitVersion). -->
       <SetAssemblyInfo Attributes="Version"/>
+        
+      <!-- Ignore the System.Text.Json.dll DLL dependency. -->
+      <IgnoreDependency>System.Text.Json</IgnoreDependency>
     </File>
     <File Path="Packages/MyPlugin/waveform1.wfm"/>
     <File Path="Packages/MyPlugin/waveform2.wfm"/>
-    <File Path="Packages/MyPlugin/Example Icon.ico">
-      <PackageIcon/>
-    </File>
   </Files>
   ...
 </Package>
@@ -186,11 +225,15 @@ at predefined stages. The **ActionStep** element supports the following attribut
 | **Arguments** | The arguments with which to invoke the ExeFile. |
 | **ActionName** | The stage at which to run the action. |
 
-OpenTAP runs actions at three predefined stages:
+OpenTAP runs actions at four predefined stages:
 
 1. **ActionName == "install"** is executed *after* a package has finished installing.
-2. **ActionName == "uninstall"** is executed *before* a package starts uninstalling.
-3. **ActionName == "test"** is executed when `tap package test MyPlugin` is invoked on the command line.
+2. **ActionName == "prepareUninstall"** is executed before a package is uninstalled *before* OpenTAP has verified that no files are in use.
+3. **ActionName == "uninstall"** is executed before a package is uninstalled *after* a package OpenTAP has verified that no files are in use.
+4. **ActionName == "test"** is executed when `tap package test MyPlugin` is invoked on the command line.
+
+The difference between **prepareUninstall** and **uninstall** is subtle. **prepareUninstall** can be used to release any resources held by the installation that would otherwise cause the package uninstall to fail. If **prepareUninstall** fails for some reason, the uninstall will be stopped before any files are removed. **uninstall**, on the other hand, can be used to clean up files created by the plugin, but which are not part of the plugin package. This is necessary because OpenTAP cannot track loose files, and will only remove files which are part of the package definition.
+
 
 A package can contain any number of **ActionStep** elements, but they must be contained in a **PackageActionExtensions** element:
 
@@ -210,6 +253,7 @@ A package can contain any number of **ActionStep** elements, but they must be co
     <File Path="Packages/MyPlugin/Example Icon.ico"> 
   <PackageActionExtensions>
     <ActionStep ExeFile="tap" Arguments="MyPlugin install" ActionName="install" />
+    <ActionStep Exefile="tap" Arguments="MyPlugin prepare-uninstall" ActionName="prepareUninstall" />
     <ActionStep ExeFile="tap" Arguments="MyPlugin uninstall" ActionName="uninstall" />
     <ActionStep ExeFile="./Packages/MyPlugin/WaveformGenerator.exe" Arguments='--generate-waveforms --debug' ActionName="test" />    
     <ActionStep ExeFile="tap" Arguments='run -v ./Packages/MyPlugin/waveform-test.TapPlan' ActionName="test" />
@@ -218,7 +262,14 @@ A package can contain any number of **ActionStep** elements, but they must be co
 </Package>
 ```
 
-The above example is an excerpt of a plugin.xml file that defines a plugin that includes a test plan to verify that the steps it provides are working correctly, and a binary executable for generating debug waveform data. It also contains CLI actions that allow further configuration when it is installed, and a CLI action that it needs to run when it is uninstalled. All this is done using the **ActionStep** elements.
+The above example plugin definition makes use of the following features:
+
++ A CLI action to be run when it is installed
++ A CLI action to be run when OpenTAP is preparing to uninstall it
++ A CLI action to be run when it is uninstalled. 
++ A binary executable which generates waveforms, used in preparation for testing
++ A testplan which verifies the plugin steps are working correctly with `tap package test MyPlugin`
+
 
 The **ActionStep** elements are executed in the order that they appear in the package file. When `MyPlugin` is installed, OpenTAP will run the CLI action:
 
@@ -226,9 +277,10 @@ The **ActionStep** elements are executed in the order that they appear in the pa
 tap MyPlugin install
 ```
 
-When it is uninstalled, OpenTAP will run the CLI action:
+When it is uninstalled, OpenTAP will run the CLI actions:
 
 ```
+tap MyPlugin prepare-uninstall
 tap MyPlugin uninstall
 ```
 
@@ -260,7 +312,7 @@ The below configuration file results in `MyPlugin.{version}.TapPackage` file,con
 <Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
 		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
   <Description>
-    This is an example of an "package.xml" file.
+    This is an example of a "package.xml" file.
     <Status>Released</Status>
     <Organisation>Keysight Technologies</Organisation>
     <Contacts>
@@ -485,3 +537,211 @@ This command can also be useful if you need the same version number elsewhere in
 
 ### Manual Versioning
 The version can be set manually, e.g. `Version="1.0.2"`. The version **must** follow the [semantic versioning format.](https://semver.org/)
+
+## Advanced Packaging
+As a plugin grows in complexity, special care is needed when targeting multiple platforms and architectures. 
+
+> For example, when shipping native binaries, different binaries must be shipped for different platforms. 
+
+Although these package definitions are often nearly identical for each 
+platform or architecture, these subtle differences nonetheless require different *package definitions* for each target (or build-time modification). 
+
+Both of these solutions hurt the maintainability of the package definition. This process is made easy with **Variables** and **Conditions**.
+
+### The Variables Element
+The **Variables** element is placed as a child of the **Package** element, and can be used to define file-scoped variables. A variable can be referenced
+inside an element or an attribute using a `$(VaribleName)` syntax.
+
+> &lt;SomeElement Attr1="$(abc)"&gt;abc $(def) ghi&lt;/SomeElement&gt; will expand $(abc) and $(def)
+> &lt;$(XmlElement)&gt;&lt;/$(XmlElement)&gt; will not expand, and is invalid XML.
+
+> A variable will be expanded exactly once. E.g. if `$(abc)` expands to the string `"$(def)"`, then $(def) will not be expanded.
+
+> Tip: Although **Variables** appears a a child of the **Package** element, variables can still be used in **Package** attributes.
+> The following `package.xml` example will correctly set the package architecture and OS.
+
+```xml
+<Package OS="$(Platform)" Architecture="$(Architecture)">
+    <Variables>
+        <Architecture>x64</Architecture>
+        <Platform>Windows</Platform>
+    </Variables>
+</Package>
+```
+
+If an *Environment* variable is defined with the same name as a *file-local* variable, then the *file-local* variable will take precedence.
+Default values can be specified using *Conditions*.
+
+> **Note** the $(GitVersion) variable has a special meaning, and cannot be overriden.
+
+### The Condition Attribute
+The **Condition** attribute can be placed on any XML element except the root **Package** element. A condition can take two forms;
+an equality comparison, or a literal value:
+
+> Condition examples:<br>
+> &lt;SomeElement Condition="$(abc)" /&gt;<br>
+> &lt;SomeElement Condition="$(abc) == 123" /&gt;<br>
+> &lt;SomeElement Condition="$(abc) != $(def)" /&gt;
+
+If the condition evaluates to false, the **Element** containing the condition is removed. 
+
+When a literal value is used, it is considered *true* if the value is a non-empty string, and *false* if the value is an empty string or contains only whitespace characters.
+
+#### Condition Examples
+This table demonstrates the general behavior of conditions. Assume `$(a) = 1` and `$(b) = 2`
+
+| **Condition** | **Value** |
+| ----  | -------- | -- |
+| **""** | **false** |
+| **" "** | **false** |
+| **1** | **true** |
+| **0** | **true** |
+| **true** | **true** |
+| **false** | **true** |
+| **false == "false" ** | **true** |
+| **false == "false " ** | **false** |
+| **$(a) == 1** | **true** |
+| **$(a) == $(b)** | **false** |
+| **$(a) != $(b)** | **true** |
+
+
+### Variables and Conditions Example
+Consider this example (which is an excerpt from the OpenTAP package definition) for a real world use case.
+Some elements have been omitted for brevity
+
+```xml
+<Package Version="$(GitVersion)" OS="$(Platform)" Architecture="$(Architecture)" Name="OpenTAP" >
+    <Variables>
+        <!-- We include some native dependencies based on the platform and architecture, notably libgit2sharp -->
+        <Architecture Condition="$(Architecture) == ''">x64</Architecture>
+        <Platform Condition="$(Platform) == ''">Windows</Platform>
+        <!--Set Sign=false to disable Signing elements. This is useful for local debug builds -->
+        <Sign Condition="$(Sign) != false">true</Sign>
+        <!-- Set Debug=true to exclude documentation files and include debugging symbols -->
+        <Debug Condition="$(Debug) != true">false</Debug>
+    </Variables>
+    <!-- Common files  -->
+    <Files>        
+        <File Path="tap.runtimeconfig.json"/>
+        <File Path="tap.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
+        <File Path="OpenTap.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
+        <File Path="Packages/OpenTAP/OpenTap.Cli.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
+        <File Path="OpenTap.Package.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
+        <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
+            <SetAssemblyInfo Attributes="Version"/>
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
+    </Files>
+    <!-- Windows only files -->    
+    <Files Condition="$(Platform) == Windows">
+        <File Path="tap.exe">
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
+        <File Path="Dependencies/LibGit2Sharp.0.25.0.0/git2-4aecb64.dll"               
+              SourcePath="runtimes/win-$(Architecture)/native/git2-4aecb64.dll"/>
+        <File Path="OpenTapApiReference.chm" 
+              SourcePath="../../Help/OpenTapApiReference.chm"
+              Condition="$(Debug) == false"/>        
+    </Files>
+    <!-- Linux only files -->
+    <Files Condition="$(Platform) != Windows">        
+        <File Path="tap"/>
+        <File Path="Dependencies/LibGit2Sharp.0.25.0.0/libgit2-4aecb64.so.linux-x64"/>
+    </Files>
+    <!-- PDB files -->
+    <Files Condition="$(Debug) == true">
+      <File Path="tap.pdb"/>
+      <File Path="OpenTap.pdb"/>
+      <File Path="Packages/OpenTAP/OpenTap.Cli.pdb"/>
+      <File Path="OpenTap.Package.pdb"/>
+      <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.pdb" SourcePath="OpenTap.Plugins.BasicSteps.pdb"/>
+    </Files>
+    <PackageActionExtensions Condition="$(Platform) != Windows">
+        <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap"  />
+    </PackageActionExtensions>
+</Package>
+```
+
+Here we use several properties for targeting different architectures and platforms with a single package definition.
+Assume for now that all the *Condition* attributes evaluate to 'true'.
+
+1. We bundle different versions of the native binary `LibGit2Sharp` depending on platform and architecture. 
+2. We use the `Sign` property in order to easily disable signing when building in debug environments without signing capabilities.
+3. We use the `Debug` property in order to include .pdb files with debugging symbols.
+4. We run `chmod +x tap` after the package has been installed on non-windows platforms
+
+After preprocessing this package definition, we get the following definition:
+
+> This preprocessing is performed automatically when `tap package create` is used, and is only shown here for illustrative purposes
+
+```xml
+<Package Version="$(GitVersion)" OS="Windows" Architecture="x64" Name="OpenTAP">
+  <!-- Common files  -->
+  <Files>
+    <File Path="OpenTap.dll">
+      <Sign Certificate="Keysight Technologies, Inc" />
+    </File>
+    <File Path="Packages/OpenTAP/OpenTap.Cli.dll">
+      <Sign Certificate="Keysight Technologies, Inc" />
+    </File>
+    <File Path="OpenTap.Package.dll">
+      <Sign Certificate="Keysight Technologies, Inc" />
+    </File>
+    <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
+      <Sign Certificate="Keysight Technologies, Inc" />
+    </File>
+    <File Path="Dependencies/System.Runtime.InteropServices.RuntimeInformation.4.0.2.0/System.Runtime.InteropServices.RuntimeInformation.dll" SourcePath="System.Runtime.InteropServices.RuntimeInformation.dll" />
+    <File Path="tap.exe">
+      <Sign Certificate="Keysight Technologies, Inc" />
+    </File>
+    <File Path="Dependencies/LibGit2Sharp.0.25.0.0/git2-4aecb64.dll" SourcePath="lib/win32/x64/git2-4aecb64.dll" />
+  </Files>
+  <!-- Windows only files -->
+  <!-- Linux only files -->
+  <!-- PDB files -->
+</Package>
+```
+
+1. Notice that the **Variables** element, and all the **Condition** attributes have been removed. 
+2. Notice that all the **Files** elements have been merged into a single element (though the comments are still there).
+
+As mentioned earlier, **Variables** variables take precedence over **Environment** variables, but leveraging the **Condition**
+attribute allows us to reverse this behavior. Take another look at the **Variables** from earlier:
+
+```xml
+<Variables>
+    <!-- We include some native dependencies based on the platform and architecture, notably libgit2sharp -->
+    <Architecture Condition="$(Architecture) == ''">x64</Architecture>
+    <Platform Condition="$(Platform) == ''">Windows</Platform>
+    <!--Set Sign=false to disable Signing elements. This is useful for local debug builds -->
+    <Sign Condition="$(Sign) != false">true</Sign>
+    <!-- Set Debug=true to exclude documentation files and include debugging symbols -->
+    <Debug Condition="$(Debug) != true">false</Debug>
+</Variables>
+```
+
+When using the **Condition** attribute in this way, the value specified in a **Variables** element is used *only* 
+if the value is not defined in the environment.
+Leveraging this, we can now create an OpenTAP package for Windows-x86, Windows-x64, and Linux-x64 in a few easy steps:
+
+```powershell
+$env:Platform="Windows"
+$env:Architecture="x86"
+tap package create package.xml -o OpenTAP.Windows.x86.TapPackage
+$env:Architecture = "x64"
+tap package create package.xml -o OpenTAP.Windows.x64.TapPackage
+$env:Platform = "Linux"
+tap package create package.xml -o OpenTAP.Linux.x64.TapPackage
+```

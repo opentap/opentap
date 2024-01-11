@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests.TestTestSteps;
@@ -52,6 +54,7 @@ namespace OpenTap.Engine.UnitTests
         [TestCase(Verdict.Error, BreakCondition.BreakOnError)]
         [TestCase(Verdict.Fail, BreakCondition.BreakOnFail)]
         [TestCase(Verdict.Inconclusive, BreakCondition.BreakOnInconclusive)]
+        [TestCase(Verdict.Pass, BreakCondition.BreakOnPass)]
         [TestCase(Verdict.Inconclusive,
             BreakCondition.BreakOnInconclusive | BreakCondition.BreakOnError)]
 
@@ -65,7 +68,7 @@ namespace OpenTap.Engine.UnitTests
             {
                 VerdictOutput = verdictOutput
             };
-            BreakConditionProperty.SetBreakCondition(verdict, condition);
+            BreakConditionProperty.SetBreakCondition(plan, condition);
             var verdict2 = new VerdictStep
             {
                 VerdictOutput = Verdict.Pass
@@ -85,6 +88,8 @@ namespace OpenTap.Engine.UnitTests
         [TestCase(Verdict.Fail, EngineSettings.AbortTestPlanType.Step_Error, 2)]
         [TestCase(Verdict.Error, EngineSettings.AbortTestPlanType.Step_Error, 1)]
         [TestCase(Verdict.Fail, EngineSettings.AbortTestPlanType.Step_Fail, 1)]
+        [TestCase(Verdict.Pass, EngineSettings.AbortTestPlanType.Step_Pass, 1)]
+        [TestCase(Verdict.Inconclusive, EngineSettings.AbortTestPlanType.Step_Inconclusive, 1)]
         [TestCase(Verdict.Fail,
             EngineSettings.AbortTestPlanType.Step_Error | EngineSettings.AbortTestPlanType.Step_Fail, 1)]
         [TestCase(Verdict.Error,
@@ -166,7 +171,7 @@ namespace OpenTap.Engine.UnitTests
             public override void Run()
             {
                 foreach (var step in EnabledChildSteps)
-                    RunChildStep(step, throwOnError: false);
+                    RunChildStep(step, throwOnBreak: false);
                 this.Verdict = Verdict.Pass;
             }
         }
@@ -231,35 +236,42 @@ namespace OpenTap.Engine.UnitTests
             var failStep = new VerdictStep() {VerdictOutput = Verdict.Fail};
             var inconclusiveStep = new VerdictStep() {VerdictOutput = Verdict.Inconclusive};
             var passStep = new VerdictStep() {VerdictOutput = Verdict.Pass};
+            var nopStep = new SequenceStep();
             
-            plan.Steps.Add(errorStep);
-            plan.Steps.Add(failStep);
-            plan.Steps.Add(inconclusiveStep);
             plan.Steps.Add(passStep);
+            plan.Steps.Add(inconclusiveStep);
+            plan.Steps.Add(failStep);
+            plan.Steps.Add(errorStep);
+            plan.Steps.Add(nopStep);
 
             var defaultValue = BreakConditionProperty.GetBreakCondition(plan);
             Assert.AreEqual(BreakCondition.Inherit, defaultValue);
             
             // break on fail, this means that 'passStep' will not get executed 
-            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnError);
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnPass);
             var col = new PlanRunCollectorListener();
-            plan.Execute(new []{col});
+            Assert.AreEqual(Verdict.Pass, plan.Execute(new []{col}).Verdict);
             Assert.AreEqual(1, col.StepRuns.Count);
-            
-            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnFail);
-            col = new PlanRunCollectorListener();
-            plan.Execute(new []{col});
-            Assert.AreEqual(2, col.StepRuns.Count);
             
             BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnInconclusive);
             col = new PlanRunCollectorListener();
-            plan.Execute(new []{col});
+            Assert.AreEqual(Verdict.Inconclusive, plan.Execute(new []{col}).Verdict);
+            Assert.AreEqual(2, col.StepRuns.Count);
+            
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnFail);
+            col = new PlanRunCollectorListener();
+            Assert.AreEqual(Verdict.Fail, plan.Execute(new []{col}).Verdict);
             Assert.AreEqual(3, col.StepRuns.Count);
+            
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnError);
+            col = new PlanRunCollectorListener();
+            Assert.AreEqual(Verdict.Error, plan.Execute(new []{col}).Verdict);
+            Assert.AreEqual(4, col.StepRuns.Count);
             
             BreakConditionProperty.SetBreakCondition(plan, 0);
             col = new PlanRunCollectorListener();
-            plan.Execute(new []{col});
-            Assert.AreEqual(4, col.StepRuns.Count);
+            Assert.AreEqual(Verdict.Error, plan.Execute(new []{col}).Verdict);
+            Assert.AreEqual(5, col.StepRuns.Count);
             
         }
 
@@ -280,6 +292,88 @@ namespace OpenTap.Engine.UnitTests
             a.Read();
             Assert.IsFalse(mem.Get<IAccessAnnotation>().IsReadOnly);
         }
+
+        class TestStepThatThrows : TestStep
+        {
+            public override void Run()
+            {
+                throw new Exception("!");
+            }
+        }
         
+        [AllowAnyChild]
+        class TestStepThatCatches : TestStep
+        {
+            public bool AvoidCatch { get; set; }
+            public TestStepRun[] Runs;
+            public override void Run()
+            {
+                if (AvoidCatch)
+                {
+                    Runs = RunChildSteps(throwOnBreak: false).ToArray();
+                    var run = Runs.Last();
+                    if(run.Verdict == Verdict.Error)
+                        Assert.AreEqual("!", run.Exception.Message);
+                    else 
+                        Assert.IsNull(run.Exception);
+                    Verdict = Verdict.Pass;
+                }
+                else
+                {
+                    try
+                    {
+                        RunChildSteps(throwOnBreak: true);
+                        Assert.Fail("The child steps should have thrown an exception");
+                    }
+                    catch (TestStepBreakException)
+                    {
+                        Verdict = Verdict.Pass;
+                    }
+                    catch (Exception e)
+                    {
+                        Assert.AreEqual(e.Message, "!");
+                        Verdict = Verdict.Pass;
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void TestStepThrowsException()
+        {
+            var a = new TestStepThatCatches();
+            var b = new TestStepThatThrows();
+            // add a 'nop' to verify
+            a.ChildTestSteps.Add(new SequenceStep());
+            a.ChildTestSteps.Add(b);
+            a.ChildTestSteps.Add(new SequenceStep());
+            var plan = new TestPlan();
+            plan.Steps.Add(a);
+            var r = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, r.Verdict);
+            a.AvoidCatch = true;
+            var r2 = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, r2.Verdict);
+            Assert.AreEqual(2, a.Runs.Length);
+        }
+        
+        [Test]
+        public void TestStepThrowsBreakException()
+        {
+            var a = new TestStepThatCatches();
+            var b = new VerdictStep { VerdictOutput = Verdict.Fail };
+            BreakConditionProperty.SetBreakCondition(b, BreakCondition.BreakOnFail);
+            a.ChildTestSteps.Add(new SequenceStep());
+            a.ChildTestSteps.Add(b);
+            a.ChildTestSteps.Add(new SequenceStep());
+            var plan = new TestPlan();
+            plan.Steps.Add(a);
+            var r = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, r.Verdict);
+            a.AvoidCatch = true;
+            var r2 = plan.Execute();
+            Assert.AreEqual(Verdict.Pass , r2.Verdict);
+            Assert.AreEqual(2, a.Runs.Length);
+        }
     }
 }

@@ -110,11 +110,12 @@ namespace OpenTap.Package.UnitTests
             var outputPath = "DownloadedPackage.TapPackage";
             if (File.Exists(outputPath))
                 File.Delete(outputPath);
-            
+
             var download = new PackageDownloadAction()
             {
                 ForceInstall = true,
                 Repository = new[] { Directory.GetCurrentDirectory() },
+                NoCache = true,
                 OutputPath = outputPath
             };
 

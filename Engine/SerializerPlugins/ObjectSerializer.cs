@@ -70,38 +70,25 @@ namespace OpenTap.Plugins
             }
             if (newobj == null)
             {
-                try
+                if (t.CanCreateInstance == false)
                 {
-                    if (t.CanCreateInstance == false)
-                    { 
-                        // if the instance type cannot be constructed,
-                        // use the instance already on the object.
-                        var objectSerializer = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
-                        var ownerMember = objectSerializer?.CurrentMember;
-                        var ownerObj = objectSerializer?.Object;
-                        if (ownerMember == null || ownerObj == null)
-                        {
-                            throw new Exception($"Cannot create instance of {t} and no default value exists.");
-                        }
-                        newobj = ownerMember.GetValue(ownerObj);
-                        if (newobj == null)
-                            throw new Exception($"Unable to get default value of {ownerMember}");
-                    }
-                    else
+                    // if the instance type cannot be constructed,
+                    // use the instance already on the object.
+                    var objectSerializer = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
+                    var ownerMember = objectSerializer?.CurrentMember;
+                    var ownerObj = objectSerializer?.Object;
+                    if (ownerMember == null || ownerObj == null)
                     {
-                        newobj = t.CreateInstance(Array.Empty<object>());
+                        throw new Exception($"Cannot create instance of {t} and no default value exists.");
                     }
 
+                    newobj = ownerMember.GetValue(ownerObj);
+                    if (newobj == null)
+                        throw new Exception($"Unable to get default value of {ownerMember}");
                 }
-                catch (TargetInvocationException ex)
+                else
                 {
-
-                    if (ex.InnerException is System.ComponentModel.LicenseException)
-                        throw new Exception(string.Format("Could not create an instance of '{0}': {1}", t.GetAttribute<DisplayAttribute>().Name, ex.InnerException.Message));
-                    else
-                    {
-                        ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-                    }
+                    newobj = t.CreateInstance(Array.Empty<object>());
                 }
             }
             
@@ -124,22 +111,23 @@ namespace OpenTap.Plugins
                     if (attr == null) continue;
                     var name = string.IsNullOrWhiteSpace(attr.AttributeName) ? prop.Name : attr.AttributeName;
                     var attr_value = element.Attribute(Serializer.PropertyXmlName(name));
-                    var p = prop as MemberData;
+                    
 
-                    if (p != null && attr_value != null && p.Member is PropertyInfo csprop)
+                    if (attr_value != null)
                     {
                         try
                         {
-                            readContentInternal(csprop.PropertyType, false, () => attr_value.Value, element, out object value);
+                            var typeData = prop.TypeDescriptor.AsTypeData();
+                            readContentInternal(typeData.Type, false, () => attr_value.Value, element, out object value);
                             
-                            p.SetValue(newobj, value);
+                            prop.SetValue(newobj, value);
                             
                         }
                         catch (Exception e)
                         {
                             if (logWarnings)
                             {
-                                Log.Warning(element, "Attribute value '{0}' was not read correctly as a {1}", attr_value.Value, p);
+                                Log.Warning(element, "Attribute value '{0}' was not read correctly as a {1}", attr_value.Value, prop);
                                 Log.Debug(e);
                             }
                         }
@@ -588,20 +576,12 @@ namespace OpenTap.Plugins
                         return true;
                     }
                 }
-            }
-            catch(Exception ex)
-            {
-                Serializer.PushError(element, $"Object value was not read correctly.", ex);
-                return false;
-            }
-            try
-            {
                 if (TryDeserializeObject(element, t, setter))
                     return true;
             }
             catch (Exception ex) 
             {
-                Serializer.PushError(element, $"Unable to create instance of {t}.", ex);
+                Serializer.HandleError(element, $"Unable to read {t.GetDisplayAttribute().GetFullName()}.", ex);
             }
             return false;
         }
@@ -838,9 +818,23 @@ namespace OpenTap.Plugins
                                 else
                                 {
                                     XElement elem2 = new XElement(Serializer.PropertyXmlName(subProp.Name));
-                                    SetHasDefaultValueAttribute(subProp, val, elem2);
+                                    
+                                    { // MetaDataAttribute -> save the metadata name in the test plan xml.
+                                        if (subProp.GetAttribute<MetaDataAttribute>() is MetaDataAttribute metaDataAttr)
+                                        {
+                                            string name = metaDataAttr.Name ??
+                                                          subProp.GetDisplayAttribute()?.Name ?? subProp.Name;
+                                            elem2.SetAttributeValue("Metadata", name);
+                                        }
+                                    }
+                                    
+                                    // if the setting has the default value, then don't notify that the type has been used, 
+                                    // because it will probably not have been used in the end.
+                                    bool hasDefaultValue =  SetHasDefaultValueAttribute(subProp, val, elem2);
+                                    
                                     elem.Add(elem2);
-                                    Serializer.Serialize(elem2, val, subProp.TypeDescriptor);
+                                    
+                                    Serializer.Serialize(elem2, val, subProp.TypeDescriptor, notifyTypeUsed: !hasDefaultValue);
                                 }
                             }
                             catch (Exception e)
@@ -867,11 +861,16 @@ namespace OpenTap.Plugins
             }
         }
 
-        private void SetHasDefaultValueAttribute(IMemberData subProp, object val, XElement elem2)
+        bool SetHasDefaultValueAttribute(IMemberData subProp, object val, XElement elem2)
         {
+            
             var attr = subProp.GetAttribute<DefaultValueAttribute>();
             if (attr != null && !(subProp is IParameterMemberData))
-                elem2.SetAttributeValue(DefaultValue, attr.Value);
+            {
+                Serializer.GetSerializer<DefaultValueSerializer>().RegisterDefaultValue(elem2, attr.Value);
+                return val == attr.Value;
+            }
+            return false;
         }
     }
 }

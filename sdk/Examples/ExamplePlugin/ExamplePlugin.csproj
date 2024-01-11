@@ -7,33 +7,15 @@
     <!-- If your plugin should be cross platform but does not build in release mode, please verify that all API's you used are available. You might need references or nuget packages for API's that are available in NET framework, but not in NetStandard -->
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
     <AssemblyName>OpenTap.Plugins.ExamplePlugin</AssemblyName>
+    <Configurations>Debug;Release;Debug CE</Configurations>
+    <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsWindows)'=='True'">
-    <!-- Developer's System is needed to debug in 'Editor' 
-         Normally you can get that in your debug folder with just:
-           <AdditionalOpenTapPackage Include="Developer's System"/>
-         or 
-           <AdditionalOpenTapPackage Include="Developer's System CE"/>
-         Here we do some optimizations that leverages an existing OpenTAP installation in OutputPath
-    -->
-    <CachedOpenTapPackages Include="$(OutputPath)\PackageCache\Developer*" />
-
-    <!-- Editor, included dependency: WPF Controls -->
-    <AdditionalOpenTapPackage Include="Editor" Repository="$(OutputPath)\PackageCache" Version="Any" Condition="@(CachedOpenTapPackages) != '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <AdditionalOpenTapPackage Include="Editor" Condition="@(CachedOpenTapPackages) == '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <!-- Results Viewer, included dependency: CSV -->
-    <AdditionalOpenTapPackage Include="Results Viewer" Repository="$(OutputPath)\PackageCache" Version="Any" Condition="@(CachedOpenTapPackages) != '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <AdditionalOpenTapPackage Include="Results Viewer" Condition="@(CachedOpenTapPackages) == '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <!-- Timing Analyzer -->
-    <AdditionalOpenTapPackage Include="Timing Analyzer" Repository="$(OutputPath)\PackageCache" Version="Any" Condition="@(CachedOpenTapPackages) != '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <AdditionalOpenTapPackage Include="Timing Analyzer" Condition="@(CachedOpenTapPackages) == '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <!-- SQLite and PostgreSQL -->
-    <AdditionalOpenTapPackage Include="SQLite and PostgreSQL" Repository="$(OutputPath)\PackageCache" Version="Any" Condition="@(CachedOpenTapPackages) != '' AND Exists('$(OutputPath)\Packages\Editor')" />
-    <AdditionalOpenTapPackage Include="SQLite and PostgreSQL" Condition="@(CachedOpenTapPackages) == '' AND Exists('$(OutputPath)\Packages\Editor')" />
-
-    <AdditionalOpenTapPackage Include="Developer's System CE" Repository="$(OutputPath)\PackageCache" Version="Any" Condition="@(CachedOpenTapPackages) != '' AND Exists('$(OutputPath)\Packages\Editor') == false" />
-    <AdditionalOpenTapPackage Include="Developer's System CE" Condition="@(CachedOpenTapPackages) == '' AND Exists('$(OutputPath)\Packages\Editor') == false" />
+	  <AdditionalOpenTapPackage Include="$(DevelopersSystem)" />
+  </ItemGroup>
+  <ItemGroup>
+    <AdditionalOpenTapPackage Include="TUI" />
   </ItemGroup>
 
   <ItemGroup>

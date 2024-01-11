@@ -11,6 +11,7 @@ using System.IO;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Xml.Linq;
 
 namespace OpenTap.Cli
 {
@@ -116,6 +117,7 @@ namespace OpenTap.Cli
     /// </summary>
     public class CliActionExecutor
     {
+        internal static ITypeData SelectedAction = null;
         internal static readonly int LevelPadding = 3;
         private static TraceSource log = Log.CreateSource("tap");
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
@@ -142,39 +144,37 @@ namespace OpenTap.Cli
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static int Execute(params string[] args)
         {
-            // Trigger plugin manager before anything else.
-            if (ExecutorClient.IsRunningIsolated)
-            {
-                // TODO: This is not needed right now, but might be again when we fix the TODO in tap.exe
-                //PluginManager.DirectoriesToSearch.Clear();
-                //PluginManager.DirectoriesToSearch.Add(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location));
-                using (var tpmClient = new ExecutorClient())
-                {
-                    tpmClient.MessageServer("delete " + Path.GetDirectoryName(Assembly.GetEntryAssembly().Location));
-                }
-            }
-
             // Set TapMutex to ensure any installers know about running OpenTAP processes.
             ReflectionHelper.SetTapMutex();
-            
+
             try
             {
                 // Turn off the default system behavior when CTRL+C is pressed. 
                 // When Console.TreatControlCAsInput is false, CTRL+C is treated as an interrupt instead of as input.
-                Console.TreatControlCAsInput = false; 
+                // Assigning to this property while the property is running in the background will cause it to be suspended until 
+                // it becomes the foreground process. Therefore we should only assign it if it is not already set to false
+                if (Console.TreatControlCAsInput)
+                    Console.TreatControlCAsInput = false;
             }
             catch { }
-            try
-            {
-                var execThread = TapThread.Current;
-                Console.CancelKeyPress += (s, e) =>
-                {
-                    e.Cancel = true;
-                    execThread.Abort();
-                };
+            var execThread = TapThread.Current;
 
+            void abort()
+            {
+                execThread.AbortNoThrow();
             }
-            catch { }
+
+            Console.CancelKeyPress += (s, e) =>
+            {
+                e.Cancel = true;
+                abort();
+            };
+            // Signals are not supported on Windows.
+            if (OperatingSystem.Current != OperatingSystem.Windows)
+            {
+                PosixSignals.SigTerm += (sig, info) => abort();
+                PosixSignals.SigInt += (sig, info) => abort();
+            }
 
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
@@ -197,13 +197,7 @@ namespace OpenTap.Cli
                 bool isPathRooted = Path.IsPathRooted(logpath);
                 if (isPathRooted == false)
                 {
-                    var dir = Path.GetDirectoryName(typeof(SessionLogs).Assembly.Location);
-                    if (ExecutorClient.IsRunningIsolated)
-                    {
-                        // redirect the isolated log path to the non-isolated path.
-                        dir = ExecutorClient.ExeDir;
-                    }
-
+                    var dir = ExecutorClient.ExeDir;
                     logpath = Path.Combine(dir, logpath);
                 }
 
@@ -215,28 +209,29 @@ namespace OpenTap.Cli
                 log.Debug(e);
             }
 
-            ITypeData selectedCommand = null;
-            
             // Find selected command
             var actionTree = new CliActionTree();
             var selectedcmd = actionTree.GetSubCommand(args);
             if (selectedcmd?.Type != null && selectedcmd?.SubCommands.Any() != true)
-                selectedCommand = selectedcmd.Type;
+                SelectedAction = selectedcmd.Type;
 
             // Run check for update
             TapThread.Start(() =>
             {
-                TapThread.Sleep(1000); // don't spend time on update checking for very short running actions (e.g. 'tap package list -i')
-                try
+                TapThread.Sleep(3000); // don't spend time on update checking for very short running actions (e.g. 'tap package list -i')
+                using (CliUserInputInterface.AcquireUserInputLock())
                 {
-                    var checkUpdatesCommands = actionTree.GetSubCommand(new[] {"package", "check-updates"});
-                    var checkUpdateAction = checkUpdatesCommands?.Type?.CreateInstance() as ICliAction;
-                    if (selectedCommand != checkUpdatesCommands?.Type)
-                        checkUpdateAction?.PerformExecute(new []{ "--startup" });
-                }
-                catch (Exception e)
-                {
-                    log.Error(e);
+                    try
+                    {
+                        var checkUpdatesCommands = actionTree.GetSubCommand(new[] {"package", "check-updates"});
+                        var checkUpdateAction = checkUpdatesCommands?.Type?.CreateInstance() as ICliAction;
+                        if (SelectedAction != checkUpdatesCommands?.Type)
+                            checkUpdateAction?.PerformExecute(new[] {"--startup"});
+                    }
+                    catch (Exception e)
+                    {
+                        log.Error(e);
+                    }
                 }
             });
 
@@ -266,14 +261,39 @@ namespace OpenTap.Cli
             }
             
             // Print default info
-            if (selectedCommand == null)
+            if (SelectedAction == null)
             {
-                Console.WriteLine("OpenTAP Command Line Interface ({0})",Assembly.GetExecutingAssembly().GetSemanticVersion().ToString(4));
-                Console.WriteLine("Usage: tap <command> [<subcommand(s)>] [<args>]\n");
+                string getVersion()
+                {
+                    // We cannot access the 'OpenTap.Package.Installation.Current' from Engine. Parse the XML instead.
+                    var xmlFile = Path.Combine(ExecutorClient.ExeDir, "Packages", "OpenTAP", "package.xml");
+                    if (File.Exists(xmlFile))
+                    {
+                        try
+                        {
+                            var pkg = XElement.Load(xmlFile);
+                            if (pkg.Attribute("Version") is XAttribute x) return x.Value;
+                        }
+                        catch
+                        {
+                            // This is fine to silently ignore
+                        }
+                    }
+
+                    return TypeData.FromType(typeof(CliActionExecutor)).Assembly.SemanticVersion.ToString(); // OpenTAP is not installed. lets just return this. 
+                }
+                string tapCommand = OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap";
+
+                if (args.Length != 0)
+                {
+                    log.Error($"\"{tapCommand} {string.Join(" ", args)}\" is not a recognized command.");
+                }
+                log.Info("OpenTAP Command Line Interface ({0})", getVersion());
+                log.Info($"Usage: \"{tapCommand} <command> [<subcommand(s)>] [<args>]\"\n");
 
                 if (selectedcmd == null)
                 {
-                    Console.WriteLine("Valid commands are:");
+                    log.Info("Valid commands are:");
                     foreach (var cmd in actionTree.SubCommands)
                     {
                         print_command(cmd, 0, actionTree.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
@@ -281,12 +301,11 @@ namespace OpenTap.Cli
                 }
                 else
                 {
-                    Console.Write("Valid subcommands of ");
+                    log.Info($"Valid subcommands of");
                     print_command(selectedcmd, 0, actionTree.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
                 }
 
-                Console.WriteLine($"\nRun \"{(OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap")} " +
-                                   "<command> [<subcommand>] -h\" to get additional help for a specific command.\n");
+                log.Info($"\nRun \"{tapCommand} <command> [<subcommand(s)>] -h\" to get additional help for a specific command.\n");
 
                 if (args.Length == 0 || args.Any(s => s.ToLower() == "--help" || s.ToLower() == "-h"))
                     return (int)ExitCodes.Success;
@@ -294,27 +313,27 @@ namespace OpenTap.Cli
                     return (int)ExitCodes.ArgumentParseError;
             }
 
-            if (selectedCommand != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
+            if (SelectedAction != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
                 CliUserInputInterface.Load();
             
             ICliAction packageAction = null;
             try{
-                packageAction = (ICliAction)selectedCommand.CreateInstance();
+                packageAction = (ICliAction)SelectedAction.CreateInstance();
             }catch(TargetInvocationException e1) when (e1.InnerException is System.ComponentModel.LicenseException e){
-                log.Error("Unable to load CLI Action '{0}'", selectedCommand.GetDisplayAttribute().GetFullName());
+                log.Error("Unable to load CLI Action '{0}'", SelectedAction.GetDisplayAttribute().GetFullName());
                 log.Info("{0}", e.Message);
                 return (int)ExitCodes.UnknownCliAction;
             }
-
+            
             if (packageAction == null)
             {
-                Console.WriteLine("Error instantiating command {0}", selectedCommand.Name);
+                Console.WriteLine("Error instantiating command {0}", SelectedAction.Name);
                 return (int)ExitCodes.UnknownCliAction;
             }
 
             try
             {
-                int skip = selectedCommand.GetDisplayAttribute().Group.Length + 1; // If the selected command has a group, it takes two arguments to use the command. E.g. "package create". If not, it only takes 1 argument, E.g. "restapi".
+                int skip = SelectedAction.GetDisplayAttribute().Group.Length + 1; // If the selected command has a group, it takes two arguments to use the command. E.g. "package create". If not, it only takes 1 argument, E.g. "restapi".
                 return packageAction.Execute(args.Skip(skip).ToArray());
             }
             catch (ExitCodeException ec)
@@ -342,13 +361,14 @@ namespace OpenTap.Cli
             }
             catch (Exception ex)
             {
+                Log.Flush();
                 if (ex is AggregateException aex)
                 {
                     foreach (var innerException in aex.InnerExceptions)
                         log.Error(innerException.Message);
                 }
                 
-                log.Error("A CliAction has thrown an exception: " + ex.Message);
+                log.Error("{0}", ex.Message);
                 log.Debug(ex);
                 return (int)ExitCodes.GeneralException;
             }

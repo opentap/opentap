@@ -3,18 +3,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
-using System.Threading.Tasks;
 using OpenTap.Cli;
+using OpenTap.Package.PackageInstallHelpers;
 
 namespace OpenTap.Package
 {
@@ -26,6 +22,10 @@ namespace OpenTap.Package
         internal const string CommandLineArgumentRepositoryDescription =
             "Override the package repository.\n" +
             "The default is http://packages.opentap.io.";
+        internal const string CommandLineArgumentNoCacheDescription =
+            "A package cache is used by default.\n" +
+            "This can be controlled from ./Settings/Package Manager.xml\n" +
+            "or disabled using this option.";
         internal const string CommandLineArgumentVersionDescription =
             "Semantic version (semver) of the package.\n" +
             "The default is to select only non pre-release packages for the current OS and CPU architecture.\n" +
@@ -35,7 +35,7 @@ namespace OpenTap.Package
             "'x.y.z' only match the exact version.\n" +
             "Use 'any', 'beta', or 'rc' to match 'any', 'beta', or 'rc' pre-release versions and above.";
         internal const string CommandLineArgumentOsDescription =
-            "Override the OS (Linux, Windows) to target.\n" +
+            "Override the OS (Linux, Windows, MacOS) to target.\n" +
             "The default is the current OS.";
         internal const string CommandLineArgumentArchitectureDescription =
             "Override the CPU architecture (x86, x64, AnyCPU) to target.\n" +
@@ -56,6 +56,11 @@ namespace OpenTap.Package
         internal static string GetLocalInstallationDir()
         {
             return Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+        }
+
+        internal static string GuessHostOS()
+        {
+            return OperatingSystem.Current.Name;
         }
 
         /// <summary>
@@ -87,46 +92,42 @@ namespace OpenTap.Package
                 Target = Path.GetFullPath(Target.Trim());
             if (!Directory.Exists(Target))
             {
-                log.Error("Destination directory \"{0}\" does not exist.", Target);
-                return (int)ExitCodes.ArgumentError;
+                if (File.Exists(Target))
+                {
+                    log.Error("Destination directory \"{0}\" is a file.", Target);
+                    return (int)ExitCodes.ArgumentError;
+                }
+                FileSystemHelper.EnsureDirectoryOf(Target);
             }
 
-            using (Mutex state = GetMutex(Target))
+            var lockfile = Path.Combine(Target, ".lock");
+            FileSystemHelper.EnsureDirectoryOf(lockfile);
+            using var fileLock = FileLock.Create(lockfile);
+            bool useLocking = Unlocked == false;
+            if (useLocking && !fileLock.WaitOne(0))
             {
-                bool useLocking = Unlocked == false;
-                if (useLocking && !state.WaitOne(0))
-                {
-                    log.Info("Waiting for other package manager operation to complete.");
-                    try
-                    {
-                        switch (WaitHandle.WaitAny(new WaitHandle[] { state, cancellationToken.WaitHandle }, 120000))
-                        {
-                            case 0: // we got the mutex
-                                break;
-                            case 1: // user cancelled
-                                throw new ExitCodeException(5, "User aborted while waiting for other package manager operation to complete.");
-                            case WaitHandle.WaitTimeout:
-                                throw new ExitCodeException(6, "Timeout after 2 minutes while waiting for other package manager operation to complete.");
-                        }
-                    }
-                    catch (AbandonedMutexException)
-                    {
-                        // Another package manager exited without releasing the mutex. We can should be able to take it now.
-                        if (!state.WaitOne(0))
-                            throw new ExitCodeException(7, "Unable to run while another package manager operation is running.");
-                    }
-                }
-
+                log.Info("Waiting for other package manager operation to complete.");
                 try
                 {
-                    return LockedExecute(cancellationToken);
+                    switch (WaitHandle.WaitAny(new WaitHandle[] { fileLock.WaitHandle, cancellationToken.WaitHandle }, TimeSpan.FromMinutes(2)))
+                    {
+                        case 0: // we got the mutex
+                            break;
+                        case 1: // user cancelled
+                            throw new ExitCodeException(5, "User aborted while waiting for other package manager operation to complete.");
+                        case WaitHandle.WaitTimeout:
+                            throw new ExitCodeException(6, "Timeout after 2 minutes while waiting for other package manager operation to complete.");
+                    }
                 }
-                finally
+                catch (AbandonedMutexException)
                 {
-                    if(useLocking)
-                        state.ReleaseMutex();
+                    // Another package manager exited without releasing the mutex. We should be able to take it now.
+                    if (!fileLock.WaitOne(0))
+                        throw new ExitCodeException(7, "Unable to run while another package manager operation is running.");
                 }
             }
+
+            return LockedExecute(cancellationToken);
         }
 
         /// <summary>
@@ -144,7 +145,7 @@ namespace OpenTap.Package
         {
             try
             {
-                IsolatedPackageAction.RunIsolated(application,target);
+                IsolatedPackageAction.RunIsolated(application, target);
                 return true;
             }
             catch(InvalidOperationException)

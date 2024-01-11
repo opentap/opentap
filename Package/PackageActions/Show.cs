@@ -100,22 +100,6 @@ namespace OpenTap.Package
         private List<IPackageRepository> repositories = new List<IPackageRepository>();
 
         private VersionSpecifier versionSpec { get; set; }
-        public PackageShowAction()
-        {
-            Architecture = ArchitectureHelper.GuessBaseArchitecture;
-            switch (Environment.OSVersion.Platform)
-            {
-                case PlatformID.MacOSX:
-                    OS = "OSX";
-                    break;
-                case PlatformID.Unix:
-                    OS = "Linux";
-                    break;
-                default:
-                    OS = "Windows";
-                    break;
-            }
-        }
 
         private void DisableHttpRepositories()
         {
@@ -180,9 +164,13 @@ namespace OpenTap.Package
         }
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
-            repositories.AddRange(Repository == null
-                ? PackageManagerSettings.Current.Repositories.Where(p => p.IsEnabled).Select(s => s.Manager)
-                : Repository.Select(PackageRepositoryHelpers.DetermineRepositoryType));
+            repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
+            if (Offline)
+            {
+                DisableHttpRepositories();
+            }
+
+            Name = AutoCorrectPackageNames.Correct(new[] { Name }, repositories)[0];
 
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
@@ -210,6 +198,13 @@ namespace OpenTap.Package
             // Remove prereleases if found package is a release
             if (string.IsNullOrWhiteSpace(package.Version.PreRelease))
                 packageVersions = packageVersions.Where(p => string.IsNullOrWhiteSpace(p.Version.PreRelease));
+
+            if (Architecture != CpuArchitecture.Unspecified)
+                packageVersions = packageVersions.Where(p => ArchitectureHelper.CompatibleWith(Architecture, p.Architecture));
+
+            if (!string.IsNullOrWhiteSpace(OS))
+                packageVersions = packageVersions.Where(p => p.OS.Contains(OS));
+
 
             GetPackageInfo(package, packageVersions.ToList(), targetInstallation);
 
@@ -246,7 +241,12 @@ namespace OpenTap.Package
                 AddWritePair("Newest Version in Repository", $"{latestVersion}");
 
             AddWritePair("Compatible Architectures", string.Join(Environment.NewLine, similarReleases.Select(x => x.Architecture).Distinct()));
-            AddWritePair("Compatible Platforms", string.Join(Environment.NewLine, similarReleases.Select(x => x.OS).Distinct()));
+
+            var platforms = similarReleases
+                .SelectMany(x => x.OS.Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+
+            AddWritePair("Compatible Platforms", string.Join(Environment.NewLine, platforms));
 
             if (packageInstalled == false)
             {
@@ -264,6 +264,8 @@ namespace OpenTap.Package
                 AddWritePair("Repository", repoPkg.RepositoryUrl);
             AddWritePair("Package Type", package.FileType);
             AddWritePair("Package Class", package.Class);
+            AddWritePair("Architecture", package.Architecture.ToString());
+            AddWritePair("Platform", package.OS ?? "");
 
             var tags = package.Tags?.Split(new string[] { " ", "," }, StringSplitOptions.RemoveEmptyEntries);
             if (tags?.Length > 0)

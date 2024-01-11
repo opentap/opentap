@@ -3,8 +3,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.ComponentModel;
 using System.Linq;
-using System.Reflection;
 
 namespace OpenTap
 {
@@ -31,12 +31,21 @@ namespace OpenTap
         /// Name of the property to enable. Must exactly match a name of a property in the current class. 
         /// </summary>
         public string PropertyName { get; }
+
         /// <summary>
         /// Value(s) the property must have for the item to be valid/enabled. If multiple values are specified, the item is enabled if just one value is equal. 
         /// If no values are specified, 'true' is the assumed value.
         /// </summary>
-        public IComparable[] PropertyValues { get; }
-
+        // note, IComparable is not for equality comparing. It is meant for sorting, hence it does not really matter here.
+        [EditorBrowsable(EditorBrowsableState.Advanced)]
+        [Obsolete("Use Values instead.")]
+        public IComparable[] PropertyValues => Values.OfType<IComparable>().ToArray();
+        
+        /// <summary>
+        /// Value(s) the property must have for the item to be valid/enabled. If multiple values are specified, the item is enabled if just one value is equal. 
+        /// If no values are specified, 'true' is the assumed value.
+        /// </summary>
+        public object[] Values { get; }
         /// <summary>
         /// Identifies settings, properties, or methods that are only valid/enabled when another property or setting has a certain value. 
         /// </summary>
@@ -47,9 +56,40 @@ namespace OpenTap
         {
             PropertyName = propertyName;
             if ((propertyValues == null) || (propertyValues.Length <= 0))
-                PropertyValues = new IComparable[] { true };
+                Values = new object[] {true};
             else
-                PropertyValues = propertyValues.Cast<IComparable>().ToArray();
+                Values = propertyValues;
+        }
+
+        internal virtual (bool enabled, bool hidden) IsEnabled(object instance, ITypeData instanceType, out IMemberData dependentProp)
+        {
+            bool newEnabled = true;
+            dependentProp = instanceType.GetMember(PropertyName);
+
+            if (dependentProp == null)
+            {
+                // We cannot be sure that the step developer has used this attribute correctly
+                // (could just be a typo in the (weakly typed) property name), thus we need to 
+                // provide a good error message that leads the developer to where the error is.
+                log.Warning("Could not find property '{0}' on '{1}'. EnabledIfAttribute can only refer to properties of the same class as the property it is decorating.", PropertyName, instanceType.Name);
+                return (false, false);
+            }
+
+            var depValue = dependentProp.GetValue(instance);
+                
+            try
+            {
+                newEnabled = calcEnabled(this, depValue);
+            }
+            catch (ArgumentException)
+            {
+                // CompareTo throws ArgumentException when obj is not the same type as this instance.
+                newEnabled = false;
+            }
+            bool hidden = false;
+            if (HideIfDisabled)
+                hidden = !newEnabled;
+            return (newEnabled, hidden);
         }
 
         /// <summary> Returns true if a member is enabled. </summary>
@@ -68,34 +108,11 @@ namespace OpenTap
             bool enabled = true;
             foreach (var at in dependencyAttrs)
             {
-                bool newEnabled = true;
-                dependentProp = instanceType.GetMember(at.PropertyName);
-
-                if (dependentProp == null)
-                {
-                    // We cannot be sure that the step developer has used this attribute correctly
-                    // (could just be a typo in the (weakly typed) property name), thus we need to 
-                    // provide a good error message that leads the developer to where the error is.
-                    log.Warning("Could not find property '{0}' on '{1}'. EnabledIfAttribute can only refer to properties of the same class as the property it is decorating.", at.PropertyName, instanceType.Name);
-                    enabled = false;
-                    return false;
-                }
-
-                var depValue = dependentProp.GetValue(instance);
+                var (enabled2, hidden2) = at.IsEnabled(instance, instanceType, out dependentProp);
                 
-                try
-                {
-                    newEnabled = calcEnabled(at, depValue);
-                }
-                catch (ArgumentException)
-                {
-                    // CompareTo throws ArgumentException when obj is not the same type as this instance.
-                    newEnabled = false;
-                }
-                if (!newEnabled && at.HideIfDisabled)
+                enabled &= enabled2;
+                if (hidden2)
                     hidden = true;
-                
-                enabled &= newEnabled;
             }
             return enabled;
         }
@@ -113,7 +130,7 @@ namespace OpenTap
             if (at.Flags)
             {
                 int value = (int)Convert.ChangeType(depValue, TypeCode.Int32);
-                foreach (var flag in at.PropertyValues)
+                foreach (var flag in at.Values)
                 {
                     int flagCode = (int) Convert.ChangeType(flag, TypeCode.Int32);
                     if ((value & flagCode) != 0)
@@ -125,9 +142,9 @@ namespace OpenTap
             if (depValue is IEnabled e)
                 depValue = e.IsEnabled;
 
-            foreach (var val in at.PropertyValues)
+            foreach (var val in at.Values)
             {
-                if (object.Equals(val, depValue))
+                if (Equals(val, depValue))
                     return true;
             }
             

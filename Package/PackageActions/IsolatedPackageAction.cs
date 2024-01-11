@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -25,6 +26,14 @@ namespace OpenTap.Package
         /// </summary>
         [CommandLineArgument("force", Description = "Try to run in spite of errors.", ShortName = "f")]
         public bool Force { get; set; }
+        
+        /// <summary>
+        /// Avoid starting an isolated process. This can cause installations to fail if the DLLs that must be overwritten are loaded.
+        /// </summary>
+        [Browsable(false)]
+        [CommandLineArgument("no-isolation", Description = "Avoid starting an isolated process.")]
+        public bool NoIsolation { get; set; }
+        
 
         /// <summary>
         /// Executes this the action. Derived types should override LockedExecute instead of this.
@@ -38,11 +47,15 @@ namespace OpenTap.Package
                 Target = Path.GetFullPath(Target.Trim()); 
             if (!Directory.Exists(Target))
             {
-                log.Error("Destination directory \"{0}\" does not exist.", Target);
-                return (int)ExitCodes.ArgumentError;
+                if (File.Exists(Target))
+                {
+                    log.Error("Destination directory \"{0}\" is a file.", Target);
+                    return (int)ExitCodes.ArgumentError;
+                }
+                FileSystemHelper.EnsureDirectoryOf(Target);
             }
 
-            if (ExecutorClient.IsExecutorMode) // do we support running isolated?
+            if (ExecutorClient.IsExecutorMode && NoIsolation == false) // do we support running isolated?
             {
                 if (!ExecutorClient.IsRunningIsolated) // are we already running isolated?
                 {
@@ -161,6 +174,14 @@ namespace OpenTap.Package
                     deps.Add(new PackageDependency(pkg.Name, new VersionSpecifier(pkg.Version, VersionMatchBehavior.Compatible)));
                 }
 
+                // Also copy the IDebugger implementation package over (the IDebugger assembly itself might depend on some things in that package, e.g. EnvDTE.dll)
+                var debuggerAsm = Environment.GetEnvironmentVariable("OPENTAP_DEBUGGER_ASSEMBLY");
+                if (!String.IsNullOrEmpty(debuggerAsm))
+                {
+                    var dpkg = findPackageWithFile(debuggerAsm);
+                    deps.Add(new PackageDependency(dpkg.Name, new VersionSpecifier(dpkg.Version, VersionMatchBehavior.Compatible)));
+                }
+
                 bool force = isolatedAction?.Force ?? false;
 
                 List<string> allFiles = new List<string>();
@@ -189,7 +210,10 @@ namespace OpenTap.Package
                     var brokenPackages = new HashSet<string>();
                     foreach (var file in fs)
                     {
-                        string loc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), file.FileName);
+                        // Mixing forward and backwards slashes can cause the File.Exists check to fail on Linux / MacOS
+                        // Just change them to forward slashes
+                        var fn = file.FileName.Replace('\\', '/');
+                        string loc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), fn);
                         if (!File.Exists(loc))
                         {
                             brokenPackages.Add(package.Name);
@@ -197,7 +221,7 @@ namespace OpenTap.Package
                             continue;
                         }
 
-                        allFiles.Add(file.FileName);
+                        allFiles.Add(fn);
                     }
 
                     foreach (var name in brokenPackages)
@@ -211,7 +235,7 @@ namespace OpenTap.Package
                     string loc = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), _loc);
 
                     var newloc = Path.Combine(tempFolder, _loc);
-                    OpenTap.FileSystemHelper.EnsureDirectory(newloc);
+                    OpenTap.FileSystemHelper.EnsureDirectoryOf(newloc);
                     if (File.Exists(newloc)) continue;
                     File.Copy(loc, newloc);
                 }
@@ -234,7 +258,6 @@ namespace OpenTap.Package
                         newname = $"{newname} --target \"{target}\"";
 
                     tpmClient.MessageServer("run " + newname);
-                    tpmClient.Dispose();
                 }
             }
         }

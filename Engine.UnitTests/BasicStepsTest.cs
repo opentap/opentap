@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests;
 using OpenTap.Plugins.BasicSteps;
@@ -75,15 +78,37 @@ namespace OpenTap.UnitTests
             else
             {
                 // break condition reached -> Error verdict.
-                Assert.AreEqual(Verdict.Error, run.Verdict);
+                Assert.AreEqual(Verdict.Fail, run.Verdict);
                 Assert.AreEqual(1, step.Iterations);
             }
+        }
+        
+        [Test]
+        public void RepeatUntilPass2()
+        {
+            var step = new PassThirdTime();
+            var rpt = new RepeatStep
+            {
+                Action =  RepeatStep.RepeatStepAction.Until,
+                TargetStep = step,
+                TargetVerdict = Verdict.Pass,
+                ClearVerdict = true,
+                MaxCount = new Enabled<uint>{IsEnabled = true, Value = 5}
+            };
+            rpt.ChildTestSteps.Add(step);
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(rpt);
+            
+            var run = plan.Execute();
+
+            Assert.AreEqual(Verdict.Pass, run.Verdict);
+            Assert.AreEqual(3, step.Iterations);
         }
         
         
         // These two cases are technically equivalent.
         [Test]
-        [TestCase(Verdict.Error, RepeatStep.RepeatStepAction.While)]
+        [TestCase(Verdict.Fail, RepeatStep.RepeatStepAction.While)]
         [TestCase(Verdict.Pass, RepeatStep.RepeatStepAction.Until)]
         public void RepeatWhileError(Verdict targetVerdict, RepeatStep.RepeatStepAction action)
         {
@@ -124,6 +149,65 @@ namespace OpenTap.UnitTests
             Assert.IsFalse(string.IsNullOrEmpty(scpiRegex.Error));
             scpiRegex.Action = SCPIAction.Command; // it is a valid command though.
             Assert.IsTrue(string.IsNullOrEmpty(scpiRegex.Error));
+        }
+
+        class SimpleResultTest2 : TestStep 
+        {
+            public override void Run()
+            {
+                Results.Publish("Test", new List<string> { "X", "Y" }, 1.0, 2.0);
+            }
+        }
+        
+        [Test]
+        public void RepeatCheckResultsHasIterations()
+        {
+            var pushResult1 = new SimpleResultTest2();
+            var pushResult2 = new SimpleResultTest2();
+            
+            var repeatStep = new RepeatStep
+            {
+                Action =  RepeatStep.RepeatStepAction.Fixed_Count,
+                Count = 100
+            };
+            
+            var collectEverythingListener = new RecordAllResultListener();
+            
+            repeatStep.ChildTestSteps.Add(pushResult1);
+            repeatStep.ChildTestSteps.Add(pushResult2);
+
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(repeatStep);
+
+            plan.Execute(new IResultListener[]{collectEverythingListener});
+            
+            // verify that there are 200 distinct result tables (from 200 different test plan runs)
+            // 200 = repeatStep.Count * 2 (pushResult1 and pushResult2).
+            Assert.AreEqual(200, collectEverythingListener.Results.Count);
+            
+            // verify that each result table came from a different step run
+            Assert.AreEqual(200, collectEverythingListener.ResultTableGuids.Distinct().Count());
+        }
+        
+        [Test]
+        public void TestSweepLoopAcrossRunsReferencedResources()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepLoop();
+            var delay = new DelayStep();
+            plan.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(delay);
+
+            var b = AnnotationCollection.Annotate(sweep);
+            var members = b.GetMember("SweepMembers");
+            var avail = members.Get<IAvailableValuesAnnotationProxy>();
+            var multi = members.Get<IMultiSelectAnnotationProxy>();
+            multi.SelectedValues = avail.AvailableValues;
+            b.Write();
+            sweep.CrossPlan = SweepLoop.SweepBehaviour.Across_Runs;
+            Assert.IsTrue(sweep.SweepParameters.Any());
+            // if SweepParameters.Count > 0 && across-runs mode was enabled. This could cause an exception.
+            Assert.AreEqual(0, sweep.ReferencedResources.Count());
         }
     }
 }

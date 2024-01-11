@@ -23,6 +23,7 @@ namespace OpenTap.Package
         private static readonly TraceSource log = Log.CreateSource("GitVersion");
         private const string configFileName = ".gitversion";
         private readonly LibGit2Sharp.Repository repo;
+        private readonly string RepoDir;
 
         private class Config
         {
@@ -41,14 +42,16 @@ namespace OpenTap.Package
                 new Regex("^integration$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
                 new Regex("^develop$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
                 new Regex("^dev$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-                new Regex("^master$", RegexOptions.Compiled | RegexOptions.IgnoreCase)
+                new Regex("^master$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+                new Regex("^main$", RegexOptions.Compiled | RegexOptions.IgnoreCase)
             };
             public List<string> BetaBranchPatterns { get; private set; } = new List<string>
             {
                 "^integration$",
                 "^master$",
                 "^develop$",
-                "^dev$"
+                "^dev$",
+                "^main$"
             };
 
             /// <summary>
@@ -65,17 +68,20 @@ namespace OpenTap.Package
             /// </summary>
             public int MaxBranchChars => _maxBranchChars;
 
+            public string ConfigFilePath;
+
             private Config()
             {
 
             }
 
             private static Regex configLineRegex = new Regex(@"^(?!#)(?<key>.*?)\s*=\s*(?<value>.*)", RegexOptions.Compiled);
-            public static Config ParseConfig(Stream str)
+            public static Config ParseConfig(Stream str, string configFilePath = configFileName)
             {
                 Config cfg = new Config();
                 if (str == null)
                     return cfg;
+                cfg.ConfigFilePath = configFilePath;
                 bool isBetaBranchSet = false;
                 using (var reader = new StreamReader(str, Encoding.UTF8))
                 {
@@ -118,51 +124,52 @@ namespace OpenTap.Package
                 return cfg;
             }
         }
-
-        void windowsEnsureLibgit2Present()
+        
+        private const string GIT_HASH = "b7bad55";
+        
+        void ensureLibgit2Present()
         {
-            // It seems we have a problem similar to the linux issue below
-            // when running with dotnet core on windows. Make a similar workaround
-            string libgit2name = "git2-4aecb64.dll";
+            string libgit2name;
+
+            if (OperatingSystem.Current == OperatingSystem.Windows)
+                libgit2name = $"git2-{GIT_HASH}.dll";
+            else if (OperatingSystem.Current == OperatingSystem.Linux)
+                libgit2name = $"libgit2-{GIT_HASH}.so";
+            else if (OperatingSystem.Current == OperatingSystem.MacOS)
+                libgit2name = $"libgit2-{GIT_HASH}.dylib";
+            else
+            {
+                log.Error($"Unsupported platform.");
+                return;
+            }
+            
             var requiredFile = Path.Combine(PathUtils.OpenTapDir, libgit2name);
-
             if (File.Exists(requiredFile))
                 return;
 
+            string sourceFile = Path.Combine(PathUtils.OpenTapDir, "Dependencies/LibGit2Sharp.0.27.0.0/", libgit2name);
+            if (OperatingSystem.Current == OperatingSystem.Windows)
+                sourceFile += $".{(Environment.Is64BitProcess ? CpuArchitecture.x64 : CpuArchitecture.x86)}";
+            if (OperatingSystem.Current == OperatingSystem.MacOS)
+                sourceFile += $".{MacOsArchitecture.Current.Architecture}";
+            if (OperatingSystem.Current == OperatingSystem.Linux)
+                sourceFile += $".{LinuxArchitecture.Current.Architecture}";
+
             try
             {
-                File.Copy(Path.Combine("Dependencies/LibGit2Sharp.0.25.0.0/", libgit2name),
-                    requiredFile);
+                File.Copy(sourceFile, requiredFile, true);
             }
-            catch
+            catch (Exception e)
             {
+                if (OperatingSystem.Current == OperatingSystem.Windows)
+                {
+                    var opentapArch = Installation.Current.GetOpenTapPackage()?.Architecture;
+                    var processArch = Environment.Is64BitProcess ? CpuArchitecture.x64 : CpuArchitecture.x86;
+                    if (opentapArch != processArch)
+                        throw new PlatformNotSupportedException($"Unable to find the correct 'libgit2-{GIT_HASH}' because the process architecture '{processArch}' does not match the installed OpenTAP architecture '{opentapArch}'", e);
+                }
 
-            }
-        }
-
-        void unixEnsureLibgit2Present()
-        {
-            // on linux, we are not sure which libgit to load at package time.
-            // so at this moment we need to check which version we are on
-            // and move the file to a position that is checked.
-            string libgit2name = "libgit2-4aecb64";
-            var requiredFile = Path.Combine(PathUtils.OpenTapDir, $"{libgit2name}.so");
-
-            if (File.Exists(requiredFile))
-                return;
-
-            string libgitfoldername = "Dependencies/LibGit2Sharp.0.25.0.0/";
-            IEnumerable<FileInfo> libgit2files = new[] {"ubuntu", "redhat", "linux-x64"}
-                .Select(x => Path.Combine(PathUtils.OpenTapDir, libgitfoldername, $"{libgit2name}.so.{x}")).Select(x => new FileInfo(x));
-
-            var file = libgit2files.FirstOrDefault(x => x.Name.EndsWith(LinuxVariant.Current.Name));
-            try
-            {
-                file?.CopyTo(requiredFile, true);
-            }
-            catch
-            {
-                
+                throw new PlatformNotSupportedException($"Unable to copy 'libgit2-{GIT_HASH}': {e.Message}.", e);
             }
         }
 
@@ -173,19 +180,17 @@ namespace OpenTap.Package
         public GitVersionCalulator(string repositoryDir)
         {
             repositoryDir = Path.GetFullPath(repositoryDir);
+            RepoDir = repositoryDir;
             while (!Directory.Exists(Path.Combine(repositoryDir, ".git")))
             {
                 repositoryDir = Path.GetDirectoryName(repositoryDir);
                 if (repositoryDir == null)
                     throw new ArgumentException("Directory is not a git repository.", "repositoryDir");
             }
+            RepoDir = RepoDir.Substring(repositoryDir.Length);
 
-            if (OperatingSystem.Current == OperatingSystem.Windows)
-                windowsEnsureLibgit2Present();
-            else
-                unixEnsureLibgit2Present();
-
-            repo = new Repository(repositoryDir);
+            ensureLibgit2Present();
+            repo = new LibGit2Sharp.Repository(repositoryDir);
         }
 
         public void Dispose()
@@ -206,11 +211,39 @@ namespace OpenTap.Package
             // no version was found.
             return null;
         }
-        
+
+        static IEnumerable<TreeEntry> GetAllConfigFilesInTree(Tree t)
+        {
+            foreach (TreeEntry te in t)
+            {
+                if (te.Target is Tree subtree)
+                {
+                    foreach (var match in GetAllConfigFilesInTree(subtree))
+                        yield return match;
+                }
+                else if (te.Name == configFileName)
+                {
+                    yield return te;
+                }
+            }
+        }
+
         Config readConfig(Commit c)
         {
-            Blob configBlob = c?.Tree.FirstOrDefault(t => t.Name == configFileName)?.Target as Blob;
-            return Config.ParseConfig(configBlob?.GetContentStream());
+            var cfgFiles = GetAllConfigFilesInTree(c?.Tree).ToList();
+
+            string repositoryDir = RepoDir.TrimStart('/','\\');
+            TreeEntry cfg = null;
+            while (cfg == null)
+            {
+                var dir = Path.Combine(repositoryDir ?? "", configFileName).Replace('\\','/');
+                cfg = cfgFiles.FirstOrDefault(c => c.Path == dir);
+                if (String.IsNullOrEmpty(repositoryDir))
+                    break;
+                repositoryDir = Path.GetDirectoryName(repositoryDir);
+            }
+            Blob configBlob = cfg?.Target as Blob;
+            return Config.ParseConfig(configBlob?.GetContentStream(), cfg?.Path);
         }
 
         Config ParseConfig(Commit c)
@@ -290,11 +323,13 @@ namespace OpenTap.Package
         {
             if (repo.Lookup<Commit>(targetCommit.Sha) == null)
                 throw new ArgumentException($"The commit with hash {targetCommit} does not exist the in repository.");
-            if(!targetCommit.Tree.Any(t => t.Name == configFileName))
+            if(!GetAllConfigFilesInTree(targetCommit.Tree).Any())
             {
                 log.Warning("Did not find any .gitversion file.");
             }
             Config cfg = ParseConfig(targetCommit);
+            if (cfg.ConfigFilePath != configFileName)
+                log.Debug("Using configuration from {0}", cfg.ConfigFilePath);
 
             Branch defaultBranch = getBetaBranch(cfg);
 

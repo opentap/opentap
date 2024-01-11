@@ -13,6 +13,7 @@ using System.IO.Compression;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Runtime.InteropServices;
+using System.ComponentModel;
 
 namespace OpenTap.Package
 {
@@ -73,7 +74,7 @@ namespace OpenTap.Package
         internal ActionResult ExecutePackageActionSteps(PackageDef package, bool force, string workingDirectory)
         {
             ActionResult res = ActionResult.NothingToDo;
-            
+
             // if the package is being installed as a system wide package, we'll  want to look in the system-wide
             // package folder for the executable. Additionally, the system-wide install directory will also be used as 
             // the working directory.
@@ -93,10 +94,10 @@ namespace OpenTap.Package
                 if(!file.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
                     yield return Path.Combine(workingDirectory, file + ".exe");
             }
-            
+
             foreach (var step in package.PackageActionExtensions)
             {
-                if (step.ActionName != ActionName)
+                if (step.ActionName.Equals(ActionName, StringComparison.OrdinalIgnoreCase) == false)
                     continue;
 
                 var stepName = $"'{step.ExeFile} {step.Arguments}'";
@@ -130,7 +131,7 @@ namespace OpenTap.Package
                 // If OPENTAP_COLOR is set, the escape symbols for colors in the child process will break the parsing of the forwarded logs.
                 // Ensure color is never set in the child process. Colors will still be set in the parent process.
                 pi.Environment["OPENTAP_COLOR"] = "never";
-
+                
                 try
                 {
                     Process p;
@@ -150,6 +151,8 @@ namespace OpenTap.Package
 
                         p.ErrorDataReceived += (s, e) =>
                         {
+                            if (step.Quiet) 
+                                return;
                             if (!string.IsNullOrEmpty(e.Data))
                             {
                                 if (isTap)
@@ -160,6 +163,8 @@ namespace OpenTap.Package
                         };
                         p.OutputDataReceived += (s, e) =>
                         {
+                            if (step.Quiet) 
+                                return;
                             if (!string.IsNullOrEmpty(e.Data))
                             {
                                 if (isTap)
@@ -190,6 +195,10 @@ namespace OpenTap.Package
 
                     log.Info(sw, $"Succesfully ran {step.ActionName} step  {stepName}. {(p.ExitCode != 0 ? $"Exitcode: {p.ExitCode}" : "")}");
                 }
+                catch (Win32Exception) when (step.Optional)
+                {
+                    log.Warning($"'{step.ExeFile}' not found, skipping action.");
+                }
                 catch (Exception e)
                 {
                     log.Error(sw, e.Message);
@@ -201,7 +210,7 @@ namespace OpenTap.Package
 
             return res;
         }
-        
+
         private void RedirectTapLog(string lines, bool IsStandardError)
         {
 
@@ -261,7 +270,7 @@ namespace OpenTap.Package
     {
         static List<ActionExecuter> builtinActions = new List<ActionExecuter>
         {
-            new ActionExecuter{ ActionName = "uninstall", Execute = DoUninstall }
+            new ActionExecuter{ ActionName = Installer.Uninstall, Execute = DoUninstall }
         };
 
         static TraceSource log = OpenTap.Log.CreateSource("package");
@@ -283,17 +292,15 @@ namespace OpenTap.Package
 
             try
             {
-                using (var fileStream = File.OpenRead(packagePath))
-                using (var zip = new ZipArchive(fileStream, ZipArchiveMode.Read))
+                using var fileStream = new FileStream(packagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var zip = new ZipArchive(fileStream, ZipArchiveMode.Read);
+                foreach (var part in zip.Entries)
                 {
-                    foreach (var part in zip.Entries)
-                    {
-                        if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
-                            continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
+                    if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
+                        continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
 
-                        string path = Uri.UnescapeDataString(part.FullName);
-                        files.Add(path);
-                    }
+                    string path = Uri.UnescapeDataString(part.FullName);
+                    files.Add(path);
                 }
             }
             catch (InvalidDataException)
@@ -343,7 +350,7 @@ namespace OpenTap.Package
             }
 
             var pi = new PluginInstaller();
-            if (pi.ExecuteAction(package, "install", false, target) == ActionResult.Error)
+            if (pi.ExecuteAction(package, Installer.Install, false, target) == ActionResult.Error)
             {
                 log.Error($"Install package action failed to execute for '{package.Name}'.");
                 tryUninstall(path, package, target);
@@ -352,7 +359,7 @@ namespace OpenTap.Package
 
             CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install,
                 new CustomPackageActionArgs(null, false));
-            
+
             return package;
         }
 
@@ -387,6 +394,16 @@ namespace OpenTap.Package
         internal static List<string> UnpackPackage(string packagePath, string destinationDir)
         {
             List<string> installedParts = new List<string>();
+            string packageName = null;
+            try
+            {
+                packageName = PackageDef.FromPackage(packagePath).Name;
+            }
+            catch
+            {
+                // This is fine, it could be a bundle. The package name is only required if the package is OpenTAP
+            }
+
             try
             {
                 using (var packageStream = File.OpenRead(packagePath))
@@ -401,6 +418,14 @@ namespace OpenTap.Package
 
                         string path = Uri.UnescapeDataString(part.FullName).Replace('\\', '/');
                         path = Path.Combine(destinationDir, path).Replace('\\', '/');
+
+                        if (OperatingSystem.Current == OperatingSystem.Windows && packageName == "OpenTAP" && Path.GetFileNameWithoutExtension(part.FullName) == "tap")
+                        {
+                            // tap.dll and tap.exe cannot be overwritten because they are in use by this process -- extract them to a temp location so they can be overwritten later
+                            if (File.Exists(path))
+                                path += ".new";
+                        }
+
                         var sw = Stopwatch.StartNew();
 
                         int Retries = 0, MaxRetries = 10;
@@ -408,7 +433,7 @@ namespace OpenTap.Package
                         {
                             try
                             {
-                                FileSystemHelper.EnsureDirectory(path);
+                                FileSystemHelper.EnsureDirectoryOf(path);
                                 if (OperatingSystem.Current == OperatingSystem.Windows)
                                 {
                                     // on windows, hidden files cannot be overwritten.
@@ -421,8 +446,8 @@ namespace OpenTap.Package
                                             File.SetAttributes(path, attrs2);
                                     }
                                 }
-                                
-                                
+
+
                                 var deflate_stream = part.Open();
                                 using (var fileStream = File.Create(path))
                                 {
@@ -437,7 +462,16 @@ namespace OpenTap.Package
                             {
                                 throw;
                             }
-                            catch
+                            catch (IOException ex) when (ex.Message.Contains("There is not enough space on the disk"))
+                            {
+                                log.Error(ex.Message);
+                                var req = new AbortOrRetryRequest("Not Enough Disk Space", $"File '{part.FullName}' requires {Utils.BytesToReadable(part.Length)} of free space. " +
+                                                                  $"Please free some space to continue.") {Response = AbortOrRetryResponse.Abort};
+                                UserInput.Request(req, true);
+                                if (req.Response == AbortOrRetryResponse.Abort)
+                                    throw new OperationCanceledException("Installation aborted due to missing disk space.");
+                            }
+                            catch (Exception ex)
                             {
                                 if (Path.GetFileNameWithoutExtension(path) == "tap")
                                     break; // this is ok tap.exe (or just tap on linux) is not designed to be overwritten
@@ -446,6 +480,7 @@ namespace OpenTap.Package
                                     throw;
                                 Retries++;
                                 log.Warning("Unable to unpack file {0}. Retry {1} of {2}.", path, Retries, MaxRetries);
+                                log.Debug(ex);
                                 Thread.Sleep(200);
                             }
                         }
@@ -499,20 +534,18 @@ namespace OpenTap.Package
         {
             try
             {
-                using (var fileStream = File.OpenRead(packagePath))
-                using (var zip = new ZipArchive(fileStream, ZipArchiveMode.Read))
+                using var fileStream = new FileStream(packagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var zip = new ZipArchive(fileStream, ZipArchiveMode.Read);
+                foreach (var part in zip.Entries)
                 {
-                    foreach (var part in zip.Entries)
-                    {
-                        if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
-                            continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
+                    if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
+                        continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
 
-                        string path = Uri.UnescapeDataString(part.FullName);
-                        if (path == relativeFilePath)
-                        {
-                            part.Open().CopyTo(destination);
-                            return true;
-                        }
+                    string path = Uri.UnescapeDataString(part.FullName);
+                    if (path == relativeFilePath)
+                    {
+                        part.Open().CopyTo(destination);
+                        return true;
                     }
                 }
             }
@@ -531,7 +564,8 @@ namespace OpenTap.Package
         {
             var pi = new PluginInstaller();
 
-            pi.ExecuteAction(package, "uninstall", true, target);
+            pi.ExecuteAction(package, Installer.PrepareUninstall, true, target);
+            pi.ExecuteAction(package, Installer.Uninstall, true, target);
         }
 
         internal ActionResult ExecuteAction(PackageDef package, string actionName, bool force, string target)
@@ -550,7 +584,12 @@ namespace OpenTap.Package
             var result = ActionResult.Ok;
             var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : target;
 
-            var filesToRemain = new Installation(destination).GetPackages().Where(p => p.Name != package.Name).SelectMany(p => p.Files).Select(f => f.RelativeDestinationPath).Distinct(StringComparer.InvariantCultureIgnoreCase).ToHashSet(StringComparer.InvariantCultureIgnoreCase);
+            var filesToRemain = new Installation(destination).GetPackages()
+                .Where(p => p.Name != package.Name)
+                .SelectMany(p => p.Files)
+                .Select(f => f.RelativeDestinationPath)
+                .Distinct(StringComparer.InvariantCultureIgnoreCase)
+                .ToHashSet(StringComparer.InvariantCultureIgnoreCase);
 
             try
             {
@@ -573,8 +612,8 @@ namespace OpenTap.Package
                 result = ActionResult.Error;
             }
 
+            int totalDeleteRetries = 0;
             bool ignore(string filename) => filename.ToLower() == "tap" || filename.ToLower() == "tap.exe" || filename.ToLower() == "tap.dll";
-
             foreach (var file in package.Files)
             {
                 if (ignore(file.RelativeDestinationPath)) // ignore tap, tap.dll, and tap.exe as they are not meant to be overwritten.
@@ -599,12 +638,37 @@ namespace OpenTap.Package
                 try
                 {
                     log.Debug("Deleting file '{0}'.", file.RelativeDestinationPath);
-                    File.Delete(fullPath);
+
+                    const int maxRetries = 10;
+                    FileSystemHelper.SafeDelete(fullPath, maxRetries, (i, ex) =>
+                    {
+                        if (ex is UnauthorizedAccessException || ex is IOException)
+                        {
+                            // the number of retries goes across files, to avoid an install taking several minutes.
+                            if (totalDeleteRetries >= maxRetries) throw ex;
+                            totalDeleteRetries++;
+                            // File.Delete might throw either exception depending on if it is a
+                            // program _or_ a file in use.
+                            
+                            log.Warning("Unable to delete file '{0}' file might be in use. Retrying {1} of {2} in 1 second.", file.RelativeDestinationPath, totalDeleteRetries, maxRetries, totalDeleteRetries);
+                            log.Debug("Error: {0}", ex.Message);
+                            TapThread.Sleep(1000);
+                        }
+                        else throw ex;
+                    });
+                    
                 }
                 catch (Exception e)
                 {
-                    log.Debug(e);
-                    result = ActionResult.Error;
+                    if (e is FileNotFoundException || e is DirectoryNotFoundException)
+                    {
+                        log.Debug($"File not found: {file.RelativeDestinationPath}");
+                    }
+                    else
+                    {
+                        log.Debug(e);
+                        result = ActionResult.Error;
+                    }
                 }
 
                 DeleteEmptyDirectory(new FileInfo(fullPath).Directory);
@@ -623,6 +687,12 @@ namespace OpenTap.Package
                 File.Delete(packageFile);
                 DeleteEmptyDirectory(new FileInfo(packageFile).Directory);
             }
+
+            if (package.PackageSource is XmlPackageDefSource f2 && File.Exists(f2.PackageDefFilePath))
+                // in case the package def XML was not in the default package definition directory
+                // it is better to delete it anyway, because otherwise it will seem like it is still installed.
+                File.Delete(f2.PackageDefFilePath);
+
             return result;
         }
 
@@ -630,6 +700,7 @@ namespace OpenTap.Package
         {
             if (dir == null) return;
             if (!dir.Exists) return;
+            if (dir.EnumerateFiles().Any() || dir.EnumerateDirectories().Any()) return;
 
             try
             {

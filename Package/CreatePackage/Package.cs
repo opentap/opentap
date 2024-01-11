@@ -4,17 +4,14 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Reflection;
 using System.Diagnostics;
+using System.IO.Compression;
 using Tap.Shared;
-using System.Runtime.InteropServices;
-using System.Xml;
-using System.Xml.Linq;
 using System.Xml.Serialization;
-using System.Xml.XPath;
 using OpenTap.Cli;
 
 namespace OpenTap.Package
@@ -26,7 +23,7 @@ namespace OpenTap.Package
         // but usually PackageDefExt does something in addition to what PackageDef does.
         //
 
-        static TraceSource log =  OpenTap.Log.CreateSource("Package");
+        static TraceSource log =  Log.CreateSource("Package");
 
         private static void EnumeratePlugins(PackageDef pkg, List<AssemblyData> searchedAssemblies)
         {
@@ -104,13 +101,126 @@ namespace OpenTap.Package
         {
             try
             {
-                AssemblyName testAssembly = AssemblyName.GetAssemblyName(fullPath);
-                return true;
+                if (File.Exists(fullPath))
+                {
+                    AssemblyName testAssembly = AssemblyName.GetAssemblyName(fullPath);
+                    return true;
+                }
             }
-
             catch (Exception)
             {
-                return false;
+                
+            }
+            return false;
+        }
+
+        // TypeData has a PluginTypes property which contains the list of plugins
+        // which it implements. ITypeData does not. Recursively iterate
+        // the basetype hierarchy until we find a TypeData which has populated this property,
+        // or until we find an ITypeData which inherits directly from ITapPlugin
+        static ITypeData[] tdPluginTypes(ITypeData td)
+        {
+            if (td.BaseType == null || td.BaseType == td) return Array.Empty<ITypeData>();
+            if (td.BaseType.IsA(typeof(ITapPlugin))) return new[] { td };
+            if (td is TypeData t)
+            {
+                // If PluginTypes is null, it could be a dynamic typedata whose
+                // basetype has actual pluginTypes (seen with the Python plugin)
+                if (t.PluginTypes == null) return tdPluginTypes(td.BaseType);
+                // Otherwise if it does have plugin types, we can sim
+                return t.PluginTypes.Cast<ITypeData>().ToArray();
+            }
+
+            return tdPluginTypes(td.BaseType);
+        }
+        
+        private static void EnumerateAdditionalPlugins(PackageDef pkgDef)
+        {
+            string normalize(string s) => s.ToLowerInvariant().Replace("\\", "/").Replace("//", "/");
+            // Create a lookup of all plugin sources based on source file
+            var sources = TypeData.GetDerivedTypes<ITapPlugin>().Where(t => t.CanCreateInstance).Select(TypeData.GetTypeDataSource).Where(src => src.GetType() != typeof(AssemblyData))
+                .ToLookup(src => normalize(Path.GetFullPath(src.Location)));
+            if (sources.Count == 0) return;
+
+            var tapdir = ExecutorClient.ExeDir;
+            var workDir = EngineSettings.StartupDir;
+            foreach (var file in pkgDef.Files)
+            {
+                ITypeDataSource[] sourceList = Array.Empty<ITypeDataSource>();
+                if (!string.IsNullOrWhiteSpace(file.RelativeDestinationPath))
+                    sourceList = sources[normalize(Path.Combine(tapdir, file.RelativeDestinationPath))].ToArray();
+                if (sourceList.Length == 0 && !string.IsNullOrWhiteSpace(file.FileName))
+                    sourceList = sources[normalize(Path.Combine(tapdir, file.FileName))].ToArray();
+                
+                // look in the working directory - tap package create is relative to that.
+                if (sourceList.Length == 0 && !string.IsNullOrWhiteSpace(file.FileName))
+                    sourceList = sources[normalize(Path.Combine(workDir, file.FileName))].ToArray();
+                
+                if (sourceList.Length == 0) continue;
+
+                // discinct by provider type (if a file has more than one plugin in it from the same provider, that provider is going to be in the list several times)
+                sourceList = sourceList.GroupBy(src => src.GetType()).Select(grp => grp.First()).ToArray();
+                
+                // Iterate all the sources that have generated plugins based on this file
+                foreach (var source in sourceList)
+                {
+                    // Add any relevant dependencies. Note that we only add dependencies on AssemblyData implementations,
+                    // It would probably be more correct if PackageFile.DependentAssemblies was called something like
+                    // PackageFile.PluginFileDependencies, and had a list of ITypeDataSource instead.
+                    var dependencies = source.References.ToArray();
+                    file.DependentAssemblies.AddRange(dependencies.OfType<AssemblyData>());
+                    file.DependentTypeDataSources.AddRange(dependencies.Where(x => !(x is AssemblyData)));
+                    
+                    string bestName(ITypeData t, DisplayAttribute display = null)
+                    {
+                        display ??= t.GetDisplayAttribute();
+                        return display?.Name ?? t.Name.Split('.', '+').Last();
+                    }
+                    
+                    foreach (var td in source.Types)
+                    {
+                        try
+                        {
+                            if (td.CanCreateInstance == false) continue;
+                            void addTypeDataDependencies(ITypeData td2)
+                            {
+                                if (td2 == null) return;
+                                
+                                var src = TypeData.GetTypeDataSource(td2);
+                                if (src.Location != null)
+                                {
+                                    if (file.DependentTypeDataSources.Contains(src))
+                                        return;
+                                    file.DependentTypeDataSources.Add(src);
+                                } 
+                                addTypeDataDependencies(td2.BaseType);
+                            }
+                            addTypeDataDependencies(td.BaseType);
+                            var display = td.GetDisplayAttribute();
+                            var pluginTypes = tdPluginTypes(td);
+                            var plug = new PluginFile()
+                            {
+                                BaseType = string.Join(" | ", pluginTypes.Select(t => bestName(t))),
+                                Type = td.Name,
+                                Name = bestName(td, display),
+                                Description = display?.Description ?? "",
+                                Groups = display?.Group,
+                                Collapsed = display?.Collapsed ?? false,
+                                Order = display?.Order ?? -10000,
+                                Browsable = td.GetAttribute<BrowsableAttribute>()?.Browsable ?? true,
+                            };
+                            file.Plugins.Add(plug);
+                        }
+                        catch (Exception ex)
+                        {
+                            log.Error($"Failed to add plugins from '{td.Name}'");
+                            log.Debug(ex);
+                        }
+                    }
+                }
+                
+                // Remove duplicated dependencies (very unlikely)
+                file.DependentAssemblies = file.DependentAssemblies.Distinct().ToList();
             }
         }
 
@@ -123,6 +233,23 @@ namespace OpenTap.Package
         /// <returns></returns>
         public static PackageDef FromInputXml(string xmlFilePath, string projectDir)
         {
+            try
+            {
+                var sw = Stopwatch.StartNew();
+                var evaluator = new PackageXmlPreprocessor(xmlFilePath, projectDir);
+                var xmlDoc = evaluator.Evaluate();
+                var evaluated = Path.GetTempFileName();
+                xmlDoc.Save(evaluated);
+                xmlFilePath = evaluated;
+                log.Debug(sw, $"Package preprocessing completed.");
+            }
+            catch (Exception ex)
+            {
+                log.Warning(ex.Message);
+                log.Debug($"Unexpected error while evaluating package xml. Continuing in spite of errors.");
+                log.Debug(ex);
+            }
+
             PackageDef.ValidateXml(xmlFilePath);
             var pkgDef = PackageDef.FromXml(xmlFilePath);
             if(pkgDef.Files.Any(f => f.HasCustomData<UseVersionData>() && f.HasCustomData<SetAssemblyInfoData>()))
@@ -180,12 +307,11 @@ namespace OpenTap.Package
             // Enumerate plugins if this has not already been done.
             if (!pkgDef.Files.SelectMany(pfd => pfd.Plugins).Any())
             {
+                // Enumerate plugin types from C# assemblies
                 EnumeratePlugins(pkgDef, assemblies);
+                // Enumerate plugin types from other ITypeDataSource implementations
+                EnumerateAdditionalPlugins(pkgDef);
             }
-
-            log.Info("Updating package version.");
-            pkgDef.updateVersion(projectDir);
-            log.Info("Package version is {0}", pkgDef.Version);
 
             pkgDef.findDependencies(excludeAdd, assemblies);
 
@@ -275,118 +401,6 @@ namespace OpenTap.Package
             return newEntries;
         }
 
-        private static string TryReplaceMacro(string text, string ProjectDirectory)
-        {
-            if (string.IsNullOrEmpty(text)) return text;
-
-            // Find macro
-            var match = Regex.Match(text, @"(.*)(?:\$\()(.*)(?:\))(.*)");
-            if (match == null || match.Groups.Count < 2)
-                return text;
-
-            // Replace macro
-            if (match.Groups[2].ToString() == "GitVersion")
-            {
-                using (GitVersionCalulator calc = new GitVersionCalulator(ProjectDirectory))
-                {
-                    SemanticVersion version = calc.GetVersion();
-                    text = match.Groups[1].ToString() + version + match.Groups[3].ToString();
-                }
-            }
-            else
-                throw new NotSupportedException(string.Format("The macro \"{0}\" is not supported.", match.Groups[2].ToString()));
-
-            // Find "pre-processor funcions"
-            match = Regex.Match(text, @"(.*)(?:\$\()(.*?),(.*)(?:\))(.*)"); // With text = "Rolf$(ConvertFourValue,1.0.0.69)Asger", this regex should return 4 matching groups: "Rolf", "ConvertFourValue", "1.0.0.69" and "Asger".
-
-            if (match.Groups.Count < 4 || !match.Groups[2].Success || !match.Groups[3].Success)
-                return text;
-
-            var plugins = PluginManager.GetPlugins<IVersionTryConverter>().Concat(PluginManager.GetPlugins<IVersionConverter>());
-            Type converter = plugins.FirstOrDefault(pt => pt.GetDisplayAttribute().Name == match.Groups[2].Value);
-            SemanticVersion convertedVersion = null;
-            var str = match.Groups[3].Value;
-            if(converter != null)
-            {
-                
-                object conv = Activator.CreateInstance(converter);
-                if (conv is IVersionTryConverter cv2)
-                {
-                    if (cv2.TryConvert(match.Groups[3].Value, out convertedVersion) == false)
-                    {
-                        throw new FormatException("Unable to convert version format: " + str);
-                    }
-                }
-                else if (conv is IVersionConverter cv1)
-                {
-                    convertedVersion = cv1.Convert(str);
-                } 
-            }
-            
-            if (convertedVersion != null)
-            {
-                text = match.Groups[1].Value + convertedVersion + match.Groups[4].Value;
-                log.Warning("The version was converted from {0} to {1} using the converter '{2}'.",
-                    str, convertedVersion, converter.GetDisplayAttribute().Name);
-            }
-            else
-                throw new Exception(string.Format("No IVersionConverter found named \"{0}\". Valid ones are: {1}", match.Groups[2].Value, 
-                    String.Join(", ", plugins.Select(p => $"\"{p.GetDisplayAttribute().Name}\""))));
-            return text;
-        }
-
-        private static void updateVersion(this PackageDef pkg, string ProjectDirectory)
-        {
-            // Replace macro if possible
-            pkg.RawVersion = TryReplaceMacro(pkg.RawVersion, ProjectDirectory);
-
-            foreach (var depPackage in pkg.Dependencies)
-                ReplaceDependencyVersion(ProjectDirectory, depPackage);
-
-            if (pkg.RawVersion == null)
-            {
-                foreach (var file in pkg.Files.Where(file => file.HasCustomData<UseVersionData>()))
-                {
-                    pkg.Version = PluginManager.GetSearcher().Assemblies.FirstOrDefault(a => Path.GetFullPath(a.Location) == Path.GetFullPath(file.FileName)).SemanticVersion;
-                    break;
-                }
-            }
-            else
-            {
-                if (String.IsNullOrWhiteSpace(pkg.RawVersion))
-                    pkg.Version = new SemanticVersion(0, 0, 0, null, null);
-                else if (SemanticVersion.TryParse(pkg.RawVersion, out var semver))
-                {
-                    pkg.Version = semver;
-                }
-                else
-                {
-                    throw new FormatException("The version string in the package is not a valid semantic version.");
-                }
-            }
-        }
-
-        private static void ReplaceDependencyVersion(string ProjectDirectory, PackageDependency depPackage)
-        {
-            if (string.IsNullOrWhiteSpace(depPackage.RawVersion))
-                return;
-
-            string replaced = TryReplaceMacro(depPackage.RawVersion, ProjectDirectory);
-            if (replaced != depPackage.RawVersion)
-                if (VersionSpecifier.TryParse(replaced, out var versionSpecifier))
-                {
-                    if (versionSpecifier.MatchBehavior.HasFlag(VersionMatchBehavior.Exact))
-                        depPackage.Version = versionSpecifier;
-                    else
-                        depPackage.Version = new VersionSpecifier(versionSpecifier.Major,
-                            versionSpecifier.Minor,
-                            versionSpecifier.Patch,
-                            versionSpecifier.PreRelease,
-                            versionSpecifier.BuildMetadata,
-                            VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease);
-                }
-        }
-
         internal static IEnumerable<AssemblyData> AssembliesOfferedBy(List<PackageDef> packages, IEnumerable<PackageDependency> refs, bool recursive, PackageAssemblyCache offeredFiles)
         {
             var files = new HashSet<AssemblyData>();
@@ -443,7 +457,7 @@ namespace OpenTap.Package
                         .Where(sf => IsDotNetAssembly(sf.Location)).ToList();
                     if (asms.Count == 0 && (Path.GetExtension(f.FileName).Equals(".dll", StringComparison.OrdinalIgnoreCase) || Path.GetExtension(f.FileName).Equals(".exe", StringComparison.OrdinalIgnoreCase)))
                     {
-                        if (File.Exists(f.FileName))
+                        if (File.Exists(f.FileName) && !PathUtils.DecendsFromOpenTapIgnore(f.FileName))
                         {
                             // If the pluginSearcher found assemblies that are located somewhere not expected by the package definition, the package might appear broken.
                             // But if the file found by the pluginSearcher is the same as the one expected by the package definition we should not count it as broken.
@@ -507,6 +521,31 @@ namespace OpenTap.Package
                 }
             }
 
+            {
+                
+                // add dependencies which are from different type data sources than AssemblyData (.NET).
+                foreach (var file in pkg.Files)
+                {
+                    foreach (var dep in file.DependentTypeDataSources)
+                    {
+                        var pkg2 = currentInstallation.FindPackageContainingFile(dep.Location);
+                        if (pkg2 == null)
+                        {
+                            log.Debug($"Dependency without a source package dependency: {dep.Name}, depender: {file.FileName}");
+                            continue;
+                        }
+                        if (pkg.Dependencies.Any(dep => dep.Name == pkg2.Name))
+                        {
+                            continue;
+                        }
+                        if (pkg.Name == pkg2.Name) // don't have the package depend on itself. This can happen if the package.xml getting created is already in a location as if it was installed (e.g. ./Packages/<pluginname>/package.xml)
+                            continue;
+                        PackageDependency pd = new PackageDependency(pkg2.Name, new VersionSpecifier(pkg2.Version, VersionMatchBehavior.Compatible));
+                        pkg.Dependencies.Add(pd);
+                    }
+                }
+            }
+            
             // Find additional dependencies
             do
             {
@@ -520,6 +559,7 @@ namespace OpenTap.Package
 
                 var anyOffered = offeredByDependencies.Concat(offeredByThis).ToList();
 
+                
                 // Find our dependencies and subtract the above two lists
                 var dependentAssemblyNames = pkg.Files
                     .SelectMany(fs => fs.DependentAssemblies)
@@ -534,6 +574,14 @@ namespace OpenTap.Package
                     var packageCandidates = new Dictionary<PackageDef, int>();
                     foreach (var f in installed)
                     {
+                        // Check if the package depends on the package being built.
+                        // Circular dependencies are not supported, so don't add it.
+                        // in the best of worlds, we'd recurse to find if there is a dependency
+                        // further up the tree, but that seems like a very unlikely situation, so 
+                        // we skip that for now.
+                        if (f.Dependencies.Any(dep => dep.Name == pkg.Name))
+                            continue;
+                        
                         var candidateAsms = searcher.GetPackageAssemblies(f)
                             .Where(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name))).ToList();
 
@@ -554,6 +602,10 @@ namespace OpenTap.Package
                             var requiredAsm = dependentAssemblyNames.FirstOrDefault(dep => dep.Name == candidateAsm.Name);
                             if (requiredAsm != null)
                             {
+                                if (candidateAsm.Version == null)
+                                    throw new Exception($"Assembly {candidateAsm} version is null");
+                                if (requiredAsm.Version == null)
+                                    throw new Exception($"Assembly {requiredAsm} version is null");
 							    if(OpenTap.Utils.Compatible(candidateAsm.Version, requiredAsm.Version))
                                 {
                                     log.Info($"Satisfying assembly reference to {requiredAsm.Name} by adding dependency on package {candidatePkg.Name}");
@@ -579,6 +631,12 @@ namespace OpenTap.Package
                         }
                         if (foundNew)
                         {
+                            // Check if a circular dependency gets added into the package.
+                            // This should only happen in case of an error. Continuing will cause undefined behavior.
+                            var circularDependency = candidatePkg.Dependencies.FirstOrDefault(x => x.Name == pkg.Name);
+                            if (circularDependency != null)
+                                throw new Exception("A package cannot depend on another package that depends on it. Circular dependencies are not supported.");
+
                             log.Info("Adding dependency on package '{0}' version {1}", candidatePkg.Name, candidatePkg.Version);
 
                             PackageDependency pd = new PackageDependency(candidatePkg.Name, new VersionSpecifier(candidatePkg.Version, VersionMatchBehavior.Compatible));
@@ -615,12 +673,15 @@ namespace OpenTap.Package
         private static void AddFileDependencies(PackageDef pkg, AssemblyData dependency, AssemblyData foundAsm)
         {
             var depender = pkg.Files.FirstOrDefault(f => f.DependentAssemblies.Contains(dependency));
+            var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
+            if (pkg.Files.Any(x => x.RelativeDestinationPath == destPath))
+                return;//throw new Exception("File already added to package: " + destPath);
             if (depender == null)
                 log.Warning("Adding dependent assembly '{0}' to package. It was not found in any other packages.", Path.GetFileName(foundAsm.Location));
             else
                 log.Info($"'{Path.GetFileName(depender.FileName)}' depends on '{dependency.Name}' version '{dependency.Version}'. Adding dependency to package, it was not found in any other packages.");
 
-            var destPath = string.Format("Dependencies/{0}.{1}/{2}", Path.GetFileNameWithoutExtension(foundAsm.Location), foundAsm.Version.ToString(), Path.GetFileName(foundAsm.Location));
+
             pkg.Files.Add(new PackageFile { SourcePath = foundAsm.Location, RelativeDestinationPath = destPath, DependentAssemblies = foundAsm.References.ToList() });
 
             // Copy the file to the actual directory so we can rely on it actually existing where we say the package has it.
@@ -634,7 +695,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a *.TapPackage file from the definition in this PackageDef.
         /// </summary>
-        static public void CreatePackage(this PackageDef pkg, FileStream str)
+        public static void CreatePackage(this PackageDef pkg, FileStream str)
         {
             foreach (PackageFile file in pkg.Files)
             {
@@ -685,12 +746,18 @@ namespace OpenTap.Package
                 // Concat license required from all files. But only if the property has not manually been set.
                 if (string.IsNullOrEmpty(pkg.LicenseRequired))
                 {
-                    var licenses = pkg.Files.Select(f => f.LicenseRequired).Where(l => l != null).ToList();
+                    var licenses = pkg.Files.Select(f => f.LicenseRequired).Where(l => string.IsNullOrWhiteSpace(l) == false).ToList();
                     pkg.LicenseRequired = string.Join(", ", licenses.Distinct().Select(l => LicenseBase.FormatFriendly(l, false)).ToList());
                 }
                 
                 log.Info("Creating OpenTAP package.");
                 pkg.Compress(str, pkg.Files);
+                
+                // The filestream is opened with the 'DeleteOnClose' flag. If we throw here,
+                // the file pointed to by the stream will be deleted.
+                if (!VerifyArchiveIntegrity(str))
+                    throw new ExitCodeException((int)PackageExitCodes.InvalidPackageArchive,
+                        "Failed to verify the integrity of the created package.");
             }
             finally
             {
@@ -703,34 +770,36 @@ namespace OpenTap.Package
         {
             [XmlAttribute]
             public string Attributes { get; set; }
+
+            internal string[] Features => Attributes.ToLower()
+                .Split(new[] { "," }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim()).Distinct().ToArray();
         }
 
         private static void UpdateVersionInfo(string tempDir, List<PackageFile> files, SemanticVersion version)
         {
-            var features = files.Where(f => f.HasCustomData<SetAssemblyInfoData>()).SelectMany(f => string.Join(",", f.GetCustomData<SetAssemblyInfoData>().Select(a => a.Attributes)).Split(',').Select(str => str.Trim().ToLower())).Distinct().ToHashSet();
-
-            if (!features.Any())
-                return;
             var timer = Stopwatch.StartNew();
+
+            var pdbMap = new Dictionary<string, PackageFile>();
+            foreach (var file in files.GroupBy(f => Path.GetFileNameWithoutExtension(f.FileName)))
+            {
+                var symbols = file.ToArray().FirstOrDefault(f => Path.GetExtension(f.FileName).Equals(".pdb", StringComparison.OrdinalIgnoreCase));
+                if (symbols != null) pdbMap[file.Key] = symbols;
+            }
 
             foreach (var file in files)
             {
-                if (!file.HasCustomData<SetAssemblyInfoData>())
-                    continue;
+                var data = file.GetCustomData<SetAssemblyInfoData>().ToArray();
+                if (!data.Any(d => d.Features.Contains("version"))) continue;
 
-                var toSet = string.Join(",", file.GetCustomData<SetAssemblyInfoData>().Select(a => a.Attributes)).Split(',').Select(str => str.Trim().ToLower()).Distinct().ToHashSet();
-
-                if (!toSet.Any())
-                    continue;
-
-                log.Debug("Updating version info for '{0}'", file.FileName);
-
+                log.Debug(timer, "Updating version info for '{0}'", file.FileName);
 
                 // Assume we can't open the file for writing (could be because we are trying to modify TPM or the engine), and copy to the same filename in a subdirectory
                 var versionedOutput = Path.Combine(tempDir, "Versioned");
 
                 var origFilename = Path.GetFileName(file.FileName);
                 var tempName = Path.Combine(versionedOutput, origFilename);
+
                 int i = 1;
                 while (File.Exists(tempName))
                 {
@@ -738,29 +807,98 @@ namespace OpenTap.Package
                     i++;
                 }
 
+
                 Directory.CreateDirectory(Path.GetDirectoryName(tempName));
                 ProgramHelper.FileCopy(file.FileName, tempName);
                 file.SourcePath = tempName;
 
-                SemanticVersion fVersion = null;
-                Version fVersionShort = null;
+                var includePdb = true;
 
-                if (toSet.Contains("version"))
+                var basename = Path.GetFileNameWithoutExtension(file.SourcePath);
+                if (pdbMap.TryGetValue(basename, out var pdbFile) &&
+                    Path.GetFileName(pdbFile.FileName) is string symbolsFile && File.Exists(symbolsFile))
                 {
-                    fVersion = version;
-                    fVersionShort = new Version(version.ToString(3));
+                    var pdbTempName = Path.ChangeExtension(tempName, "pdb");
+                    File.Copy(symbolsFile, pdbTempName);
+                    pdbFile.SourcePath = pdbTempName;
+                }
+                else
+                {
+                    // The pdb file is not part of the package -- don't include it
+                    includePdb = false;
                 }
 
-                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion);
+                var fVersion = version;
+                var fVersionShort = new Version(version.ToString(3));
+
+                SetAsmInfo.SetAsmInfo.SetInfo(file.FileName, fVersionShort, fVersionShort, fVersion, includePdb);
                 file.RemoveCustomData<SetAssemblyInfoData>();
             }
             log.Info(timer,"Updated assembly version info using Mono method.");
         }
 
+        private static bool VerifyArchiveIntegrity(FileStream fs)
+        {
+            var sw = Stopwatch.StartNew();
+            log.Debug($"Verifying package integrity...");
+            // Ensure the stream is fully written to the disk
+            fs.Flush();
+
+            {   // Verify that we can read the package definition
+                try
+                {
+                    PackageDef.FromPackage(fs.Name);
+                }
+                catch (Exception ex)
+                {
+                    log.Error($"Error verifying package integrity.");
+                    log.Debug(ex);
+                    return false;
+                }
+            }
+
+            log.Debug(sw, "Verified metadata integrity.");
+
+            // Rewind the stream
+            var files = new HashSet<string>();
+            fs.Seek(0, SeekOrigin.Begin);
+            // Verify that we can extract the archive without errors
+            using (var zip = new ZipArchive(fs, ZipArchiveMode.Read, true))
+            {
+                foreach (var part in zip.Entries)
+                {
+                    try
+                    {
+                        if (!files.Add(part.FullName))
+                        {
+                            log.Error($"Error verifying archive integrity. " + 
+                                      $"Archive contains a duplicate entry '{part.FullName}'." +
+                                      $"Please retry the package creation. " +
+                                      $"If the error persists, consider creating an issue.");
+                            return false;
+                        }
+                        // Read the stream to the end to verify it can be extracted
+                        part.Open().CopyTo(Stream.Null);
+                    }
+                    catch (InvalidDataException)
+                    {
+                        log.Error($"Error verifying package integrity. " +
+                                  $"Archive entry '{part.FullName}' is corrupted. " +
+                                  $"Please retry the package creation. " +
+                                  $"If the error persists, consider creating an issue.");
+                        return false;
+                    }
+                }
+            }
+
+            log.Debug(sw, $"Verified archive integrity.");
+            return true;
+        }
+
         /// <summary>
         /// Compresses the files to a zip package.
         /// </summary>
-        static private void Compress(this PackageDef pkg, FileStream outStream, IEnumerable<PackageFile> inputPaths)
+        private static void Compress(this PackageDef pkg, FileStream outStream, IEnumerable<PackageFile> inputPaths)
         {
             using (var zip = new System.IO.Compression.ZipArchive(outStream, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
             {
@@ -769,6 +907,7 @@ namespace OpenTap.Package
                     var sw = Stopwatch.StartNew();
                     var relFileName = file.RelativeDestinationPath;
                     var ZipPart = zip.CreateEntry(relFileName, System.IO.Compression.CompressionLevel.Optimal);
+                    ZipPart.FixUnixPermissions();
                     
                     using (var instream = File.OpenRead(file.FileName))
                     {
@@ -784,6 +923,7 @@ namespace OpenTap.Package
                 // add the metadata xml file:
 
                 var metaPart = zip.CreateEntry(String.Join("/", PackageDef.PackageDefDirectory, pkg.Name, PackageDef.PackageDefFileName), System.IO.Compression.CompressionLevel.Optimal);
+                metaPart.FixUnixPermissions();
                 using(var str = metaPart.Open())
                     pkg.SaveTo(str);
             }

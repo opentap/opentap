@@ -3,7 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -18,7 +17,7 @@ namespace OpenTap
         /// </summary>
         public static object CreateInstance(this ITypeData type)
         {
-            return type.CreateInstance(Array.Empty<object>());
+            return type?.CreateInstance(Array.Empty<object>());
         }
 
         /// <summary> returns true if 'type' is a descendant of 'basetype'. </summary>
@@ -57,6 +56,46 @@ namespace OpenTap
             return false;
         }
 
+        internal static bool HasAttributeInherited<T>(this IReflectionData mem) where T : class
+        {
+            if (mem is ITypeData td)
+            {
+                while (td != null)
+                {
+                    if (td.HasAttribute<T>()) return true;
+                    td = td.BaseType;
+                }
+
+                return false;
+            }
+
+            throw new ArgumentException("Inherited attributes can only be read from type data instances.");
+        }
+        
+        internal static IEnumerable<T> GetAttributesInherited<T>(this IReflectionData mem) where T : class
+        {
+            if (mem is ITypeData td)
+            {
+                IEnumerable<T> result = null;
+                while (td != null)
+                {
+                    var r = td.Attributes?.OfType<T>();
+                    if (r?.Any() == true)
+                    {
+                        if(result != null)
+                            result = result.Concat(r);
+                        else result = r;
+                    }
+
+                    td = td.BaseType;
+                }
+
+                return result ?? Array.Empty<T>();
+            }
+
+            throw new ArgumentException("Inherited attributes can only be read from type data instances.");
+        }
+
         /// <summary>
         /// Returns true if a reflection ifno has an attribute of type T.
         /// </summary>
@@ -72,14 +111,15 @@ namespace OpenTap
         /// <typeparam name="T"></typeparam>
         /// <param name="mem"></param>
         /// <returns></returns>
-        static public T GetAttribute<T>(this IReflectionData mem)
+        public static T GetAttribute<T>(this IReflectionData mem)
         {
             if(typeof(T) == typeof(DisplayAttribute) && mem is TypeData td)
             {
-                
                 return (T)((object)td.Display);
             }
-            if (mem.Attributes is object[] array)
+
+            var attributes = mem.Attributes;
+            if (attributes is object[] array)
             {
                 // performance optimization: faster iterations if we know its an array.
                 foreach (var thing in array)
@@ -88,7 +128,7 @@ namespace OpenTap
             }
             else
             {
-                foreach (var thing in mem.Attributes)
+                foreach (var thing in attributes)
                     if (thing is T x)
                         return x;
             }
@@ -112,9 +152,41 @@ namespace OpenTap
         /// <typeparam name="T"></typeparam>
         /// <param name="mem"></param>
         /// <returns></returns>
-        static public IEnumerable<T> GetAttributes<T>(this IReflectionData mem)
+        public static IEnumerable<T> GetAttributes<T>(this IReflectionData mem)
         {
-            return mem.Attributes.OfType<T>();
+            var attrs = mem.Attributes;
+            bool once = false;
+            T first = default;
+            if (attrs is object[] attrsArray)
+            {
+                // performance optimization: faster iterations if we know its an array.
+                foreach (var elem in attrsArray)
+                {
+                    if (elem is T x)
+                    {
+                        if (once) // multiple instances of T, lets just use OfType.
+                            return attrsArray.OfType<T>();
+                        once = true;
+                        first = x;
+                    }
+                }
+            }
+            else
+            {
+                foreach (var elem in attrs)
+                {
+                    if (elem is T x)
+                    {
+                        if (once) // multiple instances of T, lets just use OfType. 
+                            return attrs.OfType<T>();
+                        once = true;
+                        first = x;
+                    }
+                }
+            }
+
+            if (once) return new [] { first };
+            return Array.Empty<T>();
         }
 
         /// <summary> Gets the display attribute of mem. </summary>
@@ -144,7 +216,5 @@ namespace OpenTap
                 return meminfo.DeclaringType.GetHelpLink();
             return null;
         }
-
-
     }
 }

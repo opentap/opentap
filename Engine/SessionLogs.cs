@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Reflection;
 using System.Threading;
+using System.Diagnostics;
 
 namespace OpenTap
 {
@@ -21,6 +22,43 @@ namespace OpenTap
     /// </summary>
     public static class SessionLogs
     {
+        [DllImport("Kernel32.dll", CharSet = CharSet.Unicode, EntryPoint = "CreateHardLink")]
+        static extern bool CreateHardLinkWin(
+          string lpFileName,
+          string lpExistingFileName,
+          IntPtr lpSecurityAttributes
+        );
+
+        [DllImport("libc", EntryPoint = "link")]
+        static unsafe extern bool CreateHardLinkLin(
+            char *target,
+            char *linkpath
+        );
+
+        static unsafe void CreateHardLink(string targetFile, string linkName)
+        {
+            if (OperatingSystem.Current == OperatingSystem.Windows)
+            {
+                CreateHardLinkWin(linkName, targetFile, IntPtr.Zero);
+            }
+            else if (OperatingSystem.Current == OperatingSystem.Linux)
+            {
+                IntPtr target = Marshal.StringToCoTaskMemAnsi(targetFile);
+                IntPtr link = Marshal.StringToCoTaskMemAnsi(linkName);
+                CreateHardLinkLin((char*)target, (char*)link);
+                Marshal.FreeCoTaskMem(target);
+                Marshal.FreeCoTaskMem(link);
+            }
+            else if (OperatingSystem.Current == OperatingSystem.MacOS)
+            {
+                Process.Start("ln", $"\"{targetFile}\" \"{linkName}\"");
+            }
+            else
+            {
+                // Platform hardlinks not implemented.
+            }
+        }
+
         private static readonly TraceSource log = Log.CreateSource("Session");
 
         /// <summary> The number of files kept at a time. </summary>
@@ -44,14 +82,15 @@ namespace OpenTap
 
         static string currentLogFile;
 
+        // This controls whether or not session logs should keep files locked
+        private static bool NoExclusiveWriteLock = false;
+
         /// <summary>
         /// Initializes the logging. Uses the following file name formatting: SessionLogs\\[Application Name]\\[Application Name] [yyyy-MM-dd HH-mm-ss].txt.
         /// </summary>
         public static void Initialize()
         {
             if (currentLogFile != null) return;
-            
-           
 
             var timestamp = System.Diagnostics.Process.GetCurrentProcess().StartTime.ToString("yyyy-MM-dd HH-mm-ss");
 
@@ -71,28 +110,51 @@ namespace OpenTap
         /// <summary>
         /// Initializes the logging. 
         /// </summary>
-        public static void Initialize(string tempLogFileName)
+        public static void Initialize(string logFileName)
         {
+            // We can't just add this as a parameter with a default value because
+            // it isn't backwards compatible with plugins compiled against older versions.
+            // On the IL level, this would be equivalent to removing this method and adding
+            // a new method with a different signature.
+            Initialize(logFileName, NoExclusiveWriteLock);
+        }
+        internal static bool SkipStartupInfo { get; set; }
+        /// <summary>
+        /// Initializes the logging.
+        /// </summary>
+        /// <param name="logFileName">The name of the log file</param>
+        /// <param name="noExclusiveWriteLock">
+        /// Controls whether or not the file should have an exclusive write lock.
+        /// If true, the log file may be deleted while it is in use, in which case
+        /// session logs will be written into the void.
+        /// </param>
+        public static void Initialize(string logFileName, bool noExclusiveWriteLock)
+        {
+            NoExclusiveWriteLock = noExclusiveWriteLock;
             if (currentLogFile == null)
             {
-                Rename(tempLogFileName);
+                Rename(logFileName);
                 SystemInfoTask = Task.Factory
                     // Ensure that the plugin manager is loaded before running SystemInfo.
                     // this ensures that System.Runtime.InteropServices.RuntimeInformation.dll is loaded. (issue #4000).
                     .StartNew(PluginManager.Load)
                     // then get the system info on a separate thread (it takes ~1s)
-                    .ContinueWith(tsk => SystemInfo()); 
+                    .ContinueWith(tsk =>
+                    {
+                        if(!SkipStartupInfo)
+                            LogStartupInfo();
+                    }); 
 
                 AppDomain.CurrentDomain.ProcessExit += FlushOnExit;
                 AppDomain.CurrentDomain.UnhandledException += FlushOnExit;
             }
             else
             {
-                if (currentLogFile != tempLogFileName)
-                    Rename(tempLogFileName);
+                if (currentLogFile != logFileName)
+                    Rename(logFileName);
             }
 
-            currentLogFile = tempLogFileName;
+            currentLogFile = logFileName;
 
             // Log debugging information of the current process.
             log.Debug($"Running '{Environment.CommandLine}' in '{Directory.GetCurrentDirectory()}'.");
@@ -310,13 +372,24 @@ namespace OpenTap
                     {
                         if (string.IsNullOrWhiteSpace(dir) == false)
                             Directory.CreateDirectory(Path.GetDirectoryName(path));
-                        traceListener = new FileTraceListener(path) { FileSizeLimit = 100000000 }; // max size for log files is 100MB.
+                        if (NoExclusiveWriteLock)
+                        {
+                            // Initialize a stream where the underlying file can be deleted. If the file is deleted, writes just go into the void.
+                            var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read | FileShare.Delete);
+                            traceListener = new FileTraceListener(stream);
+                        }
+                        else
+                        {
+                            traceListener = new FileTraceListener(path);
+                        }
+                        
+                        traceListener.FileSizeLimit = 100000000; // max size for log files is 100MB.
                         traceListener.FileSizeLimitReached += TraceListener_FileSizeLimitReached;
                         Log.AddListener(traceListener);
                     }
                     else
                     {
-                        traceListener.ChangeFileName(path);
+                        traceListener.ChangeFileName(path, NoExclusiveWriteLock);
                     }
                     fileNameChanged = true;
                     break;
@@ -335,6 +408,18 @@ namespace OpenTap
                 currentLogFile = path;
                 log.Debug(sw, "Session log loaded as '{0}'.", currentLogFile);
                 recentSystemlogs.AddRecent(Path.GetFullPath(path));
+            }
+
+            try
+            {
+                string latestPath = Path.Combine(dir, "Latest.txt");
+                if (File.Exists(latestPath))
+                    File.Delete(latestPath);
+                CreateHardLink(path, latestPath);
+            }
+            catch
+            {
+                // Ignore in case of race conditions.
             }
         }
 
@@ -361,7 +446,7 @@ namespace OpenTap
                 }
             });
         }
-        
+
         static string addLogRotateNumber(string fullname, int cnt)
         {
             if (cnt == 0) return fullname;
@@ -391,7 +476,8 @@ namespace OpenTap
             {
                 log.Warning("Unable to rename log file to {0} as permissions was denied.", path);
                 log.Debug(e);
-            }catch (IOException e)
+            }
+            catch (IOException e)
             { // This could also be an error the the user does not have permissions. E.g OpenTAP installed in C:\\
                 log.Warning("Unable to rename log file to {0} as the file could not be created.", path);
                 log.Debug(e);
@@ -399,17 +485,40 @@ namespace OpenTap
         }
 
         static Task SystemInfoTask;
-        private static void SystemInfo()
+        private static void LogStartupInfo()
         {
-            if (!String.IsNullOrEmpty(RuntimeInformation.OSDescription))
-                log.Debug("{0}{1}", RuntimeInformation.OSDescription, RuntimeInformation.OSArchitecture); // This becomes something like "Microsoft Windows 10.0.14393 X64"
+            TapThread.Sleep(200);
+            foreach (var td in TypeData.GetDerivedTypes<IStartupInfo>().Where(td => td.CanCreateInstance))
+            {
+                IStartupInfo si = null;
+                try 
+                {
+                    si = td.CreateInstance() as IStartupInfo;
+                    if (si == null)
+                    {
+                        log.Debug($"Failed to instantiate '{td.Name}'.");
+                        continue;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log.Debug($"Failed to instantiate '{td.Name}': {ex.Message}");
+                    log.Debug(ex);
+                    continue;
+                }
 
-            if (!String.IsNullOrEmpty(RuntimeInformation.FrameworkDescription))
-                log.Debug(RuntimeInformation.FrameworkDescription); // This becomes something like ".NET Framework 4.6.1586.0"
-            var version = SemanticVersion.Parse(Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>().InformationalVersion);
-            log.Debug("OpenTAP Engine {0} {1}", version, RuntimeInformation.ProcessArchitecture);
+                try
+                {
+                    si.LogStartupInfo();
+                }
+                catch (Exception ex)
+                {
+                    log.Debug($"Unhandled exception in '{td.Name}.{nameof(si.LogStartupInfo)}': {ex.Message}");
+                    log.Debug(ex);
+                }
+            }
         }
-        
+
         /// <summary>
         /// Flushes the buffered logs. Useful as the last thing to do in case of crash.
         /// </summary>

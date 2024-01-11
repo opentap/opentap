@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using OpenTap.Package.Ipc;
+using Tap.Shared;
 
 namespace OpenTap.Package
 {
@@ -22,6 +23,51 @@ namespace OpenTap.Package
         public string Directory { get; }
 
         /// <summary>
+        /// Get a unique identifier for this OpenTAP installation.
+        /// The identifier is computed from hashing a uniquely generated machine ID combined with the hash of the installation directory.
+        /// </summary>
+        public string Id 
+        {
+            get
+            {
+                if(string.IsNullOrWhiteSpace(id))
+                    id = $"{MurMurHash3.Hash(GetMachineId()):X8}{MurMurHash3.Hash(Directory):X8}";
+                return id;
+            }
+        }
+        private string id { get; set; }
+        internal static string GetMachineId()
+        {
+            var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTap", "OpenTapGeneratedId");
+            string id = default(Guid).ToString(); // 00000000-0000-0000-0000-000000000000
+
+            try
+            {
+                if (File.Exists(idPath))
+                {
+                    if (Guid.TryParse(File.ReadAllText(idPath), out Guid parsedGuid)) // In the assumable rare case that a user tampers with the OpenTapGeneratedId file.
+                    {
+                        id = parsedGuid.ToString();
+                        return id;
+                    }
+                }
+                
+                id = Guid.NewGuid().ToString();
+                if (System.IO.Directory.Exists(Path.GetDirectoryName(idPath)) == false)
+                    System.IO.Directory.CreateDirectory(Path.GetDirectoryName(idPath));
+                File.WriteAllText(idPath, id);
+            }
+            catch (Exception e)
+            {
+                log.Error("Failed to read machine ID. See debug messages for more information");
+                log.Debug(e);
+            }
+
+            return id;
+        }
+
+
+        /// <summary>
         /// Initialize an instance of a OpenTAP installation.
         /// </summary>
         /// <param name="directory"></param>
@@ -35,12 +81,29 @@ namespace OpenTap.Package
         /// </summary>
         public bool IsInstallationFolder => GetPackages().Any(x => x.IsSystemWide() == false);
 
-        private static Installation _current;
-        
+        private static Installation current;
+
         /// <summary>
         /// Get the installation of the currently running tap process
         /// </summary>
-        public static Installation Current => _current ?? (_current = new Installation(ExecutorClient.ExeDir));
+        public static Installation Current => current ??= new Installation(ExecutorClient.ExeDir);
+
+        /// <summary> Target installation architecture. This could be anything as 32-bit is supported on 64bit systems.</summary>
+        internal CpuArchitecture Architecture => GetOpenTapPackage()?.Architecture ?? ArchitectureHelper.GuessBaseArchitecture;
+
+        /// <summary> The target installation OS, should be either Windows, MacOS or Linux. </summary>
+        internal string OS
+        {
+            get
+            {
+                if (OperatingSystem.Current == OperatingSystem.Windows)
+                    return "Windows";
+                if (OperatingSystem.Current == OperatingSystem.MacOS)
+                    return "MacOS";
+                return "Linux";
+            }
+        }
+
 
         /// <summary>
         /// Invalidate cached package list. This should only be called if changes have been made to the installation by circumventing OpenTAP APIs.
@@ -52,9 +115,9 @@ namespace OpenTap.Package
             invalidate = true;
         }
 
-        private bool invalidate;
-        private ConcurrentDictionary<string, PackageDef> fileMap = new ConcurrentDictionary<string, PackageDef>();
-        
+        bool invalidate;
+        readonly ConcurrentDictionary<string, PackageDef> fileMap = new ConcurrentDictionary<string, PackageDef>();
+
         /// <summary>
         /// Get the installed package which provides the file specified by the string.
         /// If multiple packages provide the file the package is chosen arbitrarily.
@@ -83,17 +146,24 @@ namespace OpenTap.Package
                 return null;
             }
 
-            // Compute the absolute path in order to ensure the file exists, and normalize the path so it matches the format in package.xml files
-            var abs = Path.GetFullPath(file);
-
             var installDir = ExecutorClient.ExeDir;
+
+            // Compute the absolute path in order to ensure the file exists, and normalize the path so it matches the format in package.xml files
+            var abs = Path.IsPathRooted(file)
+                ? Path.GetFullPath(file) // If the path is rooted, use the full path
+                : Path.GetFullPath(Path.Combine(installDir, file)); // otherwise, append the relative path to the install dir
 
             // abs must be contained within installDir
             if (abs.Length <= installDir.Length)
                 return null;
-            
+
+            // Path case sensitivity is file system dependent. Typically Windows and MacOS will be case-insensitive,
+            // and Linux will be case-sensitive, but not always. TODO: check if path file system is case sensitive
+            var stringComparer = OperatingSystem.Current == OperatingSystem.Linux
+                ? StringComparison.InvariantCulture
+                : StringComparison.InvariantCultureIgnoreCase;
             // Ensure the file is in a subdirectory of the installation. Otherwise it is not contained in a package.
-            if (!abs.StartsWith(installDir))
+            if (!abs.StartsWith(installDir, stringComparer))
                 return null;
 
             // Compute the relative path and normalize directory separators
@@ -109,7 +179,7 @@ namespace OpenTap.Package
                         var fileName = packageFile.FileName.Replace('\\', '/');
                         fileMap.TryAdd(fileName, package);
                     }
-                }                
+                }
             }
 
             if (fileMap.TryGetValue(relative, out var result))
@@ -125,24 +195,27 @@ namespace OpenTap.Package
         /// <returns></returns>
         public PackageDef FindPackageContainingType(ITypeData pluginType)
         {
-            var assembly = pluginType?.AsTypeData()?.Assembly?.Location;
-            if (string.IsNullOrWhiteSpace(assembly)) return null;
-            
-            var assemblyPath = Path.GetFullPath(assembly);
+            var source = TypeData.GetTypeDataSource(pluginType);
+            if (source == null) return null;
+            // sourceFile is normally a .DLL, but may also be other things, e.g .py-file.
+            var sourceFile = source.Location;
+            if (string.IsNullOrWhiteSpace(sourceFile)) return null;
+
+            var assemblyPath = Path.GetFullPath(sourceFile);
             var installPath = Path.GetFullPath(ExecutorClient.ExeDir);
 
             // The assembly must be rooted in the installation
             if (assemblyPath.StartsWith(installPath) == false)
                 return null;
-            
-            // Get the path relative to the install directory by removing the install path + the leading '/'
-            var relative = assemblyPath.Substring(installPath.Length + 1);
 
-            return FindPackageContainingFile(relative);
+            return FindPackageContainingFile(assemblyPath);
         }
 
-        private List<PackageDef> PackageCache;
+        private Dictionary<string, PackageDef> packageCache;
         private long previousChangeId = -1;
+
+        // Keeps track of which warnings about duplicate packages has been emitted.
+        static readonly HashSet<string> duplicateLogWarningsEmitted = new HashSet<string>();
 
         /// <summary>
         /// Invalidate caches if the installation has changed.
@@ -150,57 +223,95 @@ namespace OpenTap.Package
         private void InvalidateIfChanged()
         {
             long changeId = IsolatedPackageAction.GetChangeId(Directory);
-            
+
             if (changeId != previousChangeId)
             {
                 Invalidate();
                 previousChangeId = changeId;
             }
         }
+        /// <summary>
+        /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
+        /// Results are cached, and Invalidate must be called if changes to the installation are made by circumventing OpenTAP APIs.
+        /// </summary>
+        public List<PackageDef> GetPackages() => new List<PackageDef>(GetPackagesLookup().Values);
+
+        /// <summary> Finds an installed package by name. Returns null if the package was not found. </summary>
+        public PackageDef FindPackage(string name) => GetPackagesLookup().TryGetValue(name, out var package) ? package : null;
 
         /// <summary>
         /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
         /// Results are cached, and Invalidate must be called if changes to the installation are made by circumventing OpenTAP APIs.
         /// </summary>
         /// <returns></returns>
-        public List<PackageDef> GetPackages()
+        Dictionary<string, PackageDef> GetPackagesLookup()
         {
             InvalidateIfChanged();
 
-            if (PackageCache == null || invalidate)
+            if (packageCache == null || invalidate)
             {
-                List<PackageDef> plugins = new List<PackageDef>();
+                Dictionary<string, PackageDef> plugins = new Dictionary<string, PackageDef>();
+                List<PackageDef> duplicatePlugins = new List<PackageDef>();
                 List<string> package_files = new List<string>();
 
                 // Add normal package from OpenTAP folder
                 package_files.AddRange(PackageDef.GetPackageMetadataFilesInTapInstallation(Directory));
 
+                string normalizePath(string s)
+                {
+                    return Path.GetFullPath(s)
+                        .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                        .ToUpperInvariant();
+                }
+
                 // Add system wide packages
-                package_files.AddRange(PackageDef.GetSystemWidePackages());
+                if (normalizePath(Directory) != normalizePath(PackageDef.SystemWideInstallationDirectory))
+                    package_files.AddRange(PackageDef.GetSystemWidePackages());
 
                 foreach (var file in package_files)
                 {
                     var package = installedPackageMemorizer.Invoke(file);
-                    if (package != null && !plugins.Any(s => s.Name == package.Name))
-                    {
+                    if (package == null) continue;
+
 #pragma warning disable 618
-                        package.Location = file;
+                    package.Location = file;
 #pragma warning restore 618
-                        package.PackageSource = new InstalledPackageDefSource
-                        {
-                            Installation = this,
-                            PackageDefFilePath = file
-                        };
-                        plugins.Add(package);
+                    package.PackageSource = new InstalledPackageDefSource
+                    {
+                        Installation = this,
+                        PackageDefFilePath = file
+                    };
+                    if (!plugins.ContainsKey(package.Name))
+                    {
+                        plugins.Add(package.Name, package);
+                    }
+                    else
+                    {
+                        duplicatePlugins.Add(package);
+
+                    }
+                }
+
+                foreach (var p in duplicatePlugins.GroupBy(p => p.Name))
+                {
+                    lock (warningsLock)
+                    {
+                        if (duplicateLogWarningsEmitted.Add(p.Key))
+                            log.Warning(
+                                $"Duplicate {p.Key} packages detected. Consider removing some of the duplicate package definitions:\n" +
+                                $"{string.Join("\n", p.Append(plugins[p.Key]).Select(x => " - " + ((InstalledPackageDefSource)x.PackageSource).PackageDefFilePath))}");
                     }
                 }
 
                 invalidate = false;
-                PackageCache = plugins;
+                packageCache = plugins;
             }
 
-            return new List<PackageDef>(PackageCache);
+            return packageCache;
         }
+
+        private static object warningsLock = new object();
+
 
         /// <summary>
         /// Get a package definition of OpenTAP engine.
@@ -208,15 +319,32 @@ namespace OpenTap.Package
         /// <returns></returns>
         public PackageDef GetOpenTapPackage()
         {
-            var opentap = GetPackages()?.FirstOrDefault(p => p.Name == "OpenTAP");
-            if (opentap == null)
-                log.Warning($"Could not find OpenTAP in {Directory}.");
-
-            return opentap;
+            if (GetPackagesLookup().TryGetValue("OpenTAP", out var opentap))
+                return opentap;
+            return null;
         }
 
 
-        static IMemorizer<string, PackageDef> installedPackageMemorizer = new Memorizer<string, PackageDef, string>(null, loadPackageDef)
+        /// <summary>
+        /// Memorizer which returns null when a cyclic memorizer call is detected.
+        /// This prevents ugly and misleading error messages from occurring during
+        /// calls to Installation.Current.GetPackages() from ITypeDataProvider implementations
+        /// </summary>
+        class IgnoreCyclicCallMemorizer<T1, T2, T3> : Memorizer<T1, T2, T3>
+        {
+            public IgnoreCyclicCallMemorizer(Func<T1, T2> func) : base(null, func)
+            {
+
+            }
+
+            public override T2 OnCyclicCallDetected(T1 key)
+            {
+                return default;
+            }
+        }
+
+
+        static IMemorizer<string, PackageDef> installedPackageMemorizer = new IgnoreCyclicCallMemorizer<string, PackageDef, string>(loadPackageDef)
         {
             Validator = file => new FileInfo(file).LastWriteTimeUtc.Ticks
         };

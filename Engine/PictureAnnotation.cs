@@ -1,4 +1,3 @@
-using System.Linq;
 
 namespace OpenTap
 {
@@ -18,12 +17,11 @@ namespace OpenTap
 
     class PictureAnnotation : IPictureAnnotation, IOwnedAnnotation
     {
-        private AnnotationCollection annotation;
+        readonly AnnotationCollection annotation;
 
         public PictureAnnotation(AnnotationCollection annotation)
         {
             this.annotation = annotation;
-            Read(annotation.Source);
         }
 
         public string Source { get; set; }
@@ -31,10 +29,9 @@ namespace OpenTap
 
         public void Read(object source)
         {
-            var mem = annotation.Get<IMemberAnnotation>()?.Member;
-            var memVal = mem?.GetValue(source);
-            
-            if (memVal is IPicture picture)
+            if (source == null) return;
+            var mem = annotation.Get<IObjectValueAnnotation>()?.Value;
+            if (mem is IPicture picture)
             {
                 Source = picture.Source;
                 Description = picture.Description;
@@ -43,20 +40,19 @@ namespace OpenTap
 
         public void Write(object source)
         {
-            var mem = annotation.Get<IMemberAnnotation>()?.Member;
-            var memVal = mem?.GetValue(source);
-
-            var a = AnnotationCollection.Annotate(memVal);
-            var members = a.Get<IMembersAnnotation>().Members.Select(m => m.Get<IMemberAnnotation>().Member);
-
-            foreach (var m in members)
+            var objSource = annotation.Get<IObjectValueAnnotation>();
+            if (objSource == null) return;
+            var mem = objSource?.Value;
+            if (mem == null)
+                mem = new Picture();
+            if (mem is Picture picture)
             {
-                if (!m.Writable) continue;
-                if (m.Name == nameof(IPicture.Source))
-                    m.SetValue(memVal, Source);
-                else if (m.Name == nameof(IPicture.Description))
-                    m.SetValue(memVal, Description);
+                picture.Source = Source;
+                picture.Description = Description;
             }
+
+            if (mem != null)
+                annotation.Get<IObjectValueAnnotation>().Value = mem;
         }
     }
 
@@ -81,18 +77,22 @@ namespace OpenTap
     /// </summary>
     public class Picture : IPicture
     {
-        /// <summary>
-        /// Specifies the path to the picture
-        /// </summary>
+        /// <summary> Specifies the path to the picture. </summary>
         [FilePath]
         [Display("Picture File")]
         public string Source { get; set; }
         
         
-        /// <summary>
-        /// Specifies a description of the picture
-        /// </summary>
+        /// <summary> Specifies a description of the picture. </summary>
         public string Description { get; set; }
 
+        /// <summary> Returns true if the two pictures are the same with respect to Source and Description. </summary>
+        public override bool Equals(object obj) =>
+            obj is Picture pic && pic.Source == Source && pic.Description == Description;
+
+        /// <summary> Calculates a hash based on source and description. </summary>
+        public override int GetHashCode() => (int)(0xaacd012
+                                                   + (Description?.GetHashCode() ?? 0) * 0x801423bb
+                                                   + (Source?.GetHashCode() ?? 0) * 0xf00b0834);
     }
 }

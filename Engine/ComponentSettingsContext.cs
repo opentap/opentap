@@ -47,6 +47,8 @@ namespace OpenTap
 
         public void SaveAllCurrentSettings()
         {
+            foreach (var cacheType in xmlCache.Keys.ToArray())
+                GetCurrent(cacheType);
             foreach (var comp in objectCache.GetResults().Where(x => x != null))
                 Save(comp);
         }
@@ -82,8 +84,13 @@ namespace OpenTap
             bool isProfile = settingsGroup?.Profile ?? false;
             string groupName = settingsGroup == null ? "" : settingsGroup.GroupName;
 
+            // DisplayAttribute.GetFullName() joins the groups with ' \ ', but adding this space makes the save path invalid.
+            var disp = type.GetDisplayAttribute();
+            var groups = disp.Group.Length == 0 ? new[] { disp.Name } : disp.Group.Append(disp.Name);
+            string fullName = string.Join("\\", groups);
+
             return Path.Combine(GetSettingsDirectory(groupName, isProfile),
-                type.GetDisplayAttribute().GetFullName() + ".xml");
+                fullName + ".xml");
         }
 
         public void Save(ComponentSettings setting)
@@ -157,6 +164,37 @@ namespace OpenTap
             return objectCache.Invoke(settingsType);
         }
 
+        public void SetCurrent(Stream xmlFileStream, out IEnumerable<XmlError> errors)
+        {
+            xmlFileStream.Position = 0;
+            using (var mem = new MemoryStream())
+            {
+                xmlFileStream.CopyTo(mem);
+                mem.Position = 0;
+                try
+                {
+                    var doc = XDocument.Load(mem, LoadOptions.SetLineInfo);
+                    if (doc.Root.Attribute("type") is null)
+                    {
+                        errors = new[]
+                        {
+                            new XmlError(doc.Root,
+                                "Stream does not contain valid ComponentSettings. Unable to determine ComponentSettings type from root attribute.")
+                        };
+                        return;
+                    }
+
+                    ITypeData typedata = TypeData.GetTypeData(doc.Root.Attribute(TapSerializer.typeName).Value);
+                    xmlCache[typedata.AsTypeData().Type] = mem.ToArray();
+                    Invalidate(typedata.AsTypeData().Type);
+                    errors = ComponentSettings.GetCurrent(typedata)?.loadErrors ?? Array.Empty<XmlError>();
+                }
+                catch (XmlException ex)
+                {
+                    errors = new[] { new XmlError(null, ex.Message, ex) };
+                }
+            }
+        }
 
         public void SetCurrent(Stream xmlFileStream)
         {
@@ -217,6 +255,7 @@ namespace OpenTap
                             flushQueues.Enqueue(serializer);
                         settings = (ComponentSettings)serializer.Deserialize(str, false,
                             TypeData.FromType(settingsType), path: path);
+                        settings.loadErrors = serializer.XmlErrors?.ToArray();
                     }
                 }
                 catch (Exception ex) when (ex.InnerException is System.ComponentModel.LicenseException lex)

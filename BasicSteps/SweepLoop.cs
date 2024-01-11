@@ -121,7 +121,8 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 if (CrossPlan == SweepBehaviour.Across_Runs)
                     return SweepParameters
-                        .Select(param => param.Values.GetValue(crossPlanSweepIndex))
+                            // crossPlanSweepIndex is 0 by default. Even if the number of rows is also 0.
+                        .Select(param => param.Values.ElementAtOrDefault(crossPlanSweepIndex))
                         .OfType<IResource>();
                 return SweepParameters
                     .SelectMany(param => param.Values)
@@ -453,7 +454,7 @@ namespace OpenTap.Plugins.BasicSteps
                 logMessage.Append(")");
                 Log.Info(logMessage.ToString());
                 //Fix issue 687: Ensure the latest Sweep params are applied before running any child steps
-                RunChildSteps(AdditionalParams, BreakLoopRequested);
+                RunChildSteps(AdditionalParams, BreakLoopRequested, throwOnBreak: false);
 
                 crossPlanSweepIndex++;
                 acrossRunsGotoEnabledSweepIndex();
@@ -482,9 +483,12 @@ namespace OpenTap.Plugins.BasicSteps
                     affectedSteps.ForEach(step => step.OnPropertyChanged(""));
                     var AdditionalParams = RegisterAdditionalParams(i);
                     Log.Info(logMessage.ToString());
-                    var runs = RunChildSteps(AdditionalParams, BreakLoopRequested).ToList();
+                    var runs = RunChildSteps(AdditionalParams, BreakLoopRequested, throwOnBreak: false).ToArray();
+                    
                     if (BreakLoopRequested.IsCancellationRequested) break;
                     runs.ForEach(r => r.WaitForCompletion());
+                    if (runs.LastOrDefault()?.BreakConditionsSatisfied() == true)
+                        break;
                 }
 
                 Iteration = 0;

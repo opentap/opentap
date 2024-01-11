@@ -386,5 +386,55 @@ namespace OpenTap.Engine.UnitTests
             validatedResult(rl.Results[0], "Test Result");
             validatedResult(rl.Results[1], "ResultCommentTest");
         }
+
+        [Test]
+        public void ResultOptimizerTest()
+        {
+            ResultColumn createColumn<T>(string name)
+            {
+                return new ResultColumn("x", new T[2]);
+            }
+
+            {
+                var rc1x = createColumn<int>("X");
+                var rc1y = createColumn<int>("Y");
+                var rt1 = new ResultTable("XY", new[] {rc1x, rc1y});
+
+                var rc2x =  createColumn<int>("X");
+                var rc2y = createColumn<int>("X");
+                var rt2 = new ResultTable("XY", new[] {rc2x, rc2y});
+                Assert.IsTrue(ResultTableOptimizer.CanMerge(rt1, rt2));
+                var merged = ResultTableOptimizer.MergeTables(new []{rt1, rt2});
+                Assert.AreEqual(4, merged.Columns[0].Data.Length);
+            }
+            {
+                var rc1x = createColumn<int>("X");
+                var rc1y = createColumn<int>("Y");
+                var rt1 = new ResultTable("XY", new[] {rc1x, rc1y});
+
+                var rc2x =  createColumn<int>("X");
+                var rc2y = createColumn<int>("X");
+                rc2y = rc2y.AddParameters(new ResultParameter("Unit", "X"));
+                var rt2 = new ResultTable("XY", new[] {rc2x, rc2y});
+                Assert.IsTrue(ResultTableOptimizer.CanMerge(rt1, rt2) == false);
+            }
+        }
+        
+        // an issue inside ResultTableOptimizer caused it to
+        // think that two tables were 'mergable' even though they had different
+        // column types. In this test, one is bool and the other is int.
+        [Test]
+        public void TestResultTableMergeBug()
+        {
+            var boolColumnTable = new ResultTable("X", new[] {new ResultColumn("A", new bool[1])});
+            var boolColumnTable2 = new ResultTable("X", new[] {new ResultColumn("A", new bool[1])});
+            var intColumnTable = new ResultTable("X", new[] {new ResultColumn("A", new int[1])});
+            var intColumnTable2 = new ResultTable("X", new[] {new ResultColumn("A", new int[1])});
+            Assert.IsTrue(ResultTableOptimizer.CanMerge(intColumnTable, intColumnTable2), "These columns should be mergeable.");
+            Assert.IsTrue(ResultTableOptimizer.CanMerge(boolColumnTable, boolColumnTable2), "These columns should be mergeable.");
+            Assert.IsFalse(ResultTableOptimizer.CanMerge(boolColumnTable, intColumnTable), "It should not be possible to merge an int column and bool column.");
+            
+            
+        }
     }
 }

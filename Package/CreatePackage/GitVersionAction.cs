@@ -21,9 +21,9 @@ namespace OpenTap.Package
         private static readonly TraceSource log = Log.CreateSource("GitVersion");
 
         /// <summary>
-        /// Represents the --log command line argument which prints git log for the last n commits including version numbers for each commit.
+        /// Represents the --gitlog command line argument which prints git log for the last n commits including version numbers for each commit.
         /// </summary>
-        [CommandLineArgument("log",     Description = "Print the git log for the last <arg> commits including their semantic version number.")]
+        [CommandLineArgument("gitlog",     Description = "Print the git log for the last <arg> commits including their semantic version number.")]
         public string PrintLog { get; set; }
 
         /// <summary>
@@ -67,18 +67,6 @@ namespace OpenTap.Package
         /// <returns>Returns 0 to indicate success.</returns>
         public int Execute(CancellationToken cancellationToken)
         {
-            string repositoryDir = RepoPath;
-            while (!Directory.Exists(Path.Combine(repositoryDir, ".git")))
-            {
-                repositoryDir = Path.GetDirectoryName(repositoryDir);
-                if (repositoryDir == null)
-                {
-                    log.Error("Directory {0} is not a git repository.", RepoPath);
-                    return (int)ExitCodes.ArgumentError;
-                }
-            }
-            RepoPath = repositoryDir;
-
             if (FieldCount < 1 || FieldCount > 5)
             {
                 log.Error("The argument for --fields ({0}) must be an integer between 1 and 5.", FieldCount);
@@ -90,7 +78,7 @@ namespace OpenTap.Package
                 int nLines = 0;
                 if (!int.TryParse(PrintLog, out nLines) || nLines <= 0)
                 {
-                    log.Error("The argument for --log ({0}) must be an integer greater than 0.", PrintLog);
+                    log.Error("The argument for --gitlog ({0}) must be an integer greater than 0.", PrintLog);
                     return (int)ExitCodes.ArgumentError;
                 }
                 return DoPrintLog(cancellationToken);
@@ -149,6 +137,11 @@ namespace OpenTap.Package
                     {
                         replaceLineCount++;
                         line = line.Replace("$(GitVersion)", versionString);
+                    }
+                    if (line.Contains("$(GitLongVersion)"))
+                    {
+                        replaceLineCount++;
+                        line = line.Replace("$(GitLongVersion)", versionString);
                     }
                     output.WriteLine(line);
                 }

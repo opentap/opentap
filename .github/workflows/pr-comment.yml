@@ -17,13 +17,13 @@ jobs:
     name: pr-version-comment
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           # This action needs the entire history of the repository to calculate the version
           fetch-depth: 0
       - name: Run comment action
-        uses: AsgerIversen/pr-version-comment@main
-        with:
+        uses: docker://ghcr.io/asgeriversen/pr-version-comment:v1
+        env:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: This change is part of OpenTAP version `{version}` or later.
           issue-body: A fix for this is in OpenTAP version `{version}` or later.

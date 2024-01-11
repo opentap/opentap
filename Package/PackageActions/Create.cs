@@ -3,7 +3,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 using OpenTap.Cli;
 using System.Threading;
 using Tap.Shared;
@@ -20,6 +24,7 @@ namespace OpenTap.Package
         private static readonly char[] IllegalPackageNameChars = {'"', '<', '>', '|', '\0', '\u0001', '\u0002', '\u0003', '\u0004', '\u0005', '\u0006', '\a', '\b', 
             '\t', '\n', '\v', '\f', '\r', '\u000e', '\u000f', '\u0010', '\u0011', '\u0012', '\u0013', '\u0014', '\u0015', '\u0016', '\u0017', '\u0018', 
             '\u0019', '\u001a', '\u001b', '\u001c', '\u001d', '\u001e', '\u001f', ':', '*', '?', '\\'};
+
         
         /// <summary>
         /// The default file extension for OpenTAP packages.
@@ -53,7 +58,8 @@ namespace OpenTap.Package
         /// <summary>
         /// Obsolete, use Install property instead.
         /// </summary>
-        [CommandLineArgument("fake-install", Visible = false, Description = "Install the created package. It will not overwrite files \nalready in the target installation (e.g. debug binaries).")]
+        [CommandLineArgument("fake-install", Description = "Install the created package. It will not overwrite files \nalready in the target installation (e.g. debug binaries).")]
+        [Browsable(false)]
         public bool FakeInstall { get; set; } = false;
 
         /// <summary>
@@ -100,6 +106,12 @@ namespace OpenTap.Package
                 {
                     var fullpath = Path.GetFullPath(PackageXmlFile);
                     pkg = PackageDefExt.FromInputXml(fullpath, ProjectDir);
+                    if (pkg.Version == null)
+                    {
+                        log.Error(
+                            $"The specified version '{pkg.RawVersion}' is not a valid semantic version. See https://semver.org");
+                        return (int)PackageExitCodes.InvalidPackageDefinition;
+                    }
 
                     // Check if package name has invalid characters or is not a valid path
                     var illegalCharacter = pkg.Name.IndexOfAny(IllegalPackageNameChars);
@@ -108,18 +120,48 @@ namespace OpenTap.Package
                         log.Error("Package name cannot contain invalid file path characters: '{0}'.", pkg.Name[illegalCharacter]);
                         return (int)PackageExitCodes.InvalidPackageName;
                     }
+
+                    foreach (var ch in pkg.Name.Distinct())
+                    {
+                            switch (ch)
+                            {
+                                case '/':
+                                    log.Warning($"Use of the character '/' in a package name is discouraged. " +
+                                                $"This will never be supported by the package repository, " +
+                                                $"and might lead to problems in the future.");
+                                    break;
+                                default:
+                                    break;
+                            }
+                    }
+
+                    // Check for invalid package metadata
+                    const string validMetadataPattern = "^[_a-zA-Z][_a-zA-Z0-9]*";
+                    var validMetadataRegex = new Regex(validMetadataPattern);
+                    foreach (var metaDataKey in pkg.MetaData.Keys)
+                    {
+                        var match = validMetadataRegex.Match(metaDataKey);
+                        if (match.Success == false || match.Length != metaDataKey.Length)
+                        {
+                            if (metaDataKey.Length > 0)
+                                log.Error($"Found invalid character '{metaDataKey[match.Length]}' in package metadata key '{metaDataKey}' at position {match.Length + 1}.");
+                            else
+                                log.Error($"Metadata key cannot be empty.");
+                            return (int)PackageExitCodes.InvalidPackageDefinition;
+                        }
+                    }
                 }
                 catch (AggregateException aex)
                 {
-                    foreach (var ex in aex.InnerExceptions)
+                    foreach (var inner in aex.InnerExceptions)
                     {
-                        if (ex is FileNotFoundException)
+                        if (inner is FileNotFoundException ex)
                         {
-                            log.Error("File not found: '{0}'", ((FileNotFoundException)ex).FileName);
+                            log.Error("File not found: '{0}'", ex.FileName);
                         }
                         else
                         {
-                            log.Error(ex.ToString());
+                            log.Error(inner.ToString());
                         }
                     }
                     log.Error("Caught errors while loading package definition.");
@@ -132,7 +174,7 @@ namespace OpenTap.Package
                 if(string.IsNullOrEmpty(pkg.RawVersion))
                     log.Warning($"Package version is {pkg.Version} due to blank or missing 'Version' XML attribute in 'Package' element");
 
-                using (var str = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite, 4096, FileOptions.DeleteOnClose))
+                using (var str = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite | FileShare.Delete, 4096, FileOptions.DeleteOnClose))
                 {
                     pkg.CreatePackage(str);
                     if (OutputPaths == null || OutputPaths.Length == 0)
@@ -142,16 +184,15 @@ namespace OpenTap.Package
                     {
                         var path = outputPath;
 
-                        if (String.IsNullOrEmpty(path))
+                        if (String.IsNullOrEmpty(path) || path.EndsWith(Path.DirectorySeparatorChar.ToString()) || path.EndsWith(Path.AltDirectorySeparatorChar.ToString()))
                         {
-                            path = GetRealFilePathFromName(pkg.Name, pkg.Version.ToString(), DefaultEnding);
                             // Package names support path separators now -- avoid writing the newly created package into a nested folder and
                             // replace the path separators with dots instead
-                            path = path.Replace('/', '.');
+                            var name = pkg.Name.Replace(Path.DirectorySeparatorChar, '.').Replace(Path.AltDirectorySeparatorChar, '.');
+                            path = Path.Combine(path, GetRealFilePathFromName(name, pkg.Version.ToString(), DefaultEnding));
                         }
 
                         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path)));
-
                         ProgramHelper.FileCopy(tmpFile, path);
                         log.Info("OpenTAP plugin package '{0}' containing '{1}' successfully created.", path, pkg.Name);
                     }
@@ -166,7 +207,7 @@ namespace OpenTap.Package
                 {
                     var path = PackageDef.GetDefaultPackageMetadataPath(pkg, Directory.GetCurrentDirectory());
                     Directory.CreateDirectory(Path.GetDirectoryName(path));
-                    using (FileStream fs = new FileStream(path, FileMode.OpenOrCreate))
+                    using (FileStream fs = new FileStream(path, FileMode.Create))
                     {
                         pkg.SaveTo(fs);
                     }

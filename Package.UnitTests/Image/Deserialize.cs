@@ -17,7 +17,7 @@ namespace OpenTap.Image.Tests
         public void TestJsonImage()
         {
 
-            string value = @"
+            string imageJson = @"
             {
                 ""Packages"": [
                     {
@@ -39,12 +39,12 @@ namespace OpenTap.Image.Tests
                     }
                 ],
                 ""Repositories"": [
-                    ""packages.opentap.io"",
-                    ""packages.opentap.keysight.com""
+                    ""https://packages.opentap.io"",
+                    ""https://packages.opentap.keysight.com""
                 ]
             }";
 
-            var specifier = ImageSpecifier.FromString(value);
+            var specifier = ImageSpecifier.FromString(imageJson);
             Assert.True(specifier.Packages.Count == 4);
             Assert.True(specifier.Packages[0].Name == "Demonstration");
             Assert.True(specifier.Packages[1].Name == "Yardstick");
@@ -56,8 +56,8 @@ namespace OpenTap.Image.Tests
             Assert.True(specifier.Packages[1].OS == "Windows");
 
             Assert.True(specifier.Repositories.Count == 2);
-            Assert.True(specifier.Repositories[0] == "packages.opentap.io");
-            Assert.True(specifier.Repositories[1] == "packages.opentap.keysight.com");
+            Assert.True(specifier.Repositories[0] == "https://packages.opentap.io");
+            Assert.True(specifier.Repositories[1] == "https://packages.opentap.keysight.com");
 
         }
 
@@ -65,7 +65,7 @@ namespace OpenTap.Image.Tests
         public void TestXmlImage()
         {
 
-            string value = @"<?xml version=""1.0""?>
+            string imageXml = @"<?xml version=""1.0""?>
 <Image>
   <Packages>
     <PackageSpecifier Name=""Editor"" Version=""9.9.1+ca3d0108"" OS=""Windows"" Architecture=""x64"" />
@@ -79,7 +79,7 @@ namespace OpenTap.Image.Tests
 </Image>
 ";
 
-            var specifier = ImageSpecifier.FromString(value);
+            var specifier = ImageSpecifier.FromString(imageXml);
 
             //TapSerializer tapSerializer = new TapSerializer();
             //tapSerializer.AddSerializers(new List<ITapSerializerPlugin>() { new PackageSpecifierSerializerPlugin() });
