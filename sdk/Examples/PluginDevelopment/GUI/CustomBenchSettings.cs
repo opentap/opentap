@@ -20,7 +20,7 @@ namespace OpenTap.Plugins.PluginDevelopment
 {
     // This shows how to implement a custom collection of components, similar to Instruments or DUTs.
     // This will appear under Settings -> Bench.
-    // See AccessingComponentSettings.cs to see how to use these, and other settings, in a Test Step.
+    // See SettingsRetrieval.cs to see how to use these, and other settings, in a Test Step.
 
     // First a high level collection class must be created.
     // To do this define the Settings Group that will be used.
