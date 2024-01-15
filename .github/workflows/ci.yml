@@ -775,12 +775,12 @@ jobs:
         run: mv OpenTAP.*.exe OpenTAP.exe
       - name: Upload Installer 
         env: 
-          REPO_WWW_PASS: ${{ secrets.REPO_WWW_PASS }}
+          INSTALLER_PUBLISH_KEY: ${{ secrets.INSTALLER_PUBLISH_KEY }}
         run: | 
           curl -i -X POST 'http://packages.opentap.io/4.0/Objects/www/' \
                -H 'Metadata-Version: "${{ needs.GetVersion.outputs.LongVersion }}"' \
                -H 'Metadata-OS: "Windows"' \
-               -H "Auth-Key: $REPO_WWW_PASS" \
+               -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
                --form 'file=@"'$(pwd)'/OpenTAP.exe"'
 
 
@@ -828,12 +828,12 @@ jobs:
           name: installer-linux
       - name: Upload Installer 
         env: 
-          REPO_WWW_PASS: ${{ secrets.REPO_WWW_PASS }}
+          INSTALLER_PUBLISH_KEY: ${{ secrets.INSTALLER_PUBLISH_KEY }}
         run: | 
           curl -i -X POST 'http://packages.opentap.io/4.0/Objects/www/' \
                -H 'Metadata-Version: "${{ needs.GetVersion.outputs.LongVersion }}"' \
                -H 'Metadata-OS: "Linux"' \
-               -H "Auth-Key: $REPO_WWW_PASS" \
+               -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
                --form 'file=@"'$(pwd)'/OpenTAP"'
 
 
