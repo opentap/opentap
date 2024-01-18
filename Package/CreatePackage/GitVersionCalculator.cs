@@ -359,14 +359,14 @@ namespace OpenTap.Package
             {
                 Commit cfgCommit = getLatestConfigVersionChange(targetCommit);
                 Commit commonAncestor = findFirstCommonAncestor(defaultBranch, targetCommit);
-                int commitsFromDefaultBranch = countCommitsBetween(commonAncestor, targetCommit, true);
+                int commitsFromDefaultBranch = countCommitsBetween(commonAncestor, targetCommit, false);
                 log.Debug("Found {0} commits since branchout from beta branch in commit {1}.", commitsFromDefaultBranch, commonAncestor.Sha.Substring(0, 8));
-                int commitsSinceVersionUpdate = countCommitsBetween(cfgCommit, targetCommit, true)+1;
+                int commitsSinceVersionUpdate = countCommitsBetween(cfgCommit, targetCommit, false) + 1;
                 log.Debug("Found {0} commits since last version bump in commit {1}.", commitsSinceVersionUpdate, cfgCommit.Sha.Substring(0, 8));
                 int alphaVersion = Math.Min(commitsFromDefaultBranch, commitsSinceVersionUpdate);
                 if (!preRelease.StartsWith("rc", true, CultureInfo.InvariantCulture))
                 {
-                    int betaVersion = countCommitsBetween(cfgCommit, commonAncestor, true) + 1;
+                    int betaVersion = countCommitsBetween(cfgCommit, commonAncestor, false) + 1;
                     if (betaVersion > 0)
                     {
                         preRelease += "." + betaVersion;
