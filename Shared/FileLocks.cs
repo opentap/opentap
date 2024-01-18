@@ -22,21 +22,22 @@ namespace OpenTap
     {
         public static IFileLock Create(string file)
         {
-            if (OperatingSystem.Current == OperatingSystem.Windows) return new Win32FileLock(file);
-            if (OperatingSystem.Current == OperatingSystem.MacOS) return new MacOSFileLock(file);
-            return new PosixFileLock(file);
+            // Linux has a native API for file locking
+            if (OperatingSystem.Current == OperatingSystem.Linux) return new PosixFileLock(file);
+            // On Mac and Windows we need to spin
+            return new MacWindowsFileLock(file);
         }
     }
 
     /// <summary>
     /// Note that this implementation is not thread-safe, unlike the other implementations
     /// </summary>
-    class MacOSFileLock : IFileLock
+    class MacWindowsFileLock : IFileLock
     {
         private readonly ManualResetEvent _waitHandle;
         private readonly string name;
 
-        public MacOSFileLock(string file)
+        public MacWindowsFileLock(string file)
         {
             _waitHandle = new ManualResetEvent(false);
             name = file;
@@ -74,7 +75,7 @@ namespace OpenTap
                 // Otherwise, create the file, thereby claiming the mutex
                 else
                 {
-                    fileLock = File.Create(name, 0, FileOptions.DeleteOnClose);
+                    fileLock = File.Create(name, 1, FileOptions.DeleteOnClose);
                     _waitHandle.Set();
                     return true;
                 }
@@ -182,40 +183,6 @@ namespace OpenTap
 
         public bool WaitOne(int ms) => WaitOne(TimeSpan.FromMilliseconds(ms));
         public WaitHandle WaitHandle => _waitHandle;
-    }
-
-    class Win32FileLock : IFileLock
-    {
-        private Mutex _mutex;
-
-        public Win32FileLock(string name)
-        {
-            // Having backslashes in the mutex name seems to cause issues for some reason. Replace them with slashes.
-            _mutex = new Mutex(false, name.Replace("\\", "/") + "_opentap_named_mutex_");
-        }
-
-        public void Dispose()
-        {
-            try
-            {
-                if (_mutex?.WaitOne(0) == true)
-                    _mutex?.ReleaseMutex();
-            }
-            catch (AbandonedMutexException)
-            {
-                // this is fine
-            }
-
-            _mutex?.Dispose();
-            _mutex = null;
-        }
-
-        public bool WaitOne() => _mutex.WaitOne();
-        public bool WaitOne(TimeSpan timeout) => _mutex.WaitOne(timeout);
-        public bool WaitOne(int ms) => _mutex.WaitOne(ms);
-
-        public WaitHandle WaitHandle => _mutex;
-        public void Release() => _mutex.ReleaseMutex();
     }
 
     static class PosixNative
