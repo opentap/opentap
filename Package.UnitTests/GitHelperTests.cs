@@ -173,7 +173,7 @@ namespace OpenTap.Package.UnitTests
             // |/
             // *     (tag: v2.0, release2x) Bumped version to 2.0
             new GitVersionAction() { PrintLog = "10", RepoPath = repo.Info.WorkingDirectory }.Execute(new System.Threading.CancellationToken());
-            verifyVersion(repo, 2, 1, 0, "rc.3");
+            verifyVersion(repo, 2, 1, 0, "rc.2");
 
             // Now we will try to go back to a previous commit (not the HEAD):
             // This is what GitLab CI does, so important for us to support
