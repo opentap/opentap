@@ -32,7 +32,7 @@ For a guide on how to develop using OpenTAP, check out our __[Developer Guide](h
 Most users build plugins for OpenTAP but if you are interested in building OpenTAP yourself you can clone the git repository at https://github.com/opentap/opentap and build the OpenTAP.sln solution file.
 
 ### Microsoft Windows 10
-On Windows, Visual Studio 2017 or greater is needed to build. This can be done by opening the solution and pressing F5, or Ctrl-Shift-B.
+On Windows, Visual Studio 2022 or greater is needed to build. This can be done by opening the solution and pressing F5, or Ctrl-Shift-B.
 
 ### Linux
 On Linux you need [Microsoft .NET SDK 6.0](https://dotnet.microsoft.com/download) to build OpenTAP.
@@ -59,7 +59,7 @@ OpenTAP can be tested using NUnit.
 
 ### Windows
 
-Using Visual Studio 2017, open OpenTAP.sln and run the tests in the TestExplorer.
+Using Visual Studio 2022, open OpenTAP.sln and run the tests in the TestExplorer.
 
 ### Linux
 
