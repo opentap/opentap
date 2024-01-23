@@ -476,6 +476,8 @@ jobs:
       matrix:
         include:
           - os: MacOS
+            arch: x64
+          - os: MacOS
             arch: arm64
           - os: Linux
             arch: x64
@@ -667,12 +669,22 @@ jobs:
         with:
           name: win-x64-package
           path: .
-      - name: Download Linux package
+      - name: Download Linux arm package
+        uses: actions/download-artifact@v3
+        with:
+          name: Linux-arm64-package
+          path: .
+      - name: Download Linux x64 package
         uses: actions/download-artifact@v3
         with:
           name: Linux-x64-package
           path: .
-      - name: Download MacOS package
+      - name: Download MacOS x64 package
+        uses: actions/download-artifact@v3
+        with:
+          name: MacOS-x64-package
+          path: .
+      - name: Download MacOS arm64 package
         uses: actions/download-artifact@v3
         with:
           name: MacOS-arm64-package
@@ -686,8 +698,10 @@ jobs:
           # Expand-Archive will only extract .zip extensions    
           Move-Item OpenTAP.*.x86.Windows.TapPackage OpenTAP.x86.zip 
           Move-Item OpenTAP.*.x64.Windows.TapPackage OpenTAP.x64.zip
-          Move-Item OpenTAP.*.Linux.*.TapPackage OpenTAP.Linux.zip
-          Move-Item OpenTAP.*.MacOS.*.TapPackage OpenTAP.MacOS.zip
+          Move-Item OpenTAP.*.Linux.x64.TapPackage OpenTAP.Linux.x64.zip
+          Move-Item OpenTAP.*.Linux.arm64.TapPackage OpenTAP.Linux.arm64.zip
+          Move-Item OpenTAP.*.MacOS.x64.TapPackage OpenTAP.MacOS.x64.zip
+          Move-Item OpenTAP.*.MacOS.arm64.TapPackage OpenTAP.MacOS.arm64.zip
 
           Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
           Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
@@ -707,10 +721,14 @@ jobs:
           Remove-Item ./Dependencies/LibGit2Sharp.0.27.0.0/git2*.dll
           Pop-Location
           echo "Expand archive"
+
           Expand-Archive OpenTAP.x64.zip win-x64 -Verbose
           Expand-Archive OpenTAP.x86.zip win-x86 -Verbose
-          Expand-Archive OpenTAP.Linux.zip linux-x64 -Verbose
-          Expand-Archive OpenTAP.MacOS.zip macos-arm64 -Verbose
+          Expand-Archive OpenTAP.Linux.x64.zip linux-x64 -Verbose
+          Expand-Archive OpenTAP.Linux.arm64.zip linux-arm64 -Verbose
+          Expand-Archive OpenTAP.MacOS.x64.zip macos-x64 -Verbose
+          Expand-Archive OpenTAP.MacOS.arm64.zip macos-arm64 -Verbose
+
           ./nuget/NugetPackager.ps1
           cd ./nuget    
           Invoke-WebRequest -Method Get -Uri "https://dist.nuget.org/win-x86-commandline/v5.7.1/nuget.exe" -OutFile nuget.exe
@@ -919,6 +937,11 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: win-x64-package
+          path: ./publish/
+      - name: Download MacOS-x64 package
+        uses: actions/download-artifact@v3
+        with:
+          name: MacOS-x64-package
           path: ./publish/
       - name: Download MacOS-arm64 package
         uses: actions/download-artifact@v3
