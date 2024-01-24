@@ -15,6 +15,7 @@ using System.Runtime.InteropServices;
 using System.IO.MemoryMappedFiles;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 
@@ -1628,6 +1629,51 @@ namespace OpenTap
             if (bytes < 1000000) return $"{bytes/1000.0:0.00} kB";
             if (bytes < 1000000000 )return $"{bytes/1000000.0:0.00} MB";
             return $"{bytes/1000000000.0:0.00} GB";
+        }
+        
+        static void Backoff(int retry, int sleepBaseMs = 100)
+        {
+            int totalSleep = retry * retry * sleepBaseMs;
+            if(totalSleep > 0)
+                TapThread.Sleep(totalSleep);
+        }
+
+        public static void Retry(Action func, Type retryOn = null, int maxRetries = 5, Type[] moreExceptions = null, int sleepBaseMs = 100)
+        {
+            Retry<int>(() =>
+            {
+                func();
+                return 0;
+            }, retryOn, maxRetries, moreExceptions, sleepBaseMs);
+        }
+
+        public static T Retry<T>(Func<T> func, Type retryOn = null, int maxRetries = 5, Type[] moreExceptions = null, int sleepBaseMs = 100)
+        {
+            if (retryOn == null)
+                retryOn = typeof(Exception);
+            var allExceptions = new[] { retryOn }.Concat(moreExceptions ?? Array.Empty<Type>()).ToArray();
+            int retryCount = 0;
+            retryPoint:
+            try
+            {
+                return func();
+            }
+            catch (Exception ex)
+            {
+                while (ex is AggregateException a)
+                {
+                    ex = a.InnerExceptions[0];
+                }
+                var exType = ex.GetType();
+                if (retryCount < maxRetries && allExceptions.Any(x => x.IsAssignableFrom(exType)))
+                {
+                    retryCount++;
+                    Backoff(retryCount, sleepBaseMs);
+                    goto retryPoint;
+                }
+                ExceptionDispatchInfo.Capture(ex).Throw();
+                throw;
+            }
         }
     }
 
