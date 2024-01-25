@@ -1812,13 +1812,13 @@ namespace OpenTap
                     {
                         lst2.Clear();
 
-                        if (lst2 is object[] o)
+                        if (lst2.GetType().IsArray)
                         {
                             // If lst2 is an array, resize it to have the exact number of elements required
                             var cnt = Elements.Count();
-                            if (cnt != o.Length)
+                            if (cnt != lst2.Count)
                             {
-                                ResizeGenericArray(ref lst2, Elements.Count());
+                                ResizeGenericArray(ref lst2, cnt);
                                 objValue.Value = lst2;
                             }
                         }
