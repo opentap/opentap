@@ -46,13 +46,10 @@ namespace OpenTap
 
         void ProcessPipe()
         {
-            var token = tokenSource.Token;
             byte[] buffer = new byte[1024];
 
             while (true)
             {
-                if (token.IsCancellationRequested)
-                    return;
                 var read = Pipe.Read(buffer, 0, buffer.Length);
                 if (read == 0) break;
                 var str = Encoding.UTF8.GetString(buffer, 0, read);
@@ -62,10 +59,7 @@ namespace OpenTap
         }
 
         public event EventHandler<string> MessageReceived;
-
-
-        CancellationTokenSource tokenSource = new CancellationTokenSource();
-
+        
         public static ExecutorSubProcess Create(string name, string args, bool isolated = false)
         {
             var start = new ProcessStartInfo(name, args)
@@ -105,10 +99,8 @@ namespace OpenTap
             Pipe = getStream(out pipeName);
             start.Environment[EnvVarNames.TpmInteropPipeName] = pipeName;
 
-            var sem = new Semaphore(0, 1);
             new Thread(() =>
             {
-                sem.WaitOne();
                 try
                 {
                     Pipe.WaitForConnection();
@@ -123,7 +115,6 @@ namespace OpenTap
             }).Start();
 
             Process = Process.Start(start);
-            sem.Release();
             Process.EnableRaisingEvents = true;
 
             new Thread(() => RedirectOutput(Process.StandardOutput, Console.Out.Write)).Start();
@@ -143,16 +134,10 @@ namespace OpenTap
 
         public void Dispose()
         {
-            tokenSource.Cancel();
             if (Pipe != null)
                 Pipe.Dispose();
             if (Process != null)
                 Process.Dispose();
-        }
-
-        public void Env(string Name, string Value)
-        {
-            start.Environment[Name] = Value;
         }
     }
 
