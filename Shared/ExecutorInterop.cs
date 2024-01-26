@@ -58,7 +58,6 @@ namespace OpenTap
                 var str = Encoding.UTF8.GetString(buffer, 0, read);
                 if (MessageReceived != null)
                     MessageReceived(this, str);
-                Array.Clear(buffer, 0, read);
             }
         }
 
@@ -101,7 +100,7 @@ namespace OpenTap
 
         public void Start()
         {
-            Console.WriteLine("STARTING SUBPROCESS: tap.exe " + start.Arguments + " @ " + start.WorkingDirectory);
+            //Console.WriteLine("STARTING SUBPROCESS: tap.exe " + start.Arguments + " @ " + start.WorkingDirectory);
             string pipeName;
             Pipe = getStream(out pipeName);
             start.Environment[EnvVarNames.TpmInteropPipeName] = pipeName;
@@ -110,7 +109,16 @@ namespace OpenTap
             new Thread(() =>
             {
                 sem.WaitOne();
-                Pipe.WaitForConnection();
+                try
+                {
+                    Pipe.WaitForConnection();
+                }
+                catch
+                {
+                    // this is probably ok. It just means that the child process is not going to communicate back.
+                    return;
+                }
+
                 ProcessPipe();
             }).Start();
 
