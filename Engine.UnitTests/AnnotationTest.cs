@@ -9,6 +9,7 @@ using System.Xml.Serialization;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests;
 using OpenTap.Engine.UnitTests.TestTestSteps;
+using OpenTap.EngineUnitTestUtils;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -35,7 +36,58 @@ namespace OpenTap.UnitTests
             
         }
 
-        
+        [Test]
+        public void TestTestPlanReferenceDuplicates()
+        {
+            using var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            var tempfiles = new[]
+            {
+                Path.GetTempFileName(),
+                Path.GetTempFileName(),
+                Path.GetTempFileName(),
+            };
+
+            try
+            {
+                {   // Create test plans
+                    new TestPlan() { ChildTestSteps = { new DelayStep(), new DelayStep() } }.Save((tempfiles[0]));
+                    new TestPlan()
+                    {
+                        ChildTestSteps =
+                        {
+                            new TestPlanReference() { Filepath = new MacroString() { Text = tempfiles[0] } },
+                            new TestPlanReference() { Filepath = new MacroString() { Text = tempfiles[0] } },
+                        }
+                    }.Save(tempfiles[1]);
+                    new TestPlan()
+                    {
+                        ChildTestSteps =
+                        {
+                            new TestPlanReference() { Filepath = new MacroString() { Text = tempfiles[1] } },
+                            new TestPlanReference() { Filepath = new MacroString() { Text = tempfiles[1] } },
+                        }
+                    }.Save(tempfiles[2]);
+                }
+
+                {   // Verify loading generates no warnings or errors
+                    var listener = new TestTraceListener();
+                    Log.AddListener(listener);
+                    var tp = TestPlan.Load(tempfiles[2]);
+                    ((TestPlanReference)tp.ChildTestSteps[0]).LoadTestPlan();
+                    ((TestPlanReference)tp.ChildTestSteps[1]).LoadTestPlan();
+                    Log.RemoveListener(listener);
+                    
+                    Assert.That(listener.ErrorMessage.Count, Is.EqualTo(0));
+                    Assert.That(listener.WarningMessage.Count, Is.EqualTo(0));
+                }
+            }
+            finally
+            {
+                foreach (var tempfile in tempfiles)
+                    if (File.Exists(tempfile))
+                        File.Delete(tempfile);
+            }
+        }
         
         [Test]
         public void TestPlanReferenceAnnotationTest()
