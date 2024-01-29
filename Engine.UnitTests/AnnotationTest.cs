@@ -37,6 +37,48 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        public void TestStepDuplicateIdWarning()
+        {
+            using var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            var path = Path.GetTempFileName();
+            try
+            {
+                // The two delay steps have identical IDs -- verify we get a warning while loading this plan
+                var testplan = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<TestPlan type=""OpenTap.TestPlan"" Locked=""false"">
+  <Steps>
+		<TestStep type=""OpenTap.Plugins.BasicSteps.DelayStep"" Id=""419bfb67-ed07-4b7c-a653-b9504372fe4a"">
+			<Enabled>true</Enabled>
+			<Name>Delay 1</Name>
+		</TestStep>
+    <TestStep type=""OpenTap.Plugins.BasicSteps.DelayStep"" Id=""419bfb67-ed07-4b7c-a653-b9504372fe4a"">
+      <Enabled>true</Enabled>
+      <Name>Delay 2</Name>
+    </TestStep>
+  </Steps>
+</TestPlan>
+";
+                File.WriteAllText(path, testplan);
+                
+                {   // Verify loading generates no warnings or errors
+                    var listener = new TestTraceListener();
+                    Log.AddListener(listener);
+                    var tp = TestPlan.Load(path);
+                    Log.RemoveListener(listener);
+                    
+                    Assert.That(listener.ErrorMessage.Count, Is.EqualTo(0));
+                    Assert.That(listener.WarningMessage.Any(warning => warning == "Duplicate test step ID found. The duplicate ID has been changed for step 'Delay 2'."));
+                }
+
+            }
+            finally
+            {
+                if (File.Exists(path))
+                    File.Delete(path);
+            }
+
+        }
+        [Test]
         public void TestTestPlanReferenceDuplicates()
         {
             using var session = Session.Create(SessionOptions.OverlayComponentSettings);
