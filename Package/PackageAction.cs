@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTap.Authentication;
 
 namespace OpenTap.Package
 {
@@ -72,6 +73,35 @@ namespace OpenTap.Package
         /// </summary>
         /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
         public abstract int Execute(CancellationToken cancellationToken);
+
+        internal void AddTokensFromRepositories(string[] tokens, string[] repositories)
+        {
+            tokens ??= Array.Empty<string>();
+            repositories ??= Array.Empty<string>();
+
+            for (int i = 0; i < tokens.Length; i++)
+            {
+                var token = tokens[i];
+                if (string.IsNullOrWhiteSpace(token))
+                    throw new ExitCodeException(ExitCodes.ArgumentError, $"Token #{i + 1} is empty.");
+                var repo = repositories.Length > i ? repositories[i] : null;
+                if (repo == null)
+                {
+                    log.Warning($"No repository specified for token #{i + 1}. Token will not be used.");
+                    break;
+                }
+
+                if (!Uri.TryCreate(repo, UriKind.Absolute, out var uri))
+                    throw new ExitCodeException(ExitCodes.ArgumentError,
+                        $"Repository '{repo}' is not an absolute uri.");
+
+                AuthenticationSettings.Current.Tokens.Add(new TokenInfo()
+                {
+                    Domain = uri.Authority,
+                    AccessToken = tokens[i],
+                });
+            }
+        }
     }
 
     internal static class PackageActionHelper

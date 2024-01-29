@@ -21,6 +21,9 @@ namespace OpenTap.Package
         [CommandLineArgument("dependencies", Description = "Download dependencies without asking.", ShortName = "y")]
         public bool InstallDependencies { get; set; }
 
+        [CommandLineArgument("token", Description = CommandLineArgumentTokenDescription)]
+        public string[] Tokens { get; set; }
+        
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
@@ -75,7 +78,9 @@ namespace OpenTap.Package
             Installation destinationInstallation = new Installation(destinationDir);
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
+            AddTokensFromRepositories(Tokens, Repository);
             List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
+            
             Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
 
             List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(

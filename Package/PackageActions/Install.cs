@@ -34,6 +34,9 @@ namespace OpenTap.Package
         [CommandLineArgument("overwrite", Description = "Overwrite files that already exist without asking. This is implied when using --force.")]
         public bool Overwrite { get; set; }
 
+        [CommandLineArgument("token", Description = CommandLineArgumentTokenDescription)]
+        public string[] Tokens { get; set; }
+        
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
@@ -112,6 +115,7 @@ namespace OpenTap.Package
             var targetInstallation = new Installation(Target);
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
+            AddTokensFromRepositories(Tokens, Repository);
             List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
             Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
 
