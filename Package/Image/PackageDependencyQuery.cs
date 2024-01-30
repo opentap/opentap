@@ -39,7 +39,7 @@ namespace OpenTap.Package
             var parameters = HttpPackageRepository.GetQueryParameters(version: VersionSpecifier.TryParse(preRelease, out var spec) ? spec : VersionSpecifier.AnyRelease, os: os,
                 architecture: deploymentInstallationArchitecture, name: name);
             
-            var result = repoClient.Query(parameters, CancellationToken.None, "name", "version",
+            var result = repoClient.Query(parameters, CancellationToken.None, "name", "version", "class",
                 new QuerySelection("dependencies", new List<QuerySelection>() { "name", "version" }));
             var graph = new PackageDependencyGraph();
             graph.LoadFromDictionaries(result);

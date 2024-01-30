@@ -113,6 +113,15 @@ namespace OpenTap.Package
             cache.AddPackages(InstalledPackages);
             cache.AddPackages(AdditionalPackages);
             var sw = Stopwatch.StartNew();
+
+            var packageNames = this.Packages.Select(p => p.Name).ToArray();
+            foreach (var pn in packageNames)
+            {
+                foreach (var bundlePackage in cache.Graph.GetBundlePackages(pn))
+                {
+                    this.Packages.RemoveAll(p => p.Name == bundlePackage);
+                }
+            }
             
             var resolver = new ImageResolver(cancellationToken);
             
