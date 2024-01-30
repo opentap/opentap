@@ -1657,36 +1657,59 @@ namespace OpenTap
             return $"{bytes / 1000000000.0:0.00} GB";
         }
 
+        /// <summary> Backoff strategy for Retry.  </summary>
         static void Backoff(int retry, int sleepBaseMs = 100)
         {
-            int totalSleep = retry * retry * sleepBaseMs;
+            const double backoffFactor = 2.0;
+            const double jitterFactor = 0.2;
+            double baseSleep = Math.Pow(backoffFactor, retry) * sleepBaseMs;
+            
+            // add a bit of jitter to avoid "thundering herd" problems.
+            Random random = new Random();
+            double jitterAmount = 1.0 + jitterFactor * (random.NextDouble() - 0.5);
+            int totalSleep = (int)(baseSleep * jitterAmount);
+            
             if (totalSleep > 0)
                 TapThread.Sleep(totalSleep);
         }
 
-        public static void Retry(Action func, Type retryOn = null, int maxRetries = 5, Type[] moreExceptions = null,
+        /// <summary> Retries calling a function a number of times if calling it fails. </summary>
+        /// <param name="function">The function to call.</param>
+        /// <param name="retryOn">an exception type to retry on. By default this is typeof(Exception)</param>
+        /// <param name="maxRetries">default 5 times</param>
+        /// <param name="moreExceptions"> more exceptions to retry on</param>
+        /// <param name="sleepBaseMs"> The time to sleep at first iteration. Subsequent sleeps with be longer</param>
+        public static void Retry(Action function, Type retryOn = null, int maxRetries = 5, Type[] moreExceptions = null,
             int sleepBaseMs = 100)
         {
             Retry<int>(() =>
             {
-                func();
+                function();
                 return 0;
             }, retryOn, maxRetries, moreExceptions, sleepBaseMs);
         }
 
-        public static T Retry<T>(Func<T> func, Type retryOn = null, int maxRetries = 5, Type[] moreExceptions = null,
+        /// <summary> Retries calling a function a number of times if calling it fails. </summary>
+        /// <param name="function">The function to call.</param>
+        /// <param name="retryOn">an exception type to retry on. By default this is typeof(Exception)</param>
+        /// <param name="maxRetries">default 5 times</param>
+        /// <param name="moreExceptions"> more exceptions to retry on</param>
+        /// <param name="sleepBaseMs"> The time to sleep at first iteration. Subsequent sleeps with be longer</param>
+        /// <typeparam name="T">the return type.</typeparam>
+        /// <returns>The return value </returns>
+        public static T Retry<T>(Func<T> function, Type retryOn = null, int maxRetries = 5, Type[] moreExceptions = null,
             int sleepBaseMs = 100)
         {
             if (retryOn == null)
                 retryOn = typeof(Exception);
             var allExceptions = new[] { retryOn }.Concat(moreExceptions ?? Array.Empty<Type>()).ToArray();
 
-            for (int i = 1; i < maxRetries; i++)
+            for (int i = 0; i < maxRetries - 1; i++)
             {
 
                 try
                 {
-                    return func();
+                    return function();
                 }
                 catch (Exception ex)
                 {
@@ -1707,8 +1730,9 @@ namespace OpenTap
                     ExceptionDispatchInfo.Capture(ex).Throw();
                 }
             }
-
-            return func();
+            
+            // on the last attempt just call the function directly
+            return function();
         }
     }
 
