@@ -55,6 +55,7 @@ Important methods and properties here include:
 -	**ScpiCommand**, which sends a command
 -	**ScpiQuery**, which sends the query and returns the results
 -	**VisaAddress**, which specifies the Visa address of the instrument
+-   **ScpiQueryBlock<T>**, which sends the block query, and parses the binary block as an array of type T. All numeric types except Decimal are supported.
 
 The SCPI *attribute* is used to identify a method or enumeration value that can be handled by the SCPI class. 
 
@@ -65,6 +66,19 @@ For an example, see:
 The example below shows how the VisaAddress property for a SCPI instrument is automatically populated with values retrieved from VISA:
 
 ![](./Scpi.png)
+
+### Raw IO
+For more exotic instruments, it may be necessary to use raw IO. For example when streaming data of indeterminate length.
+To access the raw IO interface, some casting is required:
+
+```csharp
+ScpiInstrument instrument = /* ... */;
+IScpiIO io = ((IScpiInstrument) instrument).IO;
+```
+
+This provides access to raw reads and writes:
+-   **Read**, which reads data from the instrument into a user provided byte buffer
+-   **Write**, which writes data from the user provided byte buffer to the instrument
 
 
 ## Resource Management
