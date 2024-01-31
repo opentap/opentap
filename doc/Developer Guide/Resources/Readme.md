@@ -52,10 +52,10 @@ OpenTAP provides a number of utilities for using SCPI instruments and SCPI in ge
 
 Important methods and properties here include:
 
--	**ScpiCommand**, which sends a command.
--	**ScpiQuery**, which sends the query and returns the results.
--	**VisaAddress**, which specifies the Visa address of the instrument.
-- **ScpiQueryBlock<T>**, which sends the block query, and parses the binary block as an array of type T. All numeric types except Decimal are supported.
+-	**`ScpiCommand`**, which sends a command.
+-	**`ScpiQuery`**, which sends the query and returns the results.
+-	**`VisaAddress`**, which specifies the Visa address of the instrument.
+- **`ScpiQueryBlock<T>`**, which sends the block query, and parses the binary block as an array of type T. All numeric types except Decimal are supported.
 
 The SCPI *attribute* is used to identify a method or enumeration value that can be handled by the SCPI class. 
 
@@ -77,7 +77,7 @@ IScpiIO io = ((IScpiInstrument) instrument).IO;
 ```
 
 This provides access to raw reads and writes:
--   **Read**, which reads data from the instrument into a user-provided byte buffer. The number of bytes read is placed in an **out** parmeter.
+-   **Read**, which reads data from the instrument into a user-provided byte buffer. The number of bytes read is placed in an **out** parameter.
 -   **Write**, which writes data from a user-provided byte buffer to the instrument.
 
 
