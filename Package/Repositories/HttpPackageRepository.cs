@@ -71,6 +71,8 @@ namespace OpenTap.Package
 
         public HttpPackageRepository(string url)
         {
+            if (!url.StartsWith("http"))
+                url = "https://" + url;
             Url = url.TrimEnd('/');
             UpdateId = Installation.Current.Id;
             RepoClient = GetAuthenticatedClient(new Uri(Url, UriKind.Absolute));
