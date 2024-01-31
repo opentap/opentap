@@ -184,5 +184,16 @@ namespace OpenTap
 
         /// <summary> Gets a string representation of this CSharpType. </summary>
         public override string ToString() => $"[{Name}]";
+
+        /// <summary> Equality for MemberData. Returns true if the other object is a MemberData and refers to same member object. </summary>
+        public override bool Equals(object obj)
+        {
+            if (obj is MemberData m && m.Member == Member)
+                return true;
+            return false;
+        }
+        /// <summary> GetHash for MemberData. </summary>
+        public override int GetHashCode() => Member.GetHashCode() * 32143211 + 88776366;
+        
     }
 }
