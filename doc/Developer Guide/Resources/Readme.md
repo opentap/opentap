@@ -52,10 +52,10 @@ OpenTAP provides a number of utilities for using SCPI instruments and SCPI in ge
 
 Important methods and properties here include:
 
--	**ScpiCommand**, which sends a command
--	**ScpiQuery**, which sends the query and returns the results
--	**VisaAddress**, which specifies the Visa address of the instrument
--   **ScpiQueryBlock<T>**, which sends the block query, and parses the binary block as an array of type T. All numeric types except Decimal are supported.
+-	**ScpiCommand**, which sends a command.
+-	**ScpiQuery**, which sends the query and returns the results.
+-	**VisaAddress**, which specifies the Visa address of the instrument.
+- **ScpiQueryBlock<T>**, which sends the block query, and parses the binary block as an array of type T. All numeric types except Decimal are supported.
 
 The SCPI *attribute* is used to identify a method or enumeration value that can be handled by the SCPI class. 
 
@@ -68,8 +68,8 @@ The example below shows how the VisaAddress property for a SCPI instrument is au
 ![](./Scpi.png)
 
 ### Raw IO
-For more exotic instruments, it may be necessary to use raw IO. For example when streaming data of indeterminate length.
-To access the raw IO interface, some casting is required:
+In rare cases, it may be necessary to resort to raw I/O reads and writes. This should generally be avoided because an incomplete read might interfere with the results of future queries. However, in situations such as streaming indeterminate-length data from the instrument, the use of raw I/O may become necessary. 
+A low-level API for this is available. The raw IO is located inside an explicit interface implementation, to access it do the following:
 
 ```csharp
 ScpiInstrument instrument = /* ... */;
@@ -77,8 +77,8 @@ IScpiIO io = ((IScpiInstrument) instrument).IO;
 ```
 
 This provides access to raw reads and writes:
--   **Read**, which reads data from the instrument into a user provided byte buffer
--   **Write**, which writes data from the user provided byte buffer to the instrument
+-   **Read**, which reads data from the instrument into a user-provided byte buffer. The number of bytes read is placed in an **out** parmeter.
+-   **Write**, which writes data from a user-provided byte buffer to the instrument.
 
 
 ## Resource Management
