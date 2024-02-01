@@ -399,9 +399,9 @@ namespace OpenTap.Package.UnitTests
                 if (File.Exists("Dummy.txt"))
                     File.Delete("Dummy.txt");
                 var output = RunPackageCli("install Dummy -y", out var exitCode);
-                Assert.AreEqual(0, exitCode, "Unexpected exit code.\r\n" + output);
                 StringAssert.Contains("Dummy", output);
                 StringAssert.Contains("Dependency", output);
+                Assert.AreEqual(0, exitCode, "Unexpected exit code.\r\n" + output);
                 Assert.IsTrue(File.Exists("Dependency.txt"));
                 Assert.IsTrue(File.Exists("Dummy.txt"));
             }
@@ -650,7 +650,7 @@ namespace OpenTap.Package.UnitTests
 
         private static string RunPackageCliWrapped(string args, out int exitCode, string workingDir, string fileName = null)
         {
-            if (fileName == null) fileName = Path.GetFullPath(Path.GetFileName(Path.Combine(Path.GetDirectoryName(typeof(Package.PackageDef).Assembly.Location), "tap")));
+            fileName ??= Path.Combine(ExecutorClient.ExeDir, "tap");
             var p = new Process();
             p.StartInfo = new ProcessStartInfo
             {
@@ -665,8 +665,15 @@ namespace OpenTap.Package.UnitTests
             StringBuilder output = new StringBuilder();
             var lockObj = new object();
 
-            p.OutputDataReceived += (s, e) => { if (e.Data != null) lock (lockObj) output.AppendLine(e.Data); };
-            p.ErrorDataReceived += (s, e) => { if (e.Data != null) lock (lockObj) output.AppendLine(e.Data); };
+            void onOutput(object s, DataReceivedEventArgs e)
+            {
+                if (e.Data != null)
+                    lock (lockObj)
+                        output.AppendLine(e.Data);
+            }
+
+            p.OutputDataReceived += onOutput;
+            p.ErrorDataReceived += onOutput;
 
             p.Start();
 
