@@ -15,6 +15,7 @@ using System.Runtime.InteropServices;
 using System.IO.MemoryMappedFiles;
 using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 
@@ -863,36 +864,39 @@ namespace OpenTap
         public static int Combine<T1, T2, T3, T4>(T1 a, T2 b, T3 c, T4 d) =>
             Combine(Combine(a, b, c), d);
     }
-    
+
     static class Utils
     {
         static readonly char[] padding = { '=' };
+
         public static string Base64UrlEncode(byte[] bytes)
         {
             return Convert.ToBase64String(bytes)
                 .TrimEnd(padding).Replace('+', '-')
                 .Replace('/', '_');
         }
+
         public static IEnumerable<(int, T)> WithIndex<T>(this IEnumerable<T> collection)
         {
             return collection.Select((ele, index) => (index, ele));
         }
+
         public static Action Bind<T>(this Action del, Action<T> f, T v)
         {
-            del += () => f(v); 
+            del += () => f(v);
             return del;
         }
-        
+
         /// <summary>
         /// Thread-safe and lock free value exchange. valueGen depends on the current value.
         /// </summary>
         /// <param name="outPlace"> Where to place the value</param>
         /// <param name="valueGen"> Function generating a value based on the current value. </param>
         /// <typeparam name="T"> The type of object. </typeparam>
-        public static void InterlockedSwap<T>(ref T outPlace, Func<T> valueGen) where T: class
+        public static void InterlockedSwap<T>(ref T outPlace, Func<T> valueGen) where T : class
         {
             while (true)
-            {   
+            {
                 // safely add a new item to the list using the compare-and-swap atomic operation.
                 var currentValue = outPlace;
                 var nextValue = valueGen();
@@ -903,19 +907,19 @@ namespace OpenTap
                 }
             }
         }
-        
-        
-    #if DEBUG
+
+
+#if DEBUG
         public static readonly bool IsDebugBuild = true;
-    #else
+#else
         public static readonly bool IsDebugBuild = false;
-    #endif
-        
+#endif
+
         static public Action ActionDefault = () => { };
 
         /// <summary> Swaps two variables </summary>
         public static void Swap<T>(ref T a, ref T b) => (a, b) = (b, a);
-        
+
         /// <summary> Clamps val to be between min and max, returning the result. </summary>
         public static T Clamp<T>(this T val, T min, T max) where T : IComparable<T>
         {
@@ -926,25 +930,28 @@ namespace OpenTap
 
         /// <summary> Returns arg. </summary>
         public static T Identity<T>(T id) => id;
-        
+
         /// <summary> Do nothing. </summary>
-        public static void Noop () { }
+        public static void Noop()
+        {
+        }
 
 
         /// <summary>
         /// Returns the element for which selector returns the max value.
         /// if IEnumerable is empty, it returns default(T) multiplier gives the direction to search.
         /// </summary>
-        static T FindExtreme<T, C>(this IEnumerable<T> sequence, Func<T, C> selector, int multiplier) where C : IComparable
+        static T FindExtreme<T, C>(this IEnumerable<T> sequence, Func<T, C> selector, int multiplier)
+            where C : IComparable
         {
             var e = sequence.GetEnumerator();
             if (!e.MoveNext())
                 return default(T);
-            
+
             T selected = e.Current;
             C max = selector(selected);
 
-            while(e.MoveNext())
+            while (e.MoveNext())
             {
                 var obj = e.Current;
                 C comparable = selector(obj);
@@ -957,7 +964,7 @@ namespace OpenTap
 
             return selected;
         }
-        
+
         /// <summary> Returns the element for which selector returns the max value. if IEnumerable is empty, it returns default(T). </summary>
         public static T FindMax<T, C>(this IEnumerable<T> ienumerable, Func<T, C> selector) where C : IComparable
         {
@@ -997,11 +1004,12 @@ namespace OpenTap
         /// <param name="pred"></param>
         public static void RemoveIf<T>(this IList<T> source, Predicate<T> pred)
         {
-            if(source is List<T> lst)
+            if (source is List<T> lst)
             {
                 lst.RemoveAll(pred);
                 return;
             }
+
             for (int i = source.Count - 1; i >= 0; i--)
             {
                 if (pred(source[i]))
@@ -1018,7 +1026,7 @@ namespace OpenTap
         /// <param name="pred"></param>
         public static void RemoveIf(this System.Collections.IList source, Predicate<object> pred)
         {
-            
+
             for (int i = source.Count - 1; i >= 0; i--)
             {
                 if (pred(source[i]))
@@ -1029,11 +1037,12 @@ namespace OpenTap
         }
 
         static void flattenHeirarchy<T>(IEnumerable<T> lst, Func<T, IEnumerable<T>> lookup, IList<T> result)
-		{
+        {
             flattenHeirarchy(lst, lookup, result, null);
-		}
+        }
 
-        private static void flattenHeirarchy<T>(IEnumerable<T> lst, Func<T, IEnumerable<T>> lookup, IList<T> result, HashSet<T> found)
+        private static void flattenHeirarchy<T>(IEnumerable<T> lst, Func<T, IEnumerable<T>> lookup, IList<T> result,
+            HashSet<T> found)
         {
             foreach (var item in lst)
             {
@@ -1043,9 +1052,10 @@ namespace OpenTap
                         continue;
                     found.Add(item);
                 }
+
                 result.Add(item);
                 var sublist = lookup(item);
-                if(sublist != null)
+                if (sublist != null)
                     flattenHeirarchy(sublist, lookup, result, found);
             }
         }
@@ -1059,7 +1069,8 @@ namespace OpenTap
         /// <param name="distinct">True if only one of each element should be inserted in the list.</param>
         /// <param name="buffer">Buffer to use instead of creating a new list to store the values. This can be used to avoid allocation.</param>
         /// <returns></returns>
-        public static List<T> FlattenHeirarchy<T>(IEnumerable<T> lst, Func<T, IEnumerable<T>> lookup, bool distinct = false, List<T> buffer = null)
+        public static List<T> FlattenHeirarchy<T>(IEnumerable<T> lst, Func<T, IEnumerable<T>> lookup,
+            bool distinct = false, List<T> buffer = null)
         {
             if (buffer != null)
                 buffer.Clear();
@@ -1076,7 +1087,7 @@ namespace OpenTap
                 buffer.Clear();
             else
                 buffer = new List<T>();
-            flattenHeirarchy(lst, x => new []{lookup(x)}, buffer, distinct ? new HashSet<T>() : null);
+            flattenHeirarchy(lst, x => new[] { lookup(x) }, buffer, distinct ? new HashSet<T>() : null);
             return buffer;
         }
 
@@ -1108,8 +1119,12 @@ namespace OpenTap
 
         public static void ForEach<T>(this IEnumerable<T> source, Action<T> func)
         {
-            foreach (var item in source) { func(item); }
+            foreach (var item in source)
+            {
+                func(item);
+            }
         }
+
         /// <summary>
         /// Appends a range of elements to an IEnumerable.
         /// </summary>
@@ -1132,8 +1147,10 @@ namespace OpenTap
                 {
                     return idx;
                 }
+
                 idx++;
             }
+
             return -1;
         }
 
@@ -1163,7 +1180,7 @@ namespace OpenTap
             foreach (var value in values)
                 lst.Add(value);
         }
-        
+
         [Obsolete("Cannot add to array", true)]
         public static void AddRange<T>(this T[] lst, IEnumerable<T> values)
         {
@@ -1179,6 +1196,7 @@ namespace OpenTap
         {
             return new HashSet<T>(source);
         }
+
         /// <summary>
         /// Creates a HashSet from an IEnumerable, with a specialized comparer.
         /// </summary>
@@ -1221,7 +1239,7 @@ namespace OpenTap
         /// <summary> As 'Select and FirstOrDefault' but skipping null values.
         /// Short hand for/more efficient version of 'Select(f).Where(x => x != null).FirstOrDefault()'
         /// </summary>
-        public static T2 FirstNonDefault<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> selector) 
+        public static T2 FirstNonDefault<T1, T2>(this IEnumerable<T1> source, Func<T1, T2> selector)
         {
             foreach (var x in source)
             {
@@ -1231,7 +1249,7 @@ namespace OpenTap
             }
 
             return default(T2);
-        } 
+        }
 
 
         //We need to remember the timers or they risk getting garbage collected before elapsing.
@@ -1248,13 +1266,14 @@ namespace OpenTap
             {
                 System.Threading.Timer timer = null;
                 timer = new System.Threading.Timer(obj =>
+                {
+                    lock (delayTimers) //happens in a new thread to no race.
                     {
-                        lock (delayTimers) //happens in a new thread to no race.
-                        {
-                            delayTimers.Remove(timer);
-                        }
-                        function();
-                    }, null, ms, System.Threading.Timeout.Infinite);
+                        delayTimers.Remove(timer);
+                    }
+
+                    function();
+                }, null, ms, System.Threading.Timeout.Infinite);
                 delayTimers.Add(timer); //see note for delayTimers.
             }
         }
@@ -1312,7 +1331,7 @@ namespace OpenTap
         }
 
         static HashSet<OnceLogToken> logOnceTokens = new HashSet<OnceLogToken>();
-        
+
         /// <summary>
         /// Avoids spamming the log with errors that 
         /// should only be shown once by memorizing token and TraceSource. 
@@ -1329,6 +1348,7 @@ namespace OpenTap
                     logOnceTokens.Add(logtoken);
                     return true;
                 }
+
                 return false;
             }
         }
@@ -1398,6 +1418,7 @@ namespace OpenTap
                 case TypeCode.Decimal: return typeof(decimal);
                 case TypeCode.Char: return typeof(char);
             }
+
             return typeof(object);
         }
 
@@ -1419,7 +1440,7 @@ namespace OpenTap
                 case ulong _: return true;
                 default: return false;
             }
-         
+
         }
 
         public static bool IsFinite(double value)
@@ -1445,7 +1466,7 @@ namespace OpenTap
         /// <param name="flag"></param>
         /// <param name="enabled"></param>
         /// <returns></returns>
-        public static T SetFlag<T>(this T e, T flag, bool enabled) where T: struct
+        public static T SetFlag<T>(this T e, T flag, bool enabled) where T : struct
         {
             if (e is Enum == false)
                 throw new InvalidOperationException("T must be an enum");
@@ -1459,6 +1480,7 @@ namespace OpenTap
 
             return (T)Enum.ToObject(typeof(T), r);
         }
+
         static double churnDoubleNumber(string a, ref int offset)
         {
             // consider using CultureInfo.NumberFormatInfo for decimal separators.
@@ -1473,7 +1495,7 @@ namespace OpenTap
             {
                 var c = a[offset];
                 switch (c)
-                {   
+                {
                     case '-':
                         if (neg == -1 || pls) return neg * val * dec;
                         neg = -1;
@@ -1491,10 +1513,13 @@ namespace OpenTap
                             dec *= 0.1;
                         break;
                 }
+
                 offset += 1;
             }
+
             return neg * val * dec;
         }
+
         /// <summary>
         /// Natural compare takes numbers into account in comparison of strings. Normal sorted: [1,10,100,11,2,23,3] Natural sorted: [1,2,3,10,11,23,100]
         /// </summary>
@@ -1503,18 +1528,19 @@ namespace OpenTap
         /// <returns></returns>
         public static int NaturalCompare(string A, string B)
         {
-            
+
             if (A == null || B == null) // null -> use string.Compare behavior.
                 return string.Compare(A, B);
 
             int ai = 0, bi = 0;
-            for (; ; ai++, bi++)
+            for (;; ai++, bi++)
             {
                 if (ai == A.Length)
                 {
                     if (bi == B.Length) return 0;
                     return -1;
                 }
+
                 if (bi == B.Length) return 1;
                 int nextai = ai;
                 double numA = churnDoubleNumber(A, ref nextai);
@@ -1526,6 +1552,7 @@ namespace OpenTap
                 {
                     return numA.CompareTo(numB);
                 }
+
                 int cmp = A[ai].CompareTo(B[bi]);
                 if (cmp != 0) return cmp;
             }
@@ -1537,7 +1564,7 @@ namespace OpenTap
         public static void Shuffle<T>(this IList<T> col)
         {
             Random rnd = new Random();
-            for(int i = 0; i < col.Count;i++)
+            for (int i = 0; i < col.Count; i++)
             {
                 var j = rnd.Next(0, col.Count);
                 var a = col[i];
@@ -1562,10 +1589,10 @@ namespace OpenTap
             var activeFlags = flags.Where(value.HasFlag).Except(f => f.Equals(zeroValue));
             var result = string.Join(" | ", activeFlags.Select(EnumToReadableString));
             if (string.IsNullOrEmpty(result) == false) return result;
-            
+
             // last resort.
-            var val = (long) Convert.ChangeType(value, TypeCode.Int64);
-            return val.ToString(); 
+            var val = (long)Convert.ChangeType(value, TypeCode.Int64);
+            return val.ToString();
         }
 
         public static string EnumToDescription(Enum value)
@@ -1588,14 +1615,14 @@ namespace OpenTap
                 return Encoding.UTF8.GetString(mem.ToArray());
             }
         }
-        
+
 
         public static object DeserializeFromString(string str)
         {
             return new TapSerializer().DeserializeFromString(str);
         }
 
-        public static T DeserializeFromString<T>(string str) => (T) DeserializeFromString(str);
+        public static T DeserializeFromString<T>(string str) => (T)DeserializeFromString(str);
 
         class ActionDisposable : IDisposable
         {
@@ -1608,7 +1635,7 @@ namespace OpenTap
                 action = null;
             }
         }
-        
+
         public static IDisposable WithDisposable(Action action)
         {
             return new ActionDisposable(action);
@@ -1625,9 +1652,87 @@ namespace OpenTap
         public static string BytesToReadable(long bytes)
         {
             if (bytes < 1000) return $"{bytes} B";
-            if (bytes < 1000000) return $"{bytes/1000.0:0.00} kB";
-            if (bytes < 1000000000 )return $"{bytes/1000000.0:0.00} MB";
-            return $"{bytes/1000000000.0:0.00} GB";
+            if (bytes < 1000000) return $"{bytes / 1000.0:0.00} kB";
+            if (bytes < 1000000000) return $"{bytes / 1000000.0:0.00} MB";
+            return $"{bytes / 1000000000.0:0.00} GB";
+        }
+
+        /// <summary> Backoff strategy for Retry.  </summary>
+        static void Backoff(int retry, int sleepBaseMs = 100)
+        {
+            const double backoffFactor = 2.0;
+            const double jitterFactor = 0.2;
+            double baseSleep = Math.Pow(backoffFactor, retry) * sleepBaseMs;
+            
+            // add a bit of jitter to avoid "thundering herd" problems.
+            Random random = new Random();
+            double jitterAmount = 1.0 + jitterFactor * (random.NextDouble() - 0.5);
+            int totalSleep = (int)(baseSleep * jitterAmount);
+            
+            if (totalSleep > 0)
+                TapThread.Sleep(totalSleep);
+        }
+
+        /// <summary> Retries calling a function a number of times if calling it fails. </summary>
+        /// <param name="function">The function to call.</param>
+        /// <param name="retryOn">an exception type to retry on. By default this is typeof(Exception)</param>
+        /// <param name="maxRetries">default 5 times</param>
+        /// <param name="moreExceptions"> more exceptions to retry on</param>
+        /// <param name="sleepBaseMs"> The time to sleep at first iteration. Subsequent sleeps with be longer</param>
+        public static void Retry(Action function, Type retryOn = null, int maxRetries = 5, Type[] moreExceptions = null,
+            int sleepBaseMs = 100)
+        {
+            Retry<int>(() =>
+            {
+                function();
+                return 0;
+            }, retryOn, maxRetries, moreExceptions, sleepBaseMs);
+        }
+
+        /// <summary> Retries calling a function a number of times if calling it fails. </summary>
+        /// <param name="function">The function to call.</param>
+        /// <param name="retryOn">an exception type to retry on. By default this is typeof(Exception)</param>
+        /// <param name="maxRetries">default 5 times</param>
+        /// <param name="moreExceptions"> more exceptions to retry on</param>
+        /// <param name="sleepBaseMs"> The time to sleep at first iteration. Subsequent sleeps with be longer</param>
+        /// <typeparam name="T">the return type.</typeparam>
+        /// <returns>The return value </returns>
+        public static T Retry<T>(Func<T> function, Type retryOn = null, int maxRetries = 5, Type[] moreExceptions = null,
+            int sleepBaseMs = 100)
+        {
+            if (retryOn == null)
+                retryOn = typeof(Exception);
+            var allExceptions = new[] { retryOn }.Concat(moreExceptions ?? Array.Empty<Type>()).ToArray();
+
+            for (int i = 0; i < maxRetries - 1; i++)
+            {
+
+                try
+                {
+                    return function();
+                }
+                catch (Exception ex)
+                {
+
+                    while (ex is AggregateException a && a.InnerExceptions.Count == 1)
+                    {
+                        ex = a.InnerExceptions[0];
+                    }
+
+                    var exType = ex.GetType();
+                    if (allExceptions.Any(x => x.IsAssignableFrom(exType)))
+                    {
+                        // if one of the expected exceptions.
+                        Backoff(i, sleepBaseMs);
+                        continue;
+                    }
+
+                    ExceptionDispatchInfo.Capture(ex).Throw();
+                }
+            }
+            
+            // on the last attempt just call the function directly
+            return function();
         }
     }
 

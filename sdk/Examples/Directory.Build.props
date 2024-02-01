@@ -34,7 +34,7 @@
 	</PropertyGroup>
 	
 	<PropertyGroup>
-		<DevelopersSystem Condition="'$(Configuration)' == 'Debug CE'">Developer's System CE</DevelopersSystem>
+		<DevelopersSystem Condition="'$(Configuration)' == 'Debug CE'">Editor X</DevelopersSystem>
 		<DevelopersSystem Condition="'$(Configuration)' != 'Debug CE'">Developer's System</DevelopersSystem>
 	</PropertyGroup>
 

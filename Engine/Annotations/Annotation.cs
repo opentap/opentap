@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace OpenTap
@@ -58,7 +59,7 @@ namespace OpenTap
     {
         /// <summary> Annotated available values. </summary>
         IEnumerable<AnnotationCollection> AvailableValues { get; }
-        /// <summary> Annotated selected value. Not this should belong to the set of AvailableValues as well.</summary>
+        /// <summary> Annotated selected value. Note this should belong to the set of AvailableValues as well.</summary>
         AnnotationCollection SelectedValue { get; set; }
     }
     /// <summary> Specifies how suggested value proxies are implemented. This class should rarely be implemented. Consider implementing just ISuggestedValuesAnnotation instead.</summary>
@@ -1775,6 +1776,7 @@ namespace OpenTap
             }
 
             bool isWriting;
+            
             public void Write(object source)
             {
                 if (isWriting) return;
@@ -1788,7 +1790,26 @@ namespace OpenTap
                     if (lst2.IsReadOnly)
                         rdonly = true;
                     if (!rdonly)
-                        lst2.Clear();
+                    {
+                        // Arrays must be re-allocated
+                        if (lst2.GetType().IsArray)
+                        {
+                            // If lst2 is an array, re-allocate it to have the exact number of elements required
+                            var cnt = Elements.Count();
+                            if (cnt != lst2.Count)
+                            {
+                                var elemType = lst2.GetType().GetElementType();
+                                lst2 = Array.CreateInstance(elemType!, cnt);
+                                objValue.Value = lst2;
+                            }
+                        }
+                        // Dynamic collections can just be cleared
+                        else
+                        {
+                            lst2.Clear();
+                        }
+                    }
+
                     int index = 0;
                     foreach (var val in Elements)
                     {
@@ -2725,6 +2746,16 @@ namespace OpenTap
                 }
             }
 
+            if (annotation.Source is ITestStep step)
+            {
+                // if any parent step has disabled their child steps list.
+                // then the settings of this step should be disabled.
+                // There is an overlap between it being "ReadOnly" and "Disabled"
+                // in this case we want it to be disabled, because e.g buttons should not be clickable.
+                if(step.GetParents().Any(parent => parent.ChildTestSteps.IsReadOnly))
+                    annotation.Add(DisabledSettingsAnnotation.Instance);
+            }
+
             if (mem != null)
             {
                 if (annotation.Get<IObjectValueAnnotation>() == null)
@@ -2973,6 +3004,13 @@ namespace OpenTap
                 }
             }
         }
+    }
+
+    
+    internal class DisabledSettingsAnnotation : IEnabledAnnotation
+    {
+        public bool IsEnabled => false;
+        public static DisabledSettingsAnnotation Instance { get; } = new DisabledSettingsAnnotation();
     }
 
     internal class DisplayAnnotationWrapper : IAnnotation, IDisplayAnnotation, IOwnedAnnotation

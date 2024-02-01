@@ -494,5 +494,24 @@ namespace OpenTap.Engine.UnitTests
                 Assert.AreEqual(access.IsVisible, stepModel.Length == 1);
             }            
         }
+        
+        [Test]
+        public void ExternalParametersPlusReloadPlugins()
+        {
+            var plan = new TestPlan();
+            var delay = new DelayStep();
+            plan.ChildTestSteps.Add(delay);
+            
+            var preMember = TypeData.GetTypeData(delay).GetMember(nameof(DelayStep.DelaySecs))
+                .Parameterize(plan, delay, nameof(DelayStep.DelaySecs));
+            
+            var xmlPreSearch = plan.SerializeToString();
+            
+            // searching for plugins should not affect serialization.
+            PluginManager.Search();
+            var xmlPostSearch = plan.SerializeToString();
+            
+            Assert.AreEqual(xmlPreSearch, xmlPostSearch);
+        }
     }
 }
