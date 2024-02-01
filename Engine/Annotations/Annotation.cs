@@ -2746,6 +2746,16 @@ namespace OpenTap
                 }
             }
 
+            if (annotation.Source is ITestStep step)
+            {
+                // if any parent step has disabled their child steps list.
+                // then the settings of this step should be disabled.
+                // There is an overlap between it being "ReadOnly" and "Disabled"
+                // in this case we want it to be disabled, because e.g buttons should not be clickable.
+                if(step.GetParents().Any(parent => parent.ChildTestSteps.IsReadOnly))
+                    annotation.Add(DisabledSettingsAnnotation.Instance);
+            }
+
             if (mem != null)
             {
                 if (annotation.Get<IObjectValueAnnotation>() == null)
@@ -2994,6 +3004,13 @@ namespace OpenTap
                 }
             }
         }
+    }
+
+    
+    internal class DisabledSettingsAnnotation : IEnabledAnnotation
+    {
+        public bool IsEnabled => false;
+        public static DisabledSettingsAnnotation Instance { get; } = new DisabledSettingsAnnotation();
     }
 
     internal class DisplayAnnotationWrapper : IAnnotation, IDisplayAnnotation, IOwnedAnnotation
