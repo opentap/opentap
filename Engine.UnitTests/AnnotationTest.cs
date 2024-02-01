@@ -2441,5 +2441,34 @@ namespace OpenTap.UnitTests
                 }
             }
         }
+
+        [AllowAnyChild]
+        public class ReadOnlyDelays : TestStep
+        {
+            public ReadOnlyDelays()
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    // TestStep.IsReadOnly does not cause the settings to be read-only, but if the ChildTetSteps.IsReadOnly is set this is the case. 
+                    ChildTestSteps.Add(new DelayStep() { IsReadOnly = true });
+                }
+
+                ChildTestSteps.IsReadOnly = true;
+            }
+            
+            public override void Run()
+            {
+                
+            }
+        }
+        
+        [Test]
+        public void TestReadOnlyStepSettings()
+        {
+            var step = new ReadOnlyDelays();
+            var a = AnnotationCollection.Annotate(step.ChildTestSteps[0]);
+            var member = a.GetMember(nameof(DelayStep.DelaySecs));
+            Assert.IsTrue(member.GetAll<IEnabledAnnotation>().Any(x => x.IsEnabled == false));
+        }
     }
 }
