@@ -56,23 +56,25 @@ namespace OpenTap.Plugins
         {
             if (stepLookup.TryGetValue(step.Id, out ITestStep currentStep) && currentStep != step && !ignoredGuids.Contains(step.Id))
             {
-                ITestStepParent getTestPlanReferenceParent(ITestStep s) =>
-                    s.GetParents().FirstOrDefault(p => p.GetType().Name == "TestPlanReference");
-
+                bool anyParentReadonly(ITestStep s) => s.GetParents().Any(p => p.ChildTestSteps.IsReadOnly);
                 step.Id = Guid.NewGuid();
-                if (step is IDynamicStep)
-                {   // if newStep is an IDynamicStep, we just print in debug.
-                    Log.Debug("Duplicate test step ID found in dynamic step. The duplicate ID has been changed for step '{0}'.", step.Name);
-                }
-                else if (getTestPlanReferenceParent(step) is { } p1 &&
-                         getTestPlanReferenceParent(currentStep) is { } p2 &&
-                         p1 != p2)
-                { // If the steps are from two different test plan references, print in debug
-                    Log.Debug("Duplicate test step ID found in test plan reference step. The duplicate ID has been changed for step '{0}'.", step.Name);
-                }
-                else
+                // If any parent of the step's child steps are readonly, this step was likely generated from some other source.
+                // This could happen e.g. when loading a TestPlanReference to the same test plan twice. In this case,
+                // we don't want to emit any warnings about duplicate IDs. Just assign the step a new ID and continue.
+                if (anyParentReadonly(step) == false)
                 {
-                    Log.Warning("Duplicate test step ID found. The duplicate ID has been changed for step '{0}'.", step.Name);
+                    if (step is IDynamicStep)
+                    {
+                        // if newStep is an IDynamicStep, we just print in debug.
+                        Log.Debug(
+                            "Duplicate test step ID found in dynamic step. The duplicate ID has been changed for step '{0}'.",
+                            step.Name);
+                    }
+                    else
+                    {
+                        Log.Warning("Duplicate test step ID found. The duplicate ID has been changed for step '{0}'.",
+                            step.Name);
+                    }
                 }
             }
             stepLookup[step.Id] = step;
