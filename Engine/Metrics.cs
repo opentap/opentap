@@ -4,47 +4,72 @@ using System.Linq;
 
 namespace OpenTap
 {
+    /// <summary>
+    /// Defines a class which can update metrics.
+    /// </summary>
     public interface IMetricUpdateCallback
     {
+        /// <summary> Updates metrics. </summary>
         void UpdateMetrics();
     }
 
+    /// <summary> Defines that a class can consume metrics. </summary>
     public interface IMetricConsumer
     {
+        /// <summary>
+        /// Notifies the metric consumer that the subject has been updated.
+        /// </summary>
+        /// <param name="subject"></param>
         void OnMetricsUpdate(object subject);
     }
 
+    /// <summary> Gives a short name based on metrics. </summary>
     public interface IStatusName
     {
+        /// <summary> the 'status name'.</summary>
         string StatusName { get; }
     }
 
+    /// <summary> Defines a property as a metric. </summary>
     public class MetricAttribute : Attribute
     {
+        /// <summary> Optionally, the name of the metric. </summary>
         public string Name { get; }
 
+        /// <summary> Creates a new instance of the metric attribute </summary>
+        /// <param name="name"></param>
         public MetricAttribute(string name)
         {
             Name = name;
         }
 
-        public MetricAttribute()
+        /// <summary> Creates a new instance of the metric attribute.</summary>
+        public MetricAttribute() : this(null)
         {
-            // inherit the member name from the object.
-            Name = null;
+            
         }
         
     }
     
+    /// <summary>
+    /// Utility methods for metrics,.
+    /// </summary>
     public static class Metrics
     {
         private static WeakHashSet<IMetricConsumer> consumers =
-            new WeakHashSet<IMetricConsumer>(); 
+            new WeakHashSet<IMetricConsumer>();
+        
+        /// <summary> Register a metric consumer. </summary>
+        /// <param name="consumer"></param>
         public static void RegisterMetricConsumer(IMetricConsumer consumer)
         {
             consumers.Add(consumer);
         }
         
+        /// <summary>
+        /// Notifies that a specific object with metrics has been updated.
+        /// </summary>
+        /// <param name="subject"></param>
         public static void NotifyMetricsChanged(object subject)
         {
             foreach (var consumer in consumers.GetElements())
@@ -53,11 +78,13 @@ namespace OpenTap
             }
         }
 
+        /// <summary> Gets metrics from an object. </summary>
         public static ResultTable[] GetMetrics(object subject)
         {
             return GetMetrics((obj) => obj == subject);
         }
         
+        /// <summary>  Gets all metrics in the system.  </summary>
         public static ResultTable[] GetMetrics(Func<object, bool> filter = null)
         {
             if (filter == null) filter = (obj) => true;
