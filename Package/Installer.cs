@@ -12,17 +12,21 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
+using OpenTap.Package.PackageInstallHelpers;
 
 namespace OpenTap.Package
 {
     internal class Installer
     {
-        private readonly static TraceSource log =  OpenTap.Log.CreateSource("Installer");
+        private readonly static TraceSource log = OpenTap.Log.CreateSource("Installer");
         private CancellationToken cancellationToken;
 
         internal delegate void ProgressUpdateDelegate(int progressPercent, string message);
+
         internal event ProgressUpdateDelegate ProgressUpdate;
+
         internal delegate void ErrorDelegate(Exception ex);
+
         internal event ErrorDelegate Error;
 
         internal bool DoSleep { get; set; }
@@ -39,7 +43,7 @@ namespace OpenTap.Package
             UnpackOnly = false;
             PackagePaths = new List<string>();
             TapDir = tapDir?.Trim() ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            if(ExecutorClient.IsRunningIsolated)
+            if (ExecutorClient.IsRunningIsolated)
             {
                 TapDir = tapDir?.Trim() ?? Directory.GetCurrentDirectory();
             }
@@ -49,6 +53,61 @@ namespace OpenTap.Package
             }
         }
 
+        private void InstallInSubprocess(string opentapPath)
+        {
+           // First ensure OpenTAP is installed
+            if (opentapPath != null)
+            {
+                PackagePaths.Remove(opentapPath);
+                PluginInstaller.InstallPluginPackage(TapDir, opentapPath, UnpackOnly);
+            }
+
+            // Nothing to do
+            if (PackagePaths.Count == 0)
+                return;
+
+            { // Install packages in subprocess
+                OnProgressUpdate(20, "Installing system-wide packages.");
+                var installStep = new PackageInstallStep()
+                {
+                    Packages = PackagePaths.ToArray(),
+                    Repositories = Array.Empty<string>(),
+                    Target = TapDir,
+                    SystemWideOnly = false,
+                };
+                
+                Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.TpmInteropPipeName, null);
+                Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.ParentProcessExeDir, null);
+                Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.OpenTapInitDirectory, null);
+                var tap = OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap";
+                var processRunner = new SubProcessHost
+                {
+                    ForwardLogs = true,
+                    MutedSources =
+                    {
+                        "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan",
+                        "UpdateCheck",
+                        "Installation"
+                    },
+                    // The current install action is a locking package action.
+                    // Setting this flag lets the child process bypass the lock on the installation.
+                    TapExe = Path.Combine(TapDir, tap)
+                };
+                
+                var result = processRunner.Run(installStep, false, cancellationToken);
+                if (result != Verdict.Pass)
+                    throw new ExitCodeException((int)PackageExitCodes.PackageInstallError,
+                        $"Failed installing packages.");
+            }
+        }
+        
+        bool PathEqual(string p1, string p2)
+        {
+            p1 = Path.GetFullPath(p1).ToLower().Replace('\\', '/');
+            p2 = Path.GetFullPath(p2).ToLower().Replace('\\', '/');
+            return string.Equals(p1, p2, StringComparison.InvariantCultureIgnoreCase);
+        }
+        
         internal void InstallThread()
         {
             if (cancellationToken.IsCancellationRequested)
@@ -62,50 +121,83 @@ namespace OpenTap.Package
                 // Assume this accounts for roughly 60% of the installation process.
                 int progressPercent = 60;
                 OnProgressUpdate(progressPercent, "Installing packages.");
-                foreach (string fileName in PackagePaths)
+
+
+                (string path, PackageDef pkg) opentap = (null, null);
+                foreach (var p in PackagePaths)
                 {
-                    try
+                    var pkg = PackageDef.FromPackage(p);
+                    if (pkg.Name == "OpenTAP")
                     {
-                        progressPercent += 30 / PackagePaths.Count();
+                        opentap = (p, pkg);
+                        break;
+                    }
+                }
 
-                        log.Info($"Installing {fileName}");
-                        OnProgressUpdate(progressPercent, "Installing " + Path.GetFileNameWithoutExtension(fileName));
-                        Stopwatch timer = Stopwatch.StartNew();
-                        PackageDef pkg = PluginInstaller.InstallPluginPackage(TapDir, fileName, UnpackOnly);
-
-                        log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
-
-
-                        if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
+                // SubProcessHost was added in OpenTAP 9.17.0:
+                // https://github.com/opentap/opentap/pull/193
+                var subprocessSupported = opentap.pkg?.Version is { Minor: >= 17 };
+                // var subprocessSupported = opentap.pkg != null && opentap.pkg.Version.Minor >= 17;
+                // We need to install packages while running isolated in order to safely load newly installed plugins
+                // required for CustomPackageAction handlers.
+                if (subprocessSupported && UnpackOnly == false && !PathEqual(Installation.Current.Directory, TapDir))
+                    InstallInSubprocess(opentap.path);
+                else
+                {
+                    var postInstallSupported = opentap.pkg?.Version is { Minor: >= 24 };
+                    foreach (string fileName in PackagePaths)
+                    {
+                        try
                         {
-                            var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t)).Where(t => t.BaseType == nameof(ICustomPackageData));
-                            if (newPlugins.Any(np => TypeData.GetTypeData(np.Name) == null))  // Only search again, if the new plugins are not already loaded.
+                            progressPercent += 30 / PackagePaths.Count();
+
+                            log.Info($"Installing {fileName}");
+                            OnProgressUpdate(progressPercent, "Installing " + Path.GetFileNameWithoutExtension(fileName));
+                            Stopwatch timer = Stopwatch.StartNew();
+                            PackageDef pkg = PluginInstaller.InstallPluginPackage(TapDir, fileName, UnpackOnly);
+
+                            log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
+
+
+                            if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) &&
+                                PackagePaths.Last() != fileName)
                             {
-                                if (ExecutorClient.IsRunningIsolated)
+                                var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t))
+                                    .Where(t => t.BaseType == nameof(ICustomPackageData));
+                                if (newPlugins.Any(np =>
+                                        TypeData.GetTypeData(np.Name) ==
+                                        null)) // Only search again, if the new plugins are not already loaded.
                                 {
-                                    // Only load installed assemblies if we're running isolated. 
-                                    log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
-                                    PluginManager.DirectoriesToSearch.Add(TapDir);
-                                    PluginManager.SearchAsync();
+                                    if (ExecutorClient.IsRunningIsolated)
+                                    {
+                                        // Only load installed assemblies if we're running isolated. 
+                                        log.Info(timer,
+                                            $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
+                                        PluginManager.DirectoriesToSearch.Add(TapDir);
+                                        PluginManager.SearchAsync();
+                                    }
+                                    else if (!postInstallSupported)
+                                        log.Warning(
+                                            $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
                                 }
-                                else
-                                    log.Warning($"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
                             }
                         }
-                    }
-                    catch
-                    {
-                        if (!ForceInstall)
+                        catch
                         {
-                            if (PackagePaths.Last() != fileName)
-                                log.Warning("Aborting installation of remaining packages (use --force to override this behavior).");
-                            PackageDef failedPackage = PackageDef.FromPackage(fileName);
-                            throw new ExitCodeException((int)PackageExitCodes.PackageInstallError, $"Package failed to install: {failedPackage.Name} version {failedPackage.Version} ({fileName})");
-                        }
-                        else
-                        {
-                            if (PackagePaths.Last() != fileName)
-                                log.Warning("Continuing installation of remaining packages (--force argument used).");
+                            if (!ForceInstall)
+                            {
+                                if (PackagePaths.Last() != fileName)
+                                    log.Warning(
+                                        "Aborting installation of remaining packages (use --force to override this behavior).");
+                                PackageDef failedPackage = PackageDef.FromPackage(fileName);
+                                throw new ExitCodeException((int)PackageExitCodes.PackageInstallError,
+                                    $"Package failed to install: {failedPackage.Name} version {failedPackage.Version} ({fileName})");
+                            }
+                            else
+                            {
+                                if (PackagePaths.Last() != fileName)
+                                    log.Warning("Continuing installation of remaining packages (--force argument used).");
+                            }
                         }
                     }
                 }
