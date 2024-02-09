@@ -130,7 +130,15 @@ namespace OpenTap.Package
                 }
             }
 
-            return LockedExecute(cancellationToken);
+            try
+            {
+                return LockedExecute(cancellationToken);
+            }
+            finally
+            {
+                // Since filelock was disposed, we should also unset HeldLock
+                HeldLock = null;
+            }
         }
 
         /// <summary>

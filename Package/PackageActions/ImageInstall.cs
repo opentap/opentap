@@ -140,9 +140,7 @@ namespace OpenTap.Package
                     return 0;
                 }
 
-                // this really sucks
-                if (this.HeldLock != null)
-                    this.HeldLock.Release();
+                image.InstallLock = HeldLock;
                 image.Deploy(Target, cancellationToken);
                 return 0;
             }

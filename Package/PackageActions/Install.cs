@@ -117,7 +117,7 @@ namespace OpenTap.Package
 
             bool installError = false;
             var installer = new Installer(Target, cancellationToken)
-            { DoSleep = false, ForceInstall = Force, UnpackOnly = UnpackOnly };
+            { DoSleep = false, ForceInstall = Force, UnpackOnly = UnpackOnly, InstallLock = HeldLock};
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
             installer.Error += ex => installError = true;

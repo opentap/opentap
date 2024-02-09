@@ -33,7 +33,7 @@ namespace OpenTap.Package
         internal List<string> PackagePaths { get; private set; }
         internal string TapDir { get; set; }
         internal bool UnpackOnly { get; set; }
-
+        internal IFileLock InstallLock { get; set; }
         internal bool ForceInstall { get; set; }
 
         internal Installer(string tapDir, CancellationToken cancellationToken)
@@ -66,7 +66,8 @@ namespace OpenTap.Package
             if (PackagePaths.Count == 0)
                 return;
 
-            { // Install packages in subprocess
+            {
+                // Install packages in subprocess
                 OnProgressUpdate(20, "Installing system-wide packages.");
                 var installStep = new PackageInstallStep()
                 {
@@ -75,7 +76,7 @@ namespace OpenTap.Package
                     Target = TapDir,
                     SystemWideOnly = false,
                 };
-                
+
                 Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.TpmInteropPipeName, null);
                 Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.ParentProcessExeDir, null);
                 Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.OpenTapInitDirectory, null);
@@ -93,7 +94,24 @@ namespace OpenTap.Package
                     // Setting this flag lets the child process bypass the lock on the installation.
                     TapExe = Path.Combine(TapDir, tap)
                 };
-                
+
+                // If we are holding a filelock, we must release all instances of it so the subprocess can take it
+                // Otherwise, if we are not holding the mutex, we should let the subprocess wait on it normally.
+                if (InstallLock != null && InstallLock.WaitOne(0))
+                {
+                    while (true)
+                    {
+                        try
+                        {
+                            InstallLock.Release();
+                        }
+                        catch
+                        {
+                            break; // all instances released
+                        }
+                    }
+                }
+
                 var result = processRunner.Run(installStep, false, cancellationToken);
                 if (result != Verdict.Pass)
                     throw new ExitCodeException((int)PackageExitCodes.PackageInstallError,
