@@ -130,8 +130,9 @@ namespace OpenTap
         }
         
         public string TapExe { get; set; }
+        internal Dictionary<string, string> EnvironmentOverrides { get; set; } = new Dictionary<string, string>();
 
-        public Verdict Run(TestPlan step, bool elevate, CancellationToken token)
+        private Verdict Run(TestPlan step, bool elevate, CancellationToken token)
         {
             var handle = Guid.NewGuid().ToString();
             var tap = TapExe ?? GetTap();
@@ -146,6 +147,19 @@ namespace OpenTap
                 RedirectStandardError = true,
                 UseShellExecute = false,
             };
+
+            foreach (var kvp in EnvironmentOverrides)
+            {
+                if (kvp.Value == null)
+                {
+                    pInfo.EnvironmentVariables.Remove(kvp.Key);
+                    Environment.SetEnvironmentVariable(kvp.Key, null);
+                }
+                else
+                {
+                    pInfo.EnvironmentVariables[kvp.Key] = kvp.Value;
+                }
+            }
 
             if (elevate)
             {

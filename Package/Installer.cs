@@ -73,13 +73,9 @@ namespace OpenTap.Package
                 {
                     Packages = PackagePaths.ToArray(),
                     Repositories = Array.Empty<string>(),
-                    Target = TapDir,
                     SystemWideOnly = false,
                 };
 
-                Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.TpmInteropPipeName, null);
-                Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.ParentProcessExeDir, null);
-                Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.OpenTapInitDirectory, null);
                 var tap = OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap";
                 var processRunner = new SubProcessHost
                 {
@@ -92,7 +88,17 @@ namespace OpenTap.Package
                     },
                     // The current install action is a locking package action.
                     // Setting this flag lets the child process bypass the lock on the installation.
-                    TapExe = Path.Combine(TapDir, tap)
+                    TapExe = Path.Combine(TapDir, tap),
+                    EnvironmentOverrides = new Dictionary<string, string>()
+                    {
+                        // If these environment variables are set, the subprocess could potentially get confused
+                        // because it thinks it is running isolated, or it might think this current installation
+                        // is its actual installation. 
+                        [ExecutorSubProcess.EnvVarNames.TpmInteropPipeName] = null,
+                        [ExecutorSubProcess.EnvVarNames.ParentProcessExeDir] = null,
+                        [ExecutorSubProcess.EnvVarNames.OpenTapInitDirectory] = null,
+                        ["OPENTAP_NO_UPDATE_CHECK"] = "true",
+                    }
                 };
 
                 // If we are holding a filelock, we must release all instances of it so the subprocess can take it
