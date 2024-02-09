@@ -21,7 +21,7 @@ namespace OpenTap.Metrics
         }
 
         /// <summary> Returns true if a metric has interest. </summary>
-        public static bool HasInterest(MetricInfo metric) => interest.Contains(metric);
+        public static bool HasInterest(MetricInfo metric) => _interest.Contains(metric);
         
         /// <summary> Get information about the metrics available to query. </summary>
         /// <returns></returns>
@@ -38,7 +38,7 @@ namespace OpenTap.Metrics
                 }
                 else
                 {
-                    if (metricProducers.GetOrAdd(type, t => (IMetricProducer)t.CreateInstance()) is IMetricProducer m)
+                    if (_metricProducers.GetOrAdd(type, t => (IMetricProducer)t.CreateInstance()) is IMetricProducer m)
                         producers.Add(m);
                 }
             }
@@ -61,63 +61,10 @@ namespace OpenTap.Metrics
             }
         }
 
-        private static readonly ConcurrentDictionary<ITypeData, IMetricProducer> metricProducers =
+        private static readonly ConcurrentDictionary<ITypeData, IMetricProducer> _metricProducers =
             new ConcurrentDictionary<ITypeData, IMetricProducer>();
 
-        /// <summary>  Gets all metrics in the system.  </summary>
-        public static ResultColumn[] GetMetrics(Func<MetricInfo, bool> filter = null)
-        {
-            if (filter == null) filter = (info) => true;
-            var providers = GetMetricInfos().Where(filter).ToArray();
-            foreach (var cb in providers.Select(p => p.Source).OfType<IMetricUpdateCallback>())
-            {
-                cb.UpdateMetrics();
-            }
-
-            var results = new List<ResultColumn>();
-
-            foreach (var metricBySource in providers.ToLookup(metric => metric.Source))
-            {
-                var obj = metricBySource.Key;
-
-                var td = TypeData.GetTypeData(metricBySource.Key);
-                string name = (obj as IResource)?.Name ?? td.GetDisplayAttribute()?.Name;
-                var metricsBySource = metricBySource.ToLookup(x => x.MetricGroupName);
-                foreach (var sourceGroup in metricsBySource)
-                {
-                    var columns = sourceGroup.Select(mem =>
-                    {
-                        var parameters = new List<ResultParameter>();
-                        if (mem.Member.GetAttribute<UnitAttribute>() is UnitAttribute unit)
-                        {
-                            parameters.Add(new ResultParameter("Unit", unit.Unit));
-                        }
-
-                        var memValue = mem.Member.GetValue(obj) ?? "";
-                        Array array;
-                        if (memValue is IConvertible)
-                        {
-                            array = Array.CreateInstance(memValue.GetType(), 1);
-                        }
-                        else
-                        {
-                            array = new string[1];
-                            memValue = memValue.ToString();
-                        }
-
-                        array.SetValue(memValue, 0);
-
-                        return new ResultColumn(mem.Member.GetDisplayAttribute().Name, array, parameters.ToArray());
-                    });
-
-                    results.AddRange(columns);
-                }
-            }
-            return results.ToArray();
-        }
-
-        private static MetricInfo[] allMetrics;
-        private static HashSet<MetricInfo> interest = new HashSet<MetricInfo>();
+        private static HashSet<MetricInfo> _interest = new HashSet<MetricInfo>();
         
         /// <summary>
         /// Push a metric,
@@ -140,7 +87,7 @@ namespace OpenTap.Metrics
         /// <summary> Poll metrics. </summary>
         public static void PollMetrics()
         {
-            allMetrics = GetMetricInfos().ToArray();
+            var allMetrics = GetMetricInfos().ToArray();
             Dictionary<IMetricConsumer, MetricInfo[]> interestLookup = new Dictionary<IMetricConsumer, MetricInfo[]>();
             foreach (var consumer in _consumers.GetElements())
             {
@@ -148,7 +95,7 @@ namespace OpenTap.Metrics
             }
 
             var interest2 = interestLookup.Values.SelectMany(x => x).Distinct().ToHashSet();
-            interest = interest2;
+            _interest = interest2;
             foreach (var producer in interest2.Select(x => x.Source).Distinct().OfType<IMetricUpdateCallback>())
             {
                 producer.UpdateMetrics();
