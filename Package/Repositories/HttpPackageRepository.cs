@@ -379,13 +379,7 @@ namespace OpenTap.Package
             if (name != null)
                 parameters["name"] = name;
             if (version != null)
-            {
-                if (version == VersionSpecifier.AnyRelease)
-                    // AnyRelease in query parameters is an empty string.
-                    parameters["version"] = "";
-                else
-                    parameters["version"] = version.ToString();     
-            }
+                parameters["version"] = version.ToString();
             if (architecture != CpuArchitecture.Unspecified && architecture != CpuArchitecture.AnyCPU)
                 parameters["architecture"] = architecture.ToString();
             if (os != null)
