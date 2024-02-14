@@ -378,8 +378,14 @@ namespace OpenTap.Package
                 parameters["IsUnlisted"] = false;
             if (name != null)
                 parameters["name"] = name;
-            if (version != null && version != VersionSpecifier.AnyRelease)
-                parameters["version"] = version.ToString();
+            if (version != null)
+            {
+                if (version == VersionSpecifier.AnyRelease)
+                    // AnyRelease in query parameters is an empty string.
+                    parameters["version"] = "";
+                else
+                    parameters["version"] = version.ToString();     
+            }
             if (architecture != CpuArchitecture.Unspecified && architecture != CpuArchitecture.AnyCPU)
                 parameters["architecture"] = architecture.ToString();
             if (os != null)
@@ -442,6 +448,7 @@ namespace OpenTap.Package
                 architecture: package.Architecture);
 
             var packages = RepoClient.Query(parameters, cancellationToken, "PackageDef");
+            
             return packages.Select(p => p["PackageDef"] as string).Where(xml => !string.IsNullOrWhiteSpace(xml))
                 .Select(xml =>
                 {
