@@ -25,6 +25,7 @@ namespace OpenTap.Package
     /// Represents a plugin (type that derives from ITapPlugin) in a payload file of an OpenTAP package.
     /// </summary>
     [XmlType("Plugin")]
+    [DebuggerDisplay("{BaseType} \\ {Type}")]
     public class PluginFile
     {
         /// <summary>
