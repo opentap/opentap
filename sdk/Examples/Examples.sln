@@ -83,7 +83,6 @@ Global
 		{68D30DA3-7F51-449D-A5F0-B1B2E3F59EDD}.LinuxDebug|Any CPU.ActiveCfg = Debug|Any CPU
 		{68D30DA3-7F51-449D-A5F0-B1B2E3F59EDD}.LinuxRelease|Any CPU.ActiveCfg = Release|Any CPU
 		{68D30DA3-7F51-449D-A5F0-B1B2E3F59EDD}.Debug CE|Any CPU.ActiveCfg = Debug CE|Any CPU
-		{68D30DA3-7F51-449D-A5F0-B1B2E3F59EDD}.Debug CE|Any CPU.Build.0 = Debug CE|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
