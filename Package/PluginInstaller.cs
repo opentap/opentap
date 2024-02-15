@@ -8,11 +8,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using System.Diagnostics;
-using System.Reflection;
 using System.IO.Compression;
-using System.Runtime.CompilerServices;
 using System.Threading;
-using System.Runtime.InteropServices;
 using System.ComponentModel;
 
 namespace OpenTap.Package
@@ -356,9 +353,6 @@ namespace OpenTap.Package
                 tryUninstall(path, package, target);
                 throw new Exception($"Failed to install package '{path}'.");
             }
-
-            CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install,
-                new CustomPackageActionArgs(null, false));
 
             return package;
         }

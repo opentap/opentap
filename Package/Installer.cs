@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
+using OpenTap.Package.PackageInstallHelpers;
 
 namespace OpenTap.Package
 {
@@ -49,6 +50,39 @@ namespace OpenTap.Package
             }
         }
 
+        private void RunCustomPackageActions()
+        {
+            var actionStep = new CustomPackageActionStep()
+            {
+                Packages = PackagePaths.ToArray(),
+                Target = TapDir,
+                Force = ForceInstall,
+                ActionStage = PackageActionStage.Install,
+            };
+
+            var processRunner = new SubProcessHost
+            {
+                ForwardLogs = true,
+                MutedSources = { "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan", "UpdateCheck", "Installation" },
+                EnvironmentOverride = new Dictionary<string, string>()
+                {
+                    // Make `Installation.Current` point to the installation being modified in the subprocess
+                    [ExecutorSubProcess.EnvVarNames.ParentProcessExeDir] = TapDir,
+                    // This must be set for the child process to know that it is running isolated, but it should
+                    // not be able to connect to the actual tpm pipe
+                    // This ensures consistent behavior regardless of whether or not the original install process was isolated.
+                    [ExecutorSubProcess.EnvVarNames.TpmInteropPipeName] = "Dummy",
+                }
+            };
+
+            var result = processRunner.Run(actionStep, elevate: false, cancellationToken);
+            if (result != Verdict.Pass)
+            {
+                throw new ExitCodeException((int)PackageExitCodes.PackageInstallError,
+                    $"Failed to run custom package actions.");
+            }
+        }
+
         internal void InstallThread()
         {
             if (cancellationToken.IsCancellationRequested)
@@ -72,26 +106,7 @@ namespace OpenTap.Package
                         OnProgressUpdate(progressPercent, "Installing " + Path.GetFileNameWithoutExtension(fileName));
                         Stopwatch timer = Stopwatch.StartNew();
                         PackageDef pkg = PluginInstaller.InstallPluginPackage(TapDir, fileName, UnpackOnly);
-
-                        log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
-
-
-                        if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
-                        {
-                            var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t)).Where(t => t.BaseType == nameof(ICustomPackageData));
-                            if (newPlugins.Any(np => TypeData.GetTypeData(np.Name) == null))  // Only search again, if the new plugins are not already loaded.
-                            {
-                                if (ExecutorClient.IsRunningIsolated)
-                                {
-                                    // Only load installed assemblies if we're running isolated. 
-                                    log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
-                                    PluginManager.DirectoriesToSearch.Add(TapDir);
-                                    PluginManager.SearchAsync();
-                                }
-                                else
-                                    log.Warning($"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
-                            }
-                        }
+                        log.Info(timer, $"Installed {pkg.Name} version {pkg.Version}");
                     }
                     catch
                     {
@@ -108,6 +123,12 @@ namespace OpenTap.Package
                                 log.Warning("Continuing installation of remaining packages (--force argument used).");
                         }
                     }
+                }
+
+                if (!UnpackOnly)
+                {
+                    OnProgressUpdate(90, "Running custom package actions.");
+                    RunCustomPackageActions();
                 }
 
 

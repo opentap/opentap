@@ -24,6 +24,11 @@ namespace OpenTap
         public string LogHeader { get; set; } = "";
         public bool Unlocked { get; set; } = false;
         public HashSet<string> MutedSources { get; } = new HashSet<string>();
+        
+        /// <summary>
+        /// Override the environment in the subprocess
+        /// </summary>
+        public Dictionary<string, string> EnvironmentOverride { get; set; } = new Dictionary<string, string>();
 
         public static bool IsAdmin()
         {
@@ -142,6 +147,14 @@ namespace OpenTap
                 RedirectStandardError = true,
                 UseShellExecute = false,
             };
+
+            foreach (var o in EnvironmentOverride)
+            {
+                if (o.Value == null && pInfo.Environment.ContainsKey(o.Key))
+                    pInfo.Environment.Remove(o.Key);
+                else
+                    pInfo.Environment[o.Key] = o.Value;
+            }
 
             if (elevate)
             {
