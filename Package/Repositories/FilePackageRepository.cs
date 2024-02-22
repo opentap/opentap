@@ -563,11 +563,21 @@ namespace OpenTap.Package
                     var sw = Stopwatch.StartNew();
                     allPackages = loadPackagesFromFile(allFileInfos).ToList();
                     cache.CachePackageCount = allFileInfos.Count;
-                    
 
                     // Create cache
-                    CreatePackageCache(allPackages, cache);
-                    log.Debug(sw, "Rebuilding cache: {0}", cache.CacheFileName);
+                    try
+                    {
+                        CreatePackageCache(allPackages, cache);
+                        log.Debug(sw, "Rebuilding cache: {0}", cache.CacheFileName);
+                    }
+                    catch (Exception ex)
+                    {
+                        // This can fail if the package cache is in use.
+                        // For example if another thread or process is loading the cache while we are trying to write it.
+                        // This is not that serious, as the cache will just be regenerated later.
+                        log.Debug($"Unable to update package cache: '{ex.Message}'");
+                        log.Debug(ex);
+                    }
                 }
             }
 
