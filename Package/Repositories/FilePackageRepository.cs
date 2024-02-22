@@ -383,7 +383,7 @@ namespace OpenTap.Package
 
                 // Try finding a OpenTAP package
                 var latest = allPackages
-                    .Where(p => package.Equals(p))
+                    .Where(p => package.Name == p.Name)
                     .Where(p => p.Dependencies.All(dep => IsCompatible(dep, openTapIdentifier))).FirstOrDefault(p => p.Version != null && p.Version.CompareTo(package.Version) > 0);
 
                 if (latest != null)
