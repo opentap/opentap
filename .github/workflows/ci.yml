@@ -290,6 +290,33 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"                                                  # Timeout: 5 minutes (normally takes 2 minutes to run) 
           dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=300000 RunConfiguration.TreatNoTestsAsError=true
+  
+  TestEngine-Linux:
+    runs-on: ubuntu-latest
+    needs: Build-Linux
+    strategy:
+      matrix:
+        retries: [ 0, 1 ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '6.0.x'
+      - name: Fix tags
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v3. See https://github.com/actions/checkout/issues/290
+      - name: Download binaries
+        uses: actions/download-artifact@v3
+        with:
+          name: Linux-bin
+          path: bin/
+      - name: Test
+        run: |                                              # Timeout: 5 minutes (normally takes 2 minutes to run) 
+          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=300000 RunConfiguration.TreatNoTestsAsError=true
 
   TestPackage:
     runs-on: windows-2022
