@@ -265,31 +265,33 @@ namespace OpenTap
             completedEvent.Set();
         }
 
+        ITypeData stepTypeData;
+        
+        TestStepRun(ITestStep step)
+        {
+            TestStepId = step.Id;
+            TestStepName = step.GetFormattedName();
+            stepTypeData = TypeData.GetTypeData(step);
+            TestStepTypeName = stepTypeData.AsTypeData().AssemblyQualifiedName;
+            Parameters = ResultParameters.GetParams(step);
+            Verdict = Verdict.NotSet;
+        }
+        
         /// <summary>
         /// Constructor for TestStepRun.
         /// </summary>
         /// <param name="step">Property Step.</param>
         /// <param name="parent">Property Parent. </param>
         /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the steps.</param>
-        public TestStepRun(ITestStep step, Guid parent, IEnumerable<ResultParameter> attachedParameters = null)
+        public TestStepRun(ITestStep step, Guid parent, IEnumerable<ResultParameter> attachedParameters = null): this(step)
         {
-            TestStepId = step.Id;
-            TestStepName = step.GetFormattedName();
-            TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step);
-            Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent;
         }
-        
-        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters, TestPlanRun testPlanRun)
+
+        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters, TestPlanRun testPlanRun): this(step)
         {
             this.testPlanRun = testPlanRun;
-            TestStepId = step.Id;
-            TestStepName = step.GetFormattedName();
-            TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step);
-            Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent.Id;
             BreakCondition = calculateBreakCondition(step, parent);
@@ -378,7 +380,7 @@ namespace OpenTap
             // load member data for results.
             List<IMemberData> resultMembers = null;
             List<IMemberData> primitiveMembers = null;
-            foreach (var member in TypeData.GetTypeData(step).GetMembers())
+            foreach (var member in stepTypeData.GetMembers())
             {
                 if (member.HasAttribute<ResultAttribute>())
                 {
@@ -457,13 +459,13 @@ namespace OpenTap
                 ResultSource.Defer(() =>
                 {
                     deferDone.Set();
-                    stepRuns.Clear();
+                    stepRuns = null;
                 });
             }
             else
             {
                 deferDone.Set();
-                stepRuns.Clear();
+                stepRuns = null;
             }
         }
 
