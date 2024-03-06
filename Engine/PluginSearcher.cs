@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -203,6 +204,45 @@ namespace OpenTap
             private ILookup<string, string> nameToFileMap;
             HashSet<AssemblyRef> UnfoundAssemblies; // for assemblies that are not in the files.
 
+            ImmutableDictionary<Assembly, AssemblyData> assemblyToAssemblyDataLookup = ImmutableDictionary<Assembly, AssemblyData>.Empty;
+
+            /// <summary>
+            /// Find the AssemblyData for a specific loaded Assembly. If not found, it will analyze it and cache it.
+            /// </summary>
+            internal AssemblyData FindAssemblyData(Assembly asm)
+            {
+                if (!assemblyToAssemblyDataLookup.TryGetValue(asm, out var asmData))
+                {
+                    var name = asm.FullName;
+                    if (asmNameToAsmData.TryGetValue(name, out var asmData2))
+                    {
+                        asmData = asmData2;
+                    }else if (nameToAsmMap2.TryGetValue(asm.Location?.ToUpper() ?? "", out var asmRef) && nameToAsmMap.TryGetValue(asmRef, out var asmData3))
+                    {
+                        asmData = asmData3;
+                    }
+
+                    if (asmData == null)
+                    {
+                        foreach (var assembly in Assemblies)
+                        {
+                            if (assembly.GetCached() == asm)
+                            {
+                                asmData = assembly;
+                                break;
+                            }
+                        }
+                    }
+                    if (asmData == null)
+                    {
+                        asmData = AddAssemblyInfo(asm.Location, asm);
+                    }
+                    assemblyToAssemblyDataLookup = assemblyToAssemblyDataLookup.Add(asm, asmData);
+                }
+                
+                return asmData;
+            }
+            
             /// <summary> Manually analyze and add an assembly file. </summary>
             internal AssemblyData AddAssemblyInfo(string file, Assembly loadedAssembly = null)
             {
@@ -374,10 +414,19 @@ namespace OpenTap
 
 
         /// <summary> Adds an assembly outside the 'search' context. </summary>
-        internal void AddAssembly(string path, Assembly loadedAssembly)
+        internal AssemblyData AddAssembly(string path, Assembly loadedAssembly)
         {
             var asm = graph.AddAssemblyInfo(path, loadedAssembly);
             PluginsInAssemblyRecursive(asm);
+            return asm;
+        }
+        
+        /// <summary> Adds an assembly outside the 'search' context. </summary>
+        internal AssemblyData AddAssembly(Assembly loadedAssembly)
+        {
+            var asm = graph.AddAssemblyInfo(loadedAssembly.Location, loadedAssembly);
+            PluginsInAssemblyRecursive(asm);
+            return asm;
         }
 
         /// <summary>
@@ -509,7 +558,7 @@ namespace OpenTap
         }
 
         private static string valueTypeName = typeof(ValueType).FullName;
-        private static readonly Dictionary<string, bool> ValueTypeMap = new Dictionary<string, bool>(); 
+        private static readonly ConcurrentDictionary<string, bool> ValueTypeMap = new ConcurrentDictionary<string, bool>(); 
         private bool IsValueType(TypeDefinition typeDef, string typeName = null)
         {
             
@@ -544,7 +593,7 @@ namespace OpenTap
             }
 
             typeName ??= GetTypeName(typeDef);
-            return ValueTypeMap.GetOrCreateValue(typeName, helper);
+            return ValueTypeMap.GetOrAdd(typeName, helper);
         }
 
         private string GetTypeName(TypeDefinition td)
@@ -972,5 +1021,7 @@ namespace OpenTap
             }
         }
         #endregion
+        internal AssemblyData GetAssemblyData(Assembly asm) => graph.FindAssemblyData(asm);
+    
     }
 }

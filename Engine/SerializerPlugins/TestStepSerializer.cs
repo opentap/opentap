@@ -56,14 +56,25 @@ namespace OpenTap.Plugins
         {
             if (stepLookup.TryGetValue(step.Id, out ITestStep currentStep) && currentStep != step && !ignoredGuids.Contains(step.Id))
             {
+                bool anyParentReadonly(ITestStep s) => s.GetParents().Any(p => p.ChildTestSteps.IsReadOnly);
                 step.Id = Guid.NewGuid();
-                if (step is IDynamicStep)
-                {   // if newStep is an IDynamicStep, we just print in debug.
-                    Log.Debug("Duplicate test step ID found in dynamic step. The duplicate ID has been changed for step '{0}'.", step.Name);
-                }
-                else
+                // If any parent of the step's child steps are readonly, this step was likely generated from some other source.
+                // This could happen e.g. when loading a TestPlanReference to the same test plan twice. In this case,
+                // we don't want to emit any warnings about duplicate IDs. Just assign the step a new ID and continue.
+                if (anyParentReadonly(step) == false)
                 {
-                    Log.Warning("Duplicate test step ID found. The duplicate ID has been changed for step '{0}'.", step.Name);
+                    if (step is IDynamicStep)
+                    {
+                        // if newStep is an IDynamicStep, we just print in debug.
+                        Log.Debug(
+                            "Duplicate test step ID found in dynamic step. The duplicate ID has been changed for step '{0}'.",
+                            step.Name);
+                    }
+                    else
+                    {
+                        Log.Warning("Duplicate test step ID found. The duplicate ID has been changed for step '{0}'.",
+                            step.Name);
+                    }
                 }
             }
             stepLookup[step.Id] = step;
@@ -134,27 +145,27 @@ namespace OpenTap.Plugins
         {
             if (false == obj is ITestStep) return false;
             
-            var objp = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
+            // if we are currently serializing a test step, then if that points to another test step,
+            // that should be serialized as a reference.
+            
+            var currentlySerializing = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
 
-            if(objp != null && objp.Object != null)
+            if(currentlySerializing?.Object != null)
             {
-                if (objp.CurrentMember.TypeDescriptor.DescendsTo(typeof(ITestStep)))
+                if (currentlySerializing.CurrentMember.TypeDescriptor.DescendsTo(typeof(ITestStep)))
                 {
                     elem.Attributes("type")?.Remove();
                     elem.Value = ((ITestStep)obj).Id.ToString();
                     return true;
                 }
-                if (objp.CurrentMember.TypeDescriptor is TypeData tp)
+                if (currentlySerializing.CurrentMember.TypeDescriptor is TypeData tp)
                 {
                     // serialize references in list<ITestStep>, only when they are declared by a test step and not a TestStepList.
-                    if ((tp.ElementType?.DescendsTo(typeof(ITestStep)) ?? false) && objp.CurrentMember.DeclaringType.DescendsTo(typeof(ITestStep)))
+                    if (tp.Type != typeof(TestStepList) && (tp.ElementType?.DescendsTo(typeof(ITestStep)) ?? false) && currentlySerializing.CurrentMember.DeclaringType.DescendsTo(typeof(ITestStep)))
                     {
-                        if (tp != TypeData.FromType(typeof(TestStepList)))
-                        {
-                            elem.Attributes("type")?.Remove();
-                            elem.Value = ((ITestStep)obj).Id.ToString();
-                            return true;
-                        }
+                        elem.Attributes("type")?.Remove();
+                        elem.Value = ((ITestStep)obj).Id.ToString();
+                        return true;
                     }
                 }
             }

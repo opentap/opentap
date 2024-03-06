@@ -1987,32 +1987,37 @@ namespace OpenTap.Engine.UnitTests
 
         class CrashInstrument : Instrument
         {
-            static Semaphore sharedStateA = new Semaphore(1,1);
             public bool OpenThrow { get; set; }
             public bool OpenWait { get; set; }
             public bool CloseThrow { get; set; }
             public bool ClosedDuringOpen { get; set; }
-            bool isopening = false;
+            bool isOpening;
 
             public bool CloseCalled { get; set; }
             public override void Open()
             {
+                if (IsConnected)
+                    throw new InvalidOperationException("Instrument already connected");
                 base.Open();
-                isopening = true;
+                isOpening = true;
+                try
+                {
+                    if (OpenWait)
+                        Thread.Sleep(20);
 
-                if(OpenWait)
-                    TapThread.Sleep(20);
-                
-                isopening = false;
-                
-                    if(OpenThrow)
+                    if (OpenThrow)
                         throw new Exception("Intended failure");
+                }
+                finally
+                {
+                    isOpening = false;
+                }    
             }
             
             public override void Close()
             {
                 CloseCalled = true;
-                if (isopening)
+                if (isOpening)
                 {
                     ClosedDuringOpen = true;
                     Assert.Fail("Close called before open done.");
@@ -2026,25 +2031,52 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void OpenCloseOrder()
         {
-            var instrA = new CrashInstrument() {OpenThrow = true,CloseThrow = true, Name= "A"};
-            var instrB = new CrashInstrument() {OpenWait = true, Name= "B"};
-            var stepA = new InstrumentTestStep() {Instrument = instrA};
-            var stepB = new InstrumentTestStep() {Instrument = instrB};
-            
+            var instrA = new CrashInstrument {OpenThrow = true, CloseThrow = true, Name= "A"};
+            var instrB = new CrashInstrument {OpenWait = true, Name= "B"};
             var parallel = new ParallelStep();
+            // create a bunch of steps to make sure that we test race conditions
+            // in the resource managers.
+            for (int i = 0; i < 10; i++)
+            {
+                var stepA = new InstrumentTestStep { Instrument = instrA };
+                var stepB = new InstrumentTestStep { Instrument = instrB };
+                parallel.ChildTestSteps.Add(stepA);
+                parallel.ChildTestSteps.Add(stepB);
+            }
+            
             var plan = new TestPlan();
-            parallel.ChildTestSteps.Add(stepA);
-            parallel.ChildTestSteps.Add(stepB);
             plan.Steps.Add(parallel);
+            
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Error, run.Verdict);
             Assert.IsFalse(instrA.ClosedDuringOpen);
             Assert.IsFalse(instrB.ClosedDuringOpen); 
             
             // close has to be called even though Open failed.
-            Assert.IsTrue(instrA.CloseCalled);
-            Assert.IsTrue(instrB.CloseCalled); 
+            Assert.IsTrue(instrA.CloseCalled, "instrA.ClosedCalled == false");
+            Assert.IsTrue(instrB.CloseCalled, "instrB.ClosedCalled == false"); 
         }
+        
+        [Test]
+        public void OpenCloseOrderSmall()
+        {
+            var instrA = new CrashInstrument {OpenThrow = true, CloseThrow = true, Name= "A"};
+            
+            var parallel = new ParallelStep();
+            for (int i = 0; i < 10; i++)
+                parallel.ChildTestSteps.Add(new InstrumentTestStep { Instrument = instrA });
+            
+            var plan = new TestPlan();
+            plan.Steps.Add(parallel);
+            
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Error, run.Verdict);
+            Assert.IsFalse(instrA.ClosedDuringOpen);
+            
+            // close has to be called even though Open failed.
+            Assert.IsTrue(instrA.CloseCalled, "instrA.ClosedCalled == false");
+        }
+        
 
         [Test]
         public void TestFastTapThreads()
@@ -2115,6 +2147,7 @@ namespace OpenTap.Engine.UnitTests
         }
         
         [Test]
+        [Repeat(10)]
         public void OpenCloseOrderLazyRM()
         {
             var lastrm = EngineSettings.Current.ResourceManagerType;
@@ -2122,6 +2155,22 @@ namespace OpenTap.Engine.UnitTests
             try
             {
                 OpenCloseOrder();
+            }
+            finally
+            {
+                EngineSettings.Current.ResourceManagerType = lastrm;
+            }
+        }
+        
+        [Test]
+        [Repeat(10)]
+        public void OpenCloseOrderLazyRM_Reduced()
+        {
+            var lastrm = EngineSettings.Current.ResourceManagerType;
+            EngineSettings.Current.ResourceManagerType = new LazyResourceManager();
+            try
+            {
+                OpenCloseOrderSmall();
             }
             finally
             {

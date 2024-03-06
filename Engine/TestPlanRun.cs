@@ -5,13 +5,16 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTap.Plugins;
 
 namespace OpenTap
 {
@@ -27,7 +30,7 @@ namespace OpenTap
     {
         static readonly TraceSource log = Log.CreateSource("TestPlan");
         static readonly TraceSource resultLog = Log.CreateSource("Resources");
-        
+
         TestPlan plan;
         string planXml;
 
@@ -53,7 +56,8 @@ namespace OpenTap
 
         /// <summary> The SHA1 hash of XML of the test plan.</summary>
         //Note: for Hash the group must be Test Plan for backwards-compatibility.
-        public string Hash {
+        public string Hash
+        {
             get => Parameters[nameof(Hash), "Test Plan"]?.ToString();
             private set => Parameters[nameof(Hash), "Test Plan"] = value;
         }
@@ -63,7 +67,7 @@ namespace OpenTap
         [MetaData(macroName: nameof(TestPlanName))]
         public string TestPlanName
         {
-            get => Parameters[nameof(TestPlanName), GROUP].ToString(); 
+            get => Parameters[nameof(TestPlanName), GROUP].ToString();
             private set => Parameters[nameof(TestPlanName), GROUP] = value;
         }
 
@@ -72,10 +76,9 @@ namespace OpenTap
         public bool FailedToStart { get; set; }
 
         /// <summary> The thread that started the test plan. Use this to abort the plan thread. </summary>
-        public TapThread MainThread { get;  }
-        
-        #region Internal Members used by the TestPlan
+        public TapThread MainThread { get; }
 
+        #region Internal Members used by the TestPlan
         internal IEnumerable<IResultListener> ResultListeners => resultWorkers.Keys;
 
         /// <summary>
@@ -91,7 +94,7 @@ namespace OpenTap
                 return;
             resultWorkers.Add(listener, new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, listener.ToString()));
         }
-        
+
         /// <summary>
         /// Removes a result listener from the active result listeners in this run.
         /// Note this can only be done at specific times during test plan execution,
@@ -104,7 +107,7 @@ namespace OpenTap
                 throw new ArgumentNullException(nameof(listener));
             if (ResultListenersSealed)
                 throw new Exception("Test plan is running. ResultListeners cannot be removed at this point");
-            if (!resultWorkers.ContainsKey(listener)) 
+            if (!resultWorkers.ContainsKey(listener))
                 return;
             resultWorkers.Remove(listener);
         }
@@ -117,15 +120,14 @@ namespace OpenTap
         internal IResourceManager ResourceManager { get; private set; }
 
         internal bool IsCompositeRun { get; set; }
-        
+
         /// <summary> Set to true when result listeners cannot be added to the test plan run.</summary>
         internal bool ResultListenersSealed { get; set; }
 
         #region Result propagation dispatcher system
-        
         bool isBusy()
         {
-            foreach(var worker in resultWorkers.Values)
+            foreach (var worker in resultWorkers.Values)
             {
                 if (worker.QueueSize > 0) return true;
             }
@@ -133,7 +135,7 @@ namespace OpenTap
         }
 
         readonly Dictionary<IResultListener, WorkQueue> resultWorkers;
-        
+
         double resultLatencyLimit = EngineSettings.Current.ResultLatencyLimit;
         object workThrottleLock = new object();
         /// <summary> Wait for result queues to become processed if there is too much work in the buffer. The max workload size for any ResultListener is specified by resultLatencyLimit in seconds. </summary>
@@ -168,7 +170,7 @@ namespace OpenTap
                 }
             }
         }
-        
+
         /// <summary>
         /// Waits for result propagation thread to be idle.
         /// </summary>
@@ -184,10 +186,9 @@ namespace OpenTap
         {
             resultWorkers[rl].Wait();
         }
-
         #endregion
 
-        
+
         /// <summary>
         /// List of all TestSteps for which PrePlanRun has already been called.
         /// </summary>
@@ -196,16 +197,18 @@ namespace OpenTap
         private string GetHash(byte[] testPlanXml)
         {
             using (var algo = System.Security.Cryptography.SHA1.Create())
-                return BitConverter.ToString(algo.ComputeHash(testPlanXml),0,8).Replace("-",string.Empty);
+                return BitConverter.ToString(algo.ComputeHash(testPlanXml), 0, 8).Replace("-", string.Empty);
         }
 
         Task serializePlanTask;
-        
+
         internal void AddTestPlanCompleted(HybridStream logStream, bool openCompleted)
         {
-            ScheduleInResultProcessingThread<IResultListener>(r => 
+
+            void onTestPlanCompleted(IResultListener r)
             {
                 var reslog = ResourceTaskManager.GetLogSource(r);
+
                 if (r.IsConnected)
                 {
                     try
@@ -230,10 +233,29 @@ namespace OpenTap
                     if (!openCompleted)
                         reslog.Warning("Run Completed was not called for '{0}' as it failed to open.", r);
                 }
-            });
+            }
+
+            ScheduleInResultProcessingThread<IResultListener>(r =>
+            {
+                if (r is IArtifactListener) return;
+                onTestPlanCompleted(r);
+            }, blocking: true);
+
+            foreach (var kw in resultWorkers)
+            {
+                kw.Value.Wait();
+            }
+
+            ScheduleInResultProcessingThread<IResultListener>(r =>
+            {
+                if (r is IArtifactListener)
+                {
+                    onTestPlanCompleted(r);
+                }
+            }, blocking: true);
 
             // now clean up the result listener workers and wait for them to end.
-            foreach(var kw in resultWorkers)
+            foreach (var kw in resultWorkers)
             {
                 kw.Value.Dispose();
             }
@@ -262,6 +284,12 @@ namespace OpenTap
             {
                 if (item.Key is T x)
                 {
+                    if (r is ISkippableInvokable<T, WorkQueue> skippableInvokable)
+                    {
+                        // skip the work if possible.
+                        if (skippableInvokable.Skip(x, item.Value))
+                            continue;
+                    }
                     count++;
                     item.Value.EnqueueWork(r, x, item.Value);
                 }
@@ -281,12 +309,12 @@ namespace OpenTap
         /// <param name="r"></param>
         /// <param name="blocking"></param>
         /// <returns></returns>
-        int ScheduleInResultProcessingThread<T>(IInvokable<T,WorkQueue> r, bool blocking)
+        int ScheduleInResultProcessingThread<T>(IInvokable<T, WorkQueue> r, bool blocking)
         {
             if (!blocking)
                 return ScheduleInResultProcessingThread(r);
             if (resultWorkers.Count == 0) return 0;
-       
+
             using (var sem = new SemaphoreSlim(0, resultWorkers.Count))
             {
                 int count = ScheduleInResultProcessingThread<T>(l =>
@@ -353,9 +381,9 @@ namespace OpenTap
 
         internal void AddTestStepRunCompleted(TestStepRun stepRun)
         {
-            
+
             var instant = Stopwatch.GetTimestamp();
-            
+
             ScheduleInResultProcessingThread<IResultListener>(listener =>
             {
                 try
@@ -387,7 +415,6 @@ namespace OpenTap
             resultWorkers.Remove(resultListener);
             log.Warning("Removing faulty ResultListener '{0}'", resultListener);
         }
-
         #endregion
 
         /// <summary>
@@ -421,10 +448,10 @@ namespace OpenTap
             public string Hash { get; set; }
             public byte[] Bytes { get; set; }
         }
-        
+
         /// <summary> Memorizer for storing pairs of Xml and hash. </summary>
         static ConditionalWeakTable<TestPlan, StringHashPair> testPlanHashMemory = new ConditionalWeakTable<TestPlan, StringHashPair>();
-        
+
         /// <summary>
         /// Starts tasks to open resources. All referenced instruments and duts as well as supplied resultListeners to the plan.
         /// </summary>
@@ -447,7 +474,7 @@ namespace OpenTap
             {
                 BreakCondition = breakCondition;
             }
-            resultWorkers = new Dictionary<IResultListener, WorkQueue>();
+
             this.IsCompositeRun = isCompositeRun;
             Parameters = ResultParameters.GetComponentSettingsMetadata();
             // Add metadata from the plan itself.
@@ -455,7 +482,7 @@ namespace OpenTap
 
             this.Verdict = Verdict.NotSet; // set Parameters before setting Verdict.
 
-            if (resultListeners !=  null)
+            if (resultListeners != null)
             {
                 foreach (var res in resultListeners)
                 {
@@ -477,17 +504,17 @@ namespace OpenTap
 
                 if (plan.GetCachedXml() is byte[] xml)
                 {
-                    
-                    if(!testPlanHashMemory.TryGetValue(this.plan, out var pair))
+
+                    if (!testPlanHashMemory.TryGetValue(this.plan, out var pair))
                     {
                         if (pair == null)
                         {
                             pair = new StringHashPair();
-                            testPlanHashMemory.Add(plan, pair);    
+                            testPlanHashMemory.Add(plan, pair);
                         }
                     }
 
-                    
+
                     if (Equals(pair.Bytes, xml) == false)
                     {
                         pair.Xml = Encoding.UTF8.GetString(xml);
@@ -522,10 +549,10 @@ namespace OpenTap
                     }
                 }
             });
-            
-            
+
+
             TestPlanName = plan.Name;
-            if(plan.Path != null)
+            if (plan.Path != null)
                 Parameters["TestPlanPath", ""] = plan.Path;
             this.plan = plan;
         }
@@ -539,7 +566,7 @@ namespace OpenTap
                     ResourceManager = new ResourceTaskManager();
                 else
                     ResourceManager =
-                        (IResourceManager) EngineSettings.Current.ResourceManagerType.GetType().CreateInstance();
+                        (IResourceManager)EngineSettings.Current.ResourceManagerType.GetType().CreateInstance();
             }
 
             if (planRunStarted)
@@ -547,18 +574,19 @@ namespace OpenTap
 
             // waits for prompt before loading the parameters.
             planRunStarted = true;
-            ResourceManager.ResourceOpened += 
+            ResourceManager.ResourceOpened +=
                 res => Parameters.AddRange(ResultParameters.GetMetadataFromObject(res));
-            
+
         }
 
-        internal TestPlanRun() 
+        internal TestPlanRun()
         {
             MainThread = TapThread.Current;
             FailedToStart = false;
-            
-            {   // AbortCondition
-                
+            resultWorkers = new Dictionary<IResultListener, WorkQueue>();
+
+            { // AbortCondition
+
                 var abort2 = EngineSettings.Current.AbortTestPlan;
                 BreakCondition = default;
                 if (abort2.HasFlag(EngineSettings.AbortTestPlanType.Step_Fail))
@@ -578,7 +606,7 @@ namespace OpenTap
 
             this.Parameters = original.Parameters; // set Parameters before setting Verdict.
             this.Verdict = Verdict.NotSet;
-            
+
             foreach (var res in ResultListeners)
             {
                 AddResultListener(res);
@@ -612,6 +640,99 @@ namespace OpenTap
         }
         #endregion
 
+        static readonly TraceSource artifactsLog = Log.CreateSource("Artifacts");
+
+        internal Task PublishArtifactWithRunAsync(string file, TestRun run)
+        {
+            return PublishArtifactWithRunAsync(new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Write | FileShare.Delete), Path.GetFileName(file), run);
+        }
+
+        internal Task PublishArtifactWithRunAsync(Stream inStream, string filename, TestRun run)
+        {
+            // multiple threads might be publishing artifacts at the same time, so this add needs to be done safely.
+            Utils.InterlockedSwap(ref artifacts, () => artifacts.Add(filename));
+
+            var streamGetters = new BlockingCollection<Stream>();
+
+            int readerRefCount = 0;
+            TeeStream tee = inStream is FileStream ? null : new TeeStream(inStream);
+            ManualResetEventSlim go = new ManualResetEventSlim(false);
+            
+            // The result type does not matter.
+            TaskCompletionSource<bool> finishedSignal = new TaskCompletionSource<bool>();
+            
+            readerRefCount = ScheduleInResultProcessingThread<IArtifactListener>(l =>
+            {
+                go.Wait();
+                Stream s2;
+                if (inStream is FileStream fileStream)
+                {
+                    s2 = new FileStream(fileStream.Name, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Write | FileShare.Delete);
+                }
+                else
+                {
+                    while (!streamGetters.TryTake(out s2))
+                    {
+                        TapThread.Sleep(10);
+                    }
+                }
+                try
+                {
+                    l.OnArtifactPublished(run, s2, filename);
+                    s2.Dispose();
+                }
+                catch (Exception e)
+                {
+                    artifactsLog.Error("Error during Test Step Run Start for {0}", l);
+                    artifactsLog.Debug(e);
+                }
+                finally
+                {
+                    Interlocked.Decrement(ref readerRefCount);
+                    if (readerRefCount == 0)
+                    {
+                        inStream.Dispose();
+                        finishedSignal.SetResult(true);
+                    }
+
+                }
+            });
+            if (tee != null)
+            {
+                var subStreams = tee.CreateClientStreams(readerRefCount);
+                foreach (var str in subStreams)
+                {
+                    streamGetters.Add(str);
+                }
+            }
+            if (readerRefCount == 0)
+            {
+                inStream.Dispose();
+                return Task.FromResult(0);
+            }
+            
+            go.Set();
+            return finishedSignal.Task;
+        }
+
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        /// <param name="stream"> The artifact data as a stream. When publishing an artifact stream, the stream will be disposed by the callee and does not have to be disposed by the caller.</param>
+        /// <param name="artifactName"> The name of the published artifact. </param>
+        public void PublishArtifact(Stream stream, string artifactName) => PublishArtifactWithRunAsync(stream, artifactName, this).Wait();
         
+        /// <summary> Publishes an artifact for the test plan run asynchronously. </summary>
+        /// <param name="stream"> The artifact data as a stream. When publishing an artifact stream, the stream will be disposed by the callee and does not have to be disposed by the caller.</param>
+        /// <param name="artifactName"> The name of the published artifact. </param>
+        public Task PublishArtifactAsync(Stream stream, string artifactName) => PublishArtifactWithRunAsync(stream, artifactName, this);
+
+        /// <summary> Publishes an artifact for the test plan run. </summary>
+        public void PublishArtifact(string file) => PublishArtifactWithRunAsync(file, this).Wait();
+
+        /// <summary> Publishes an artifact for the test plan run asynchronously. </summary>
+        public Task PublishArtifactAsync(string file) => PublishArtifactWithRunAsync(file, this);
+        
+        /// <summary> Returns a list of all published artifacts. This list will get updated as the test plan progresses.</summary>
+        public IEnumerable<string> Artifacts => artifacts;
+        ImmutableHashSet<string> artifacts = ImmutableHashSet<string>.Empty;
     }
 }

@@ -11,49 +11,36 @@ OpenTAP offers a range of sequencing functionality and infrastructure that makes
 
 Learn more about OpenTAP [here](http://opentap.io).
 
-
+We recommend that you [download the Developer's System](https://www.keysight.com/find/tapinstall) provided by Keysight Technologies available with a commercial or community license. The Developer's System is a bundle that contains the SDK as well as a graphical user interface and result-viewing capabilities. 
 
 ## Install OpenTAP
 ### Windows
 1. Download OpenTAP from our homepage [here](https://opentap.io/downloads). 
 2. Start the installer.
 
-We recommend that you download the Software Development Kit, or simply the Developer’s System Community Edition provided by Keysight Technologies. The Developer System is a bundle that contains the SDK as well as a graphical user interface and result viewing capabilities. It can be installed by typing the following:
-```cmd
-cd "C:\Program Files\OpenTAP" (or the directory you selected in the installer)
-tap package install "Developer's System CE" -y
-```
-
 ### Linux
-<!--When installing on Linux there are a few options:-->
-#### 1. Install dependencies
-On Linux, OpenTAP has a few dependencies that must be manually installed, namely
-libc6, libunwind, unzip, git, and curl. On Debian derivatives, these can be installed
-by running the following command:
-
-`apt-get install libc6-dev libunwind8 unzip git curl`
-
-Note that the packages may have different names on other distributions. OpenTAP
-should still work if you install the equivalent packages for your distribution.
-
-In addition to these packages, OpenTAP depends on dotnet runtime version 6.0. The installation procedure depends on your distribution. Please see [the official documentation from
-Microsoft ](https://docs.microsoft.com/en-us/dotnet/core/install/runtime) for further instructions.
-
 > Note: Dotnet installed using [Snap](https://docs.microsoft.com/en-us/dotnet/core/install/linux-snap) is NOT supported.
 The Snap permissions for dotnet does not permit it to read *hidden* files (files or directories starting with a '.') which breaks core functionality of OpenTAP.
 
-#### 2. Install OpenTAP
-Download the OpenTAP distribution (`.tar`<!--, `.dep` or `.rpm`-->) from our homepage
-[here](https://opentap.io/downloads). 
+For Ubuntu 20.04 and up, we provide an installer similar to the windows installer.
 
-Install the downloaded distribution:
+1. Download OpenTAP from our homepage [here](https://opentap.io/downloads). 
+2. Make the installer executable: `chmod +x path-to-installer`
+3. Start the installer.
 
-<!--- `.dep` run `sudo apt install ./OpenTAP*.deb`
-- `.rpm` run `sudo dnf install ./OpenTAP*.rpm`-->
-- `.tar` do the following:
-	1. Untar the package in you home directory `tar -xf OpenTAP*.tar`
-	2. Change the permission of the INSTALL.sh file to be executable: `chmod u+x INSTALL.sh`
-	3. Run the INSTALL.sh script: `./INSTALL.sh`.
+The installer supports the `--quiet` flag which can be used to install OpenTAP in scripts, or in a terminal environemnt:
+
+```bash
+# Download the latest OpenTAP release
+curl -Lo opentap.linux https://packages.opentap.io/4.0/Objects/www/OpenTAP?os=Linux
+# Make it executable
+chmod +x ./opentap.linux
+# Run the installer
+sudo ./opentap.linux --quiet
+```
+
+The installer is likely to work on other Linux distributions, but additional dependencies
+may be required on these platforms, e.g. dotnet 6 runtime.
 
 ### Docker
 We also provide docker images for running OpenTAP. You can find them at

@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace OpenTap
@@ -58,7 +59,7 @@ namespace OpenTap
     {
         /// <summary> Annotated available values. </summary>
         IEnumerable<AnnotationCollection> AvailableValues { get; }
-        /// <summary> Annotated selected value. Not this should belong to the set of AvailableValues as well.</summary>
+        /// <summary> Annotated selected value. Note this should belong to the set of AvailableValues as well.</summary>
         AnnotationCollection SelectedValue { get; set; }
     }
     /// <summary> Specifies how suggested value proxies are implemented. This class should rarely be implemented. Consider implementing just ISuggestedValuesAnnotation instead.</summary>
@@ -417,50 +418,48 @@ namespace OpenTap
         {
             get
             {
-                doRead();
+                DoRead();
                 if (string.IsNullOrWhiteSpace(error) == false)
                     return new[] { error };
                 return Array.Empty<string>();
             }
         }
 
-        private IDataErrorInfo source;
-        void doRead()
+        object source;
+        void DoRead()
         {
             var source = this.source;
             var mem = this.mem.Member;
             
-            if (mem is EmbeddedMemberData m2)
-            {   // Special case to add support for EmbeddedMemberData.
+            // Special case to add support for EmbeddedMemberData.
+            // The embedded member may be nested in multiple layers
+            // of embeddings normally it is just one level though.
+            // iterate to grab the innermost source and member.
+            while (mem is EmbeddedMemberData m2)
+            {   
                 if (source == null) return;
-                source = m2.OwnerMember.GetValue(source) as IDataErrorInfo;
+                source = m2.OwnerMember.GetValue(source);
                 mem = m2.InnerMember;
             }
 
-            if (source == null) return;
+            if (source is IDataErrorInfo dataErrorInfo)
             {
                 try
                 {
-                    error = source[mem.Name];
+                    error = dataErrorInfo[mem.Name];
                 }
                 catch (Exception e)
                 {
                     error = e.Message;
                 }
                 // set source to null to signal that errors has been read this time.
-                this.source = null; 
             }
+            this.source = null; 
         }
 
-        public void Read(object source)
-        {
-            this.source = source as IDataErrorInfo;
-        }
+        public void Read(object source) => this.source = source;
 
-        public void Write(object source)
-        {
-
-        }
+        public void Write(object source) { }
     }
 
 
@@ -737,7 +736,8 @@ namespace OpenTap
                     {
                         var x = merged[i];
                         var thisVal = x.Get<IObjectValueAnnotation>().Value;
-                        if (thisVal == selectedValue) return selectedValue;
+                        if (thisVal == selectedValue) 
+                            continue;
                         if (selectedValue is IEnumerable ie1 && !(selectedValue is string))
                         {
                             // if the two lists has the same content it is fine to just return one of them.
@@ -746,7 +746,7 @@ namespace OpenTap
                             if (thisVal is IEnumerable ie2)
                             {
                                 if (ie2.Cast<object>().SequenceEqual(ie1.Cast<object>()))
-                                    return selectedValue;
+                                    continue;
                             }
 
                             return null;
@@ -916,7 +916,7 @@ namespace OpenTap
                     
                     newa.Add(manyAccess);
 
-                    var enabledAnnotations = mergething.SelectValues(x => x.Get<IEnabledAnnotation>()).ToArray();
+                    var enabledAnnotations = mergething.SelectMany(x => x.GetAll<IEnabledAnnotation>()).ToArray();
                     if (enabledAnnotations.Length > 0)
                     {
                         var manyEnabled = new ManyEnabledAnnotation(enabledAnnotations);
@@ -1210,6 +1210,17 @@ namespace OpenTap
             this.AvailableMember = annotation;
         }
     }
+    
+    /// <summary>
+    /// This is interface is used for generating something from a string.
+    /// Currently it is used only for PluginTypeSelectorAttribute
+    /// </summary>
+    interface IAnnotationStringer : IAnnotation
+    {
+        /// <summary> Gets the string value of an object.  </summary>
+        string GetString(AnnotationCollection item);
+    }
+
 
     /// <summary> The default data annotator plugin. This normally forms the basis for annotation. </summary>
     public class DefaultDataAnnotator : IAnnotator
@@ -1765,6 +1776,7 @@ namespace OpenTap
             }
 
             bool isWriting;
+            
             public void Write(object source)
             {
                 if (isWriting) return;
@@ -1778,7 +1790,26 @@ namespace OpenTap
                     if (lst2.IsReadOnly)
                         rdonly = true;
                     if (!rdonly)
-                        lst2.Clear();
+                    {
+                        // Arrays must be re-allocated
+                        if (lst2.GetType().IsArray)
+                        {
+                            // If lst2 is an array, re-allocate it to have the exact number of elements required
+                            var cnt = Elements.Count();
+                            if (cnt != lst2.Count)
+                            {
+                                var elemType = lst2.GetType().GetElementType();
+                                lst2 = Array.CreateInstance(elemType!, cnt);
+                                objValue.Value = lst2;
+                            }
+                        }
+                        // Dynamic collections can just be cleared
+                        else
+                        {
+                            lst2.Clear();
+                        }
+                    }
+
                     int index = 0;
                     foreach (var val in Elements)
                     {
@@ -2557,8 +2588,15 @@ namespace OpenTap
             }
         }
 
-        class PluginTypeSelectAnnotation : IAvailableValuesAnnotation
+  
+        class PluginTypeSelectAnnotation : IAvailableValuesAnnotation, IAnnotationStringer
         {
+            /// <summary> This is used for generating strings for available and selected values. </summary>
+            public string GetString(AnnotationCollection item)
+            {
+                return item.Get<IDisplayAnnotation>()?.Name;
+            }
+            
             IEnumerable<object> selection;
             public IEnumerable AvailableValues {
                 get
@@ -2576,24 +2614,38 @@ namespace OpenTap
                     {
                         var currentType = TypeData.GetTypeData(currentValue);
                         List<object> selection = new List<object>();
-                        foreach (var type in PluginManager.GetPlugins(cst.Type))
+                        
+                        if (attrib.ObjectSourceProperty != null)
                         {
-                            try
+                            // if there is a source property, look for that. 
+                            var obj = annotation.ParentAnnotation.Source;
+                            var mem = TypeData.GetTypeData(obj).GetMember(attrib.ObjectSourceProperty);
+                            var src = mem.GetValue(obj) as IEnumerable;
+                            foreach (var item in src)
+                                selection.Add(item);
+                        }
+                        else
+                        {
+                            // there is no objects source, so just generate them from the plugins.
+                            foreach (var type in PluginManager.GetPlugins(cst.Type))
                             {
-                                var cstt = TypeData.FromType(type);
-                                if (cstt == currentType)
+                                try
                                 {
-                                    selection.Add(currentValue);
+                                    var cstt = TypeData.FromType(type);
+                                    if (cstt == currentType)
+                                    {
+                                        selection.Add(currentValue);
+                                    }
+                                    else
+                                    {
+                                        var obj = Activator.CreateInstance(type);
+                                        selection.Add(obj);
+                                    }
                                 }
-                                else
+                                catch
                                 {
-                                    var obj = Activator.CreateInstance(type);
-                                    selection.Add(obj);
-                                }
-                            }
-                            catch
-                            {
 
+                                }
                             }
                         }
                         this.selection = selection;
@@ -2694,6 +2746,16 @@ namespace OpenTap
                 }
             }
 
+            if (annotation.Source is ITestStep step)
+            {
+                // if any parent step has disabled their child steps list.
+                // then the settings of this step should be disabled.
+                // There is an overlap between it being "ReadOnly" and "Disabled"
+                // in this case we want it to be disabled, because e.g buttons should not be clickable.
+                if(step.GetParents().Any(parent => parent.ChildTestSteps.IsReadOnly))
+                    annotation.Add(DisabledSettingsAnnotation.Instance);
+            }
+
             if (mem != null)
             {
                 if (annotation.Get<IObjectValueAnnotation>() == null)
@@ -2747,19 +2809,37 @@ namespace OpenTap
 
             if (mem != null)
             {
-                if (mem.Member.DeclaringType.DescendsTo(typeof(IValidatingObject)))
+                var member = mem.Member;
+                if (member.DeclaringType.DescendsTo(typeof(IValidatingObject)))
                 {
                     annotation.Add(new ValidationErrorAnnotation(mem));
                 }
+                else if (member is EmbeddedMemberData emb)
+                {
+                    // if the member is not part of a validating object, but
+                    // it comes from an embedded property which is, then the annotation
+                    // should also be added.
+                    while (emb != null)
+                    {
+                        if (emb.InnerMember.DeclaringType.DescendsTo(typeof(IValidatingObject)))
+                        {
+                            annotation.Add(new ValidationErrorAnnotation(mem));
+                            break;
+                        }
+                        emb = emb.InnerMember as EmbeddedMemberData;
+                    }
+                }
 
-                if (mem.Member.HasAttribute<EnabledIfAttribute>())
+                if (member.HasAttribute<EnabledIfAttribute>())
                 {
                     annotation.Add(new EnabledIfAnnotation(mem));
                 }
-                if (mem.Member.Writable == false)
+                if (member.Writable == false)
                 {
                     annotation.Add(new ReadOnlyMemberAnnotation());
                 }
+                
+                    
             }
 
             if (reflect?.ReflectionInfo is TypeData csharpType)
@@ -2884,9 +2964,11 @@ namespace OpenTap
                         && param.ParameterizedMembers.All(x => x.Member.DeclaringType.DescendsTo(typeof(ITestStep))))
                         annotation.Add(new InputStepAnnotation(annotation, true));
                 }
-                
+
                 if (mem2.DeclaringType.DescendsTo(typeof(ITestStepParent)))
-                    annotation.Add(new MenuAnnotation(mem2));
+                {
+                    annotation.Add(new MenuAnnotation(mem2, mem2.DeclaringType, annotation.ParentAnnotation));
+                }
 
                 if (mem2.Name == nameof(ParameterManager.NamingQuestion.Settings) && mem2.DeclaringType.DescendsTo(TypeData.FromType(typeof(ParameterManager.NamingQuestion))))
                     annotation.Add(new ParameterManager.SettingsName(annotation));
@@ -2895,8 +2977,14 @@ namespace OpenTap
             if (reflect?.ReflectionInfo is ITypeData tp)
             {
                 if (tp.DescendsTo(typeof(ITestStep)))
-                    annotation.Add(new StepNameStringValue(annotation, member: false));
-                
+                {
+                    annotation.Add(new StepNameStringValue(annotation, member: false));                
+                }
+
+                // When not annotating a member, but an object, we add type annotation.
+                if (annotation.Any(x => x is MenuAnnotation) == false && (tp.DescendsTo(typeof(ITestStepParent)) || tp.DescendsTo(typeof(IResource))))
+                    annotation.Add(new MenuAnnotation(tp));
+          
                 bool csharpPrimitive = tp is TypeData cst && (cst.Type.IsPrimitive || cst.Type == typeof(string));
                 if (tp.GetMembers().Any(x => x.HasAttribute<AnnotationIgnoreAttribute>() == false) && !csharpPrimitive)
                 {
@@ -2916,6 +3004,13 @@ namespace OpenTap
                 }
             }
         }
+    }
+
+    
+    internal class DisabledSettingsAnnotation : IEnabledAnnotation
+    {
+        public bool IsEnabled => false;
+        public static DisabledSettingsAnnotation Instance { get; } = new DisabledSettingsAnnotation();
     }
 
     internal class DisplayAnnotationWrapper : IAnnotation, IDisplayAnnotation, IOwnedAnnotation
@@ -3026,6 +3121,12 @@ namespace OpenTap
                         {
                             var da2 = a.AnnotateSub(TypeData.GetTypeData(obj), obj, readOnly,
                                 new AvailableMemberAnnotation(a));
+                            
+                            // the annotation stringer is just used for PluginTypeSelector
+                            var annotationStringer = a.Get<IAnnotationStringer>();
+                            if (annotationStringer != null)
+                                da2.Add(new ConstStringAnnotation(annotationStringer.GetString(da2)));
+                            
                             lst.Add(da2);
                         }
                     }
@@ -3035,6 +3136,14 @@ namespace OpenTap
                     return annotations;
                 }
             }
+
+            /// <summary>  This is just a constant string shown in the UI. </summary>
+            class ConstStringAnnotation : IStringReadOnlyValueAnnotation
+            {
+                public ConstStringAnnotation(string str) => Value = str;
+                public string Value { get; }
+            }
+            
             public AnnotationCollection SelectedValue
             {
                 get
@@ -3055,7 +3164,14 @@ namespace OpenTap
                         }
                     }
 
-                    return a.AnnotateSub(TypeData.GetTypeData(current), current, new ReadOnlyMemberAnnotation(), new AvailableMemberAnnotation(a));
+                    var a3 = a.AnnotateSub(TypeData.GetTypeData(current), current, new ReadOnlyMemberAnnotation(), new AvailableMemberAnnotation(a));
+
+                    {   // the annotation stringer is just used for PluginTypeSelector
+                        var stringer = a.Get<IAnnotationStringer>();
+                        if (stringer != null) a3.Add(new ConstStringAnnotation(stringer.GetString(a3)));
+                    }
+
+                    return a3;
                 }
                 set
                 {
@@ -3741,8 +3857,18 @@ namespace OpenTap
         public static AnnotationCollection GetMember(this AnnotationCollection col, string name)
         {
             var name2 = name;
-            var sub = col.Get<IMembersAnnotation>().Members.FirstOrDefault(x => x.Get<IMemberAnnotation>()?.Member.Name == name2);
-            return sub;
+            foreach (var mem in col.Get<IMembersAnnotation>().Members)
+            {
+                var memberName = mem.Get<IMemberAnnotation>()?.Member.Name;
+                var found = memberName == name2;
+                if (found) return mem;
+            }
+            foreach (var mem in col.Get<IMembersAnnotation>().Members)
+            {
+                if (mem.Name == name)
+                    return mem;
+            }
+            return null;
         }
 
         /// <summary>  helper method to get the icon annotation collection. Will return null if the item could not be found. </summary>

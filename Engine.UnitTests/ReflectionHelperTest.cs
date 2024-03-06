@@ -10,6 +10,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization.Formatters.Binary;
+using System.Threading.Tasks;
 using Tap.Shared;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 
@@ -65,12 +66,10 @@ namespace OpenTap.Engine.UnitTests
             var array = new byte[] { 1, 2, 3, 4, 5, 6 };
             api.Write(array);
 
-            var bf = new BinaryFormatter();
+            
             var memstr = new MemoryStream();
             string[] strings2 = new[] { "asd", "", null };
-#pragma warning disable SYSLIB0011 // Type or member is obsolete
-            bf.Serialize(memstr, strings2);
-#pragma warning restore SYSLIB0011 // Type or member is obsolete
+            new TapSerializer().Serialize(memstr, strings2);
             api.Write(memstr.ToArray());
 
             var array2 = new int[] { 1, 2, 3, 4, 5, 6 };
@@ -81,9 +80,7 @@ namespace OpenTap.Engine.UnitTests
             var thedata = api2.Read<byte[]>();
             Assert.IsTrue(array.SequenceEqual(thedata));
             var stream = api2.ReadStream();
-#pragma warning disable SYSLIB0011 // Type or member is obsolete
-            var strings3 = (string[])bf.Deserialize(stream);
-#pragma warning restore SYSLIB0011 // Type or member is obsolete
+            var strings3 = (string[])new TapSerializer().Deserialize(stream);
             strings2.SequenceEqual(strings3);
             var array3 = api2.Read<int[]>();
             Assert.IsTrue(array2.SequenceEqual(array3));
@@ -374,6 +371,92 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(inv1.SequenceEqual(new[] { 1, 0 }));
             Assert.IsTrue(inv1.SequenceEqual(inv2));
             Assert.AreEqual(4, exceptionsCaught);
+        }
+
+        [Test]
+        public void TestTimeFromSeconds()
+        {
+            Assert.AreEqual(TimeSpan.Zero, Time.FromSeconds(0));
+            Assert.AreEqual(TimeSpan.MaxValue, Time.FromSeconds(double.PositiveInfinity));
+            Assert.Throws<ArithmeticException>(() => Time.FromSeconds(double.NaN));
+            Assert.AreEqual(TimeSpan.MaxValue, Time.FromSeconds(1000000000000000000000000000.0));
+            Assert.AreEqual(TimeSpan.MinValue, Time.FromSeconds(-1000000000000000000000000000.0));
+        }
+
+        [Test]
+        public void BatchingTest()
+        {
+            var inv = Enumerable.Range(0, 1000).Batch(32).OrderByDescending(x => x).ToArray();
+            Assert.IsTrue(inv.SequenceEqual(Enumerable.Range(0, 1000).OrderByDescending(x => x)));
+        }
+
+        [Test]
+        public void CompareAndExchangeTest()
+        {
+            object X = 1;
+            object Y = 2;
+            Utils.InterlockedSwap(ref X, () => 3);
+            Utils.InterlockedSwap(ref Y, () => 4);
+            Assert.AreEqual(3, X);
+            Assert.AreEqual(4, Y);
+
+            X = 0;
+            Y = 0;
+            int cnt = 5;
+            int adds = 10000;
+            var tasks = new Task[cnt];
+
+            for (int i = 0; i < cnt; i++)
+            {
+                tasks[i] = TapThread.StartAwaitable(() =>
+                {
+                    for (int i = 0; i < adds; i++)
+                    {
+                        Utils.InterlockedSwap(ref X, () => ((int)X + 1));
+                        Utils.InterlockedSwap(ref Y, () => ((int)Y + 2));
+                    }
+                });
+            }
+            for (int i = 0; i < cnt; i++)
+            {
+                tasks[i].Wait();
+            }
+            Assert.AreEqual(X, cnt * adds);
+            Assert.AreEqual(Y, cnt * adds * 2);
+        }
+
+        [Test]
+        public void TestRetryUtil()
+        {
+            int counter = 0;
+            var x = Utils.Retry(() =>
+            {
+                if (counter < 5)
+                {
+                    counter += 1;
+                    throw new IOException();
+                }
+
+                return counter;
+            }, typeof(IOException), sleepBaseMs: 0, maxRetries: 10);
+            Assert.AreEqual(x, 5);
+        }
+        
+        [Test]
+        public void TestRetryFailure()
+        {
+            int counter = 0;
+            
+            Assert.Throws<IOException>(() => Utils.Retry(() =>
+            {
+                if (counter < 10)
+                {
+                    counter += 1;
+                    throw new IOException();
+                }
+
+                return counter;
+            }, typeof(IOException), sleepBaseMs: 0, maxRetries: 3));
         }
     }
 }

@@ -74,6 +74,9 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
         
+        [Browsable(false)]
+        public string Hash { get; set; }
+        
         [AnnotationIgnore]
         public string Path => Filepath.Expand();
         
@@ -162,7 +165,7 @@ namespace OpenTap.Plugins.BasicSteps
                 {
                     if (evt.Source == "TestPlan" || evt.Source == "N/A")
                         if(evt.EventType != (int)LogEventType.Error)
-                        continue;
+                            continue;
                     forwardTo.AddEvent(evt);
                 }
             }
@@ -211,7 +214,14 @@ namespace OpenTap.Plugins.BasicSteps
                 MaxNumberOfElements = 100
             };
 
-        static XDocument readXmlFile(string path) => dict.Invoke(path);
+        
+        
+        static XDocument ReadCachedXmlFile(string path)
+        {
+            var cached = dict.Invoke(path);
+            // The deserializer may modify the XDocument class so it must be cloned by constructing a new XDocument (this causes a deep clone to be made).
+            return new XDocument(cached);
+        }
 
         internal TestPlan plan;
         string loadedPlanPath;
@@ -276,8 +286,19 @@ namespace OpenTap.Plugins.BasicSteps
 
                     loadedPlanPath = filepath.Text;
 
-                    TestPlan tp = (TestPlan)newSerializer.Deserialize(readXmlFile(refPlanPath), TypeData.FromType(typeof(TestPlan)), true, refPlanPath) ;
+                    var doc = ReadCachedXmlFile(refPlanPath);
+                    TestPlan tp = (TestPlan)newSerializer.Deserialize(doc, TypeData.FromType(typeof(TestPlan)), true, refPlanPath) ;
                     plan = tp;
+
+                    using (var algo = System.Security.Cryptography.SHA1.Create())
+                    {
+                        using (var ms = new MemoryStream())
+                        {
+                            doc.Save(ms, SaveOptions.DisableFormatting);
+                            Hash = BitConverter.ToString(algo.ComputeHash(ms.ToArray()), 0, 8)
+                                .Replace("-", string.Empty);
+                        }
+                    }
 
                     ExternalParameters = TypeData.GetTypeData(tp).GetMembers().OfType<ParameterMemberData>().ToArray();
 

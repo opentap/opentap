@@ -52,28 +52,38 @@ namespace OpenTap.UnitTests
         [TestCase(typeof(PublishResultsSameValues2))]
         public void TestManyResults(Type stepType)
         {
-            var record = new RecordAllResultListener();
-            var plan = new TestPlan();
-            var repeat = new RepeatStep { Count = 10 };
-            var parallel = new ParallelStep();
-            
-            plan.ChildTestSteps.Add(repeat);
-
-            var results1 = (TestStep)Activator.CreateInstance(stepType);
-            var results2 = (TestStep)Activator.CreateInstance(stepType);
-            parallel.ChildTestSteps.Add(results1);
-            parallel.ChildTestSteps.Add(results2);
-            
-            repeat.ChildTestSteps.Add(parallel);
-
-            var run = plan.Execute(new IResultListener[] { record });
-            Assert.AreEqual(Verdict.NotSet, run.Verdict);
-            foreach (var table in record.Results)
+            // this test has been a bit unstable. Repeat a few times to make sure it works.
+            for (int i = 0; i < 5; i++) 
             {
-                foreach (var column in table.Columns)
+                var record = new RecordAllResultListener();
+                var plan = new TestPlan();
+                var repeat = new RepeatStep
                 {
-                    var distinctCount = column.Data.Cast<object>().Distinct().Count();
-                    Assert.AreEqual(1, distinctCount);
+                    Count = 10
+                };
+                var parallel = new ParallelStep();
+
+                plan.ChildTestSteps.Add(repeat);
+
+                var results1 = (TestStep)Activator.CreateInstance(stepType);
+                var results2 = (TestStep)Activator.CreateInstance(stepType);
+                parallel.ChildTestSteps.Add(results1);
+                parallel.ChildTestSteps.Add(results2);
+
+                repeat.ChildTestSteps.Add(parallel);
+
+                var run = plan.Execute(new IResultListener[]
+                {
+                    record
+                });
+                Assert.AreEqual(Verdict.NotSet, run.Verdict);
+                foreach (var table in record.Results)
+                {
+                    foreach (var column in table.Columns)
+                    {
+                        var distinctCount = column.Data.Cast<object>().Distinct().Count();
+                        Assert.AreEqual(1, distinctCount);
+                    }
                 }
             }
         }

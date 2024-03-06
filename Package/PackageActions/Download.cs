@@ -66,18 +66,7 @@ namespace OpenTap.Package
         public PackageDownloadAction()
         {
             Architecture = ArchitectureHelper.GuessBaseArchitecture;
-            switch (Environment.OSVersion.Platform)
-            {
-                case PlatformID.MacOSX:
-                    OS = "MacOS";
-                    break;
-                case PlatformID.Unix:
-                    OS = "Linux";
-                    break;
-                default:
-                    OS = "Windows";
-                    break;
-            }
+            OS = GuessHostOS();
         }
 
         protected override int LockedExecute(CancellationToken cancellationToken)
@@ -91,7 +80,7 @@ namespace OpenTap.Package
 
             List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                 destinationInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories,
-                ForceInstall, InstallDependencies, false, false, false);
+                ForceInstall, false);
             
             if (PackagesToDownload?.Any() != true)
                 return (int)ExitCodes.ArgumentError;

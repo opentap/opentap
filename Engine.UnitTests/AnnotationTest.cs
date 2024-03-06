@@ -9,6 +9,7 @@ using System.Xml.Serialization;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests;
 using OpenTap.Engine.UnitTests.TestTestSteps;
+using OpenTap.EngineUnitTestUtils;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -35,7 +36,100 @@ namespace OpenTap.UnitTests
             
         }
 
-        
+        [Test]
+        public void TestStepDuplicateIdWarning()
+        {
+            using var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            var path = Path.GetTempFileName();
+            try
+            {
+                // The two delay steps have identical IDs -- verify we get a warning while loading this plan
+                var testplan = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<TestPlan type=""OpenTap.TestPlan"" Locked=""false"">
+  <Steps>
+		<TestStep type=""OpenTap.Plugins.BasicSteps.DelayStep"" Id=""419bfb67-ed07-4b7c-a653-b9504372fe4a"">
+			<Enabled>true</Enabled>
+			<Name>Delay 1</Name>
+		</TestStep>
+    <TestStep type=""OpenTap.Plugins.BasicSteps.DelayStep"" Id=""419bfb67-ed07-4b7c-a653-b9504372fe4a"">
+      <Enabled>true</Enabled>
+      <Name>Delay 2</Name>
+    </TestStep>
+  </Steps>
+</TestPlan>
+";
+                File.WriteAllText(path, testplan);
+                
+                {   // Verify loading generates no warnings or errors
+                    var listener = new TestTraceListener();
+                    Log.AddListener(listener);
+                    var tp = TestPlan.Load(path);
+                    Log.RemoveListener(listener);
+                    
+                    Assert.That(listener.ErrorMessage.Count, Is.EqualTo(0));
+                    Assert.That(listener.WarningMessage.Any(warning => warning == "Duplicate test step ID found. The duplicate ID has been changed for step 'Delay 2'."));
+                }
+
+            }
+            finally
+            {
+                if (File.Exists(path))
+                    File.Delete(path);
+            }
+
+        }
+        [Test]
+        public void TestTestPlanReferenceDuplicates()
+        {
+            using var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            var tempfiles = new[]
+            {
+                Path.GetTempFileName(),
+                Path.GetTempFileName(),
+                Path.GetTempFileName(),
+            };
+
+            try
+            {
+                {   // Create test plans
+                    new TestPlan() { ChildTestSteps = { new DelayStep(), new DelayStep() } }.Save((tempfiles[0]));
+                    new TestPlan()
+                    {
+                        ChildTestSteps =
+                        {
+                            new TestPlanReference() { Filepath = new MacroString() { Text = tempfiles[0] } },
+                            new TestPlanReference() { Filepath = new MacroString() { Text = tempfiles[0] } },
+                        }
+                    }.Save(tempfiles[1]);
+                    new TestPlan()
+                    {
+                        ChildTestSteps =
+                        {
+                            new TestPlanReference() { Filepath = new MacroString() { Text = tempfiles[1] } },
+                            new TestPlanReference() { Filepath = new MacroString() { Text = tempfiles[1] } },
+                        }
+                    }.Save(tempfiles[2]);
+                }
+
+                {   // Verify loading generates no warnings or errors
+                    var listener = new TestTraceListener();
+                    Log.AddListener(listener);
+                    var tp = TestPlan.Load(tempfiles[2]);
+                    ((TestPlanReference)tp.ChildTestSteps[0]).LoadTestPlan();
+                    ((TestPlanReference)tp.ChildTestSteps[1]).LoadTestPlan();
+                    Log.RemoveListener(listener);
+                    
+                    Assert.That(listener.ErrorMessage.Count, Is.EqualTo(0));
+                    Assert.That(listener.WarningMessage.Count, Is.EqualTo(0));
+                }
+            }
+            finally
+            {
+                foreach (var tempfile in tempfiles)
+                    if (File.Exists(tempfile))
+                        File.Delete(tempfile);
+            }
+        }
         
         [Test]
         public void TestPlanReferenceAnnotationTest()
@@ -470,6 +564,47 @@ namespace OpenTap.UnitTests
 
             public void NotifyChanged(object obj, string property) { }
         }
+
+        [Test]
+        public void TestReparameterize()
+        {
+            var testplan = new TestPlan();
+            var seq = new SequenceStep();
+            var delay = new DelayStep();
+            seq.ChildTestSteps.Add(delay);
+            testplan.ChildTestSteps.Add(seq);
+            seq.ChildTestSteps.Add(new VerdictStep() { Verdict = Verdict.Pass });
+
+            var timeDelay = AnnotationCollection.Annotate(delay).GetMember("DelaySecs");
+            var menu = timeDelay.Get<MenuAnnotation>();
+            var icons = menu.MenuItems.ToLookup(x => x.Get<IIconAnnotation>()?.IconName ?? "");
+
+            var parameterize = icons[IconNames.ParameterizeOnParent].First();
+            var unparameterize = icons[IconNames.Unparameterize].First();
+
+            void invoke(AnnotationCollection a)
+            {
+                a.Get<IMethodAnnotation>().Invoke();
+            }
+            
+            void run()
+            {
+                var planRun = testplan.Execute();
+                Assert.AreEqual(Verdict.Pass, planRun.Verdict);
+            }
+
+            { // Verify nothing breaks when parameterizing, unparameterizing, and reparameterizing
+                run();
+                invoke(parameterize);
+                run();
+                invoke(unparameterize);
+                run();
+                invoke(parameterize);
+                run();
+                invoke(unparameterize);
+                run();
+            }
+        }
         
         [Test]
         public void MenuAnnotationTest()
@@ -722,7 +857,7 @@ namespace OpenTap.UnitTests
                     p1.Parameterize(plan, sequence, p1.Name);
 
                     var editParameterIcon = AnnotationCollection.Annotate(sequence).GetMember(p1.Name).Get<MenuAnnotation>().MenuItems
-                        .First(x => x.Get<IconAnnotationAttribute>().IconName == IconNames.EditParameter);
+                        .First(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.EditParameter);
                     
                     menuInterface.SelectedMode = MenuTestUserInterface.Mode.TestPlan | MenuTestUserInterface.Mode.Error;
                     menuInterface.SelectName = p1.Name;
@@ -1359,6 +1494,7 @@ namespace OpenTap.UnitTests
             }   
         }
 
+        
         [Test]
         public void MultiSelectParameterize()
         {
@@ -1436,6 +1572,62 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(elapsed3.TotalSeconds < 4);
         }
 
+        public class InstrumentStep1 : TestStep
+        {
+            public Instrument Instrument { get; set; }
+            public override void Run()
+            {
+            }
+        }
+        
+        public class InstrumentStep2 : TestStep
+        {
+            public Instrument Instrument { get; set; }
+            public override void Run()
+            {
+            }
+        }
+
+        [Test]
+        public void MultiSelectUnparameterize()
+        {
+            var step1 = new InstrumentStep1();
+            var step2 = new InstrumentStep2();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step1);
+            plan.ChildTestSteps.Add(step2);
+
+            {
+                // 1. parameterize them
+                var a = AnnotationCollection.Annotate(new ITestStep[]
+                {
+                    step1, step2
+                });
+
+                var member = a.GetMember(nameof(step1.Instrument));
+                member.GetIcon(IconNames.ParameterizeOnTestPlan).Get<IMethodAnnotation>()?.Invoke();
+            }
+
+            // 2. check.
+            Assert.IsNotEmpty(TypeData.GetTypeData(plan).GetMembers().OfType<IParameterMemberData>());
+            
+            {
+                // 3. unparameterize them
+                var a = AnnotationCollection.Annotate(new ITestStep[]
+                {
+                    step1, step2
+                });
+
+                var member = a.GetMember(nameof(step1.Instrument));
+                member.GetIcon(IconNames.Unparameterize).Get<IMethodAnnotation>()?
+                    .Invoke();
+            }
+            
+            // 4. check.
+            Assert.IsEmpty(TypeData.GetTypeData(plan).GetMembers().OfType<IParameterMemberData>());
+        }
+        
+        
         [Test]
         public void MultiSelectList()
         {
@@ -1943,6 +2135,36 @@ namespace OpenTap.UnitTests
             annotation.Write();
             Assert.IsTrue(obj.Values.SequenceEqual(new int[] {1, 2, 3, 4}));
         }
+        
+        [Test]
+        public void WriteMergedAnnotationTest()
+        {
+            var names = new[] { "name1", "name1", "name2" };
+            var delaySteps = new DelayStep[3];
+            for (int i = 0; i < 3; i++)
+            {
+                var delay = new DelayStep() { Name = names[i] };
+                delaySteps[i] = delay;
+            }
+
+            var a = AnnotationCollection.Annotate(delaySteps);
+            { // verify merge fails
+                var mem = a.GetMember(nameof(DelayStep.Name));
+                var name = mem.Get<MergedValueAnnotation>();
+                Assert.AreEqual(null, name.Value);
+            }
+            { // Verify collection is not modified on write
+                a.Write();
+                CollectionAssert.AreEqual(names, delaySteps.Select(d => d.Name));   
+            }
+            { // Verify merge succeeds 
+                delaySteps[2].Name = "name1";
+                a.Read();   
+                var mem = a.GetMember(nameof(DelayStep.Name));
+                var name = mem.Get<MergedValueAnnotation>();
+                Assert.AreEqual("name1", name.Value);
+            }
+        }
 
         [Test]
         public void AvailableValuesUpdateTest()
@@ -2031,6 +2253,222 @@ namespace OpenTap.UnitTests
             a.Write();
             a.Read();
             Assert.AreEqual(Overlapping.Z, o.Overlapping);
+        }
+
+        class EnabledThings
+        {
+            public double X { get; set; }
+        }
+        
+        class MaybeEnabled : IEnabledAnnotation
+        {
+            public bool IsEnabled { get; set; }
+        }
+        
+        public class TestAnnotator : IAnnotator
+        {
+            public double Priority => 0;
+            public void Annotate(AnnotationCollection annotations)
+            {
+                // Disable 'X' of EnabledThings using multiple IEnabledAnnotations:
+                var member = annotations.Get<IMemberAnnotation>()?.Member;
+                if (member != null && member.Name == "X" && TypeData.FromType(typeof(EnabledThings)).GetMember("X") == member)
+                {
+                    annotations.Add(new MaybeEnabled(){IsEnabled = true});
+                    annotations.Add(new MaybeEnabled(){IsEnabled = false});
+                    annotations.Add(new MaybeEnabled(){IsEnabled = true});
+                }
+            }
+        }
+
+        [Test]
+        public void TestMultipleEnabled()
+        {
+            var obj = new EnabledThings();
+            var obj2 = new EnabledThings();
+            var x2 = AnnotationCollection.Annotate(new[] { obj, obj2 }).GetMember("X");
+            // after multi-selecting this should be disabled.
+            // when this issue occured it was not.
+            var enabled = x2.Get<IEnabledAnnotation>().IsEnabled;
+            Assert.IsFalse(enabled);
+        }
+
+        public class AvailableValuesArrayUser
+        {
+            #region Test strings
+
+            public List<string> AvailableStrings { get; set; } = new List<string>() { "A", "B", "C" };
+
+            [AvailableValues(nameof(AvailableStrings))]
+            public List<string> SelectedStringsList { get; set; } = new List<string>();
+
+            [AvailableValues(nameof(AvailableStrings))]
+            public string[] SelectedStringsArray { get; set; } = Array.Empty<string>();
+
+            #endregion
+
+            #region Test numbers
+
+            public List<int> AvailableNumbers { get; set; } = new List<int>() { 7, 9, 13 };
+
+            [AvailableValues(nameof(AvailableNumbers))]
+            public List<int> SelectedNumbersList { get; set; } = new List<int>();
+
+            [AvailableValues(nameof(AvailableNumbers))]
+            public int[] SelectedNumbersArray { get; set; } = Array.Empty<int>();
+
+            #endregion
+        }
+
+        [Test]
+        public void TestAddToArrayWithAvailableValues()
+        {   
+            { // Test writing strings
+                var av = new AvailableValuesArrayUser();
+                var a = AnnotationCollection.Annotate(av);
+                var selectedItems = a.GetMember(nameof(av.SelectedStringsArray));
+
+                var availProxy = selectedItems.Get<IAvailableValuesAnnotationProxy>();
+                var multiselect = selectedItems.Get<IMultiSelectAnnotationProxy>();
+
+                {
+                    multiselect.SelectedValues = availProxy.AvailableValues.Take(2);
+                    a.Write();
+                    a.Read();
+
+                    Assert.AreEqual(2, av.SelectedStringsArray.Length);
+                    Assert.AreEqual("A", av.SelectedStringsArray[0]);
+                    Assert.AreEqual("B", av.SelectedStringsArray[1]);
+                }
+
+                {
+                    multiselect.SelectedValues = availProxy.AvailableValues.Skip(2).Take(1);
+                    a.Write();
+                    a.Read();
+
+                    Assert.AreEqual(1, av.SelectedStringsArray.Length);
+                    Assert.AreEqual("C", av.SelectedStringsArray[0]);
+                }
+            }
+
+            { // Test writing numbers
+                var av = new AvailableValuesArrayUser();
+                var a = AnnotationCollection.Annotate(av);
+                var selectedItems = a.GetMember(nameof(av.SelectedNumbersArray));
+
+                var availProxy = selectedItems.Get<IAvailableValuesAnnotationProxy>();
+                var multiselect = selectedItems.Get<IMultiSelectAnnotationProxy>();
+
+                {
+                    multiselect.SelectedValues = availProxy.AvailableValues.Take(2);
+                    a.Write();
+                    a.Read();
+
+                    Assert.AreEqual(2, av.SelectedNumbersArray.Length);
+                    Assert.AreEqual(7, av.SelectedNumbersArray[0]);
+                    Assert.AreEqual(9, av.SelectedNumbersArray[1]);
+                }
+
+                {
+                    multiselect.SelectedValues = availProxy.AvailableValues.Skip(2).Take(1);
+                    a.Write();
+                    a.Read();
+
+                    Assert.AreEqual(1, av.SelectedNumbersArray.Length);
+                    Assert.AreEqual(13, av.SelectedNumbersArray[0]);
+                }
+            }
+        }
+
+        [Test]
+        public void TestAddToListWithAvailableValues()
+        {
+            { // Test writing strings
+                var av = new AvailableValuesArrayUser();
+
+                var a = AnnotationCollection.Annotate(av);
+                var selectedItems = a.GetMember(nameof(av.SelectedStringsList));
+
+                var availProxy = selectedItems.Get<IAvailableValuesAnnotationProxy>();
+                var multiselect = selectedItems.Get<IMultiSelectAnnotationProxy>();
+
+                {
+                    // Test writing two values
+                    multiselect.SelectedValues = availProxy.AvailableValues.Take(2);
+                    a.Write();
+                    a.Read();
+
+                    Assert.AreEqual(2, av.SelectedStringsList.Count);
+                    Assert.AreEqual("A", av.SelectedStringsList[0]);
+                    Assert.AreEqual("B", av.SelectedStringsList[1]);
+                }
+
+                {
+                    multiselect.SelectedValues = availProxy.AvailableValues.Skip(2).Take(1);
+                    a.Write();
+                    a.Read();
+
+                    Assert.AreEqual(1, av.SelectedStringsList.Count);
+                    Assert.AreEqual("C", av.SelectedStringsList[0]);
+                }
+            }
+            { // Test writing numbers
+                var av = new AvailableValuesArrayUser();
+                var a = AnnotationCollection.Annotate(av);
+                var selectedItems = a.GetMember(nameof(av.SelectedNumbersList));
+
+                var availProxy = selectedItems.Get<IAvailableValuesAnnotationProxy>();
+                var multiselect = selectedItems.Get<IMultiSelectAnnotationProxy>();
+
+                {
+                    // Test writing strings
+                    multiselect.SelectedValues = availProxy.AvailableValues.Take(2);
+                    a.Write();
+                    a.Read();
+
+                    Assert.AreEqual(2, av.SelectedNumbersList.Count);
+                    Assert.AreEqual(7, av.SelectedNumbersList[0]);
+                    Assert.AreEqual(9, av.SelectedNumbersList[1]);
+                }
+
+                {
+                    multiselect.SelectedValues = availProxy.AvailableValues.Skip(2).Take(1);
+                    a.Write();
+                    a.Read();
+
+                    Assert.AreEqual(1, av.SelectedNumbersList.Count);
+                    Assert.AreEqual(13, av.SelectedNumbersList[0]);
+                }
+            }
+        }
+
+        [AllowAnyChild]
+        public class ReadOnlyDelays : TestStep
+        {
+            public ReadOnlyDelays()
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    // TestStep.IsReadOnly does not cause the settings to be read-only, but if the ChildTetSteps.IsReadOnly is set this is the case. 
+                    ChildTestSteps.Add(new DelayStep() { IsReadOnly = true });
+                }
+
+                ChildTestSteps.IsReadOnly = true;
+            }
+            
+            public override void Run()
+            {
+                
+            }
+        }
+        
+        [Test]
+        public void TestReadOnlyStepSettings()
+        {
+            var step = new ReadOnlyDelays();
+            var a = AnnotationCollection.Annotate(step.ChildTestSteps[0]);
+            var member = a.GetMember(nameof(DelayStep.DelaySecs));
+            Assert.IsTrue(member.GetAll<IEnabledAnnotation>().Any(x => x.IsEnabled == false));
         }
     }
 }

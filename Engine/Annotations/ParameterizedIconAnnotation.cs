@@ -18,7 +18,7 @@ namespace OpenTap
     {
         public string IconName => IconNames.EditParameter;
         public AnnotationCollection Action => annotation.Get<MenuAnnotation>().MenuItems
-            .FirstOrDefault(x => x.Get<IconAnnotationAttribute>().IconName == IconName);
+            .FirstOrDefault(x => x.Get<IconAnnotationAttribute>()?.IconName == IconName);
         public ParameterIconAnnotation(AnnotationCollection annotation) => this.annotation = annotation;
         
         readonly AnnotationCollection annotation;
@@ -73,6 +73,7 @@ namespace OpenTap
                         annotation.Add(new ParameterizedIconAnnotation());
                     }
                 }
+                
                 if (stepModel.IsParameter)
                     annotation.Add(new ParameterIconAnnotation(annotation));
                 if (stepModel.IsOutput)

@@ -6,6 +6,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -566,7 +567,7 @@ namespace OpenTap
 
         internal bool WasDeferred => deferWorker != null;
 
-        class PublishResultTableInvokable : IInvokable<IResultListener, WorkQueue>
+        class PublishResultTableInvokable : IInvokable<IResultListener, WorkQueue>, ISkippableInvokable<IResultListener, WorkQueue>
         {
             readonly ResultTable table;
             readonly ResultSource proxy;
@@ -602,10 +603,16 @@ namespace OpenTap
                         break;
                     
                     // pop the peeked object
-                    if (workQueue.Dequeue() != p)
+                    var dq = workQueue.Dequeue();
+                    if (dq != p)
                     {
-                        // this should never happen.
+                        if (dq == null)
+                            // we weren't able to dequeue the object - just give up on the optimization.
+                            break; 
+                        
+                        // This should never happen.
                         // If it did, something went really wrong.
+                        Debug.Fail("Peeked object not in front of queue.");
                         throw new InvalidOperationException("Peeked object not in front of queue.");
                     }
 
@@ -625,7 +632,15 @@ namespace OpenTap
             {
                 try
                 {
-                    a.OnResultPublished(proxy.stepRun.Id, CreateOptimizedTable(queue));
+                    // only merge result tables where it is explicitly supported by the result listener.
+                    if (a is IMergedTableResultListener)
+                    {
+                        a.OnResultPublished(proxy.stepRun.Id, CreateOptimizedTable(queue));    
+                    }
+                    else
+                    {
+                        a.OnResultPublished(proxy.stepRun.Id, table);
+                    }
                 }
                 catch (Exception e)
                 {
@@ -635,7 +650,14 @@ namespace OpenTap
                 }
             }
 
-
+            // Skip the invocation if the result listener does not implement OnResultPublished.
+            public bool Skip(IResultListener a, WorkQueue b)
+            {
+                if (a is ResultListener r)
+                    return ResultListener.ImplementsOnResultsPublished(r) == false;
+                
+                return false;
+            }
         }
     }
 }

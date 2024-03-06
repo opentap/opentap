@@ -103,7 +103,7 @@ namespace OpenTap.Package.UnitTests
             Commands.Checkout(repo, "master");
             repo.Merge(featureBranch, me, noFastForward);
 
-            verifyVersion(repo, 1, 0, 0, "beta.2");
+            verifyVersion(repo, 1, 0, 0, "beta.3");
 
             commitChangesToReadme(repo, "Version 2", "Bumped version to 2.0");
             commitChangesToGitVersionFile(repo, "2.0.0", "Updated version to 2.0.0 in .gitversion file");
@@ -134,7 +134,7 @@ namespace OpenTap.Package.UnitTests
             verifyVersion(repo, 2, 1, 0, "alpha.1.1", featureBranch.FriendlyName);
             Commands.Checkout(repo, "master");
             repo.Merge(featureBranch, me, noFastForward);
-            verifyVersion(repo, 2, 1, 0, "beta.2");
+            verifyVersion(repo, 2, 1, 0, "beta.3");
             Commands.Checkout(repo, "release2x");
             repo.Merge("master", me, noFastForward);
 
@@ -179,7 +179,7 @@ namespace OpenTap.Package.UnitTests
             // This is what GitLab CI does, so important for us to support
 
             //Commands.Checkout(repo, shortHash211alpha);
-            //verifyVersion(2, 1, 0, "alpha.1.1", shortHash211alpha + ".hotfix");   // TODO: This fails and we should try to improve. See TODO in GitVersionCalulator 
+            //verifyVersion(2, 1, 0, "alpha.1.1", shortHash211alpha + ".hotfix");   // TODO: This fails and we should try to improve. See TODO in GitVersionCalculator 
 
             Commands.Checkout(repo, commit210rc);
             verifyVersion(repo,commit210rc, 2, 1, 0, "rc.1");

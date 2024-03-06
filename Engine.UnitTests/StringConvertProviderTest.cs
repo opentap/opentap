@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
 using NUnit.Framework;
@@ -206,6 +207,132 @@ namespace OpenTap.Engine.UnitTests
             var delay2 = deserialized[1];
             Assert.IsTrue(InputOutputRelation.IsOutput(repeat2, outputMember));
             Assert.IsTrue(InputOutputRelation.IsInput(delay2, member));
+        }
+
+        class BadType : IConvertible
+        {
+            public int Value;
+            
+            // this is bad! Everything throws.
+            public TypeCode GetTypeCode()
+            {
+                throw new Exception();
+            }
+            public bool ToBoolean(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public char ToChar(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public sbyte ToSByte(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public byte ToByte(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public short ToInt16(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public ushort ToUInt16(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public int ToInt32(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public uint ToUInt32(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public long ToInt64(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public ulong ToUInt64(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public float ToSingle(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public double ToDouble(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public decimal ToDecimal(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public DateTime ToDateTime(IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+            public string ToString(IFormatProvider provider)
+            {
+                return "haha "; // toString implemented, badly.
+            }
+            public object ToType(Type conversionType, IFormatProvider provider)
+            {
+                throw new Exception();
+            }
+        }
+
+        // this attribute forces OpenTAP to put this plugin before the marked type.
+        [Before(typeof(OpenTap.Plugins.ConvertibleStringConvertProvider))]
+        public class BadTypeStringConvertProvider: IStringConvertProvider
+        {
+            public static bool IsEnabled { get; set; }
+            public string GetString(object value, CultureInfo culture)
+            {
+                if (IsEnabled && value is BadType bt)
+                {
+                    return "bad:" + bt.Value;
+                }
+                return null;
+            }
+            public object FromString(string stringData, ITypeData type, object contextObject, CultureInfo culture)
+            {
+                if (IsEnabled && type.IsA(typeof(BadType)))
+                {
+                    return new BadType{Value = int.Parse(stringData.Substring("bad:".Length))};
+                }
+                return null;
+            }
+        }
+        
+        [Test]
+        public void TestBadTypeFix()
+        {
+
+            var x = new BadType
+            {
+                Value = 1234
+            };
+            var y1 = StringConvertProvider.GetString(x);
+            Assert.AreEqual(y1, "haha ");
+            
+            var r = StringConvertProvider.TryFromString(y1, TypeData.FromType(typeof(BadType)), null, out var y2);
+            Assert.IsFalse(r);
+            BadTypeStringConvertProvider.IsEnabled = true;
+            try
+            {
+                var y3 = StringConvertProvider.GetString(x);
+
+                var r2 = StringConvertProvider.TryFromString(y3, TypeData.FromType(typeof(BadType)), null, out var y4);
+                Assert.IsTrue(r2);
+                Assert.IsTrue(y4 is BadType bt2 && bt2.Value == x.Value);
+            }
+            finally
+            {
+                BadTypeStringConvertProvider.IsEnabled = false;
+            }
         }
     }
 }

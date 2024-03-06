@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 namespace OpenTap.UnitTests
@@ -11,6 +12,7 @@ namespace OpenTap.UnitTests
 
         static ThreadField<object> tf = new ThreadField<object>();
         static ThreadField<object> tf2 = new ThreadField<object>();
+        static ThreadField<object> tflat = new ThreadField<object>(ThreadFieldMode.Flat);
         [Test]
         public void TestThreadField()
         {
@@ -25,6 +27,44 @@ namespace OpenTap.UnitTests
             });
             sem.WaitOne();
             Assert.AreEqual(100, value);
+
+            for (int i = 2000; i < 2010; i += 1)
+            {
+                TapThread.WithNewContext(() =>
+                {
+                    Assert.AreEqual(100, tf.Value);
+                    tf.Value = i;
+                    Assert.AreEqual(i, tf.Value);
+                    TapThread.WithNewContext(() =>
+                    {
+                        // verify inherit values from parent thread.
+                        Assert.AreEqual(i, tf.Value);
+                        tf.Value = i * 2;
+                        Assert.AreEqual(i * 2, tf.Value);
+                    });
+                });
+                Assert.AreEqual(100, tf.Value);
+            }
+
+            // verify tflat.
+            tflat.Value = 100;
+
+            TapThread.WithNewContext(() =>
+            {
+                Assert.AreEqual(null, tflat.Value);
+                tflat.Value = 200;
+                TapThread.WithNewContext(() =>
+                {
+                    // verify it does NOT inherit values from parent thread.
+                    Assert.AreEqual(null, tflat.Value);
+                    tflat.Value = 300;
+                    Assert.AreEqual(300, tflat.Value);
+
+                });
+                Assert.AreEqual(200, tflat.Value);
+            });
+            Assert.AreEqual(100, tflat.Value);
+
         }
 
         /// <summary>
@@ -94,6 +134,36 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(hierarchyCompletedCallbackCalled.Wait(30 * 1000), "onHierarchyCompleted callback not called.");
             Assert.IsTrue(level1CompletedBeforeHierarchyCompletedCallback, "Child thread did not complete before onHierarchyCompleted callback.");
             Assert.IsTrue(level2CompletedBeforeHierarchyCompletedCallback, "Second level child thread did not complete before onHierarchyCompleted callback.");
+        }
+
+        [Test]
+        public async Task TestAwaitedThreadThrows([Values(true, false)] bool throws)
+        {
+            void callback()
+            {
+                if (throws)
+                    throw new Exception("Throws");
+            }
+
+            var trd = TapThread.StartAwaitable(callback);
+
+            if (throws)
+            {
+                try
+                {
+                    await trd;
+                    Assert.Fail("This should have thrown.");
+                }
+                catch (Exception ex)
+                {
+                    StringAssert.Contains("Throws", ex.Message);
+                }
+            }
+            else
+            {
+                await trd;
+                Assert.Pass();
+            }
         }
 
         /// <summary>

@@ -335,9 +335,58 @@ For different approaches to publishing results, see the examples in:
 
 -	`TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\PublishResults`
 
+## Artifacts
+
+Artifacts are another kind of results, originating from test steps or result listeners. Artifacts are files or named streams that can be processed by other result listeners (artifact listeners).
+This presents an opportunity to do more high-level things with the artifacts, such as telling the user about them, uploading them to the cloud or combining them into more high-level artifacts.
+
+Artifacts can for example be:
+- A log file.
+- A CSV file containing measurements.
+- A screenshot from an instrument.
+- A waveform file.
+
+### Publishing Artifacts
+To publish an artifact, call `TestStepRun.PublishArtifact` or `TestPlanRun.PublishArtifact`. 
+If the artifact is associated with a specific test step run, it is strongly recommended to use `TestStepRun.PublishArtifact`.
+
+Most result listeners should publish artifacts. For example, the `CsvResultListener` publishes each CSV file as such:
+```cs
+    planRun.PublishArtifact(csvFileName);
+```
+
+This ensures that it is communicated to OpenTAP which files are associated with the test plan run.
+
+### Processing Artifacts
+
+When artifacts are published, events occur in the results processing thread for each result listener that support listening to them.
+
+This way, aggregate artifacts can be created which themselves contains other artifacts. For example, imagine you want to create
+a HTML report containing tables of results, but also screenshots from the instruments. This can be done by implementing the 
+IArtifactListener interface.
+
+Another example of this is the ZipArtifactsResultListener, which is included in the examples. It is capable of creating a zip file containing
+all other artifacts from the test plan run and then finally publishing the zip file itself as an artifact.
+
+The lifetime of an artifact varies depending on the artifacts and the environment in which the test plan runs. 
+If it is not wanted for an artifact to stay on the hard drive after the test plan has been run, they can be published as a stream of bytes(MemoryStream) and then deleted. 
+If they are published by name, they will not be automatically deleted.
+
+### Implementing An Artifact Listener
+To create a result listener that can listen to artifacts, implement the IArtifactListener interface. When implementing IArtifactListener, the following method needs to be defined:
+```cs
+    void OnArtifactPublished(TestRun run, Stream artifactStream, string artifactName);
+```
+
+A few notes about the arguments:
+
+- `run` is the run object to which the artifact is associated. It is either a TestPlanRun or TestStepRun.
+- The `artifactStream` object will be disposed after the call to OnArtifactPublished, so it should not be handed over to a different thread for processing.
+- `artifactName` is the name of the artifact, including eventual file extensions, such as ".csv" or ".png". It might not be a file that actually exists.
+
 ## Child Test Steps
 
-Test step can have any number of child test steps. Exactly which can be controlled by using `AllowAnyChildAttribute`, and `AllowChildOfType`. 
+**Test step can have any number** of child test steps. Exactly which can be controlled by using `AllowAnyChildAttribute`, and `AllowChildOfType`. 
 
 To execute child test steps within a test step run, the RunChildStep method can be used to run a single child step or RunChildSteps can be used to run all of them.
 
@@ -455,3 +504,228 @@ The ExternalParameterAttribute marks a property that should be an external param
 
 ## Exceptions 
 Exceptions from user code are caught by OpenTAP. This could break the control flow, but all resources will always be closed. If the exception gets caught before PostPlanRun, the steps that had PrePlanRun called will also get PostPlanRun called. When a step fails (by setting the Verdict to *Fail* or *Abort*) or throws an exception, execution can be configured to continue (ignoring the error), or to abort execution, by changing the "Abort Run If" property in Engine settings 
+
+## Expressions
+Expressions provides users with the ability to use mathematical and functional expressions directly within the test step settings. This offers a more dynamic and flexible approach to configuring properties. The feature supports a range of mathematical functions, constants, and operators, as well as string manipulation.
+
+To use expressions you need the `Expressions` plugin which is normally included in the installation or can otherwise be downloaded from https://packages.opentap.io.
+
+It uses basic mathematical syntax to express relationships between settings or to calculate values or manipulate strings.
+
+For example, let's say we want to use time delay for exactly 10 minutes, we can configure Time Delay as the expression: ```10 * 60```, resulting the Time Delay having a value of 600 seconds.
+
+![Setting a number setting with an expression.](./TimeDelayExpression.png)
+
+For text based settings, expressions can be used to manipulate the text using a `{}` syntax. Take for example a SCPI step and set the expression to: `BANDwidth {2000 * 1000000 / 10}`.
+
+![Assigning a string expression to a SCPI command.](./ScpiCommandExpression.png)
+
+
+### Basic Syntax
+
+When using the Expressions feature, it's essential to adhere to a specific syntax to ensure accurate evaluation of the expressions. Here's a breakdown of the basic syntax rules:
+
+1. **Numerical Values**:
+    - Expressions can contain floating-point numbers like `3.14` or integers like `7`.
+    - Avoid using commas or other delimiters for large numbers.
+
+2. **Operators**:
+    - Use standard arithmetic operators: `+` for addition, `-` for subtraction, `*` for multiplication, and `/` for division.
+    - The power operation is represented by `^`.
+    - Parentheses `(` and `)` can be used to group expressions or change the precedence of evaluation.
+        * Example: `(1 + 2) * 3` evaluates to `9`.
+
+3. **Functions**:
+    - Function names are always followed by parentheses `()`.
+    - When a function requires multiple arguments, separate each argument with a comma `,`.
+        * Example: `max(1, 2, 3)` or `log(8, 2)`.
+
+4. **Identifiers**:
+    - Settings on test steps like `Time Delay` is a valid identifier and will get the current value of that setting. 
+    - Constants like `π`, `pi` or `e` don't require any additional symbols. Use them as you would use a number.
+        * Example: `2 * π`.
+
+5. **String Interpolation**:
+    - To use expressions with strings, enclose the expression within curly braces `{ }`.
+        * Example: `"The radius is {2 * π * r}."`.
+
+6. **Whitespace**:
+    - Spaces between numbers, operators, and functions are optional but can make your expression more readable.
+    - Avoid adding spaces inside function names or immediately after a function name and before its opening parenthesis.
+        * Correct: `max(2, 3)`.
+        * Incorrect: `max (2, 3)` or `max( 2, 3 )`.
+
+7. **Case Sensitivity**:
+    - While some functions or constants may be case-insensitive, names a generally lower-case. And plugins should try to follow that rule.
+8. **Names Escaping**:
+   - In cases where your expression includes names that might be confused with built-in functions or constants, you can escape these names using single quotes `' '`.
+      * Example: If there's a property named `A/B`, you can distinguish it from the `A / B` expression by writing it as `'A/B'`.
+
+---
+
+Remember, adhering to the correct syntax is crucial for the expressions to evaluate your input accurately. Ensure that your expressions are well-formed to avoid unexpected results or errors.
+
+### Using Expressions
+
+1. **Basic Arithmetic Operations**:
+   You can perform simple mathematical calculations using standard operators such as `+`, `-`, `*`, and `/`.
+
+   Example: `1 * 2 * 3 * 4 * 5` evaluates to `120`.
+
+2. **Functions**:
+
+   - **String Functions**:
+      - `empty(str)`: Checks if the provided string `str` is empty or null. Returns `true` or `false`.
+         * Example: `empty("")` returns `true`.
+
+   - **Trigonometric Functions**:
+      - `sin(v)`: Returns the sine of value `v`.
+      - `asin(v)`: Returns the arcsine (inverse of sine) of value `v`.
+      - `cos(v)`: Returns the cosine of value `v`.
+      - `acos(v)`: Returns the arccosine (inverse of cosine) of value `v`. 
+      - `tan(v)`: Returns the tangent of value `v`.
+      - `atan(v)`: Returns the arctangent of value `v`.
+
+   - **Arithmetic and Rounding Functions**:
+      - `abs(v)`: Returns the absolute value of `v`.
+      - `floor(v)`: Rounds the value `v` down to the nearest integer.
+      - `ceiling(v)`: Rounds the value `v` up to the nearest integer.
+      - `round(v)`: Rounds the value `v` to the nearest integer.
+      - `round(v, decimals)`: Rounds the value `v` to the specified number of `decimals`.
+
+   - **Sign Function**:
+      - `sign(v)`: Returns the sign of `v`. It gives `1` for positive values, `-1` for negative values, and `0` for zero.
+
+   - **MinMax Functions**:
+      - `max(a, b)`: Returns the maximum between values `a` and `b`.
+      - `max(a, b, c)`: Returns the maximum among values `a`, `b`, and `c`.
+      - `max(a, b, c, d)`: Returns the maximum among values `a`, `b`, `c`, and `d`.
+      - `min(a, b)`: Returns the minimum between values `a` and `b`.
+      - `min(a, b, c)`: Returns the minimum among values `a`, `b`, and `c`.
+      - `min(a, b, c, d)`: Returns the minimum among values `a`, `b`, `c`, and `d`.
+
+   - **Logarithmic and Exponential Functions**:
+      - `log2(x)`: Returns the base-2 logarithm of `x`.
+      - `log10(x)`: Returns the base-10 logarithm of `x`.
+      - `log(x, base)`: Returns the logarithm of `x` using the specified `base`.
+      - `exp(x)`: Returns the exponential function of `x`, i.e., e raised to the power `x`.
+
+
+3. **Constants**:
+
+    - `π` or `Pi`: Represents the mathematical constant Pi (π).
+        * Example: `π` or `Pi` returns the value of `Math.PI`.
+
+4. **Power Operation**:
+   You can raise a number to the power of another using the `^` operator.
+
+   Example: `2 ^ 3` evaluates to `8`.
+
+5. **String Interpolation**:
+
+   If the target type is a string, you can embed expressions within a string using curly braces `{ }`. The embedded expression will be evaluated, and the result will be placed in the string.
+
+   Example: `The number is {1 + 2}.` becomes "The number is 3."
+
+## Mixins
+
+Mixins are small units of functionality that can be integrated or 'mixed in' with an object. 
+The term MixIn comes from object-oriented programming where a mix-in is a class that contains extensions for use by other classes.
+In the context of OpenTAP, they are be used for extending the capabilities of e.g. a test step.
+
+### Getting Started
+
+By default, OpenTAP contains no mixins, but they can be added with packages. Notable packages includes:
+- Expressions: Adds Number and Text mixins.
+- Basic Mixins: Contains a number of basic mixins. For example the Repeat mixins, which enables a test step to repeat itself. Limit checks which allows checking a value against a limit.
+Or Artifact which allows adding a file path pointing to a file that should be considered an artifact of the step.
+
+### Adding Mixins as an End User
+
+The mixins are available through the settings context menu. Right-click a setting or in the settings area and click "Add Mixin". 
+Then a window will pop up guiding you through adding the mixin. Proceeding through this menu will cause the test step 
+to have one or more new settings. To remove the mixin, use the context for any of the new settings and click "remove mixin".
+
+### Mixin Types
+
+Mixins can add functionality in several ways. 
+1. Adding new settings to the test step. This is the behavior for all mixins.
+2. ITestStepPostRunMixin: This type of mixin does something after the step has been executed.
+3. ITestStepPreRunMixin: This type of mixin does something before the step has been executed. 
+4. ITestPlanPreRunMixin: This adds functionality that is executed once during test plan execution.
+
+The way Mixins works is that they add a new dynamic property to the object. This is similar to the way parameters work. 
+The added property can use the EmbedProperties attribute to add more than one additional setting. If the embedding object 
+implements one of the interfaces mentioned above, those will get invoked at the appropriate time.
+
+See for example the following implementation if a ITestStepPostRunMixin.
+```cs
+
+// this defines the mixin. It implements ITestStepPostRunMixin and adds "SomeSetting" to the embedder class.
+public class EmbeddingClassMixin : ITestStepPostRunMixin {
+    [Display("Some Setting")]
+    public string SomeSetting{get;set;} = "123";
+    static readonly TraceSource log = Log.CreateSource("test");
+    public void OnPostRun(TestStepPostRunEventArgs eventArgs){
+        log.Info($"OnPostRun executed. SomeSetting was {SomeSetting}");
+    }
+}
+
+public class EmbedderTestStep : TestStep {
+    // this adds the functionality of embeddingClassMixin to EmbedderTestStep.
+    [EmbedProperties]
+    public EmbeddingClassMixin Embed {get;} = new EmbeddingClass();
+}
+```
+
+When you think of mixins you normally think of something added manually, but by using EmbedProperties directly in the test step,
+you can take advantage of the feature in the implementation as well. This could be used for making your code more composable 
+and for sharing functionality between different test steps without resorting to inheritance.
+
+### Adding new Mixin Plugins
+To make a new Mixin available to the user, the IMixinBuilder interface needs to be implemented. This is done once for each new type of mixin. 
+The implementation for doing this is a bit advanced because it is reflection-heavy. 
+
+```cs
+
+// This builds a bit on the example from before.
+[Display("My Mixin Name", "This is an example of a mixin.")]
+// the MixinBuilderAttribute must be used to specify which subclasses the mixin supports. ITestStepParent, covers both test steps and test plans.
+[MixinBuilder(typeof(ITestStepParent))]
+public class MyMixinBuilder : IMixinBuilder {
+    // add more settings here.
+    public string MemberName{get;set;} = "";
+
+    public MyMixinBuilder()
+    {
+        // if MyMixinBuilder implemented ValidatingObject, rules should be added here.
+    }
+
+
+    public void Initialize(ITypeData type){
+        // here you can initialize the settings 
+        // and get the names of other types to avoid name collision with other mixins or settings.
+        
+    }
+
+    public MixinMemberData ToDynamicMember(ITypeData targetType){
+        // create a new mixin memberdata nad define how the initial value is created.
+        return new MixinMemberData(this, () => new EmbeddingClassMixin()){
+            // set the name of the member (this is hidden from the user)
+            Name = "MyMixinBuider:" + MemberName,
+            // Set the type to the target type of the property.
+            TypeDescriptor = TypeData.FromType(typeof (EmbeddingClassMixin)),
+            // Add the DisplayAttribute to form the group
+            Attributes = new object[]{new DisplayAttribute(MemberName), 
+            // Add EmbedPropertiesAttribute
+            new EmbedPropertiesAttribute()},
+            DeclaringType = TypeData.FromType(typeof(ITestStep))
+        };
+    }
+}
+
+```
+
+After adding this class, the user should have access to the mixin type in the context menu of the test step.
+
+

@@ -175,7 +175,7 @@ namespace OpenTap
 
         class ResourceNodeCache : ICacheOptimizer
         {
-            public readonly static ThreadField<Dictionary<EnumerableKey, List<ResourceNode>>> Cache = new ThreadField<Dictionary<EnumerableKey, List<ResourceNode>>>();
+            public static readonly ThreadField<Dictionary<EnumerableKey, List<ResourceNode>>> Cache = new ThreadField<Dictionary<EnumerableKey, List<ResourceNode>>>();
             public void LoadCache() => Cache.Value = new Dictionary<EnumerableKey, List<ResourceNode>>();
 
             public void UnloadCache() => Cache.Value = null;
@@ -214,58 +214,51 @@ namespace OpenTap
     internal class ResourceTaskManager : IResourceManager
     {
         /// <summary> Prints a friendly name. </summary>
-        /// <returns></returns>
         public override string ToString() => "Default Resource Manager";
-        private static readonly TraceSource log = Log.CreateSource("Resources");
         
-        List<ResourceNode> openedResources = new List<ResourceNode>();
-        private LockManager lockManager;
-        ConcurrentDictionary<IResource, Task> openTasks;
+        static readonly TraceSource log = Log.CreateSource("Resources");
+        
+        readonly List<ResourceNode> openedResources = new List<ResourceNode>();
+        readonly LockManager lockManager = new LockManager();
+        readonly ConcurrentDictionary<IResource, Task> openTasks = new ConcurrentDictionary<IResource, Task>();
 
         /// <summary>
         /// This event is triggered when a resource is opened. The event may block in which case the resource will remain open for the entire call.
         /// </summary>
         public event Action<IResource> ResourceOpened;
 
-        /// <summary>
-        /// Instantiates a new ResourceOpenTaskManager.
-        /// </summary>
-        public ResourceTaskManager()
-        {
-            lockManager = new LockManager();
-            openTasks = new ConcurrentDictionary<IResource, Task>();
-        }
-
         internal static TraceSource GetLogSource(IResource res)
         {
             return Log.GetOwnedSource(res) ?? Log.CreateSource(res.Name ?? "Resource");
         }
         
-        async Task OpenResource(ResourceNode node, Task canStart)
+        void OpenResource(ResourceNode node, WaitHandle canStart)
         {
-            await canStart;
-            foreach (var dep in node.StrongDependencies)
-                await openTasks[dep];
+            canStart.WaitOne();
+            var taskArray = node.StrongDependencies.Select(dep => openTasks[dep]).ToArray();
+            Task.WaitAll(taskArray);
 
-            Stopwatch swatch = Stopwatch.StartNew();
+            var sw = Stopwatch.StartNew();
 
-            var reslog = GetLogSource(node.Resource);
+            var resourceLog = GetLogSource(node.Resource);
 
             try
             {
+                ResourcePreOpenEvent.Invoke(node.Resource);
+                
                 // start a new thread to do synchronous work
-                await Task.Factory.StartNew(node.Resource.Open);
+                node.Resource.Open();
 
-                reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
+                resourceLog.Info(sw, "Resource \"{0}\" opened.", node.Resource);
 
-                foreach (var dep in node.WeakDependencies)
-                    await openTasks[dep];
+                var weakDeps = node.WeakDependencies.Select(dep => openTasks[dep]).ToArray();
+                Task.WaitAll(weakDeps);
 
                 ResourceOpened?.Invoke(node.Resource);
             }
             catch (Exception ex)
             {
-                string msg = string.Format("Error while opening resource \"{0}\"", node.Resource);
+                string msg = $"Error while opening resource \"{node.Resource}\"";
                 throw new ExceptionCustomStackTrace(msg, null, ex);
             }
         }
@@ -304,10 +297,10 @@ namespace OpenTap
         /// <summary>
         /// Get a snapshot of all currently opened resources.
         /// </summary>
-        public IEnumerable<IResource> Resources { get { return openTasks.Keys; } }
+        public IEnumerable<IResource> Resources => openTasks.Keys;
 
         /// <summary>
-        /// Sets the resources that should always be opened when the testplan is.
+        /// Sets the resources that should always be opened when the test plan is.
         /// </summary>
         public IEnumerable<IResource> StaticResources { get; set; }
         /// <summary>
@@ -318,7 +311,7 @@ namespace OpenTap
         /// <summary>
         /// Blocks the thread while closing all resources in parallel.
         /// </summary>
-        private void CloseAllResources()
+         void CloseAllResources()
         {
             Dictionary<IResource, List<IResource>> dependencies =
                 openedResources.ToDictionary(r => r.Resource,
@@ -347,7 +340,7 @@ namespace OpenTap
 
                     // wait for resources that depend on this resource (res) to close before closing this
                     Task.WaitAll(dependencies[res.Resource].Select(x => closeTasks[x]).ToArray());
-                    var reslog = GetLogSource(res.Resource);
+                    var resourceLog = GetLogSource(res.Resource);
                     Stopwatch timer = Stopwatch.StartNew();
                     try
                     {
@@ -361,8 +354,8 @@ namespace OpenTap
 
                     }
 
-                    if (reslog != null)
-                        reslog.Info(timer, "Resource \"{0}\" closed.", res.Resource);
+                    if (resourceLog != null)
+                        resourceLog.Info(timer, "Resource \"{0}\" closed.", res.Resource);
                 }, r);
 
             var closeTaskArray = closeTasks.Values.ToArray();
@@ -421,7 +414,7 @@ namespace OpenTap
             else
             {
                 // Open all resources asynchronously
-                Task wait = new Task(() => { }); // This task is not started yet, so it's used as an awaitable semaphore.
+                var wait = new ManualResetEventSlim(false);
                 foreach (ResourceNode r in resources)
                 {
                     if (openTasks.ContainsKey(r.Resource)) continue;
@@ -429,9 +422,9 @@ namespace OpenTap
                     openedResources.Add(r);
 
                     // async used to avoid blocking the thread while waiting for tasks.
-                    openTasks[r.Resource] = OpenResource(r, wait);
+                    openTasks[r.Resource] = TapThread.StartAwaitable(() => OpenResource(r, wait.WaitHandle));
                 }
-                wait.Start();
+                wait.Set();
             }
         }
 
@@ -522,26 +515,30 @@ namespace OpenTap
         /// <summary> Prints a friendly name. </summary>
         /// <returns></returns>
         public override string ToString() => "Short Lived Connections";
-        private class ResourceInfo
+        
+        /// <summary> Manages the state for a single resource. For example an Instrument or Result Listener. </summary>
+        class ResourceInfo
         {
-            private enum ResourceState
+            enum ResourceState
             {
                 Reset,
-
                 Opening,
                 Open,
                 Closing
             }
 
-            private ResourceState state { get; set; } = ResourceState.Reset;
-            private int ReferenceCount { get; set; }
+            ResourceState state { get; set; } = ResourceState.Reset;
+            
+            // counts up on open and down on close. When it reaches 0, it can finally be closed. 
+            int referenceCount;
 
-            private readonly object LockObj = new object();
+            // lock used for managing local state. For example reference count.
+            readonly object lockObj = new object();
 
-            private Task OpenTask = Task.CompletedTask;
-            private Task CloseTask = Task.CompletedTask;
+            Task openTask = Task.CompletedTask;
+            Task closeTask = Task.CompletedTask;
 
-            public ResourceNode ResourceNode { get; set; }
+            public ResourceNode ResourceNode { get; }
 
             public ResourceInfo(ResourceNode resourceNode)
             {
@@ -550,11 +547,11 @@ namespace OpenTap
 
             public Task RequestSteady()
             {
-                lock (LockObj)
+                lock (lockObj)
                     switch(state)
                     {
                         case ResourceState.Opening:
-                            return OpenTask;
+                            return openTask;
                         default:
                             return Task.CompletedTask;
                     }
@@ -562,36 +559,35 @@ namespace OpenTap
 
             public bool ShouldBeOpen()
             {
-                lock (LockObj)
-                    return ReferenceCount > 0;
+                lock (lockObj)
+                    return referenceCount > 0;
             }
 
-            async Task OpenResource(LazyResourceManager requester, CancellationToken cancellationToken)
+            void OpenResource(LazyResourceManager requester, CancellationToken cancellationToken)
             {
                 var node = ResourceNode;
                 foreach (var dep in node.StrongDependencies)
                 {
                     if (dep == null) continue;
-                    await requester.RequestResourceOpen(dep, cancellationToken);
+                    requester.RequestResourceOpen(dep, cancellationToken).Wait(cancellationToken);
                 }
 
-                Stopwatch swatch = Stopwatch.StartNew();
+                var sw = Stopwatch.StartNew();
 
-                var reslog = ResourceTaskManager.GetLogSource(node.Resource);
+                var resourceLog = ResourceTaskManager.GetLogSource(node.Resource);
 
                 try
                 {
                     try
                     {
-                        // start a new thread to do synchronous work
-                        await Task.Factory.StartNew(node.Resource.Open);
-        
-                        reslog.Info(swatch, "Resource \"{0}\" opened.", node.Resource);
-
+                        ResourcePreOpenEvent.Invoke(node.Resource);
+                        
+                        node.Resource.Open();
+                        resourceLog.Info(sw, "Resource \"{0}\" opened.", node.Resource);
                     }
                     finally
                     {
-                        lock (LockObj)
+                        lock (lockObj)
                             if (state == ResourceState.Opening)
                                 state = ResourceState.Open;
                     }
@@ -599,12 +595,12 @@ namespace OpenTap
                     foreach (var dep in node.WeakDependencies)
                     {
                         if (dep == null) continue;
-                        await requester.RequestResourceOpen(dep, cancellationToken);
+                        requester.RequestResourceOpen(dep, cancellationToken).Wait(cancellationToken);
                     }
                 }
                 catch (Exception ex)
                 {
-                    string msg = string.Format("Error while opening resource \"{0}\"", node.Resource);
+                    string msg = $"Error while opening resource \"{node.Resource}\"";
                     throw new ExceptionCustomStackTrace(msg, null, ex);
                 }
                 requester.ResourceOpenedCallback(node.Resource);
@@ -612,22 +608,23 @@ namespace OpenTap
 
             public Task RequestOpen(LazyResourceManager requester, CancellationToken cancellationToken)
             {
-                lock (LockObj)
+                lock (lockObj)
                 {
-                    ReferenceCount++;
+                    referenceCount++;
 
                     switch (state)
                     {
                         case ResourceState.Reset:
                             state = ResourceState.Opening;
 
-                            return OpenTask = OpenResource(requester, cancellationToken);
+                            return openTask =
+                                TapThread.StartAwaitable(() => OpenResource(requester, cancellationToken));
                         case ResourceState.Opening:
-                            return OpenTask;
+                            return openTask;
                         case ResourceState.Open:
                             return Task.CompletedTask;
                         case ResourceState.Closing:
-                            return CloseTask.ContinueWith(t => RequestOpen(requester, cancellationToken).Wait());
+                            return closeTask.ContinueWith(t => RequestOpen(requester, cancellationToken).Wait());
                     }
 
                     return Task.CompletedTask;
@@ -636,11 +633,11 @@ namespace OpenTap
 
             public Task RequestClose(LazyResourceManager requester)
             {
-                lock (LockObj)
+                lock (lockObj)
                 {
-                    ReferenceCount--;
+                    referenceCount--;
 
-                    if (ReferenceCount == 0)
+                    if (referenceCount == 0)
                         switch (state)
                         {
                             case ResourceState.Reset:
@@ -651,12 +648,12 @@ namespace OpenTap
                                 {
                                     state = ResourceState.Closing;
 
-                                    return CloseTask = Task.Factory.StartNew(() =>
+                                    return closeTask = TapThread.StartAwaitable(() =>
                                     {
                                         try
                                         {
                                             // wait for the resource to open before close.
-                                            requester.resources[ResourceNode.Resource].OpenTask?.Wait();
+                                            requester.resources[ResourceNode.Resource].openTask?.Wait();
                                         }
                                         catch
                                         {
@@ -689,25 +686,13 @@ namespace OpenTap
             }
         }
 
-        private readonly object resourceLock = new object();
-        private Dictionary<IResource, ResourceInfo> resources = new Dictionary<IResource, ResourceInfo>();
-        private Dictionary<ITestStep, List<IResource>> resourceDependencies = new Dictionary<ITestStep, List<IResource>>();
-        private Dictionary<IResource, int> resourceReferenceCount = new Dictionary<IResource, int>(); // needed to make sure we don't close resources too early when something is running in parallel
+        readonly object resourceLock = new object();
+        readonly Dictionary<IResource, ResourceInfo> resources = new Dictionary<IResource, ResourceInfo>();
+        readonly Dictionary<ITestStep, List<IResource>> resourceDependencies = new Dictionary<ITestStep, List<IResource>>();
+        readonly List<ResourceNode> resourceWithBeforeOpenCalled = new List<ResourceNode>();
+        readonly LockManager lockManager = new LockManager();
 
-
-        private List<ResourceNode> resourceWithBeforeOpenCalled = new List<ResourceNode>();
-
-        private LockManager lockManager;
-
-        /// <summary>
-        /// 
-        /// </summary>
-        public LazyResourceManager()
-        {
-            lockManager = new LockManager();
-        }
-
-        private void OpenResources(List<ResourceNode> toOpen, CancellationToken cancellationToken)
+        void OpenResources(List<ResourceNode> toOpen, CancellationToken cancellationToken)
         {
             toOpen.RemoveAll(x => x.Resource == null);
 
@@ -726,14 +711,14 @@ namespace OpenTap
             }
         }
 
-        private void CloseResources(IEnumerable<IResource> toClose)
+        void CloseResources(IEnumerable<IResource> toClose)
         {
             if (toClose.Any())
             {
-                Task.WaitAll(toClose.Select(res => RequestResourceClose(res)).ToArray());
+                Task.WaitAll(toClose.Select(RequestResourceClose).ToArray());
                 lock (resourceWithBeforeOpenCalled)
                 {
-                    var nodes = resourceWithBeforeOpenCalled.Where(rn => toClose.Contains(rn.Resource)).ToList();
+                    var nodes = resourceWithBeforeOpenCalled.Where(rn => toClose.Contains(rn.Resource)).ToArray();
                     lockManager.AfterClose(nodes, CancellationToken.None);
                     foreach (var node in nodes)
                         resourceWithBeforeOpenCalled.Remove(node);
@@ -742,7 +727,7 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// This property should be set to all teststeps that are enabled to be run.
+        /// This property should be set to all test steps that are enabled to be run.
         /// </summary>
         public List<ITestStep> EnabledSteps { get; set; }
 
@@ -866,15 +851,6 @@ namespace OpenTap
                                 lock (resourceLock)
                                 {
                                     resourceDependencies[step] = resources.Select(x => x.Resource).ToList();
-                                    foreach (ResourceNode n in resources)
-                                    {
-                                        if (n.Resource is IResource resource)
-                                        {
-                                            if (!resourceReferenceCount.ContainsKey(resource))
-                                                resourceReferenceCount[resource] = 0;
-                                            resourceReferenceCount[resource] += 1;
-                                        }
-                                    }
                                 }
 
                                 OpenResources(resources, cancellationToken);
@@ -899,7 +875,6 @@ namespace OpenTap
                 case TestPlanExecutionStage.Execute:
                     lock (resourceLock)
                         CloseResources(Resources);
-
                     break;
 
                 case TestPlanExecutionStage.Run:
@@ -907,16 +882,10 @@ namespace OpenTap
                     {
                         if (resourceDependencies.TryGetValue(step, out List<IResource> usedResourcesRaw))
                         {
-                            IEnumerable<IResource> usedResources;
+                            var usedResources = usedResourcesRaw.Where(r => r is IResource).ToArray();
                             lock (resourceLock)
                             {
-                                usedResources = usedResourcesRaw.Where(r => r is IResource);
                                 resourceDependencies.Remove(step);
-                                foreach (IResource res in usedResources)
-                                {
-                                    resourceReferenceCount[res] -= 1;
-                                }
-                                usedResources = usedResources.Where(x => resourceReferenceCount[x] == 0).ToList();
                             }
 
                             CloseResources(usedResources);

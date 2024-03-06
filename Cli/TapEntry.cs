@@ -84,8 +84,9 @@ namespace OpenTap.Cli
 
             string arguments = new CommandLineSplit(Environment.CommandLine).Args;
             string message = null;
-            
-            using (ExecutorSubProcess subproc = ExecutorSubProcess.Create(Path.Combine(ExecutorClient.ExeDir, "tap"), arguments))
+
+            string tapCommand = OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap";
+            using (ExecutorSubProcess subproc = ExecutorSubProcess.Create(Path.Combine(ExecutorClient.ExeDir, tapCommand), arguments))
             {
                 subproc.MessageReceived += (s, msg) =>
                 {
@@ -181,7 +182,6 @@ namespace OpenTap.Cli
                 cliTraceListener.TraceEvents(TapInitializer.InitTraceListener.Instance.AllEvents.ToArray());
                 TapInitializer.InitTraceListener.Instance.AllEvents.Clear();
                 AppDomain.CurrentDomain.ProcessExit += (s, e) => cliTraceListener.Flush();
-
             }
 
             TapInitializer.Initialize(); // This will dynamically load OpenTap.dll

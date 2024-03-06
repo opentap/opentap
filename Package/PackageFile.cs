@@ -133,6 +133,12 @@ namespace OpenTap.Package
         /// </summary>
         [XmlIgnore]
         internal List<AssemblyData> DependentAssemblies { get; set; }
+        
+        /// <summary> Other type data dependency sources (e.g Python type data) </summary>
+        [XmlIgnore]
+        internal List<ITypeDataSource> DependentTypeDataSources { get; set; }
+
+        internal IEnumerable<ITypeDataSource> AllDependencies => DependentAssemblies.Concat(DependentTypeDataSources);
 
         /// <summary>
         /// License required by the plugin file.
@@ -147,6 +153,7 @@ namespace OpenTap.Package
         public PackageFile()
         {
             DependentAssemblies = new List<AssemblyData>();
+            DependentTypeDataSources = new List<ITypeDataSource>();
             Plugins = new List<PluginFile>();
             IgnoredDependencies = new List<string>();
             CustomData = new List<ICustomPackageData>();
@@ -224,6 +231,20 @@ namespace OpenTap.Package
         /// </summary>
         [XmlAttribute(nameof(ExpectedExitCodes))]
         public string ExpectedExitCodes { get; set; } = "0";
+
+        /// <summary>
+        /// False; Action stdout and stderr will be forwarded
+        /// True; Action stdout and stderr will be suppressed
+        /// </summary>
+        [XmlAttribute("Quiet")]
+        public bool Quiet { get; set; } = false;
+
+        /// <summary>
+        /// False; package installation should fail if the executable does not exist.
+        /// True; package installation should continue if the executable does not exist.
+        /// </summary>
+        [XmlAttribute("Optional")]
+        public bool Optional { get; set; } = false;
 
         /// <summary>
         /// Arguments to the exe file.
@@ -533,32 +554,37 @@ namespace OpenTap.Package
             new TapSerializer().Serialize(stream, this);
         }
 
+        
         /// <summary>
         /// Writes this package definition to a file.
         /// </summary>
         public static void SaveManyTo(Stream stream, IEnumerable<PackageDef> packages)
         {
-            XDocument xdoc = new XDocument();
-            var root = new XElement("ArrayOfPackages");
-            xdoc.Add(root);
-            foreach (PackageDef package in packages)
+            using var writer = XmlWriter.Create(stream);
+            using var _ = TypeData.WithTypeDataCache();
+            
+            writer.WriteStartDocument();
+            writer.WriteStartElement("ArrayOfPackages");
+            // Write fragments because we manually insert the start and end of the document.
+            // This way, if the stream is outgoing from the process, we avoid having to store all the document
+            // in memory. This can be useful as 'packages' may come from a stream itself.
+            var serializer = new TapSerializer { WriteFragments = true };
+            
+            // added batching as a speculative performance improvement.
+            foreach (PackageDef package in packages.Batch(32))
             {
-                using (Stream str = new MemoryStream())
+                try
                 {
-                    try
-                    {
-                        package.SaveTo(str);
-                        str.Seek(0, 0);
-                        var pkgElement = XElement.Load(str);
-                        root.Add(pkgElement);
-                    }
-                    catch (Exception ex)
-                    {
-                        log.Error(ex);
-                    }
+                    serializer.Serialize(writer, package);
+                }
+                catch (Exception ex)
+                {
+                    log.Error(ex);
                 }
             }
-            xdoc.Save(stream);
+            
+            writer.WriteEndElement();
+            writer.Flush();
         }
 
         /// <summary>

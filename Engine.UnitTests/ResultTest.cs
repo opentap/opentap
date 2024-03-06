@@ -26,6 +26,7 @@ namespace OpenTap.UnitTests
                 StepResult = new Result {A = 1, B = 2};
             }
         }
+        
         public class SimpleResultTestMany : TestStep
         {
             public class Result
@@ -40,6 +41,21 @@ namespace OpenTap.UnitTests
             {
                 for(int i =0 ; i < Count; i++)
                     Results.Publish(new Result{A = i, B = i});
+            }
+        }
+
+        public class ResultTrivial : TestStep
+        {
+
+            [Result]
+            public double A { get; set; }
+            [Result]
+            public int B { get; set; }
+            [Result]
+            public string C { get; set; }
+            public override void Run()
+            {
+                
             }
         }
 
@@ -70,6 +86,47 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(1.0, columnA.Data.GetValue(0));
             Assert.AreEqual(2.0, columnB.Data.GetValue(0));
         }
+
+        [Test]
+        public void TestSimpleResults4()
+        {
+            var step = new ResultTrivial
+            {
+                A = 1,
+                B = 2,
+                C = "3"
+            };
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+            
+            var rl = new RecordAllResultListener();
+            
+            plan.Execute(new []{rl});
+            var table1 = rl.Results.First();
+            ResultColumn column(string s) => table1.Columns.FirstOrDefault(x => x.Name == s);
+            var a = column("A")?.GetValue<double>(0);
+            var b = column("B")?.GetValue<int>(0);
+            var c = column("C")?.GetValue<string>(0);
+            Assert.AreEqual(3, table1.Columns.Length);
+            Assert.AreEqual(1.0, a);
+            Assert.AreEqual(2, b);
+            Assert.AreEqual("3", c);
+
+        }
+
+        [Test]
+        public void TestResultParameters()
+        {
+            var plan = new TestPlan();
+            var step = new SimpleResultTest();
+            plan.Steps.Add(step);
+
+            var rl = new RecordAllResultListener();
+            
+            plan.Execute(new []{rl});
+            var run = rl.Runs.Values.OfType<TestStepRun>().FirstOrDefault();
+
+        }
         
         [Test]
         public void TestSimpleResults2()
@@ -88,8 +145,9 @@ namespace OpenTap.UnitTests
             Assert.IsFalse(parameterNames.Contains("Break Conditions"));
         }
         
-        [Test]
-        public void TestSimpleResults3()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TestSimpleResults3(bool mergeResults)
         {
             var plan = new TestPlan();
             var step = new SimpleResultTestMany
@@ -105,12 +163,21 @@ namespace OpenTap.UnitTests
             plan.Steps.Add(step);
             plan.Steps.Add(actionStep);
 
-            var rl = new RecordAllResultListener();
+            RecordAllResultListener rl = mergeResults ? new RecordAllMergedResultListener() : new RecordAllResultListener();
             rl.OnTestStepRunStartAction = () => evt.WaitOne();
             
             plan.Execute(new []{rl});
-            Assert.AreEqual(step.Count, rl.Results[0].Rows);
-            Assert.AreEqual(1, rl.Results.Count);
+            if (mergeResults)
+            {
+                Assert.AreEqual(step.Count, rl.Results[0].Rows);
+                Assert.AreEqual(1, rl.Results.Count);    
+            }
+            else
+            {
+                Assert.AreEqual(1, rl.Results[0].Rows);
+                Assert.AreEqual(10, rl.Results.Count);
+            }
+            
         }
 
         [Test]
@@ -219,7 +286,7 @@ namespace OpenTap.UnitTests
             }
         }
 
-        class SlowResultListener : ResultListener
+        class SlowResultListener : ResultListener, IMergedTableResultListener
         {
             public override void OnResultPublished(Guid stepRunId, ResultTable result)
             {

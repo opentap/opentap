@@ -894,7 +894,7 @@ namespace OpenTap
 
             try
             {
-                scpiCommand(query, false);
+                ScpiCommandInternal(query, false);
                 switch (Type.GetTypeCode(typeof(T)))
                 {
                     case TypeCode.Byte:
@@ -950,9 +950,9 @@ namespace OpenTap
         public void ScpiCommand(string command, params object[] parameters)
         {
             if (command == null)
-                throw new ArgumentNullException("command");
+                throw new ArgumentNullException(nameof(command));
             if (parameters == null)
-                throw new ArgumentNullException("parameters");
+                throw new ArgumentNullException(nameof(parameters));
             ScpiCommand(Scpi.Format(command, parameters));
         }
 
@@ -964,11 +964,11 @@ namespace OpenTap
         public virtual void ScpiCommand(string command)
         {
             if (command == null)
-                throw new ArgumentNullException("command");
-            scpiCommand(command, QueryErrorAfterCommand);
+                throw new ArgumentNullException(nameof(command));
+            ScpiCommandInternal(command, QueryErrorAfterCommand);
         }
-
-        void scpiCommand(string command, bool checkErrors)
+        
+        void ScpiCommandInternal(string command, bool checkErrors)
         {
 
             if (!IsConnected)

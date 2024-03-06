@@ -47,21 +47,7 @@ namespace OpenTap.Package
         {
             // OS was explicitly specified. This is interpreted as: Show only packages compatible with that OS. 
             bool checkOs = OS != null;
-            if (OS == null)
-            {
-                switch (Environment.OSVersion.Platform)
-                {
-                    case PlatformID.MacOSX:
-                        OS = "MacOS";
-                        break;
-                    case PlatformID.Unix:
-                        OS = "Linux";
-                        break;
-                    default:
-                        OS = "Windows";
-                        break;
-                }
-            }
+            OS ??= GuessHostOS();
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
             List<IPackageRepository> repositories = new List<IPackageRepository>();
@@ -117,7 +103,7 @@ namespace OpenTap.Package
 
                 if (All)
                 {
-                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name).Distinct().ToList();
+                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name).Where(v => v.IsUnlisted == false).Distinct().ToList();
                     var versionsCount = versions.Count;
                     if (versionsCount == 0) // No versions
                     {
@@ -140,13 +126,13 @@ namespace OpenTap.Package
                 else
                 {
                     var opentap = new Installation(Target).GetOpenTapPackage();
-                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name, opentap).Distinct().ToList();
+                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name, opentap).Where(v => v.IsUnlisted == false).Distinct().ToList();
 
-                    versions = versions.Where(s => s.IsPlatformCompatible(Architecture, OS)).ToList();
+                    versions = versions.Where(s => s.IsUnlisted == false && s.IsPlatformCompatible(Architecture, OS)).ToList();
 
                     if (versions.Any() == false) // No compatible versions
                     {
-                        versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name).ToList();
+                        versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name).Where(v => v.IsUnlisted == false).ToList();
                         if (versions.Any())
                         {
                             log.Warning($"There are no compatible versions of '{Name}'.");

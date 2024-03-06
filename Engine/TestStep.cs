@@ -8,14 +8,15 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
+
 
 namespace OpenTap
 {
@@ -339,16 +340,6 @@ namespace OpenTap
                         }
                     });
                 }
-
-                if (propType.DescendsTo(typeof(IValidatingObject)))
-                {
-                    // load forwarded validation rules.
-                    loaders.Add(x =>
-                    {
-                        var step = (IValidatingObject)x;
-                        step.Rules.Forward(prop);
-                    });
-                }
             }
             if (loaders.Count == 0) return Array.Empty<Action<object>>();
             return loaders.ToArray();
@@ -538,36 +529,35 @@ namespace OpenTap
         // Implementing this interface will make setting and getting descriptions faster.
         string IDescriptionProvider.Description { get; set; }
         // Implementing this interface will make setting and getting dynamic members faster.
-        IDictionary<string, IMemberData> IDynamicMembersProvider.DynamicMembers { get; set; }
+        IImmutableDictionary<string, IMemberData> IDynamicMembersProvider.DynamicMembers { get; set; } = ImmutableDictionary<string, IMemberData>.Empty;
 
         InputOutputRelation[] IInputOutputRelations.Inputs { get; set; }
         InputOutputRelation[] IInputOutputRelations.Outputs { get; set; }
 
-        readonly Dictionary<IMemberData, ParameterMemberData> parameterizations =
-            new Dictionary<IMemberData, ParameterMemberData>();
+        ImmutableDictionary<IMemberData, ParameterMemberData> parameterMembers =
+            ImmutableDictionary<IMemberData, ParameterMemberData>.Empty;
 
         void IParameterizedMembersCache.RegisterParameterizedMember(IMemberData mem, ParameterMemberData memberData)
         {
-            lock (parameterizations)
-                parameterizations.Add(mem, memberData);
+            parameterMembers = parameterMembers.Add(mem, memberData);
         }
 
         void IParameterizedMembersCache.UnregisterParameterizedMember(IMemberData mem, ParameterMemberData memberData)
         {
-            lock (parameterizations)
-                parameterizations.Remove(mem);
+            parameterMembers = parameterMembers.Remove(mem);
         }
 
         ParameterMemberData IParameterizedMembersCache.GetParameterFor(IMemberData mem)
         {
-            if (parameterizations.TryGetValue(mem, out var r))
+            if (parameterMembers.TryGetValue(mem, out var r))
                 return r;
             return null;
         }
 
-        readonly DynamicMembersLookup dynamicMemberValues = new DynamicMembersLookup();
+        ImmutableDictionary<IMemberData, object> dynamicMemberValues = ImmutableDictionary<IMemberData, object>.Empty;
 
-        
+
+        int IDynamicMemberValue.TypeDataKey { get; set; }
         bool IDynamicMemberValue.TryGetValue(IMemberData member, out object obj)
         {
             return dynamicMemberValues.TryGetValue(member, out obj);
@@ -575,15 +565,13 @@ namespace OpenTap
 
         void IDynamicMemberValue.SetValue(IMemberData member, object value)
         {
-            dynamicMemberValues[member] = value;
-        }
-    }
-
-    class DynamicMembersLookup : ConcurrentDictionary<IMemberData, object>
-    {
-        public DynamicMembersLookup() : base(1, 4)
-        {
-            
+            while (true)
+            {
+                var initValue = dynamicMemberValues;
+                var newValue = dynamicMemberValues.SetItem(member, value);
+                if (initValue == Interlocked.CompareExchange(ref dynamicMemberValues, newValue, initValue))
+                    break;
+            }
         }
     }
 
@@ -928,21 +916,26 @@ namespace OpenTap
             TapThread.ThrowIfAborted();
             if (!Step.Enabled)
                 throw new Exception("Test step not enabled."); // Do not run step if it has been disabled
-            planRun.ThrottleResultPropagation();
             
             InputOutputRelation.UpdateInputs(Step);
-            var stepRun = Step.StepRun = new TestStepRun(Step, parentRun,
-                attachedParameters)
+            
+            var stepRun = Step.StepRun = new TestStepRun(Step, parentRun, attachedParameters, planRun)
             {
-                TestStepPath = Step.GetStepPath(),
+                TestStepPath = Step.GetStepPath()
             };
+
+            // evaluate pre run mixins
+            bool skipStep = TestStepPreRunEvent.Invoke(Step).SkipStep;
+
+            planRun.ThrottleResultPropagation();
 
             var previouslyExecutingTestStep = currentlyExecutingTestStep;
             currentlyExecutingTestStep = Step;
-            var stepPath = stepRun.TestStepPath;
+            
             //Raise an event prior to starting the actual run of the TestStep. 
             Step.OfferBreak(stepRun, true);
-            if (stepRun.SuggestedNextStep != null) {
+            skipStep |= stepRun.SuggestedNextStep != null;
+            if (skipStep) {
                 Step.StepRun = null;
                 stepRun.Skipped = true;
                 return stepRun;    
@@ -969,6 +962,14 @@ namespace OpenTap
                         parentRun.ChildStarted(stepRun);
                         planRun.AddTestStepRunStart(stepRun);
                         Step.Run();
+                        
+                        {
+                            // Evaluate post run mixins.
+                            // This needs to be done before 'AfterRun' as that waits for defer and publishes results
+                            // which the mixins must be able to affect.
+                            TestStepPostRunEvent.Invoke(Step);
+                        }
+                        
                         stepRun.AfterRun(Step);
                         
                         TapThread.ThrowIfAborted();
@@ -1075,6 +1076,9 @@ namespace OpenTap
             return stepRun;
         }
 
+
+
+        
         internal static void CheckResources(this ITestStep Step)
         {
             // collect null members into a set. Any null member here is an error.
@@ -1093,7 +1097,7 @@ namespace OpenTap
 
         // this dictionary may be accessed by multiple threads, so it is best to use ConcurrentDictionary.
         static readonly Cache<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]> 
-            membersLookup = new Cache<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]>(() => PluginManager.ChangeID);
+            membersLookup = new Cache<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]>(() => PluginManager.CacheState);
 
         static (IMemberData, bool hasEnabledAttribute)[] GetSettingsLookup(TypeData targetType, ITypeData sourceType)
         {

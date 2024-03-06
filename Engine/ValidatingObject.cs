@@ -6,6 +6,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Linq;
 
 namespace OpenTap
 {
@@ -27,21 +28,94 @@ namespace OpenTap
         {
             get
             {
-                if (_Rules == null) _Rules = new ValidationRuleCollection();
-                return _Rules;
+                if (rules == null) rules = new ValidationRuleCollection();
+                return rules;
             }
         }
-        private ValidationRuleCollection _Rules;
+        private ValidationRuleCollection rules;
 
         // thread static to avoid locking everything and having a HashSet on each ValidationObject
         [ThreadStatic]
         static HashSet<object> traversed = null;
 
+        class DynamicRule : DelegateValidationRule
+        {
+
+            public DynamicRule(IsValidDelegateDefinition isValid, string propertyName, CustomErrorDelegateDefinition errorDelegate) : base(isValid, propertyName, errorDelegate)
+            {
+            }
+        }
+        
+        void UpdateEmbeddedAndDynamicRules()
+        {
+            // Only update if the key has been changed (dynamic members added or removed).
+            var updateKey = DynamicMember.GetTypeDataKey(this);
+            if (Rules.UpdateKey == updateKey) return;
+            lock (Rules)
+            {
+                if (Rules.UpdateKey == updateKey) return;
+                Rules.UpdateKey = updateKey;
+                rules?.RemoveIf(x => x is DynamicRule);
+                var td = TypeData.GetTypeData(this);
+                {
+                    foreach (var member in td.GetMembers())
+                    {
+                        if (member.TypeDescriptor.DescendsTo(typeof(IValidatingObject)))
+                        {
+                            var rule = new DynamicRule(() =>
+                            {
+                                if (member.GetValue(this) is IValidatingObject value)
+                                {
+                                    return string.IsNullOrEmpty(value.Error);
+                                }
+                                return true;
+                            }, member.Name, () =>
+                            {
+                                if (member.GetValue(this) is IValidatingObject value)
+                                {
+                                    return value.Error;
+                                }
+                                return null;
+                            });
+                            Rules.Add(rule);
+                        }
+                    }
+                }
+                {
+                    if (td is EmbeddedTypeData)
+                    {
+                        foreach (var member in td.GetMembers().OfType<EmbeddedMemberData>())
+                        {
+                            if (member.OwnerMember.TypeDescriptor.DescendsTo(typeof(IValidatingObject)))
+                            {
+                                var rule = new DynamicRule(() =>
+                                {
+                                    var src = (IValidatingObject)member.OwnerMember.GetValue(this);
+                                    if (src == null) return false;
+                                    var err = src[member.InnerMember.Name];
+                                    return string.IsNullOrEmpty(err);
+                                }, member.Name, () =>
+                                {
+                                    var src = (IValidatingObject)member.OwnerMember.GetValue(this);
+                                    if (src == null) return "Instance is null";
+                                    return src[member.InnerMember.Name];
+                                });
+                                Rules.Add(rule);
+
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
         /// <summary>
         /// Return the error for a given property
         /// </summary>
         protected virtual string GetError(string propertyName = null)
         {
+            UpdateEmbeddedAndDynamicRules();
+            
             List<string> errors = null;
             void pushError(string error)
             {
@@ -82,11 +156,7 @@ namespace OpenTap
                     var err = obj.Error;
                     
                     if (string.IsNullOrWhiteSpace(err)) continue;
-                    err = err.TrimEnd();
-
-                    if (errors == null) errors = new List<string>();
-                    if (!errors.Contains(err))
-                        errors.Add(err);
+                    pushError(err.TrimEnd());
                 }
                 finally
                 {
@@ -197,7 +267,7 @@ namespace OpenTap
     /// </summary>
     public class DelegateValidationRule : ValidationRule
     {
-        readonly static TraceSource log =  OpenTap.Log.CreateSource("Validation");
+        static readonly TraceSource log =  OpenTap.Log.CreateSource("Validation");
         /// <summary>
         /// The error calculated from ErrorDelegate.
         /// </summary>
@@ -245,6 +315,7 @@ namespace OpenTap
     /// </summary>
     public class ValidationRuleCollection : Collection<ValidationRule>
     {
+        internal int UpdateKey;
         /// <summary>
         /// Add a new rule to the collection.
         /// </summary>
@@ -297,7 +368,7 @@ namespace OpenTap
         public void Add(IsValidDelegateDefinition isValid, string errorMessage, params string[] propertyNames)
         {
             if (propertyNames == null)
-                throw new ArgumentNullException("propertyNames");
+                throw new ArgumentNullException(nameof(propertyNames));
             foreach (string propertyName in propertyNames)
             {
                 this.Add(isValid, errorMessage, propertyName);
@@ -313,7 +384,7 @@ namespace OpenTap
         public void Add(IsValidDelegateDefinition isValid, CustomErrorDelegateDefinition errorDelegate, params string[] propertyNames)
         {
             if (propertyNames == null)
-                throw new ArgumentNullException("propertyNames");
+                throw new ArgumentNullException(nameof(propertyNames));
             foreach (string propertyName in propertyNames)
             {
                 this.Add(isValid, errorDelegate, propertyName);

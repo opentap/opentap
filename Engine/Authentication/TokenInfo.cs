@@ -3,16 +3,37 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
+using System.Text;
 using System.Text.Json;
 using System.Xml.Serialization;
 
 namespace OpenTap.Authentication
 {
     /// <summary> 
-    /// Represents a set of Oauth2/OpenID Connect jwt tokens (access and possibly refresh token) that grants access to a given domain.
+    /// Represents a set of Oauth2/OpenID Connect tokens (access and possibly refresh token) that grants access to a given domain.
     /// </summary>
     public class TokenInfo
     {
+        /// <summary>
+        /// An enumeration of known token kinds
+        /// </summary>
+        private enum TokenKind
+        {
+            Jwt,
+            UserToken
+        }
+
+        /// <summary>
+        /// The kind of token this instance contains
+        /// </summary>
+        private TokenKind Kind => DetermineTokenKind();
+
+        private TokenKind DetermineTokenKind()
+        {
+            // Repository user tokens are guaranteed to never contain a period.
+            return AccessToken.Contains(".") ? TokenKind.Jwt : TokenKind.UserToken;
+        }
+        
         static DateTime unixEpoch = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
 
         /// <summary>
@@ -53,14 +74,24 @@ namespace OpenTap.Authentication
             get
             {
                 if (_Claims == null)
-                    _Claims = GetPayload().RootElement.EnumerateObject().ToDictionary(c => c.Name, c => c.Value.ToString());
+                    _Claims = GetClaims();
                 return _Claims;
             }
         }
 
+        private Dictionary<string, string> GetClaims()
+        {
+            if (Kind == TokenKind.Jwt)
+                return GetPayload().RootElement.EnumerateObject().ToDictionary(c => c.Name, c => c.Value.ToString());
+            return new Dictionary<string, string>();
+        }
+
         /// <summary> Expiration date of the <see cref="AccessToken"/>. </summary>
         [XmlIgnore]
-        public DateTime Expiration => unixEpoch.AddSeconds(long.Parse(Claims["exp"]));
+        [Obsolete("Expiration time is not supported. Future token types may not contain expiration information. " +
+                  "Consider manually decoding the token if you know the specific format.")]
+        public DateTime Expiration =>
+            Kind == TokenKind.Jwt ? unixEpoch.AddSeconds(long.Parse(Claims["exp"])) : DateTime.MaxValue;
 
         JsonDocument payload;
 
@@ -97,7 +128,7 @@ namespace OpenTap.Authentication
         /// <summary>
         /// Default constructor from user code
         /// </summary>
-        /// <param name="access_token">The raw jwt token string for the access token</param>
+        /// <param name="access_token">The raw token string for the access token</param>
         /// <param name="refresh_token">Access, Refresh or ID type</param>
         /// <param name="domain">Domain name for which this token is valid</param>
         public TokenInfo(string access_token, string refresh_token, string domain)

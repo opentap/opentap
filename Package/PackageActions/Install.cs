@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
@@ -86,7 +87,7 @@ namespace OpenTap.Package
 
 
         private string DefaultOs;
-        
+
         /// <summary>
         /// This will be set only if the install action was started by <see cref="PackageInstallStep"/>
         /// This is supposed to solve an issue where OpenTAP fails to detect that the process was elevated.
@@ -99,18 +100,7 @@ namespace OpenTap.Package
         public PackageInstallAction()
         {
             Architecture = ArchitectureHelper.GuessBaseArchitecture;
-            switch (Environment.OSVersion.Platform)
-            {
-                case PlatformID.MacOSX:
-                    OS = "MacOS";
-                    break;
-                case PlatformID.Unix:
-                    OS = "Linux";
-                    break;
-                default:
-                    OS = "Windows";
-                    break;
-            }
+            OS = GuessHostOS();
 
             DefaultOs = OS;
         }
@@ -167,9 +157,9 @@ namespace OpenTap.Package
                 {
                     packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                         targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
-                        InstallDependencies, Force, askToInstallDependencies, NoDowngrade);
+                        NoDowngrade);
                 }
-                catch (ImageResolveException ex)
+                catch (ImageResolveException ex) when (ex.Result is FailedImageResolution fir)
                 {
                     // If the problem is exactly that we failed to resolve a compatible release version of a package,
                     // ask the user to retry the resolution with a pre-release instead.
@@ -178,7 +168,6 @@ namespace OpenTap.Package
                     // A beta version strikes a good middle ground. It is pretty likely to resolve, and probably won't be too unstable.
                     if (NonInteractiveUserInputInterface.IsSet()) throw;
                     if (Packages.Length != 1) throw;
-                    if (false == (ex.Result is FailedImageResolution fir)) throw;
                     if (fir.resolveProblems.Count != 1) throw;
 
                     var problem = fir.resolveProblems[0];
@@ -186,15 +175,26 @@ namespace OpenTap.Package
                     // Only show the beta option if the resolution problem was with the package we are trying to install
                     if (problem.Name != Packages[0]) throw;
 
-                    var req = new AskAboutPrerelease($"Package '{problem.Name}' has no compatible release version. Try a beta version instead?");
-                    UserInput.Request(req);
+                    // Try to resolve a beta version instead, but only offer the beta version if the user wants it
+                    try
+                    {
+                        packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
+                            targetInstallation, PackageReferences, Packages, "beta", Architecture, OS, repositories,
+                            Force, NoDowngrade);
+                    }
+                    catch
+                    {
+                        // throw original exception if beta resolution fails
+                        throw ex;
+                    }
 
+                    // If the beta resolution succeeded, ask the user if they want to install the beta version
+                    var betaVersion = packagesToInstall.First(p => p.Name == problem.Name).Version;
+
+                    var req = new AskAboutPrerelease($"Package '{problem.Name}' has no compatible release version, but the beta version '{betaVersion.ToString(4)}' is compatible.\nInstall this version instead?");
+                    UserInput.Request(req);
                     if (req.Response == UseBetaQuestion.No) throw;
 
-                    Version = "beta";
-                    packagesToInstall = PackageActionHelpers.GatherPackagesAndDependencyDefs(
-                        targetInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories, Force,
-                        InstallDependencies, Force, askToInstallDependencies, NoDowngrade);
                 }
 
                 if (SystemWideOnly)
@@ -323,29 +323,46 @@ namespace OpenTap.Package
                         }
                     }
                 }
+                
+                // Download the packages
+                // We divide the progress by 2 in the progress update because we assume downloading the packages
+                // accounts for half the installation progress. So when all the packages have finished downloading,
+                // we have finished 10 + (100/2)% of the installation process.
+                packagesToInstall = packagesToInstall.OrderBy(p => p.IsSystemWide()).ToList();
 
-                // System wide packages require elevated privileges. Install them in a separate elevated process.
-                var systemWide = packagesToInstall.Where(p => p.IsSystemWide()).ToArray();
+                var downloadedPackageFiles = PackageActionHelpers.DownloadPackages(
+                    PackageCacheHelper.PackageCacheDirectory, packagesToInstall,
+                    progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg),
+                    ignoreCache: NoCache);
+                
+                // The downloaded package files will arrive in the same order as the packagesToInstall list.
+                // We need to split the list into two parts, one for regular packages and one for systemwide packages.
+                var cutoff = packagesToInstall.FindIndex(p => p.IsSystemWide());
+                if (cutoff == -1) cutoff = packagesToInstall.Count;
+
+                var regularPackages = downloadedPackageFiles.Take(cutoff).ToList();
+                var systemwidePackages = downloadedPackageFiles.Skip(cutoff).ToArray();
 
                 // We need to elevate if 
                 // 1. Elevation was not already attempted, and
                 // 2. we need to install systemWide packages, and
                 // 3. We are not already running as admin
-                bool needElevation = !AlreadyElevated && systemWide.Any() && SubProcessHost.IsAdmin() == false;
+                bool needElevation = !AlreadyElevated && systemwidePackages.Any() && SubProcessHost.IsAdmin() == false;
 
                 // Warn the user if elevation was already attempted, and we are not currently running as admin
                 if (AlreadyElevated && SubProcessHost.IsAdmin() == false)
                 {
                     log.Warning($"Process elevation failed. Installation will continue without elevation.");
                 }
-                
+
+                // If we need to install system-wide packages and we are not admin, we should install them in an elevated sub-process
                 if (needElevation)
                 {
                     RaiseProgressUpdate(20, "Installing system-wide packages.");
                     var installStep = new PackageInstallStep()
                     {
-                        Packages = systemWide,
-                        Repositories = repositories.Select(r => r.Url).ToArray(),
+                        Packages = systemwidePackages,
+                        Repositories = Array.Empty<string>(),
                         Target = PackageDef.SystemWideInstallationDirectory,
                         Force = Force,
                         SystemWideOnly = true
@@ -359,7 +376,10 @@ namespace OpenTap.Package
                             "CLI", "Session", "Resolver", "AssemblyFinder", "PluginManager", "TestPlan",
                             "UpdateCheck",
                             "Installation"
-                        }
+                        },
+                        // The current install action is a locking package action.
+                        // Setting this flag lets the child process bypass the lock on the installation.
+                        Unlocked = true,
                     };
 
                     var result = processRunner.Run(installStep, true, cancellationToken);
@@ -370,23 +390,16 @@ namespace OpenTap.Package
                         RaiseError(ex);
                     }
 
-                    var pct = ((double)systemWide.Length / systemWide.Length + packagesToInstall.Count) * 100;
+                    var pct = ((double)systemwidePackages.Length / (systemwidePackages.Length + packagesToInstall.Count)) * 100;
                     RaiseProgressUpdate((int)pct, "Installed system-wide packages.");
-                    // And remove the system wide packages from the list
-                    packagesToInstall = packagesToInstall.Except(p => p.IsSystemWide()).ToList();
+                }
+                // Otherwise if we are admin and we need to install system-wide packages, we can install them in the current process
+                else if (systemwidePackages.Any())
+                {
+                    installer.PackagePaths.AddRange(systemwidePackages);
                 }
 
-                // Download the packages
-                // We divide the progress by 2 in the progress update because we assume downloading the packages
-                // accounts for half the installation progress. So when all the packages have finished downloading,
-                // we have finished 10 + (100/2)% of the installation process.
-
-                var downloadedPackageFiles = PackageActionHelpers.DownloadPackages(
-                    PackageCacheHelper.PackageCacheDirectory, packagesToInstall,
-                    progressUpdate: (progress, msg) => RaiseProgressUpdate(10 + progress / 2, msg),
-                    ignoreCache: NoCache);
-
-                installer.PackagePaths.AddRange(downloadedPackageFiles);
+                installer.PackagePaths.AddRange(regularPackages);
             }
             catch (OperationCanceledException e)
             {
@@ -397,9 +410,9 @@ namespace OpenTap.Package
             {
                 if (Packages != null && Packages.Length > 0)
                 {
-                    Log.Error("Could not resolve {0}{1}", 
+                    Log.Error("Could not resolve {0}{1}",
                         string.Join(", ", Packages.Select(x => $"{x}")),
-                        string.IsNullOrWhiteSpace(Version) ? "" : $" v{Version}");    
+                        string.IsNullOrWhiteSpace(Version) ? "" : $" v{Version}");
                 }
                 else
                 {

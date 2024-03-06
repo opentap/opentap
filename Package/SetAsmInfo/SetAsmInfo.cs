@@ -324,8 +324,7 @@ namespace OpenTap.Package.SetAsmInfo
                     }
 
                     data = versionInfo.GetData();
-
-                    Win32Resource.WriteVersionResource(filename, data);
+                    Utils.Retry(() => Win32Resource.WriteVersionResource(filename, data));
                 }
                 catch (Exception ex)
                 {

@@ -7,7 +7,7 @@ using OpenTap;
 
 namespace ProjectName
 {
-    [Display("MyInstrument")]
+    [Display("MyInstrument", Description: "Insert a description here", Group: "ProjectName")]
     public class MyInstrument : Instrument
     {
         #region Settings
@@ -15,7 +15,7 @@ namespace ProjectName
         #endregion
         public MyInstrument()
         {
-            Name = "ProjectNameInstrument";
+            Name = "MyInstrument";
             // ToDo: Set default values for properties / settings.
         }
 

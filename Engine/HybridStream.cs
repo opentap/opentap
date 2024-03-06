@@ -95,18 +95,18 @@ namespace OpenTap
                 throw new NotSupportedException();
             }
         }
-        
+
         #region Private
         private object lockObject = new object();
 
         private Stream stream = new MemoryStream();
 
         /// <summary> Create a new instance with default parameters. </summary>
-        public HybridStream() : this( FileSystemHelper.CreateTempFile(".opentap-log.txt"), 1024 * 1024)
+        public HybridStream() : this(FileSystemHelper.CreateTempFile(".opentap-log.txt"), 1024 * 1024)
         {
-            
+
         }
-        
+
         public HybridStream(string filename, int threshold)
         {
             this.Filename = filename;
@@ -168,7 +168,7 @@ namespace OpenTap
         {
             lock (lockObject)
             {
-                var fileStream = new FileStream(Filename, FileMode.Create, FileAccess.Write, FileShare.ReadWrite,   1024 * 16, FileOptions.DeleteOnClose);
+                var fileStream = new FileStream(Filename, FileMode.Create, FileAccess.Write, FileShare.ReadWrite, 1024 * 16, FileOptions.DeleteOnClose);
                 fileStream.Write(((MemoryStream)stream).GetBuffer(), 0, (int)stream.Length);
                 stream.Dispose();
                 stream = fileStream;
@@ -199,4 +199,5 @@ namespace OpenTap
             base.Close();
         }
     }
+
 }

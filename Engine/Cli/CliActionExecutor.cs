@@ -10,6 +10,7 @@ using System.Linq;
 using System.IO;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Xml.Linq;
 
 namespace OpenTap.Cli
@@ -145,25 +146,35 @@ namespace OpenTap.Cli
         {
             // Set TapMutex to ensure any installers know about running OpenTAP processes.
             ReflectionHelper.SetTapMutex();
-            
+
             try
             {
                 // Turn off the default system behavior when CTRL+C is pressed. 
                 // When Console.TreatControlCAsInput is false, CTRL+C is treated as an interrupt instead of as input.
-                Console.TreatControlCAsInput = false; 
+                // Assigning to this property while the property is running in the background will cause it to be suspended until 
+                // it becomes the foreground process. Therefore we should only assign it if it is not already set to false
+                if (Console.TreatControlCAsInput)
+                    Console.TreatControlCAsInput = false;
             }
             catch { }
-            try
-            {
-                var execThread = TapThread.Current;
-                Console.CancelKeyPress += (s, e) =>
-                {
-                    e.Cancel = true;
-                    execThread.Abort();
-                };
+            var execThread = TapThread.Current;
 
+            void abort()
+            {
+                execThread.AbortNoThrow();
             }
-            catch { }
+
+            Console.CancelKeyPress += (s, e) =>
+            {
+                e.Cancel = true;
+                abort();
+            };
+            // Signals are not supported on Windows.
+            if (OperatingSystem.Current != OperatingSystem.Windows)
+            {
+                PosixSignals.SigTerm += (sig, info) => abort();
+                PosixSignals.SigInt += (sig, info) => abort();
+            }
 
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;

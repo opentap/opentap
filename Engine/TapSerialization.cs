@@ -146,6 +146,12 @@ namespace OpenTap
                 }
                 finally
                 {
+                    if(ThrowOnErrors){
+                        if (messages.Count > 0)
+                        {
+                            throw new Exception("Error during reading XML: " + string.Join("\n", messages));
+                        }
+                    }
                     if (IgnoreErrors == false)
                     {
                         LogMessages();
@@ -242,6 +248,9 @@ namespace OpenTap
         /// True if errors should be ignored.
         /// </summary>
         public bool IgnoreErrors { get; set; } = false;
+
+        /// <summary> The serializer will throw an exception if there are any errors. </summary>
+        internal bool ThrowOnErrors { get; set; } = false;
         
         /// <summary>
         /// Gets a serializer from the stack of active serializers. Returns null if there is no serializer of that type on the stack.
@@ -397,6 +406,9 @@ namespace OpenTap
         }
 
         static readonly XName rootName = "root";
+        
+        /// <summary> If set to true, Serialize will write a section of XML instead of an entire document. In other words, it will skip writing the start of the document. </summary>
+        public bool WriteFragments { get; set; }
         /// <summary>
         /// Serializes an object to a XML writer.
         /// </summary>
@@ -406,7 +418,7 @@ namespace OpenTap
         {
             if (writer == null)
                 throw new ArgumentNullException(nameof(writer));
-            XDocument doc = new XDocument();
+            
             XElement elem = new XElement(rootName);
             if(obj != null)
                 elem.Name = TypeToXmlString(obj.GetType());
@@ -414,12 +426,14 @@ namespace OpenTap
             using(TypeData.WithTypeDataCache())
             using(ParameterManager.WithSanityCheckDelayed(true))
                 Serialize(elem, obj);
-            doc.Add(elem);
-            doc.WriteTo(writer);
+            if (!WriteFragments)
+                writer.WriteStartDocument();
+            elem.WriteTo(writer);
+            
             if (IgnoreErrors == false)
                 LogMessages();
         }
-
+        
         /// <summary>
         /// Serializes an object to a string.
         /// </summary>
@@ -435,24 +449,23 @@ namespace OpenTap
             }
         }
 
-        /// <summary>
-        /// Serializes an object to XML.
-        /// </summary>
-        /// <param name="elem"></param>
-        /// <param name="obj"></param>
-        /// <param name="expectedType"></param>
-        /// <returns></returns>
-        public bool Serialize(XElement elem, object obj, ITypeData expectedType = null)
+        /// <summary> Serializes an object to XML. </summary>
+        public bool Serialize(XElement elem, object obj, ITypeData expectedType = null) => 
+            Serialize(elem, obj, expectedType, true);
+
+        /// <summary> Serializes an object to XML. Includes an argument whether the serializer should be notified about the type being used.</summary>
+        internal bool Serialize(XElement elem, object obj, ITypeData expectedType, bool notifyTypeUsed)
         {
             ITypeData type = null;
             if(obj != null)
             {
                 type = TypeData.GetTypeData(obj);
-                NotifyTypeUsed(type);
+                if(notifyTypeUsed)
+                    NotifyTypeUsed(type);
             }
             if (Object.Equals(type, expectedType) == false && type != null)
                 elem.SetAttributeValue("type", type.Name);
-            else if (expectedType != null)
+            else if (expectedType != null && notifyTypeUsed)
                 NotifyTypeUsed(expectedType);
 
             foreach (var serializer in serializers)
@@ -561,6 +574,8 @@ namespace OpenTap
             doc.Add(elem);
             return Deserialize(doc);
         }
+
+        internal T Clone<T>(T obj) => (T)Clone((object)obj);
 
         /// <summary> for mapping object to serializer. </summary>
         static System.Runtime.CompilerServices.ConditionalWeakTable<object, TapSerializer> serializerSteps = 

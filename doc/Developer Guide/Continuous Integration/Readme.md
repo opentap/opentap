@@ -139,26 +139,22 @@ jobs:
     steps:
       # Check out the files in this repository. 
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           # 'tap sdk gitversion' can fail if the version history is incomplete. 
           # A fetch-depth of 0 ensures we get a complete history.
           fetch-depth: 0 
-      # Fixes an issue with actions/checkout@v2. See https://github.com/actions/checkout/issues/290
+      # Fixes an issue with actions/checkout@v3. See https://github.com/actions/checkout/issues/290
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} 
       # Build your project
       - name: Build
         run: dotnet build -c Release
-      # Create the tap package
-      - name: Package
-        working-directory: bin/Release
-        run: ./tap package create package.xml
       # Upload the package so it can be downloaded from GitHub, 
       # and consumed by other steps in this workflow
       - name: Upload binaries
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: tap-package
           retention-days: 5
@@ -173,7 +169,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build
         run: dotnet test
 

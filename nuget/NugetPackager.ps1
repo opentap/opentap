@@ -23,10 +23,52 @@ function CopyPreserveRelativePath{
     Copy-Item $filename $newItem
 }
 
-# Copy linux specific files
+# Copy linux arm64 specific files
+Push-Location linux-arm64
+
+$runtimeDir = "../nuget/build/runtimes/linux-arm64"
+$packageXml = Get-ChildItem -File -Recurse package.xml | Resolve-Path -Relative | Select-Object -First 1
+CopyPreserveRelativePath $packageXml $runtimeDir
+
+CopyPreserveRelativePath ./tap $runtimeDir
+CopyPreserveRelativePath ./tap.dll $runtimeDir
+CopyPreserveRelativePath ./tap.runtimeconfig.json $runtimeDir
+Get-ChildItem -File -Recurse libgit2-* | Resolve-Path -Relative | ForEach-Object { CopyPreserveRelativePath $_ $runtimeDir }
+
+Pop-Location
+
+# Copy linux x64 specific files
 Push-Location linux-x64
 
 $runtimeDir = "../nuget/build/runtimes/linux-x64"
+$packageXml = Get-ChildItem -File -Recurse package.xml | Resolve-Path -Relative | Select-Object -First 1
+CopyPreserveRelativePath $packageXml $runtimeDir
+
+CopyPreserveRelativePath ./tap $runtimeDir
+CopyPreserveRelativePath ./tap.dll $runtimeDir
+CopyPreserveRelativePath ./tap.runtimeconfig.json $runtimeDir
+Get-ChildItem -File -Recurse libgit2-* | Resolve-Path -Relative | ForEach-Object { CopyPreserveRelativePath $_ $runtimeDir }
+
+Pop-Location
+
+# Copy macos x64 specific files
+Push-Location macos-x64
+
+$runtimeDir = "../nuget/build/runtimes/macos-x64"
+$packageXml = Get-ChildItem -File -Recurse package.xml | Resolve-Path -Relative | Select-Object -First 1
+CopyPreserveRelativePath $packageXml $runtimeDir
+
+CopyPreserveRelativePath ./tap $runtimeDir
+CopyPreserveRelativePath ./tap.dll $runtimeDir
+CopyPreserveRelativePath ./tap.runtimeconfig.json $runtimeDir
+Get-ChildItem -File -Recurse libgit2-* | Resolve-Path -Relative | ForEach-Object { CopyPreserveRelativePath $_ $runtimeDir }
+
+Pop-Location
+
+# Copy macos arm64 specific files
+Push-Location macos-arm64
+
+$runtimeDir = "../nuget/build/runtimes/macos-arm64"
 $packageXml = Get-ChildItem -File -Recurse package.xml | Resolve-Path -Relative | Select-Object -First 1
 CopyPreserveRelativePath $packageXml $runtimeDir
 

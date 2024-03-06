@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -100,13 +101,126 @@ namespace OpenTap.Package
         {
             try
             {
-                AssemblyName testAssembly = AssemblyName.GetAssemblyName(fullPath);
-                return true;
+                if (File.Exists(fullPath))
+                {
+                    AssemblyName testAssembly = AssemblyName.GetAssemblyName(fullPath);
+                    return true;
+                }
             }
-
             catch (Exception)
             {
-                return false;
+                
+            }
+            return false;
+        }
+
+        // TypeData has a PluginTypes property which contains the list of plugins
+        // which it implements. ITypeData does not. Recursively iterate
+        // the basetype hierarchy until we find a TypeData which has populated this property,
+        // or until we find an ITypeData which inherits directly from ITapPlugin
+        static ITypeData[] tdPluginTypes(ITypeData td)
+        {
+            if (td.BaseType == null || td.BaseType == td) return Array.Empty<ITypeData>();
+            if (td.BaseType.IsA(typeof(ITapPlugin))) return new[] { td };
+            if (td is TypeData t)
+            {
+                // If PluginTypes is null, it could be a dynamic typedata whose
+                // basetype has actual pluginTypes (seen with the Python plugin)
+                if (t.PluginTypes == null) return tdPluginTypes(td.BaseType);
+                // Otherwise if it does have plugin types, we can sim
+                return t.PluginTypes.Cast<ITypeData>().ToArray();
+            }
+
+            return tdPluginTypes(td.BaseType);
+        }
+        
+        private static void EnumerateAdditionalPlugins(PackageDef pkgDef)
+        {
+            string normalize(string s) => s.ToLowerInvariant().Replace("\\", "/").Replace("//", "/");
+            // Create a lookup of all plugin sources based on source file
+            var sources = TypeData.GetDerivedTypes<ITapPlugin>().Where(t => t.CanCreateInstance).Select(TypeData.GetTypeDataSource).Where(src => src.GetType() != typeof(AssemblyData))
+                .ToLookup(src => normalize(Path.GetFullPath(src.Location)));
+            if (sources.Count == 0) return;
+
+            var tapdir = ExecutorClient.ExeDir;
+            var workDir = EngineSettings.StartupDir;
+            foreach (var file in pkgDef.Files)
+            {
+                ITypeDataSource[] sourceList = Array.Empty<ITypeDataSource>();
+                if (!string.IsNullOrWhiteSpace(file.RelativeDestinationPath))
+                    sourceList = sources[normalize(Path.Combine(tapdir, file.RelativeDestinationPath))].ToArray();
+                if (sourceList.Length == 0 && !string.IsNullOrWhiteSpace(file.FileName))
+                    sourceList = sources[normalize(Path.Combine(tapdir, file.FileName))].ToArray();
+                
+                // look in the working directory - tap package create is relative to that.
+                if (sourceList.Length == 0 && !string.IsNullOrWhiteSpace(file.FileName))
+                    sourceList = sources[normalize(Path.Combine(workDir, file.FileName))].ToArray();
+                
+                if (sourceList.Length == 0) continue;
+
+                // discinct by provider type (if a file has more than one plugin in it from the same provider, that provider is going to be in the list several times)
+                sourceList = sourceList.GroupBy(src => src.GetType()).Select(grp => grp.First()).ToArray();
+                
+                // Iterate all the sources that have generated plugins based on this file
+                foreach (var source in sourceList)
+                {
+                    // Add any relevant dependencies. Note that we only add dependencies on AssemblyData implementations,
+                    // It would probably be more correct if PackageFile.DependentAssemblies was called something like
+                    // PackageFile.PluginFileDependencies, and had a list of ITypeDataSource instead.
+                    var dependencies = source.References.ToArray();
+                    file.DependentAssemblies.AddRange(dependencies.OfType<AssemblyData>());
+                    file.DependentTypeDataSources.AddRange(dependencies.Where(x => !(x is AssemblyData)));
+                    
+                    string bestName(ITypeData t, DisplayAttribute display = null)
+                    {
+                        display ??= t.GetDisplayAttribute();
+                        return display?.Name ?? t.Name.Split('.', '+').Last();
+                    }
+                    
+                    foreach (var td in source.Types)
+                    {
+                        try
+                        {
+                            if (td.CanCreateInstance == false) continue;
+                            void addTypeDataDependencies(ITypeData td2)
+                            {
+                                if (td2 == null) return;
+                                
+                                var src = TypeData.GetTypeDataSource(td2);
+                                if (src.Location != null)
+                                {
+                                    if (file.DependentTypeDataSources.Contains(src))
+                                        return;
+                                    file.DependentTypeDataSources.Add(src);
+                                } 
+                                addTypeDataDependencies(td2.BaseType);
+                            }
+                            addTypeDataDependencies(td.BaseType);
+                            var display = td.GetDisplayAttribute();
+                            var pluginTypes = tdPluginTypes(td);
+                            var plug = new PluginFile()
+                            {
+                                BaseType = string.Join(" | ", pluginTypes.Select(t => bestName(t))),
+                                Type = td.Name,
+                                Name = bestName(td, display),
+                                Description = display?.Description ?? "",
+                                Groups = display?.Group,
+                                Collapsed = display?.Collapsed ?? false,
+                                Order = display?.Order ?? -10000,
+                                Browsable = td.GetAttribute<BrowsableAttribute>()?.Browsable ?? true,
+                            };
+                            file.Plugins.Add(plug);
+                        }
+                        catch (Exception ex)
+                        {
+                            log.Error($"Failed to add plugins from '{td.Name}'");
+                            log.Debug(ex);
+                        }
+                    }
+                }
+                
+                // Remove duplicated dependencies (very unlikely)
+                file.DependentAssemblies = file.DependentAssemblies.Distinct().ToList();
             }
         }
 
@@ -193,7 +307,10 @@ namespace OpenTap.Package
             // Enumerate plugins if this has not already been done.
             if (!pkgDef.Files.SelectMany(pfd => pfd.Plugins).Any())
             {
+                // Enumerate plugin types from C# assemblies
                 EnumeratePlugins(pkgDef, assemblies);
+                // Enumerate plugin types from other ITypeDataSource implementations
+                EnumerateAdditionalPlugins(pkgDef);
             }
 
             pkgDef.findDependencies(excludeAdd, assemblies);
@@ -404,6 +521,31 @@ namespace OpenTap.Package
                 }
             }
 
+            {
+                
+                // add dependencies which are from different type data sources than AssemblyData (.NET).
+                foreach (var file in pkg.Files)
+                {
+                    foreach (var dep in file.DependentTypeDataSources)
+                    {
+                        var pkg2 = currentInstallation.FindPackageContainingFile(dep.Location);
+                        if (pkg2 == null)
+                        {
+                            log.Debug($"Dependency without a source package dependency: {dep.Name}, depender: {file.FileName}");
+                            continue;
+                        }
+                        if (pkg.Dependencies.Any(dep => dep.Name == pkg2.Name))
+                        {
+                            continue;
+                        }
+                        if (pkg.Name == pkg2.Name) // don't have the package depend on itself. This can happen if the package.xml getting created is already in a location as if it was installed (e.g. ./Packages/<pluginname>/package.xml)
+                            continue;
+                        PackageDependency pd = new PackageDependency(pkg2.Name, new VersionSpecifier(pkg2.Version, VersionMatchBehavior.Compatible));
+                        pkg.Dependencies.Add(pd);
+                    }
+                }
+            }
+            
             // Find additional dependencies
             do
             {
@@ -417,6 +559,7 @@ namespace OpenTap.Package
 
                 var anyOffered = offeredByDependencies.Concat(offeredByThis).ToList();
 
+                
                 // Find our dependencies and subtract the above two lists
                 var dependentAssemblyNames = pkg.Files
                     .SelectMany(fs => fs.DependentAssemblies)
@@ -431,6 +574,14 @@ namespace OpenTap.Package
                     var packageCandidates = new Dictionary<PackageDef, int>();
                     foreach (var f in installed)
                     {
+                        // Check if the package depends on the package being built.
+                        // Circular dependencies are not supported, so don't add it.
+                        // in the best of worlds, we'd recurse to find if there is a dependency
+                        // further up the tree, but that seems like a very unlikely situation, so 
+                        // we skip that for now.
+                        if (f.Dependencies.Any(dep => dep.Name == pkg.Name))
+                            continue;
+                        
                         var candidateAsms = searcher.GetPackageAssemblies(f)
                             .Where(asm => dependentAssemblyNames.Any(dep => (dep.Name == asm.Name))).ToList();
 
@@ -480,6 +631,12 @@ namespace OpenTap.Package
                         }
                         if (foundNew)
                         {
+                            // Check if a circular dependency gets added into the package.
+                            // This should only happen in case of an error. Continuing will cause undefined behavior.
+                            var circularDependency = candidatePkg.Dependencies.FirstOrDefault(x => x.Name == pkg.Name);
+                            if (circularDependency != null)
+                                throw new Exception("A package cannot depend on another package that depends on it. Circular dependencies are not supported.");
+
                             log.Info("Adding dependency on package '{0}' version {1}", candidatePkg.Name, candidatePkg.Version);
 
                             PackageDependency pd = new PackageDependency(candidatePkg.Name, new VersionSpecifier(candidatePkg.Version, VersionMatchBehavior.Compatible));
@@ -750,6 +907,7 @@ namespace OpenTap.Package
                     var sw = Stopwatch.StartNew();
                     var relFileName = file.RelativeDestinationPath;
                     var ZipPart = zip.CreateEntry(relFileName, System.IO.Compression.CompressionLevel.Optimal);
+                    ZipPart.FixUnixPermissions();
                     
                     using (var instream = File.OpenRead(file.FileName))
                     {
@@ -765,6 +923,7 @@ namespace OpenTap.Package
                 // add the metadata xml file:
 
                 var metaPart = zip.CreateEntry(String.Join("/", PackageDef.PackageDefDirectory, pkg.Name, PackageDef.PackageDefFileName), System.IO.Compression.CompressionLevel.Optimal);
+                metaPart.FixUnixPermissions();
                 using(var str = metaPart.Open())
                     pkg.SaveTo(str);
             }

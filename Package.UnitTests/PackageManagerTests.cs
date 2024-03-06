@@ -52,17 +52,19 @@ namespace OpenTap.Package.UnitTests
         }
 
         [TestCase("file:///C:/Packages", "file:///C:/Packages", "Windows")]
-        [TestCase("file:///C:/Packages/", "file:///C:/Packages", "Windows")]
-        [TestCase("file:///Packages/", "file:///{Drive}Packages", "Windows")]
+        [TestCase("file:///C:/Packages/", "file:///C:/Packages/", "Windows")]
+        [TestCase("file:///Packages/", "file:///{Drive}Packages/", "Windows")]
         [TestCase("file:///Packages", "file:///Packages", "Linux")]
-        [TestCase("file:///Packages/", "file:///Packages", "Linux")]
+        [TestCase("file:///Packages/", "file:///Packages/", "Linux")]
         [TestCase("C:/Packages", "file:///C:/Packages", "Windows")]
-        [TestCase("C:/Packages/", "file:///C:/Packages", "Windows")]
+        [TestCase("C:/Packages/", "file:///C:/Packages/", "Windows")]
         [TestCase("/Packages", "file:///Packages", "Linux")]
         [TestCase("/Packages/", "file:///Packages", "Linux")]
-        [TestCase("C:\\Packages/", "file:///C:/Packages", "Windows")]
+        [TestCase("C:\\Packages/", "file:///C:/Packages/", "Windows")]
         [TestCase("PackageCache", "file:///{CurrentDirectory}/PackageCache")]
-        [TestCase("PackageCache/", "file:///{CurrentDirectory}/PackageCache")]
+        [TestCase("PackageCache/", "file:///{CurrentDirectory}/PackageCache/")]
+        [TestCase(@"\\wsl.localhost\arch\packages\", "file://wsl.localhost/arch/packages")]
+        [TestCase(@"\\192.168.0.100\some\directory\", "file://192.168.0.100/some/directory")]
         public void FileRepositoryUrls(string input, string expectedUrl, string os = "Windows,Linux")
         {
             if (!os.Contains(OperatingSystem.Current.ToString()))
@@ -78,12 +80,22 @@ namespace OpenTap.Package.UnitTests
             Assert.AreEqual(expectedUrl, repository.Url);
         }
 
-        [Test]
+        [Test, Ignore("The test is slow and the endpoint is deprecated.")]
         public void HttpRepositoryManagerTest()
         {
             var manager = new HttpPackageRepository("http://packages.opentap.io/");
             RepositoryManagerReceivePackageList(manager);
             TestDownload(manager);
+        }
+
+        [Test]
+        [TestCase("http://packages.opentap.io")]
+        [TestCase("https://packages.opentap.io")]
+        [TestCase("packages.opentap.io")]
+        public void TestInstantiateHttpRepository(string repo)
+        {
+            // Some plugins depend on being able to instantiate http package repository without a scheme
+            new HttpPackageRepository(repo);
         }
 
         [Test]
@@ -514,8 +526,13 @@ namespace OpenTap.Package.UnitTests
         [TestCase("", "packages.opentap.io", typeof(HttpPackageRepository))]         // No scheme, top level domain
         [TestCase("", "my-repo.com", typeof(HttpPackageRepository))]                 // No scheme, top level domain
         [TestCase("", ".my.file.repo.", typeof(FilePackageRepository))]              // File path with periods
+        [TestCase("", "test", typeof(FilePackageRepository))]              // Relative path without directory
+        [TestCase("", "./test", typeof(FilePackageRepository))]              // Relative path with current directory
+        [TestCase("", "./", typeof(FilePackageRepository))]              // Current directory
+        [TestCase("", ".", typeof(FilePackageRepository))]              // Current directory (single dot)
         [TestCase("http://opentap.io", "http://packages.opentap.io", typeof(HttpPackageRepository))]  // Http scheme
         [TestCase("http://opentap.io", "https://packages.opentap.io", typeof(HttpPackageRepository))] // Https scheme
+        [TestCase("http://opentap.io", "packages.opentap.io", typeof(HttpPackageRepository))]         // No scheme
         [TestCase("http://opentap.io", "C:/a", typeof(FilePackageRepository))]                        // Windows absolute path
         [TestCase("http://opentap.io", "/a/b", typeof(HttpPackageRepository))]                        // Linux absolute path
         [TestCase("http://opentap.io", "a/b", typeof(HttpPackageRepository))]                         // Relative path
@@ -568,7 +585,9 @@ namespace OpenTap.Package.UnitTests
             var versions = httpPackageRepository.GetPackageVersions(packages.FirstOrDefault());
             Assert.IsTrue(versions.Any());
             string query = "query Query {packages(class:\"package\", version:\"any\"){ name version description dependencies{ name version} }}";
+#pragma warning disable CS0618 // Type or member is obsolete
             var resp = httpPackageRepository.QueryGraphQL(query);
+#pragma warning restore CS0618 // Type or member is obsolete
             Assert.IsNotNull(resp);
             string file = "C:/Temp/Test.TapPackage";
             try

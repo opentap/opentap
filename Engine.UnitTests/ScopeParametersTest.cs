@@ -84,6 +84,41 @@ namespace OpenTap.UnitTests
             member.Unparameterize(forwardedMember, scope2.ChildTestSteps[1]);
             Assert.IsNull(TypeData.GetTypeData(scope2).GetMember(parameterName)); // last 'Title' removed.
         }
+        
+        [Test]
+        public void ParallelAddParametersTest()
+        {
+            // verify that we can add parameters while somebody else is iterating them.
+            // this issue only previously occured if the number of parameters in the same collection was 
+            // greater than 1.
+            var diag = new DialogStep() {UseTimeout = true};
+            var diag2 = new DialogStep();
+            var diag3 = new DialogStep();
+            var scope = new SequenceStep();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(scope);
+            string parameterName = "param1";
+            scope.ChildTestSteps.Add(diag);
+            scope.ChildTestSteps.Add(diag2);
+            scope.ChildTestSteps.Add(diag3);
+            
+            var member = TypeData.GetTypeData(diag).GetMember("Title");
+            var p1 = member.Parameterize(scope, diag, parameterName);
+            member.Parameterize(scope, diag2, parameterName);
+            int count = 0;
+            foreach (var _ in p1.ParameterizedMembers)
+            {
+                count++;
+                if (count == 2)
+                    member.Parameterize(scope, diag3, parameterName);
+            }
+            Assert.AreEqual(2, count);
+            
+            count = 0;
+            foreach (var _ in p1.ParameterizedMembers)
+                count++;
+            Assert.AreEqual(3, count);
+        }
 
         [Test]
         public void MultiLevelScopeSerialization()
@@ -361,7 +396,7 @@ namespace OpenTap.UnitTests
                 // verify Enabled<T> works with SweepParameterStep.
                 var annotation = AnnotationCollection.Annotate(sweep);
                 var col = annotation.GetMember(nameof(SweepParameterStep.SelectedParameters)).Get<IStringReadOnlyValueAnnotation>().Value;
-                Assert.AreEqual("A, EnabledTest", col);
+                Assert.AreEqual("EnabledTest, A", col);
                 var elements = annotation.GetMember(nameof(SweepParameterStep.SweepValues))
                     .Get<ICollectionAnnotation>().AnnotatedElements
                     .Select(elem => elem.GetMember(nameof(ScopeTestStep.EnabledTest)))
@@ -395,7 +430,7 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(((ScopeTestStep)sweep2.ChildTestSteps[0]).Collection.SequenceEqual(new[] {10, 20}));
 
             var name = sweep.GetFormattedName();
-            Assert.AreEqual("Sweep A, EnabledTest", name);
+            Assert.AreEqual("Sweep EnabledTest, A", name);
 
             { // Testing that sweep parameters are automatically removed after unparameterization.
                 var p = (ParameterMemberData) TypeData.GetTypeData(sweep2).GetMember("Parameters \\ A");
@@ -571,7 +606,7 @@ namespace OpenTap.UnitTests
                 var a = AnnotationCollection.Annotate(s)
                     .GetMember(nameof(step1.A))
                     .Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
-                        x.Get<IconAnnotationAttribute>().IconName == IconNames.ParameterizeOnTestPlan);
+                        x.Get<IconAnnotationAttribute>()?.IconName == IconNames.ParameterizeOnTestPlan);
                 var enabled = a.Get<IEnabledAnnotation>().IsEnabled;
                 if (s == step1)
                 {
@@ -604,7 +639,7 @@ namespace OpenTap.UnitTests
                 var a = AnnotationCollection.Annotate(s)
                     .GetMember(nameof(s.SweepValues))
                     .Get<MenuAnnotation>().MenuItems.FirstOrDefault(x =>
-                        x.Get<IconAnnotationAttribute>().IconName == IconNames.ParameterizeOnTestPlan);
+                        x.Get<IconAnnotationAttribute>()?.IconName == IconNames.ParameterizeOnTestPlan);
                 var enabled = a.Get<IEnabledAnnotation>().IsEnabled;
                 if (s == step1)
                 {

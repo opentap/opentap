@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using NUnit.Framework;
 using OpenTap.Diagnostic;
 using OpenTap.Engine.UnitTests;
@@ -84,6 +85,62 @@ namespace OpenTap.UnitTests
                 RunChildSteps();
                 Assert.IsFalse(SomeInstrument.IsConnected);
             }
+        }
+
+        public class SlowOpenInstrument : IInstrument
+        {
+            // Disable 'unused' warnings
+#pragma warning disable CS0067
+            public event PropertyChangedEventHandler PropertyChanged;
+#pragma warning restore CS0067
+            public string Name { get; set; }
+            public void Open()
+            {
+                var trd = TapThread.Current;
+                while (trd != null)
+                {
+                    if (trd.Name == "Plan Thread")
+                        break;
+                    trd = trd.Parent;
+                }
+                Assert.That(trd, Is.Not.Null);
+                
+                var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+                WasStopped = false;
+                int handle = WaitHandle.WaitAny(new[] { TapThread.Current.AbortToken.WaitHandle, cancel.Token.WaitHandle });
+                WasStopped = handle == 0;
+            }
+
+            public void Close()
+            {
+                
+            }
+
+            public bool IsConnected => true;
+            public bool WasStopped { get; set; }
+        }
+
+        [Test]
+        public void SlowOpenInstrumentTest([Values(false, true)] bool UseLazyResourceManager)
+        {
+            using var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            IResourceManager manager =
+                UseLazyResourceManager ? (IResourceManager)new LazyResourceManager() : new ResourceTaskManager();
+            EngineSettings.Current.ResourceManagerType = manager;
+            
+            var instrument = new SlowOpenInstrument();
+            var step = new ResourceTestStep {MyTestResource = instrument, ResourceEnabled = true};
+            var plan = new TestPlan()
+            {
+                ChildTestSteps = { step }
+            };
+
+            Assert.IsFalse(instrument.WasStopped);
+            var abortToken = new CancellationTokenSource(TimeSpan.FromMilliseconds(1000));
+            var run = plan.ExecuteAsync(abortToken.Token);
+            abortToken.Token.WaitHandle.WaitOne();
+            TapThread.Sleep(TimeSpan.FromSeconds(1));
+            Assert.IsTrue(instrument.WasStopped);
         }
         
         

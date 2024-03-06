@@ -217,6 +217,7 @@ namespace OpenTap
                     }
 
                     object value = GetOutput(connection.OutputMember, src);
+                    value = AssignOutputEvent.Invoke(target, value, connection.InputMember);
                     connection.InputMember.SetValue(target, value);
                 }
             }

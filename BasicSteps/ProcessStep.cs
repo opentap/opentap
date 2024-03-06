@@ -27,6 +27,22 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 Rules.Add(() => !string.IsNullOrEmpty(Name), "Name must not be empty.", nameof(Name));
             }
+
+            public override bool Equals(object obj)
+            {
+                if (obj is EnvironmentVariable ev)
+                {
+                    return ev.Name == Name && ev.Value == Value;
+                }
+                return base.Equals(obj);
+            }
+
+            public override int GetHashCode()
+            {
+                var h1 = Name?.GetHashCode() ?? 0;
+                var h2 = Value?.GetHashCode() ?? 0;
+                return (((h1 + 742759321) * 1593213024) + h2) * 1079741372;
+            }
         }
 
         public override bool GeneratesOutput => WaitForEnd; 
@@ -56,7 +72,7 @@ namespace OpenTap.Plugins.BasicSteps
         int timeout = 0;
         [Display("Wait Timeout", Order: -2.1, Description: "The time to wait for the process to end. Set to 0 to wait forever.")]
         [Unit("s", PreScaling: 1000)]
-        [EnabledIf("WaitForEnd", true)]
+        [EnabledIf("WaitForEnd", true, HideIfDisabled = true)]
         public Int32 Timeout
         {
             get { return timeout; }
@@ -68,12 +84,12 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
 
-        [EnabledIf(nameof(GeneratesOutput), true)]
+        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
         [Display("Add to Log", Order: -2.05, Description: "If enabled the result of the query is added to the log.")]
         public bool AddToLog { get; set; }
 
-        [EnabledIf(nameof(AddToLog), true)]
-        [EnabledIf(nameof(GeneratesOutput), true)]
+        [EnabledIf(nameof(AddToLog), true, HideIfDisabled = true)]
+        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
         [Display("Log Header", Order: -2.0,
             Description: "This string is added to the front of the result of the query.")]
         [DefaultValue("")]
@@ -82,18 +98,34 @@ namespace OpenTap.Plugins.BasicSteps
         string prepend;
 
         [Display("Check Exit Code", "Check the exit code of the application and set verdict to fail if it is non-zero, else pass. 'Wait For End' must be set for this to work.", "Set Verdict", Order: 1.1)]
-        [EnabledIf(nameof(WaitForEnd), true)]
+        [EnabledIf(nameof(WaitForEnd), true, HideIfDisabled = true)]
         public bool CheckExitCode { get; set; }
 
         [Display("Run As Administrator", "Attempt to run the application as administrator.", Order: -2.06)]
         internal bool RunElevated { get; set; } = false; // this is disabled for now.
         
+        [Display("Exit Code", Group: "Results", Order: 1.53, Collapsed: true, Description: "The exit code of the process.")]
+        [Output]
+        [Browsable(true)]
+        [EnabledIf(nameof(WaitForEnd), true, HideIfDisabled = true)]
+        public int ExitCode { get; private set; }
+        
         ManualResetEvent outputWaitHandle, errorWaitHandle;
         StringBuilder output;
+
+
+        [Display("Output", Group: "Results", Order: 1.53, Collapsed: true, Description: "The result of the execution.")]
+        [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
+        [Output]
+        [Browsable(true)]
+        [Layout(LayoutMode.Normal, maxRowHeight: 1)]
+        public string Output => output?.ToString() ?? "";
+
 
         public ProcessStep()
         {
             Rules.Add(HasNoDuplicateEnvironmentVariables, "Environment variable names must be unique.", nameof(EnvironmentVariables));
+            Rules.Add(new ValidationRule(() => !string.IsNullOrWhiteSpace(Application), "Application must be set", nameof(Application)));
         }
 
         private bool HasNoDuplicateEnvironmentVariables()
@@ -111,6 +143,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         public override void Run()
         {
+            output?.Clear();
             ThrowOnValidationError(true);
             if (RunElevated &&!SubProcessHost.IsAdmin())
             {
@@ -205,6 +238,7 @@ namespace OpenTap.Plugins.BasicSteps
                         var resultData = output.ToString();
 
                         ProcessOutput(resultData);
+                        ExitCode = process.ExitCode;
                         if (CheckExitCode)
                         {
                             if (process.ExitCode != 0)
@@ -215,6 +249,7 @@ namespace OpenTap.Plugins.BasicSteps
                     }
                     else
                     {
+                        ExitCode = process.ExitCode;
                         process.OutputDataReceived -= OutputDataRecv;
                         process.ErrorDataReceived -= ErrorDataRecv;
 

@@ -40,6 +40,31 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        [TestCase("No Trailing Space")]
+        [TestCase("Yes Trailing Space ")]
+        public void TestSerializeInstrumentsWithTrailingSpaceInName(string name)
+        {
+            using var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            var ins = new ScpiInstrument() { Name = name };
+            var scpiStep1 = new ScpiTestStep() { Instrument = ins };
+            InstrumentSettings.Current.Add(ins);
+            var plan = new TestPlan()
+            {
+                ChildTestSteps = { scpiStep1 }
+            };
+
+            { // Verify deserialization completed without errors
+                var str = plan.SerializeToString();
+                var ser = new TapSerializer();
+                var plan2 = ser.DeserializeFromString(str) as TestPlan;
+                var scpiStep2 = plan2.ChildTestSteps[0] as ScpiTestStep;
+
+                Assert.AreSame(scpiStep1.Instrument, scpiStep2.Instrument);
+                Assert.That(ser.Errors.Count(), Is.EqualTo(0));
+            }
+        }
+
+        [Test]
         public void TestPackageVersionLicenseSerializer()
         {
             var packageVersion = new PackageVersion("pkg", SemanticVersion.Parse("1.0.0"), "Linux", CpuArchitecture.AnyCPU, DateTime.Now, 
@@ -309,6 +334,44 @@ namespace OpenTap.Engine.UnitTests
                 get;
                 set;
             }
+        }
+
+        public class NestedObject2
+        {
+            public double X { get; set; }
+            public double Y { get; set; }
+        }
+        
+        public class NestedObject
+        {
+            public NestedObject2 A { get; set; } = new NestedObject2() {X = 1, Y = 2};
+            public NestedObject2 B { get; set; } = new NestedObject2() {X = 4, Y = 10};
+            public List<NestedObject2> Objects { get; set; }= new List<NestedObject2>();
+            public double C { get; set; } = 5.0;
+        }
+
+        [Test]
+        public void TestSerializeNestedObject()
+        {
+            var obj0 = new NestedObject();
+            obj0.C = 10;
+            obj0.A = new NestedObject2 {X = 3, Y = 3};
+            obj0.B = new NestedObject2 {X = 10, Y = 11};
+            obj0.Objects.Add(new NestedObject2 {X = 1, Y = -1});
+            var serializer = new TapSerializer();
+            var xml = serializer.SerializeToString(obj0);
+            var obj1 = (NestedObject) serializer.DeserializeFromString(xml);
+            
+            Assert.AreEqual(10.0, obj1.C);
+            Assert.AreEqual(3.0, obj1.A.X);
+            Assert.AreEqual(3.0, obj1.A.Y);
+            Assert.AreEqual(10.0, obj1.B.X);
+            Assert.AreEqual(11.0, obj1.B.Y);
+
+            Assert.AreEqual(1, obj1.Objects.Count);
+            Assert.AreEqual(1, obj1.Objects[0].X);
+            Assert.AreEqual(-1, obj1.Objects[0].Y);
+
         }
 
         [TestCase(true)]

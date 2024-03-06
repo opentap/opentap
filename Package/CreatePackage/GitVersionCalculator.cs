@@ -42,14 +42,16 @@ namespace OpenTap.Package
                 new Regex("^integration$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
                 new Regex("^develop$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
                 new Regex("^dev$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
-                new Regex("^master$", RegexOptions.Compiled | RegexOptions.IgnoreCase)
+                new Regex("^master$", RegexOptions.Compiled | RegexOptions.IgnoreCase),
+                new Regex("^main$", RegexOptions.Compiled | RegexOptions.IgnoreCase)
             };
             public List<string> BetaBranchPatterns { get; private set; } = new List<string>
             {
                 "^integration$",
                 "^master$",
                 "^develop$",
-                "^dev$"
+                "^dev$",
+                "^main$"
             };
 
             /// <summary>
@@ -150,6 +152,8 @@ namespace OpenTap.Package
                 sourceFile += $".{(Environment.Is64BitProcess ? CpuArchitecture.x64 : CpuArchitecture.x86)}";
             if (OperatingSystem.Current == OperatingSystem.MacOS)
                 sourceFile += $".{MacOsArchitecture.Current.Architecture}";
+            if (OperatingSystem.Current == OperatingSystem.Linux)
+                sourceFile += $".{LinuxArchitecture.Current.Architecture}";
 
             try
             {
@@ -186,7 +190,7 @@ namespace OpenTap.Package
             RepoDir = RepoDir.Substring(repositoryDir.Length);
 
             ensureLibgit2Present();
-            repo = new Repository(repositoryDir);
+            repo = new LibGit2Sharp.Repository(repositoryDir);
         }
 
         public void Dispose()
@@ -353,16 +357,24 @@ namespace OpenTap.Package
             }
             if (!String.IsNullOrEmpty(preRelease))
             {
+                // The version calculation is slightly different for RC versions
+                // For an RC, we want to count merge commits as a single commit
+                // For other branches, we want to count the literal number of commits
+                // Historically, we have counted merge commits as single commits for all branches,
+                // but this causes issues in scenarios where merge commits are fast-forwarded onto e.g. the main branch.
+                // See here: https://github.com/opentap/opentap/pull/1384
+                // And here: https://github.com/opentap/opentap/issues/1321#issuecomment-1895749385
+                bool isRc = preRelease.StartsWith("rc", StringComparison.InvariantCultureIgnoreCase);
                 Commit cfgCommit = getLatestConfigVersionChange(targetCommit);
                 Commit commonAncestor = findFirstCommonAncestor(defaultBranch, targetCommit);
-                int commitsFromDefaultBranch = countCommitsBetween(commonAncestor, targetCommit, true);
+                int commitsFromDefaultBranch = countCommitsBetween(commonAncestor, targetCommit, firstParentOnly: isRc);
                 log.Debug("Found {0} commits since branchout from beta branch in commit {1}.", commitsFromDefaultBranch, commonAncestor.Sha.Substring(0, 8));
-                int commitsSinceVersionUpdate = countCommitsBetween(cfgCommit, targetCommit, true)+1;
+                int commitsSinceVersionUpdate = countCommitsBetween(cfgCommit, targetCommit, firstParentOnly: isRc) + 1;
                 log.Debug("Found {0} commits since last version bump in commit {1}.", commitsSinceVersionUpdate, cfgCommit.Sha.Substring(0, 8));
                 int alphaVersion = Math.Min(commitsFromDefaultBranch, commitsSinceVersionUpdate);
-                if (!preRelease.StartsWith("rc", true, CultureInfo.InvariantCulture))
+                if (isRc == false)
                 {
-                    int betaVersion = countCommitsBetween(cfgCommit, commonAncestor, true) + 1;
+                    int betaVersion = countCommitsBetween(cfgCommit, commonAncestor, false) + 1;
                     if (betaVersion > 0)
                     {
                         preRelease += "." + betaVersion;

@@ -8,8 +8,8 @@ using System.Linq;
 using System.Diagnostics;
 using System.Runtime.Serialization;
 using System.Collections;
+using System.Collections.Immutable;
 using System.ComponentModel;
-using System.Runtime.CompilerServices;
 
 namespace OpenTap
 {
@@ -81,6 +81,20 @@ namespace OpenTap
         /// <param name="result">Result structure.</param>
         public virtual void OnResultPublished(Guid stepRunId, ResultTable result)
         {
+        }
+        
+        // lookup keeping track of which result listeners implements OnResultPublished
+        static ImmutableDictionary<Type, bool> implementsOnResultsPublished = ImmutableDictionary<Type, bool>.Empty;
+        /// <summary> Returns true if the result listener has implemented OnResultPublished. This is used to optimize performance in situations where they don't. </summary>
+        internal static bool ImplementsOnResultsPublished(ResultListener resultListener)
+        {
+            var resultListenerType = resultListener.GetType();
+            if (!implementsOnResultsPublished.TryGetValue(resultListenerType, out bool doesImplement))
+            {
+                doesImplement = resultListenerType.MethodOverridden(typeof(ResultListener), nameof(OnResultPublished));
+                implementsOnResultsPublished = implementsOnResultsPublished.Add(resultListenerType, doesImplement);
+            }
+            return doesImplement;
         }
     }
 
@@ -283,7 +297,7 @@ namespace OpenTap
 
         IEnumerator IEnumerable.GetEnumerator() =>  GetEnumerator();
     }
-    
+
     /// <summary>
     /// A collection of parameters related to the results.
     /// </summary>
@@ -384,7 +398,7 @@ namespace OpenTap
         {
             var componentSettings = TypeData.FromType(typeof(ComponentSettings)) //get component settings instances (lazy)
                 .DerivedTypes
-                .Where(x => x.CanCreateInstance && GetParametersMap(x).Any(y => y.metadata != null))
+                .Where(x => x.CanCreateInstance && ParameterCache.GetParametersMap(x, true).Any())
                 .Select(td => ComponentSettings.GetCurrent(td.Type))
                 .Where(o => o != null)
                 .Cast<object>();
@@ -440,7 +454,7 @@ namespace OpenTap
             {
                 var t = tp.Load();
                 if (tp.CanCreateInstance == false) continue;
-                if (GetParametersMap(tp).Any(x => x.metadata != null) == false)
+                if (ParameterCache.GetParametersMap(tp, true).Any() == false)
                     continue;
                 var componentSetting = ComponentSettings.GetCurrent(t);
                 if (componentSetting != null)
@@ -480,80 +494,100 @@ namespace OpenTap
             IConvertible val;
             if (value == null)
                 val = null;
-            else if (value is IConvertible)
-                val = value as IConvertible;
+            else if (value is IConvertible conv)
+                val = conv;
             else if((val = StringConvertProvider.GetString(value)) == null)
                 val = value.ToString();
 
             output.Add( new ResultParameter(group, parentName, val, metadata));
         }
-
-        static ConditionalWeakTable<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
-            metadata)[]> propertiesLookup =
-            new ConditionalWeakTable<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute
-                metadata)[]>();
-
-        static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] GetParametersMap(
-            ITypeData type) => propertiesLookup.GetValue(type, getParametersMap);
-
-        static (IMemberData member, string group, string name, MetaDataAttribute metadata)[] getParametersMap(
-            ITypeData type)
+        
+        internal class ParameterCache
         {
-            var lst = new List<(IMemberData member, string group, string name, MetaDataAttribute metadata)>();
-            foreach (var prop in type.GetMembers())
+            class Box
             {
-                if (!prop.Readable)
-                    continue;
-                
-                var metadataAttr = prop.GetAttribute<MetaDataAttribute>();
-                if (metadataAttr == null)
+                public ImmutableDictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute metadata)[]> Data = ImmutableDictionary<ITypeData, (IMemberData member, string group, string name, MetaDataAttribute metadata)[]>.Empty;
+            }
+            
+            static readonly ThreadField<Box> cacheField = new ThreadField<Box>();
+            public static void LoadCache() => cacheField.Value = new Box();
+            public static IEnumerable<(IMemberData member, string group, string name, MetaDataAttribute metadata)> GetParametersMap(ITypeData type, bool metadataOnly)
+            {
+                if (cacheField.Value?.Data.TryGetValue(type, out var data) == true)
                 {
-                    // if metadataAttr is specified, all we require is that we can read and write it. 
-                    // Otherwise normal rules applies:
-
-                    if (prop.Writable == false)
-                        continue; // Don't add Properties with XmlIgnore attribute
-                    
-                    if (prop.HasAttribute<System.Xml.Serialization.XmlIgnoreAttribute>())
-                        continue;
-
-                    if (!prop.IsBrowsable())
-                        continue;
+                    if (metadataOnly)
+                        return data.Where(x => x.metadata != null);
+                    return data;
                 }
                 
-                if (prop.HasAttribute<NonMetaDataAttribute>())
-                    continue; // pretty rare case, best to check this after other things for performance.
-
-                var display = prop.GetDisplayAttribute();
-
-                if (metadataAttr != null && string.IsNullOrWhiteSpace(metadataAttr.MacroName))
-                    metadataAttr = new MetaDataAttribute(metadataAttr.PromptUser, display.Name)
-                    {
-                        Group = metadataAttr.Group,
-                        Name = metadataAttr.Name
-                    };
-
-                var name = display.Name.Trim();
-                string group = "";
-
-                if (display.Group.Length == 1) group = display.Group[0].Trim();
-                group = metadataAttr?.Group ?? group;
-                name = metadataAttr?.Name ?? name;
-
-                lst.Add((prop, group, name, metadataAttr));
+                var value = getParametersMap(type, false);
+                if (cacheField.Value is Box box)
+                {
+                    box.Data = box.Data.SetItem(type, value.ToArray());
+                }
+                if (metadataOnly)
+                    return value.Where(x => x.metadata != null);
+                return value;
             }
+            static IEnumerable<(IMemberData member, string group, string name, MetaDataAttribute metadata)> getParametersMap(ITypeData type, bool metadataOnly)
+            {
+            
+                foreach (var prop in type.GetMembers())
+                {
+                    if (!prop.Readable)
+                        continue;
+                
+                    var metadataAttr = prop.GetAttribute<MetaDataAttribute>();
+                    if (metadataAttr == null)
+                    {
+                        if (metadataOnly) continue;
+                    
+                        // if metadataAttr is specified, all we require is that we can read and write it. 
+                        // Otherwise normal rules applies:
 
-            return lst.ToArray();
+                        if (prop.Writable == false)
+                            continue; // Don't add Properties with XmlIgnore attribute
+                    
+                        if (prop.HasAttribute<System.Xml.Serialization.XmlIgnoreAttribute>())
+                            continue;
+
+                        if (!prop.IsBrowsable())
+                            continue;
+                    }
+                
+                    if (prop.HasAttribute<NonMetaDataAttribute>())
+                        continue; // pretty rare case, best to check this after other things for performance.
+
+                    var display = prop.GetDisplayAttribute();
+
+                    if (metadataAttr != null && string.IsNullOrWhiteSpace(metadataAttr.MacroName))
+                        metadataAttr = new MetaDataAttribute(metadataAttr.PromptUser, display.Name)
+                        {
+                            Group = metadataAttr.Group,
+                            Name = metadataAttr.Name
+                        };
+
+                    var name = display.Name.Trim();
+                    string group = "";
+
+                    if (display.Group.Length == 1) group = display.Group[0].Trim();
+                    group = metadataAttr?.Group ?? group;
+                    name = metadataAttr?.Name ?? name;
+
+                    yield return (prop, group, name, metadataAttr);
+                }
+            }
         }
+
         
-        private static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false)
+        
+        static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false)
         {
             if (obj == null)
                 return;
             var type = TypeData.GetTypeData(obj);
-            foreach (var (prop, group, name, metadata) in GetParametersMap(type))
+            foreach (var (prop, group, name, metadata) in ParameterCache.GetParametersMap(type, metadataOnly))
             {
-                if (metadataOnly && metadata == null) continue;
                 object value = prop.GetValue(obj);
                 if (value == null)
                     continue;
@@ -566,7 +600,7 @@ namespace OpenTap
             if (obj == null)
                 return;
             var type = TypeData.GetTypeData(obj);
-            var p = GetParametersMap(type);
+            var p = ParameterCache.GetParametersMap(type, false);
             foreach (var (prop, group, _name, metadata) in p)
             {
                 if (prop.GetAttribute<MetaDataAttribute>()?.Frozen == true) continue; 

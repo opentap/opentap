@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using System.Threading;
 
 namespace OpenTap.UnitTests
 {
@@ -10,6 +11,7 @@ namespace OpenTap.UnitTests
         public Dictionary<Guid, TestRun> Runs { get; set; } = new Dictionary<Guid, TestRun>();
         public Dictionary<Guid, string> planLogs = new Dictionary<Guid, string>();
         public List<ResultTable> Results = new List<ResultTable>();
+        int running = 0;
         
         // 1:1 with the Results list.
         public List<Guid> ResultTableGuids = new List<Guid>();
@@ -19,11 +21,14 @@ namespace OpenTap.UnitTests
         {
             OnTestStepRunStartAction();
             Runs[stepRun.Id] = stepRun;
+            Interlocked.Increment(ref running);
             base.OnTestStepRunStart(stepRun);
+            
         }
 
         public override void OnTestStepRunCompleted(TestStepRun stepRun)
         {
+            Interlocked.Decrement(ref running);
             Runs[stepRun.Id] = stepRun;
             base.OnTestStepRunCompleted(stepRun);
         }
@@ -31,16 +36,22 @@ namespace OpenTap.UnitTests
         public override void OnTestPlanRunCompleted(TestPlanRun planRun, Stream logStream)
         {
             Runs[planRun.Id] = planRun;
-            planLogs[planRun.Id] = new StreamReader(logStream,Encoding.UTF8, true, 4096, true).ReadLine();
+            planLogs[planRun.Id] = new StreamReader(logStream,Encoding.UTF8, true, 4096, true).ReadToEnd();
             base.OnTestPlanRunCompleted(planRun, logStream);
         }
 
         public override void OnResultPublished(Guid stepRunId, ResultTable result)
         {
+            if (running == 0) throw new InvalidOperationException("results added outside run!");
             //TapThread.Sleep(1);
             base.OnResultPublished(stepRunId, result);
             Results.Add(result);
             ResultTableGuids.Add(stepRunId);
         }
+    }
+
+    public class RecordAllMergedResultListener : RecordAllResultListener, IMergedTableResultListener
+    {
+        
     }
 }

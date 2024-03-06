@@ -39,27 +39,45 @@ namespace OpenTap.Package
         /// <exception cref="NotSupportedException">Path is not a valid file package repository</exception>
         public FilePackageRepository(string path)
         {
+            // if path is the path root, for example C: and the path is not "/".
+            // then we need to add a '\' so "C:" becomes "C:\".
+            // On other systems (Linux, mac, .. where path == "/") we do nothing.
+            if (Path.IsPathRooted(path) && path !="/" && Path.GetPathRoot(path) == path)
+            {
+                path = Path.GetPathRoot(path).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            }
+            
             if (Uri.TryCreate(path, UriKind.RelativeOrAbsolute, out Uri uri))
             {
-                string absolutePath = null;
-                if (uri.IsAbsoluteUri)
+                // This is true for UNC paths on Windows
+                if (uri.IsAbsoluteUri && uri.HostNameType is UriHostNameType.Dns or UriHostNameType.IPv4 or UriHostNameType.IPv6)
                 {
-                    if (uri.Scheme != Uri.UriSchemeFile)
-                        throw new NotSupportedException($"Scheme {uri.Scheme} is not supported as a file package repository ({path}).");
-                    absolutePath = uri.AbsolutePath;
+                    AbsolutePath = uri.LocalPath;
+                    Url = uri.AbsoluteUri.TrimEnd(new[] { '\\', '/' });;
                 }
                 else
                 {
-                    absolutePath = Path.GetFullPath(path);
+                    string absolutePath = null;
+                    if (uri.IsAbsoluteUri)
+                    {
+                        if (uri.Scheme != Uri.UriSchemeFile)
+                            throw new NotSupportedException($"Scheme {uri.Scheme} is not supported as a file package repository ({path}).");
+                        absolutePath = uri.AbsolutePath;
+                    }
+                    else
+                    {
+                        absolutePath = Path.GetFullPath(path);
+                    }
+
+                    if (File.Exists(absolutePath))
+                        AbsolutePath = Path.GetFullPath(Path.GetDirectoryName(absolutePath));
+                    else
+                        AbsolutePath = Path.GetFullPath(absolutePath);
+                        
+                    AbsolutePath = Uri.UnescapeDataString(AbsolutePath);
+
+                    Url = new Uri(AbsolutePath).AbsoluteUri;
                 }
-
-                if (File.Exists(absolutePath))
-                    AbsolutePath = Path.GetFullPath(Path.GetDirectoryName(absolutePath)).TrimEnd('/', '\\');
-                else
-                    AbsolutePath = Path.GetFullPath(absolutePath).TrimEnd('/', '\\');
-                AbsolutePath = Uri.UnescapeDataString(AbsolutePath);
-
-                Url = new Uri(AbsolutePath).AbsoluteUri;
             }
             else
                 throw new NotSupportedException($"{path} is not supported as a file package repository.");
@@ -79,7 +97,7 @@ namespace OpenTap.Package
             {
                 allPackages = Array.Empty<PackageDef>();
 
-                if (AbsolutePath != PackageDef.SystemWideInstallationDirectory) // Let's ignore this error if the repo is the system wide directory.
+                if (AbsolutePath.TrimEnd('/', '\\') != PackageDef.SystemWideInstallationDirectory.TrimEnd('/', '\\')) // Let's ignore this error if the repo is the system wide directory.
                     throw new DirectoryNotFoundException($"File package repository directory not found at: {Url}");
 
                 return;
@@ -217,7 +235,7 @@ namespace OpenTap.Package
                 using (var writeStream = File.OpenWrite(tmpDestination))
                 {
                     var task = Task.Run(() => readStream.CopyTo(writeStream));
-                    ConsoleUtils.ReportProgressTillEnd(task, "Downloading",
+                    ConsoleUtils.ReportProgressTillEnd(task, $"Copying {source} to {destination}",
                         () => writeStream.Position,
                         () => readStream.Length,
                         (header, pos, len) =>
@@ -365,7 +383,7 @@ namespace OpenTap.Package
 
                 // Try finding a OpenTAP package
                 var latest = allPackages
-                    .Where(p => package.Equals(p))
+                    .Where(p => package?.Name == p?.Name)
                     .Where(p => p.Dependencies.All(dep => IsCompatible(dep, openTapIdentifier))).FirstOrDefault(p => p.Version != null && p.Version.CompareTo(package.Version) > 0);
 
                 if (latest != null)
@@ -545,11 +563,21 @@ namespace OpenTap.Package
                     var sw = Stopwatch.StartNew();
                     allPackages = loadPackagesFromFile(allFileInfos).ToList();
                     cache.CachePackageCount = allFileInfos.Count;
-                    
 
                     // Create cache
-                    CreatePackageCache(allPackages, cache);
-                    log.Debug(sw, "Rebuilding cache: {0}", cache.CacheFileName);
+                    try
+                    {
+                        CreatePackageCache(allPackages, cache);
+                        log.Debug(sw, "Rebuilding cache: {0}", cache.CacheFileName);
+                    }
+                    catch (Exception ex)
+                    {
+                        // This can fail if the package cache is in use.
+                        // For example if another thread or process is loading the cache while we are trying to write it.
+                        // This is not that serious, as the cache will just be regenerated later.
+                        log.Debug($"Unable to update package cache: '{ex.Message}'");
+                        log.Debug(ex);
+                    }
                 }
             }
 
