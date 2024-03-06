@@ -34,8 +34,8 @@ namespace OpenTap.Package
 
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
         private HttpClient client;
-        private HttpClient HttpClient => client ??= GetHttpClient(Url);
-        private static HttpClient GetHttpClient(string url)
+        private HttpClient HttpClient => client ??= GetHttpClient();
+        private static HttpClient GetHttpClient()
         {
             var httpClient = AuthenticationSettings.Current.GetClient(null, true);
             httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
