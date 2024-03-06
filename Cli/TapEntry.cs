@@ -64,7 +64,7 @@ namespace OpenTap.Cli
             return false;
         }
 
-        private static void goIsolated()
+        private static void RunIsolationServer()
         {
             if (IsColor())
             {
@@ -202,6 +202,8 @@ namespace OpenTap.Cli
         {
             if (ExecutorClient.IsExecutorMode)
             {
+                // this is a sub process of tap.exe, meaning we are running in an isolated instance.
+                // This also means that the parent process tap.exe through RunIsolationServer.
                 goInProcess();
                 return;
             }
@@ -219,7 +221,7 @@ namespace OpenTap.Cli
 
             if ((installCommand || uninstallCommand || packageManagerCommand) && !noIsolation)
             {
-                goIsolated();
+                RunIsolationServer();
             }
             else
             {

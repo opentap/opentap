@@ -44,43 +44,22 @@ namespace OpenTap
             this.start = start;
         }
 
-        void pipeConnected()
+        void ProcessPipe()
         {
-            
             byte[] buffer = new byte[1024];
 
-            void readMessage()
+            while (true)
             {
-                Pipe.ReadAsync(buffer, 0, buffer.Length, tokenSource.Token)
-                    .ContinueWith(tsk =>
-                    {
-                        if ((tsk.IsCanceled || tsk.IsFaulted) == false)
-                            gotMessage(tsk.Result);
-                    });
+                var read = Pipe.Read(buffer, 0, buffer.Length);
+                if (read == 0) break;
+                var str = Encoding.UTF8.GetString(buffer, 0, read);
+                if (MessageReceived != null)
+                    MessageReceived(this, str);
             }
-
-            void gotMessage(int cnt)
-            {
-                if (tokenSource.IsCancellationRequested)
-                    return;
-                var str = Encoding.UTF8.GetString(buffer, 0, cnt);
-                pushMessage(str);
-                Array.Clear(buffer, 0, cnt);
-                readMessage();
-            }
-            readMessage();
         }
 
         public event EventHandler<string> MessageReceived;
-
-        void pushMessage(string msg)
-        {
-            if (MessageReceived != null)
-                MessageReceived(this, msg);
-        }
-
-        CancellationTokenSource tokenSource = new CancellationTokenSource();
-
+        
         public static ExecutorSubProcess Create(string name, string args, bool isolated = false)
         {
             var start = new ProcessStartInfo(name, args)
@@ -115,23 +94,39 @@ namespace OpenTap
 
         public void Start()
         {
+            //Console.WriteLine("STARTING SUBPROCESS: tap.exe " + start.Arguments + " @ " + start.WorkingDirectory);
             string pipeName;
             Pipe = getStream(out pipeName);
             start.Environment[EnvVarNames.TpmInteropPipeName] = pipeName;
-            Pipe.WaitForConnectionAsync().ContinueWith(_ => pipeConnected());
+
+            new Thread(() =>
+            {
+                try
+                {
+                    Pipe.WaitForConnection();
+                }
+                catch
+                {
+                    // this is probably ok. It just means that the child process is not going to communicate back.
+                    return;
+                }
+
+                ProcessPipe();
+            }).Start();
+
             Process = Process.Start(start);
             Process.EnableRaisingEvents = true;
 
-            Task t1 = RedirectOutput(Process.StandardOutput, Console.Write);
-            Task t2 = RedirectOutput(Process.StandardError, Console.Error.Write);
+            new Thread(() => RedirectOutput(Process.StandardOutput, Console.Out.Write)).Start();
+            new Thread(() => RedirectOutput(Process.StandardError, Console.Error.Write)).Start();
         }
 
-        async Task RedirectOutput(StreamReader reader, Action<string> callback)
+        void RedirectOutput(StreamReader reader, Action<string> callback)
         {
             char[] buffer = new char[256];
             int count;
 
-            while ((count = await reader.ReadAsync(buffer, 0, buffer.Length)) > 0)
+            while ((count = reader.Read(buffer, 0, buffer.Length)) > 0)
             {
                 callback(new string(buffer, 0, count));
             }
@@ -139,16 +134,10 @@ namespace OpenTap
 
         public void Dispose()
         {
-            tokenSource.Cancel();
             if (Pipe != null)
                 Pipe.Dispose();
             if (Process != null)
                 Process.Dispose();
-        }
-
-        public void Env(string Name, string Value)
-        {
-            start.Environment[Name] = Value;
         }
     }
 
@@ -219,6 +208,7 @@ namespace OpenTap
             }
             var toWrite = Encoding.UTF8.GetBytes(newname);
             pipe.Write(toWrite, 0, toWrite.Length);
+            pipe.Flush();
         }
     }
 }

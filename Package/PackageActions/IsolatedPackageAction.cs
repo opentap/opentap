@@ -60,6 +60,8 @@ namespace OpenTap.Package
                 if (!ExecutorClient.IsRunningIsolated) // are we already running isolated?
                 {
                     // Detected Executor, try to run running isolated...
+                    // This means, we will copy the files and send a command back to the isolator server (first tap.exe) 
+                    // which will run the isolated command.
                     try
                     {
                         RunIsolated(target: Target, isolatedAction: this);
