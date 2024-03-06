@@ -123,8 +123,11 @@ namespace OpenTap.Package
                 }
             }
 
+
             // a currently installed package
-            package = targetInstallation.GetPackages().FirstOrDefault(p => p.Name == Name && versionSpec.IsCompatible(p.Version));
+            package = targetInstallation.GetPackages().FirstOrDefault(p =>
+                p.Name == Name && p.IsPlatformCompatible(Architecture, OS) && versionSpec.IsCompatible(p.Version));
+
             if (package != null)
                 return package;
 
