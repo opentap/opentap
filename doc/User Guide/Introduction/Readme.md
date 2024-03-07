@@ -89,7 +89,7 @@ verdict is encountered, and continue otherwise. The following break conditions c
 
 Specifying break conditions overrides the engine settings in the given step, and all child steps of that step. Child
 steps can further override the value set by their ancestor if necessary. When a break condition is encountered, execution
-of all child steps is stopped, and the test plan resumes from the point where the break was encountered.
+of all child steps is stopped, and the test plan resumes from the point where the break was encountered (break conditions also affect the parent step).
 
 The following figure illustrates how break conditions can change test execution, as well as how verdicts are propagated
 from child steps to parent steps:
