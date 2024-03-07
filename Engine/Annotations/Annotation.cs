@@ -139,7 +139,7 @@ namespace OpenTap
         string Example { get; }
     }
 
-    /// <summary> Defines how an error annotation works. Note: Multiple of IErrorAnnotation can be used in the same annotation. In this case the erros will be concatenated. </summary>
+    /// <summary> Defines how an error annotation works. Note: Multiple of IErrorAnnotation can be used in the same annotation. In this case the errors will be concatenated. </summary>
     public interface IErrorAnnotation : IAnnotation
     {
         /// <summary> The list of errors for this annotation. </summary>
@@ -2785,6 +2785,8 @@ namespace OpenTap
 
                 if (mem.ReflectionInfo.DescendsTo(typeof(TimeSpan)))
                     annotation.Add(new TimeSpanAnnotation(annotation));
+                if (mem.ReflectionInfo.DescendsTo(typeof(DateTime)))
+                    annotation.Add(new DateTimeAnnotation(annotation));
                 
                 Sequence.ProcessPattern(attributes, 
                     (UnitAttribute x) => annotation.Add(x), 
