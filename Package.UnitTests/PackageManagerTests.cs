@@ -585,7 +585,9 @@ namespace OpenTap.Package.UnitTests
             var versions = httpPackageRepository.GetPackageVersions(packages.FirstOrDefault());
             Assert.IsTrue(versions.Any());
             string query = "query Query {packages(class:\"package\", version:\"any\"){ name version description dependencies{ name version} }}";
+#pragma warning disable CS0618 // Type or member is obsolete
             var resp = httpPackageRepository.QueryGraphQL(query);
+#pragma warning restore CS0618 // Type or member is obsolete
             Assert.IsNotNull(resp);
             string file = "C:/Temp/Test.TapPackage";
             try

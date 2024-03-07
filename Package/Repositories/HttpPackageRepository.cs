@@ -34,8 +34,8 @@ namespace OpenTap.Package
 
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
         private HttpClient client;
-        private HttpClient HttpClient => client ??= GetHttpClient(Url);
-        private static HttpClient GetHttpClient(string url)
+        private HttpClient HttpClient => client ??= GetHttpClient();
+        private static HttpClient GetHttpClient()
         {
             var httpClient = AuthenticationSettings.Current.GetClient(null, true);
             httpClient.DefaultRequestHeaders.Add(HttpRequestHeader.Accept.ToString(), "application/xml");
@@ -378,7 +378,7 @@ namespace OpenTap.Package
                 parameters["IsUnlisted"] = false;
             if (name != null)
                 parameters["name"] = name;
-            if (version != null && version != VersionSpecifier.AnyRelease)
+            if (version != null)
                 parameters["version"] = version.ToString();
             if (architecture != CpuArchitecture.Unspecified && architecture != CpuArchitecture.AnyCPU)
                 parameters["architecture"] = architecture.ToString();
@@ -442,6 +442,7 @@ namespace OpenTap.Package
                 architecture: package.Architecture);
 
             var packages = RepoClient.Query(parameters, cancellationToken, "PackageDef");
+            
             return packages.Select(p => p["PackageDef"] as string).Where(xml => !string.IsNullOrWhiteSpace(xml))
                 .Select(xml =>
                 {

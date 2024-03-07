@@ -112,7 +112,7 @@ namespace OpenTap
         {
             const string AnsiRed = "\x1B[31m";
             const string AnsiYellow = "\x1B[33m";
-            const string AnsiBrightBlack = "\x1B[30;1m";
+            const string AnsiLightBlue = "\x1B[36m";
             const string AnsiReset = "\x1B[0m";
             switch (eventType)
             {
@@ -121,7 +121,7 @@ namespace OpenTap
                 case LogEventType.Warning:
                     return AnsiYellow;
                 case LogEventType.Debug:
-                    return AnsiBrightBlack;
+                    return AnsiLightBlue;
                 default:
                     return AnsiReset;
             }
