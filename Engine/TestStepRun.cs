@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -459,13 +460,13 @@ namespace OpenTap
                 ResultSource.Defer(() =>
                 {
                     deferDone.Set();
-                    stepRuns = null;
+                    stepRuns = ImmutableDictionary<Guid, TestStepRun>.Empty;
                 });
             }
             else
             {
                 deferDone.Set();
-                stepRuns = null;
+                stepRuns = ImmutableDictionary<Guid, TestStepRun>.Empty;
             }
         }
 
@@ -516,11 +517,11 @@ namespace OpenTap
         
         // we keep a mapping of the most recent run of any child step. This is important to be able to update inputs.
         // the guid is the ID of a step.
-        ConcurrentDictionary<Guid, TestStepRun> stepRuns = new ConcurrentDictionary<Guid, TestStepRun>(); 
+        ImmutableDictionary<Guid, TestStepRun> stepRuns = ImmutableDictionary<Guid, TestStepRun>.Empty; 
         internal override void ChildStarted(TestStepRun stepRun)
         {
             base.ChildStarted(stepRun);
-            stepRuns[stepRun.TestStepId] = stepRun;
+            stepRuns = stepRuns.SetItem(stepRun.TestStepId, stepRun);
             childStarted?.Invoke(stepRun);
         }
         
