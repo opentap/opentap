@@ -6,15 +6,18 @@ namespace OpenTap
 {
     class DateTimeAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation, IErrorAnnotation
     {
-        private AnnotationCollection annotation;
+        private readonly AnnotationCollection annotation;
         private string currentError = null;
-
         public string Value
         {
             get
             {
+                // date time format similar to what is being produces by logs (without ms).
+                // The default invariant culture is MM/dd/yyyy ... which we dont use anywhere else.
+                var dateTimeFormat = "yyyy-MM-dd HH:mm:ss";
                 if (annotation.Get<IObjectValueAnnotation>(from: this).Value is DateTime dt)
-                    return dt.ToString(CultureInfo.InvariantCulture);
+                    
+                    return dt.ToString( dateTimeFormat,CultureInfo.InvariantCulture);
                 return "";
             }
             set

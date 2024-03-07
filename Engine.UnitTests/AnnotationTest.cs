@@ -2494,12 +2494,12 @@ namespace OpenTap.UnitTests
             string[] GetErrors() => date.GetAll<IErrorAnnotation>().SelectMany(a => a.Errors).ToArray();
 
             Assert.AreEqual(default(DateTime), times.MyDate);
-            StringAssert.StartsWith("01/01/0001", dsv.Value);
-            times.MyDate = DateTime.Parse("11/30/1000", DateTimeFormatInfo.InvariantInfo);
+            StringAssert.StartsWith("0001-01-01", dsv.Value);
+            times.MyDate = DateTime.Parse("1000-11-30", DateTimeFormatInfo.InvariantInfo);
             a.Read();
-            StringAssert.StartsWith("11/30/1000", dsv.Value);
+            StringAssert.StartsWith("1000-11-30", dsv.Value);
 
-            dsv.Value = "07/27/1978";
+            dsv.Value = "1978-07-27";
             Assert.AreEqual(0, GetErrors().Count());
             a.Write();
 
@@ -2511,7 +2511,7 @@ namespace OpenTap.UnitTests
 
             Assert.AreEqual(1, GetErrors().Count());
 
-            dsv.Value = "01/01/0001";
+            dsv.Value = "0001-01-01";
             Assert.AreEqual(0, GetErrors().Count());
         }
     }
