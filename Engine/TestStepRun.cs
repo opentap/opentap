@@ -521,7 +521,7 @@ namespace OpenTap
         internal override void ChildStarted(TestStepRun stepRun)
         {
             base.ChildStarted(stepRun);
-            stepRuns = stepRuns.SetItem(stepRun.TestStepId, stepRun);
+            Utils.InterlockedSwap(ref stepRuns, () => stepRuns.SetItem(stepRun.TestStepId, stepRun));
             childStarted?.Invoke(stepRun);
         }
         
