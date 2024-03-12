@@ -20,7 +20,7 @@ Therefore, a test plan is a recursive structure of test steps. This hierarchy is
 
 ![](./TestPlan.svg)
 
-The step sequence is ordered from top to bottom, and child steps are indented to indicate that they belong to a parent step.
+The step sequence is ordered from top to bottom, and child steps are indented to indicate that they belong to a parent step. 
 
 The execution order of child steps is decided by the parent step. For example, two typical parent steps are *Parallel*
 and *Sequential*, shown below. *MyStep* is given as an example to illustrate that the topology of step execution can be

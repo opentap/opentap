@@ -7,7 +7,7 @@ This document is written for **C# programmers** who are developing OpenTAP plugi
 
 Development requires the following software:
 
-- Visual Studio 2019 or above
+- Visual Studio 2022 or above
 - OpenTAP 
 
 ## Suggested Resources
