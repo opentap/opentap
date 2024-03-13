@@ -17,7 +17,7 @@ Technology Licenses
 -------------------
 The hardware and/or software described in this document are furnished under a license and may be used or copied only in accordance with the terms of such license.
 © Keysight Technologies, Inc. 2015, 2016, 2017, 2018, 2019, 2020, 2024
-Keysight Technologies, Inc.
+Keysight Technologies, Inc. 
 900 South Taft Avenue Loveland, CO, 80537-6378 USA
 
 Document History
