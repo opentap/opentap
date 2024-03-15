@@ -384,7 +384,6 @@ namespace OpenTap
                         }
                         
                         traceListener.FileSizeLimit = 100_000_000; // max size for log files is 100MB.
-                        traceListener.FileSizeLimitReached += TraceListener_FileSizeLimitReached;
                         Log.AddListener(traceListener);
                     }
                     else
@@ -421,47 +420,7 @@ namespace OpenTap
             {
                 // Ignore in case of race conditions.
             }
-        }
-
-        static int sessionLogCount = 0;
-        static object sessionLogRotateLock = new object();
-        static void TraceListener_FileSizeLimitReached(object sender, EventArgs e)
-        {
-            traceListener.FileSizeLimitReached -= TraceListener_FileSizeLimitReached;
-            
-            Task.Factory.StartNew(() =>
-            {
-                lock (sessionLogRotateLock)
-                {
-                    string newname = currentLogFile.Replace("__" + sessionLogCount.ToString(), "");
-
-                    sessionLogCount += 1;
-                    var nextFile = addLogRotateNumber(newname, sessionLogCount);
-
-                    log.Info("Switching log to the file {0}", nextFile);
-
-                    Log.RemoveListener((FileTraceListener)sender);
-
-                    rename(nextFile, newFile: true);
-                }
-            });
-        }
-
-        static string addLogRotateNumber(string fullname, int cnt)
-        {
-            if (cnt == 0) return fullname;
-            var dir = Path.GetDirectoryName(fullname);
-            var filename = Path.GetFileNameWithoutExtension(fullname);
-            if (Path.HasExtension(fullname))
-            {
-                var ext = Path.GetExtension(fullname);
-                return Path.Combine(dir, filename + "__" + cnt.ToString() + ext);
-            }
-            else
-            {
-                return Path.Combine(dir, filename + "__" + cnt.ToString());
-            }
-        }
+        } 
 
         /// <summary>
         /// Renames a previously initialized temporary log file.

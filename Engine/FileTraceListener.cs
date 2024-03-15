@@ -33,8 +33,6 @@ namespace OpenTap
             _fileName = Path.GetFullPath(fileName);
         }
 
-        public event EventHandler FileSizeLimitReached;
-
         /// <summary> Installs a file limit. When the limit is reached FileSIzeLimitReached is invoked. </summary>
         public ulong FileSizeLimit = ulong.MaxValue;
 
@@ -148,11 +146,34 @@ namespace OpenTap
                 sb.AppendLine();
             }
             Write(sb.ToString());
-
-            if (FileSizeLimitReached != null && Writer is StreamWriter sw && (ulong)sw.BaseStream.Length > FileSizeLimit)
+            RenameLogIfNeeded();
+        }
+        
+        int logCount = 0; 
+        private void RenameLogIfNeeded()
+        {
+            if ((ulong)Writer.BaseStream.Length < FileSizeLimit) return;
+            LockOutput();
+            try
             {
-                FileSizeLimitReached(this, EventArgs.Empty);
+                string newname = _fileName.Replace("__" + logCount, "");
+                logCount += 1;
+                var nextFile = addLogRotateNumber(newname, logCount);
+                Writer = new StreamWriter(new FileStream(nextFile, FileMode.Append));
+            }
+            finally
+            {
+                UnlockOutput();
             }
         }
+
+        static string addLogRotateNumber(string fullname, int cnt)
+        {
+            if (cnt == 0) return fullname;
+            var dir = Path.GetDirectoryName(fullname);
+            var filename = Path.GetFileNameWithoutExtension(fullname);
+            var ext = Path.HasExtension(fullname) ? Path.GetExtension(fullname) : "";
+            return Path.Combine(dir, filename + "__" + cnt + ext);
+        } 
     }
 }

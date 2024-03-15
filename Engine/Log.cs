@@ -175,16 +175,16 @@ namespace OpenTap
     /// </summary>
     class TextWriterTraceListener : TraceListener, IDisposable
     {
-        private TextWriter writer;
+        private StreamWriter writer;
 
         private Mutex LockObject = new Mutex(false);
 
-        private void LockOutput()
+        protected void LockOutput()
         {
             LockObject.WaitOne();
         }
 
-        private void UnlockOutput()
+        protected void UnlockOutput()
         {
             LockObject.ReleaseMutex();
         }
@@ -192,12 +192,9 @@ namespace OpenTap
         /// <summary>
         /// The writer that is used as the output.
         /// </summary>
-        public System.IO.TextWriter Writer
+        public StreamWriter Writer
         {
-            get
-            {
-                return writer;
-            }
+            get => writer;
             set
             {
                 if (writer != value)
@@ -226,9 +223,9 @@ namespace OpenTap
         /// <summary>
         /// Creates a new TextWriterTraceListener writing to the given stream.
         /// </summary>
-        public TextWriterTraceListener(System.IO.Stream stream)
+        public TextWriterTraceListener(Stream stream)
         {
-            Writer = new System.IO.StreamWriter(stream);
+            Writer = new StreamWriter(stream);
         }
 
         /// <summary>
