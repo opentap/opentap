@@ -49,11 +49,16 @@ namespace OpenTap.Package
         {
             var toInstall = new List<PackageSpecifier>();
             var installed = installation.GetPackages().ToList();
+            var additionalPackages = new List<PackageDef>();
+
             foreach (var package in newPackages)
             {
                 var ext = installed.FirstOrDefault(x => x.Name == package.Name);
                 if (ext != null)
+                { 
                     installed.Remove(ext);
+                    additionalPackages.Add(ext);
+                }
 
                 if (File.Exists(package.Name))
                 {
@@ -74,6 +79,7 @@ namespace OpenTap.Package
             return new ImageSpecifier
             {
                 Packages = toInstall,
+                AdditionalPackages = additionalPackages,
                 InstalledPackages = installed.ToImmutableArray(),
                 FixedPackages = fixedPackages
             };
