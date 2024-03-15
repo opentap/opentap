@@ -134,6 +134,18 @@ namespace OpenTap
 
         private readonly string separator = new string('-', 44);
 
+        static string FormatSize(long size)
+        {
+            
+            if (size < 1000)
+                return $"{size} B";
+            
+            if (size < 1000000)
+                return $"{Math.Round(((double)size) / 1000, 1)} kB";
+            
+            return $"{Math.Round(((double)size) / 1000_000, 1)} MB";
+        } 
+        
         /// <summary> Prints the artifact summary. </summary>
         public void PrintArtifactsSummary()
         {
@@ -151,7 +163,8 @@ namespace OpenTap
                 summaryLog.Info(formatSummary($" {artifacts.Count} artifacts registered. "));
                 foreach (var artifact in artifacts)
                 {
-                    summaryLog.Info($" - {Path.GetFullPath(artifact)}  [{new FileInfo(artifact).Length} B]");
+                    var artifactSize = new FileInfo(artifact).Length;
+                    summaryLog.Info($" - {Path.GetFullPath(artifact)}  [{FormatSize(artifactSize)}]");
                 }
             }
             else
