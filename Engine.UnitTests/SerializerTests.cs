@@ -326,7 +326,7 @@ namespace OpenTap.Engine.UnitTests
             public override bool Serialize(XElement node, object obj, ITypeData expectedType)
             {
                 if (visitedNodes.Add(node) == false) return false;
-                return Serializer.Serialize(node, obj, expectedType);
+                return Serializer.Serialize(node, obj, expectedType, true);
             }
             
             public bool NeededForDeserialization

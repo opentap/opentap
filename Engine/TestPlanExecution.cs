@@ -15,7 +15,7 @@ namespace OpenTap
 {
     partial class TestPlan
     {
-        bool runPrePlanRunMethods(IEnumerable<ITestStep> steps, TestPlanRun planRun)
+        bool runPrePlanRunMethods(IList<ITestStep> steps, TestPlanRun planRun)
         {
             Stopwatch preTimer = Stopwatch.StartNew(); // try to avoid calling Stopwatch.StartNew too often.
             TimeSpan elaps = preTimer.Elapsed;
