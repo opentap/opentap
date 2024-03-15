@@ -75,7 +75,7 @@ namespace OpenTap.Diagnostic
         void ProcessLog()
         {
             var copy = new List<ILogListener>();
-            Event[] bunch = new Event[0];
+            Event[] bunch = Array.Empty<Event>();
             while (isDisposed == false)
             {
                 newEventOccured.WaitOne();

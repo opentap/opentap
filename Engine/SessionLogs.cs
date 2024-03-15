@@ -383,7 +383,7 @@ namespace OpenTap
                             traceListener = new FileTraceListener(path);
                         }
                         
-                        traceListener.FileSizeLimit = 100000000; // max size for log files is 100MB.
+                        traceListener.FileSizeLimit = 100_000_000; // max size for log files is 100MB.
                         traceListener.FileSizeLimitReached += TraceListener_FileSizeLimitReached;
                         Log.AddListener(traceListener);
                     }

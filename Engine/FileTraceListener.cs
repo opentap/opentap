@@ -79,22 +79,22 @@ namespace OpenTap
         }
         
         long first_timestamp = -1;
-        static ThreadLocal<System.Text.StringBuilder> _sb = new ThreadLocal<System.Text.StringBuilder>(() => new System.Text.StringBuilder());
+        static readonly ThreadLocal<StringBuilder> _sb = new ThreadLocal<StringBuilder>(() => new StringBuilder());
         public override void TraceEvents(IEnumerable<Event> events)
         {
             // Note, this function is heavily optimized.
             // profile carefully after doing any changes!!
 
             if (events == null)
-                throw new ArgumentNullException("events");
+                throw new ArgumentNullException(nameof(events));
 
             base.TraceEvents(events);
 
-            System.Text.StringBuilder sb = _sb.Value;
+            var sb = _sb.Value;
             
             sb.Clear();
             long lastTick = 0;
-            string tickmsg = "";
+            string tickmsg = string.Empty;
             foreach (var evt in events)
             {
                 if (first_timestamp == -1)
@@ -143,18 +143,15 @@ namespace OpenTap
                 sb.Append(" ; ");
                 if (evt.Message != null)
                 {
-                    sb.Append(evt.Message.Replace("\n", "").Replace("\r", ""));
+                    sb.Append(evt.Message.Replace("\n", string.Empty).Replace("\r", string.Empty));
                 }
                 sb.AppendLine();
             }
-            this.Write(sb.ToString());
+            Write(sb.ToString());
 
-            var streamWriter = Writer as StreamWriter;
-
-            if (streamWriter != null && (ulong)streamWriter.BaseStream.Length > FileSizeLimit)
+            if (FileSizeLimitReached != null && Writer is StreamWriter sw && (ulong)sw.BaseStream.Length > FileSizeLimit)
             {
-                if(FileSizeLimitReached != null)
-                    FileSizeLimitReached(this, new EventArgs());
+                FileSizeLimitReached(this, EventArgs.Empty);
             }
         }
     }
