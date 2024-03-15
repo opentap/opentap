@@ -18,16 +18,16 @@ namespace OpenTap.UnitTests
         public void CliActionTreeTest()
         {
             var root = new CliActionTree();
-            Assert.IsTrue(root.GetSubCommand(Array.Empty<string>()) == null);
-            Assert.IsTrue(root.GetSubCommand("".Split(' ')) == null);
-            Assert.IsTrue(root.GetSubCommand("test".Split(' ')).Name == "test");
-            Assert.IsTrue(root.GetSubCommand("test action".Split(' ')).Name == "action");
-            Assert.IsTrue(root.GetSubCommand("test action testaction".Split(' ')).Name == "testaction");
-            Assert.IsTrue(root.GetSubCommand("test action testaction arg".Split(' ')).Name == "testaction");
+            Assert.IsTrue(root.GetSubCommand(Array.Empty<string>()).First() == root);
+            Assert.IsTrue(root.GetSubCommand("".Split(' ')).First() == root);
+            Assert.IsTrue(root.GetSubCommand("test".Split(' ')).First().Name == "test");
+            Assert.IsTrue(root.GetSubCommand("test action".Split(' ')).First().Name == "action");
+            Assert.IsTrue(root.GetSubCommand("test action testaction".Split(' ')).First().Name == "testaction");
+            Assert.IsTrue(root.GetSubCommand("test action testaction arg".Split(' ')).First().Name == "testaction");
         }
     }
 
-    [Display("testaction", Groups: new[] { "test", "action" }, Description:"Runs TestAction")]
+    [Display("testaction", Groups: new[] { "test", "action" }, Description: "Runs TestAction")]
     public class TestAction : ICliAction
     {
         [UnnamedCommandLineArgument("notrequired", Required = false)]
@@ -37,7 +37,7 @@ namespace OpenTap.UnitTests
             throw new NotImplementedException();
         }
     }
-    
+
     [Display("action2", Groups: new[] { "test" }, Description:"Runs TestAction2")]
     public class TestAction2 : ICliAction
     {

@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Xml.Linq;
+using System.ComponentModel;
 
 namespace OpenTap.Cli
 {
@@ -66,23 +67,31 @@ namespace OpenTap.Cli
             }
         }
 
-        public CliActionTree GetSubCommand(string[] args)
+        public IEnumerable<CliActionTree> GetSubCommand(IEnumerable<string> args)
         {
-            if (args.Length == 0)
-                return null;
+            if (!args.Any())
+            {
+                yield return this;
+                yield break;
+            }
 
+            bool foundCommands = false;
             foreach (var item in SubCommands)
             {
-                if (item.Name == args[0])
+                if (item.Name == args.First())
                 {
-                    if (args.Length == 1 || item.SubCommands.Any() == false)
-                       return item;
-                    var subCmd = item.GetSubCommand(args.Skip(1).ToArray());
-                    return subCmd ?? item;
+                    foreach (var subCmd in item.GetSubCommand(args.Skip(1)))
+                    {
+                        yield return subCmd;
+                    }
+                    foundCommands = true;
                 }
             }
 
-            return null;
+            if (!foundCommands)
+            {
+                yield return this;
+            }
         }
 
         /// <summary>
@@ -109,6 +118,25 @@ namespace OpenTap.Cli
                     x = length;
             }
             return x + initial;
+        }
+    }
+
+    internal class CliActionSelector
+    {
+        [Layout(LayoutMode.FullRow)]
+        [Browsable(true)]
+        public string Message { get; }
+        public List<string> Corrections { get; }
+
+        [Submit]
+        [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+        [AvailableValues(nameof(Corrections))]
+        public string Choice { get; set; }
+
+        public CliActionSelector(string message, List<string> corrections)
+        {
+            Message = message;
+            Corrections = corrections;
         }
     }
 
@@ -211,9 +239,25 @@ namespace OpenTap.Cli
 
             // Find selected command
             var actionTree = new CliActionTree();
-            var selectedcmd = actionTree.GetSubCommand(args);
-            if (selectedcmd?.Type != null && selectedcmd?.SubCommands.Any() != true)
-                SelectedAction = selectedcmd.Type;
+            var commands = actionTree.GetSubCommand(args).ToList();
+            if (commands.Count > 1)
+            {
+                if (args.Contains("--non-interactive") || Environment.GetEnvironmentVariable("OPENTAP_NON_INTERACTIVE") != null)
+                {
+                    throw new Exception("Multiple commands with the same name found. Run without --non-interactive to select a command, or without env variable OPENTAP_NON_INTERACTIVE set.");
+                }
+                // Create a new session, and load the UserInput.
+                using var session = Session.Create();
+                CliUserInputInterface.Load();
+                var req = new CliActionSelector("Multiple commands with the same name found, select which one to run.", commands.Where(c => c.Type != null && !c.SubCommands.Any()).Select(c => c.Type.Name).ToList());
+                UserInput.Request(req, true);
+                SelectedAction = commands.First(c => c.Type.Name == req.Choice).Type;
+            }
+            else if (commands.Count == 1 && commands[0].Type != null && !commands[0].SubCommands.Any())
+            {
+                SelectedAction = commands[0].Type;
+            }
+
 
             // Run check for update
             TapThread.Start(() =>
@@ -223,7 +267,7 @@ namespace OpenTap.Cli
                 {
                     try
                     {
-                        var checkUpdatesCommands = actionTree.GetSubCommand(new[] {"package", "check-updates"});
+                        var checkUpdatesCommands = actionTree.GetSubCommand(new[] {"package", "check-updates"}).FirstOrDefault();
                         var checkUpdateAction = checkUpdatesCommands?.Type?.CreateInstance() as ICliAction;
                         if (SelectedAction != checkUpdatesCommands?.Type)
                             checkUpdateAction?.PerformExecute(new[] {"--startup"});
@@ -291,7 +335,7 @@ namespace OpenTap.Cli
                 log.Info("OpenTAP Command Line Interface ({0})", getVersion());
                 log.Info($"Usage: \"{tapCommand} <command> [<subcommand(s)>] [<args>]\"\n");
 
-                if (selectedcmd == null)
+                if (commands.Count == 0)
                 {
                     log.Info("Valid commands are:");
                     foreach (var cmd in actionTree.SubCommands)
@@ -302,7 +346,7 @@ namespace OpenTap.Cli
                 else
                 {
                     log.Info($"Valid subcommands of");
-                    print_command(selectedcmd, 0, actionTree.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
+                    print_command(commands[0], 0, actionTree.GetMaxCommandTreeLength(LevelPadding) + LevelPadding);
                 }
 
                 log.Info($"\nRun \"{tapCommand} <command> [<subcommand(s)>] -h\" to get additional help for a specific command.\n");
