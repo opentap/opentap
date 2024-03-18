@@ -448,14 +448,17 @@ namespace OpenTap.Package
                 {
                     using var ms = new MemoryStream(Encoding.UTF8.GetBytes(xml));
                     var pkg = PackageDef.FromXml(ms);
-                    if (!(pkg.PackageSource is HttpRepositoryPackageDefSource))
-                    {
-                        // The repository can return a FilePackageDefSource instead of a HttpRepositoryPackageDefSource.
-                        // We need to overwrite the incorrect information in order to be able to download the package.
-                        // Todo: Check if this has been fixed in the latest version of the repository.
-                        pkg.PackageSource = new HttpRepositoryPackageDefSource { RepositoryUrl = Url };
-                    }
-
+                    
+                    // For historical reasons, the repository includes the repository URL of a package as part of the response.
+                    // This was done to support scenarios where package metadata is hosted on the repository,
+                    // but the actual package is stored elsewhere. This was never actually implemented, and likely wont.
+                    // In prior versions, the repository did not store its own URL as the package source. Instead,
+                    // it stored whatever URL the upload client used to address the repository by. For this reason,
+                    // some packages have their package source stored as 'http://...' instead of https. It is also
+                    // possible that the url could be stored as some local dns name, or as a raw IP. 
+                    // Instead of relying on the source specified by the repository, we should simply override the URL 
+                    // with the URL we just queried for the package, which will work in all cases.
+                    pkg.PackageSource = new HttpRepositoryPackageDefSource { RepositoryUrl = Url };
                     return pkg;
                 })
                 .ToArray();
