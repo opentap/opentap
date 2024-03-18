@@ -159,7 +159,9 @@ namespace OpenTap
                 string newname = _fileName.Replace("__" + logCount, "");
                 logCount += 1;
                 var nextFile = addLogRotateNumber(newname, logCount);
+                var prevWriter = Writer;
                 Writer = new StreamWriter(new FileStream(nextFile, FileMode.Append));
+                prevWriter.Close();
             }
             finally
             {
