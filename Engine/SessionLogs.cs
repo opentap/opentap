@@ -368,7 +368,7 @@ namespace OpenTap
         /// <summary>
         /// Renames a previously initialized temporary log file.
         /// </summary>
-        static void rename(string path, bool newFile = false)
+        static void rename(string path, bool newLogFile = false)
         {
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
@@ -403,7 +403,7 @@ namespace OpenTap
                     }
                     else
                     {
-                        traceListener.ChangeFileName(path, NoExclusiveWriteLock, startNewLog: newFile);
+                        traceListener.ChangeFileName(path, NoExclusiveWriteLock, startNewLog: newLogFile);
                         traceListener.FileSizeLimit = LogFileMaxSize;
                     }
                     fileNameChanged = true;
@@ -472,16 +472,22 @@ namespace OpenTap
                 return Path.Combine(dir, filename + "__" + cnt.ToString());
             }
         }
-
-        public static void Rename(string path) => Rename(path, false);
+        
         /// <summary>
         /// Renames a previously initialized temporary log file.
         /// </summary>
-        public static void Rename(string path, bool newFile)
+        public static void Rename(string path) => Rename(path, false);
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="newLogFile">If a new log file should be created or we should rename the existing one.</param>
+        internal static void Rename(string path, bool newLogFile)
         {
             try
             {
-                rename(path, newFile: newFile);
+                rename(path, newLogFile: newLogFile);
             }
             catch (UnauthorizedAccessException e)
             {
