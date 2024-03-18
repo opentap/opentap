@@ -29,6 +29,7 @@ namespace OpenTap.Package
 
         // versions contains all versions of a given name. Eg all versions of OpenTAP/
         readonly Dictionary<int, HashSet<int>> versions = new Dictionary<int, HashSet<int>>();
+        readonly Dictionary<int, string[]> bundlePackages = new Dictionary<int, string[]>();
 
         // Dependencies for a given version 
         readonly Dictionary<(int packageNameId, int packageVersion), (int packageNameId, int versionSpecifierId)[]> dependencies = new Dictionary<(int, int), (int, int)[]>();
@@ -113,6 +114,8 @@ namespace OpenTap.Package
                     }
 
                     dependencies[(id, GetVersionId(version))] = deps;
+                    if (elem.IsBundle())
+                        bundlePackages[id] = elem.Dependencies.Select(dep => dep.Name).ToArray();
                 }
             }
 
@@ -124,17 +127,20 @@ namespace OpenTap.Package
             {
                 var name = d["name"] as string;
                 var version = d["version"] as string;
-                if (!SemanticVersion.TryParse(version, out var v))
+                var @class = d["class"] as string;
+                if (!SemanticVersion.TryParse(version, out _))
                     continue;
                 var id = GetNameId(name);
                 var thisVersion = versions[id];
+
                 if (!thisVersion.Add(GetVersionId(version)))
                     continue; // package already added.
                 var depMap = d["dependencies"] as List<Dictionary<string, object>>;
                 if (depMap == null || depMap.Count == 0) continue;
                 
                 var deps = new (int id, int y)[depMap.Count];
-                int i = 0; 
+                int i = 0;
+                var depNames = new string[depMap.Count];
                 foreach (var dep in depMap)
                 {
                     var depname = dep["name"] as string;
@@ -143,6 +149,10 @@ namespace OpenTap.Package
                     deps[i] = (depid, GetVersionSpecifier(depver));
                     i++;
                 }
+
+                if (@class?.Equals("bundle", StringComparison.InvariantCultureIgnoreCase) == true)
+                    if (!bundlePackages.ContainsKey(id))
+                        bundlePackages[id] = depNames;
 
                 dependencies[(id, GetVersionId(version))] = deps;
             }
@@ -257,14 +267,18 @@ namespace OpenTap.Package
             foreach (var thing in versions)
             {
                 var pkgName = nameLookup[thing.Key];
+                bool isBundle = bundlePackages.ContainsKey(thing.Key);
                 foreach (var v in thing.Value)
                 {
                     var version = this.versionLookup[v];
                     var pkg = new PackageDef
                     {
                         Name = pkgName,
-                        Version = version
+                        Version = version,
                     };
+                    if (isBundle)
+                        pkg.Class = "bundle";
+                    
                     if (dependencies.TryGetValue((thing.Key, v), out var deps))
                     {
                         foreach (var dep in deps)
@@ -365,6 +379,14 @@ namespace OpenTap.Package
                     }
                 }
             }
+        }
+
+        public string[] GetBundlePackages(string pkgName)
+        {
+            if (name2Id.TryGetValue(pkgName, out var id) && 
+                bundlePackages.TryGetValue(id, out var result))
+                return result;
+            return Array.Empty<string>();
         }
 
         public bool HasPackage(string pkgName, SemanticVersion version)

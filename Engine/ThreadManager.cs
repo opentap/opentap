@@ -693,10 +693,7 @@ namespace OpenTap
         }
 
         private static TraceSource _log;
-        private static TraceSource log
-        {
-            get => (_log ?? (_log = Log.CreateSource("thread")));
-        }
+        private static TraceSource log => _log ??= Log.CreateSource("thread");
 
         /// <summary> Disposes the ThreadManager. This can optionally be done at program exit.</summary>
         public void Dispose()
