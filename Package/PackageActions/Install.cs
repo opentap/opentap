@@ -117,7 +117,7 @@ namespace OpenTap.Package
 
             bool installError = false;
             var installer = new Installer(Target, cancellationToken)
-            { DoSleep = false, ForceInstall = Force, UnpackOnly = UnpackOnly };
+            { DoSleep = false, ForceInstall = Force, UnpackOnly = UnpackOnly, InstallLock = HeldLock};
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
             installer.Error += ex => installError = true;
@@ -379,7 +379,6 @@ namespace OpenTap.Package
                         },
                         // The current install action is a locking package action.
                         // Setting this flag lets the child process bypass the lock on the installation.
-                        Unlocked = true,
                     };
 
                     var result = processRunner.Run(installStep, true, cancellationToken);

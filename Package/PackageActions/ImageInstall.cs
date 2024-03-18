@@ -140,6 +140,7 @@ namespace OpenTap.Package
                     return 0;
                 }
 
+                image.InstallLock = HeldLock;
                 image.Deploy(Target, cancellationToken);
                 return 0;
             }

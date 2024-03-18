@@ -56,6 +56,7 @@ namespace OpenTap.Package.PackageInstallHelpers
                 Repository = Repositories,
                 SystemWideOnly = SystemWideOnly,
                 AlreadyElevated = true,
+                Unlocked = true,
             };
 
             try

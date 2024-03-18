@@ -47,6 +47,8 @@ namespace OpenTap.Package
         /// </summary>
         public ReadOnlyCollection<string> Repositories { get; }
 
+        internal IFileLock InstallLock { get; set; }
+
 
         /// <summary>
         /// An <see cref="ImageIdentifier"/> is immutable, but can be converted to an <see cref="ImageSpecifier"/> which is mutable.
@@ -127,7 +129,7 @@ namespace OpenTap.Package
 
             Installation currentInstallation = new Installation(targetDir);
 
-            Deploy(currentInstallation, Packages.ToList(), ProgressUpdate, cancellationToken);
+            Deploy(currentInstallation, Packages.ToList(), ProgressUpdate, cancellationToken, InstallLock);
         }
 
         /// <summary>
@@ -142,7 +144,7 @@ namespace OpenTap.Package
         }
 
         private static void Deploy(Installation currentInstallation, List<PackageDef> dependencies,
-            ProgressUpdateDelegate progress, CancellationToken cancellationToken)
+            ProgressUpdateDelegate progress, CancellationToken cancellationToken, IFileLock installLock = null)
         {
             if (cancellationToken.IsCancellationRequested)
                 throw new OperationCanceledException("Deployment operation cancelled by user");
@@ -186,11 +188,11 @@ namespace OpenTap.Package
                 throw new OperationCanceledException("Deployment operation cancelled by user");
 
             if (modifyOrAdd.Any())
-                Install(modifyOrAdd, currentInstallation.Directory, progress, cancellationToken);
+                Install(modifyOrAdd, currentInstallation.Directory, progress, cancellationToken, installLock);
         }
 
         private static void Install(IEnumerable<PackageDef> modifyOrAdd, string target,
-            ProgressUpdateDelegate progress, CancellationToken cancellationToken)
+            ProgressUpdateDelegate progress, CancellationToken cancellationToken, IFileLock installLock = null)
         {
             progress ??= (percent, message) => { };
             var packagesInOrder = OrderPackagesForInstallation(modifyOrAdd);
@@ -220,7 +222,7 @@ namespace OpenTap.Package
             }
 
             // installProgress already accounts for packages that were already downloaded, so the 
-            Installer installer = new Installer(target, cancellationToken) { DoSleep = false };
+            Installer installer = new Installer(target, cancellationToken) { DoSleep = false, InstallLock = installLock};
             installer.ProgressUpdate += (percent, message) => progress(percent, message);   
             installer.PackagePaths.Clear();
             installer.PackagePaths.AddRange(paths);

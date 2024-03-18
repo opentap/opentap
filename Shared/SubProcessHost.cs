@@ -22,7 +22,6 @@ namespace OpenTap
     {
         public bool ForwardLogs { get; set; } 
         public string LogHeader { get; set; } = "";
-        public bool Unlocked { get; set; } = false;
         public HashSet<string> MutedSources { get; } = new HashSet<string>();
 
         public static bool IsAdmin()
@@ -129,19 +128,38 @@ namespace OpenTap
                 throw;
             }
         }
+        
+        public string TapExe { get; set; }
+        internal Dictionary<string, string> EnvironmentOverrides { get; set; } = new Dictionary<string, string>();
 
-        public Verdict Run(TestPlan step, bool elevate, CancellationToken token)
+        private Verdict Run(TestPlan step, bool elevate, CancellationToken token)
         {
             var handle = Guid.NewGuid().ToString();
-            var pInfo = new ProcessStartInfo(GetTap())
+            var tap = TapExe ?? GetTap();
+            var tapdir = Path.GetDirectoryName(tap);
+            var pInfo = new ProcessStartInfo(tap)
             {
                 Arguments = $"{nameof(ProcessCliAction)} --PipeHandle \"{handle}\"",
+                WorkingDirectory = tapdir,
                 CreateNoWindow = true,
                 WindowStyle = ProcessWindowStyle.Hidden,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
             };
+
+            foreach (var kvp in EnvironmentOverrides)
+            {
+                if (kvp.Value == null)
+                {
+                    pInfo.EnvironmentVariables.Remove(kvp.Key);
+                    Environment.SetEnvironmentVariable(kvp.Key, null);
+                }
+                else
+                {
+                    pInfo.EnvironmentVariables[kvp.Key] = kvp.Value;
+                }
+            }
 
             if (elevate)
             {

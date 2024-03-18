@@ -51,6 +51,8 @@ namespace OpenTap.Package
         /// </summary>
         [CommandLineArgument("target", Description = "Override the location where the command is applied.\nThe default is the OpenTAP installation directory.", ShortName = "t")]
         public string Target { get; set; }
+        
+        internal IFileLock HeldLock { get; set; }
 
 
         internal static string GetLocalInstallationDir()
@@ -103,6 +105,7 @@ namespace OpenTap.Package
             var lockfile = Path.Combine(Target, ".lock");
             FileSystemHelper.EnsureDirectoryOf(lockfile);
             using var fileLock = FileLock.Create(lockfile);
+            HeldLock = fileLock;
             bool useLocking = Unlocked == false;
             if (useLocking && !fileLock.WaitOne(0))
             {
@@ -127,7 +130,15 @@ namespace OpenTap.Package
                 }
             }
 
-            return LockedExecute(cancellationToken);
+            try
+            {
+                return LockedExecute(cancellationToken);
+            }
+            finally
+            {
+                // Since filelock was disposed, we should also unset HeldLock
+                HeldLock = null;
+            }
         }
 
         /// <summary>
