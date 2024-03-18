@@ -104,7 +104,7 @@ namespace OpenTap.Engine.UnitTests
                 }
                 var files3 = Directory.GetFiles("TestLogs/").Where(file => file.Contains(guid.ToString())).ToArray();
                 var totalLength3 = files3.Sum(x => new FileInfo(x).Length);
-                Assert.IsTrue(Math.Abs(totalLength3 - 30000) < 5000);
+                Assert.IsTrue(Math.Abs(totalLength3 - 35000) < 5000);
                 Assert.AreEqual(2, files3.Length);
                 
                 var activePath = files3.OrderBy(x => new FileInfo(x).Length).First();

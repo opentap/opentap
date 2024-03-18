@@ -23,6 +23,9 @@ namespace OpenTap
         /// If the log should be written with absolute or relative time.
         /// </summary>
         public bool IsRelative { get; set; }
+        
+        /// <summary> The current file name of the trace file. </summary>
+        public string FileName => _fileName;
         /// <summary>
         /// Initializes a new instance of the FileTraceListener class.
         /// </summary>

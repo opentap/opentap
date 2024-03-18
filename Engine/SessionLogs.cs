@@ -81,8 +81,11 @@ namespace OpenTap
         /// <summary>
         /// File path to the current log file. Path is updated upon UI launch.
         /// </summary>
-        public static string GetSessionLogFilePath() => currentLogFile;
+        public static string GetSessionLogFilePath() => traceListener?.FileName ??  currentLogFile;
 
+        /// <summary>
+        /// The current log file base name. This might not be accurate if the log has rolled over due to size.
+        /// </summary>
         static string currentLogFile;
 
         // This controls whether or not session logs should keep files locked
