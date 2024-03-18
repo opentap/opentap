@@ -22,11 +22,15 @@ jobs:
       ShortVersion: ${{ steps.gitversion.outputs.ShortVersion }}
       LongVersion: ${{ steps.gitversion.outputs.LongVersion }}
       GitVersion: ${{ steps.gitversion.outputs.GitVersion }}
+      SmartInstallerVersion: ${{ steps.smartInstallerVersion.outputs.ver }}
     steps:
       # The get-gitversion action installs OpenTAP and fetches with fetch-depth: 0
       - name: GitVersion
         id: gitversion
         uses: opentap/get-gitversion@bump-opentap
+      - name: SmartInstallerVersion
+        id: smartInstallerVersion
+        run: echo "VER=$SMARTINSTALLER_IMAGE" >> $GITHUB_OUTPUT
 
   CheckSecrets:
     runs-on: ubuntu-latest
