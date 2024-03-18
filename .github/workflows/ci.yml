@@ -750,7 +750,6 @@ jobs:
       - GetVersion
       - Package-Win
     container:
-      #beta.5 was force-overwritten so now we are using a sha256 hash for a docker image.
       image: ${{ needs.GetVersion.outputs.SmartInstallerVersion }}      
       credentials:
         username: ${{ github.actor }}
