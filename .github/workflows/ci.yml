@@ -13,6 +13,7 @@ env:
   OPENTAP_NO_UPDATE_CHECK: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_CONSOLE_ANSI_COLOR: true
+  SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller:2.1.0-beta.61
 
 jobs:
   GetVersion:
@@ -21,11 +22,15 @@ jobs:
       ShortVersion: ${{ steps.gitversion.outputs.ShortVersion }}
       LongVersion: ${{ steps.gitversion.outputs.LongVersion }}
       GitVersion: ${{ steps.gitversion.outputs.GitVersion }}
+      SmartInstallerVersion: ${{ steps.smartInstallerVersion.outputs.ver }}
     steps:
       # The get-gitversion action installs OpenTAP and fetches with fetch-depth: 0
       - name: GitVersion
         id: gitversion
         uses: opentap/get-gitversion@bump-opentap
+      - name: SmartInstallerVersion
+        id: smartInstallerVersion
+        run: echo "VER=$SMARTINSTALLER_IMAGE" >> $GITHUB_OUTPUT
 
   CheckSecrets:
     runs-on: ubuntu-latest
@@ -749,8 +754,7 @@ jobs:
       - GetVersion
       - Package-Win
     container:
-      #beta.5 was force-overwritten so now we are using a sha256 hash for a docker image.
-      image: ghcr.io/opentap/smartinstaller@sha256:f9cc89cce025be9b7dad011347a02b8c4304655f343aff1ac9396d22b148ec42 
+      image: ${{ needs.GetVersion.outputs.SmartInstallerVersion }}      
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -808,7 +812,7 @@ jobs:
       - GetVersion
       - Package-Cross
     container:
-      image: ghcr.io/opentap/smartinstaller:2.1.0-beta.12
+      image: ${{ needs.GetVersion.outputs.SmartInstallerVersion }}      
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
