@@ -872,7 +872,7 @@ namespace OpenTap
         {
             var name = Step.GetFormattedName();
 
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = StringBuilderCache.GetStringBuilder();
             sb.Append('"');
 
             void getParentNames(ITestStep step)

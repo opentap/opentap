@@ -151,10 +151,6 @@ jobs:
       # Build your project
       - name: Build
         run: dotnet build -c Release
-      # Create the tap package
-      - name: Package
-        working-directory: bin/Release
-        run: ./tap package create package.xml
       # Upload the package so it can be downloaded from GitHub, 
       # and consumed by other steps in this workflow
       - name: Upload binaries

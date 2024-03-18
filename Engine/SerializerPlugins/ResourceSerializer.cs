@@ -88,7 +88,7 @@ namespace OpenTap.Plugins
                     var obj = fetchObject(t, propertyType ?? t, o => getName(o).Trim() == content, src);
                     if (obj != null)
                     {
-                        var name = getName(obj);
+                        var name = getName(obj).Trim();
                         if (name != content && !string.IsNullOrWhiteSpace(content))
                         {
                             TestPlanChanged = true;

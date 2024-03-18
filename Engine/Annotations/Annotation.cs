@@ -139,7 +139,7 @@ namespace OpenTap
         string Example { get; }
     }
 
-    /// <summary> Defines how an error annotation works. Note: Multiple of IErrorAnnotation can be used in the same annotation. In this case the erros will be concatenated. </summary>
+    /// <summary> Defines how an error annotation works. Note: Multiple of IErrorAnnotation can be used in the same annotation. In this case the errors will be concatenated. </summary>
     public interface IErrorAnnotation : IAnnotation
     {
         /// <summary> The list of errors for this annotation. </summary>
@@ -2746,6 +2746,16 @@ namespace OpenTap
                 }
             }
 
+            if (annotation.Source is ITestStep step)
+            {
+                // if any parent step has disabled their child steps list.
+                // then the settings of this step should be disabled.
+                // There is an overlap between it being "ReadOnly" and "Disabled"
+                // in this case we want it to be disabled, because e.g buttons should not be clickable.
+                if(step.GetParents().Any(parent => parent.ChildTestSteps.IsReadOnly))
+                    annotation.Add(DisabledSettingsAnnotation.Instance);
+            }
+
             if (mem != null)
             {
                 if (annotation.Get<IObjectValueAnnotation>() == null)
@@ -2775,6 +2785,8 @@ namespace OpenTap
 
                 if (mem.ReflectionInfo.DescendsTo(typeof(TimeSpan)))
                     annotation.Add(new TimeSpanAnnotation(annotation));
+                if (mem.ReflectionInfo.DescendsTo(typeof(DateTime)))
+                    annotation.Add(new DateTimeAnnotation(annotation));
                 
                 Sequence.ProcessPattern(attributes, 
                     (UnitAttribute x) => annotation.Add(x), 
@@ -2994,6 +3006,13 @@ namespace OpenTap
                 }
             }
         }
+    }
+
+    
+    internal class DisabledSettingsAnnotation : IEnabledAnnotation
+    {
+        public bool IsEnabled => false;
+        public static DisabledSettingsAnnotation Instance { get; } = new DisabledSettingsAnnotation();
     }
 
     internal class DisplayAnnotationWrapper : IAnnotation, IDisplayAnnotation, IOwnedAnnotation

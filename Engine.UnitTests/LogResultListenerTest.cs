@@ -8,7 +8,7 @@ using System.IO;
 using System.Text;
 using OpenTap.EngineUnitTestUtils;
 using NUnit.Framework;
-using OpenTap;
+using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -53,7 +53,7 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        public void LogResultListener()
+        public void LogResultListenerBasicTest()
         {
             LogResultListener log = new LogResultListener { FilePath = new MacroString { Text = "logResult.txt" } };
             var expanded = log.FilePath.Expand();
@@ -104,5 +104,36 @@ namespace OpenTap.Engine.UnitTests
             }
         }
         
+        
+        [Test]
+        public void LogResultListenerBugTest()
+        {
+            var name = Guid.NewGuid() + ".txt";
+            var log = new LogResultListener
+            {
+                FilterOptions = LogResultListener.FilterOptionsType.Verbose,
+                FilePath =
+                {
+                    Text = name
+                }
+            };
+            try
+            {
+                var plan = new TestPlan();
+                plan.ChildTestSteps.Add(new SequenceStep());
+                var ex = plan.Execute(new[]
+                {
+                    log
+                });
+                Assert.AreNotEqual(Verdict.Error, ex.Verdict);
+
+                var logContent = File.ReadAllText(name);
+                Assert.IsNotNull(logContent);
+            }
+            finally
+            {
+                File.Delete(name);
+            }
+        }
     }
 }

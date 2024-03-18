@@ -1,6 +1,6 @@
 ## Contribute to OpenTAP
 
-Thank you for your interest in contributing to the OpenTAP project. Contributions to the OpenTAP platform include feature enhancement requests, issue reporting, bug fixes, etc.  
+Thank you for your interest in contributing to the OpenTAP project. Contributions to the OpenTAP platform include feature enhancement requests, issue reporting, bug fixes, etc. 
 
 This guide contains details on how to contribute to OpenTAP in the simplest and most efficient way.
 
@@ -8,7 +8,7 @@ Contribution of plugins to the OpenTAP project do not require execution of the C
 
 ## Contributor License Agreement
 
-OpenTAP requires contributors to sign a [Contributor License Agreement]( https://opentap.io/assets/OpenTAP-CLA-v2.pdf) (CLA).
+OpenTAP requires contributors to sign a [Contributor License Agreement](https://opentap.io/assets/OpenTAP-CLA-v2.pdf) (CLA).
 The CLA can be executed either by an individual or a company. For companies, please include the company name and the name and signature of a legally authorized company representative.
 
 Sign the CLA and forward it to [CLA@opentap.io](mailto:CLA@opentap.io) along with your GitHub username and your e-mail address.

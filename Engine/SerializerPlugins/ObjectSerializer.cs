@@ -599,7 +599,8 @@ namespace OpenTap.Plugins
                 char c = str[i];
                 if (c == '\r') // special case. Somehow deserialization turns \n into \r.
                     return false;
-                
+                if (char.IsLetter(c))
+                    continue;
                 if (XmlConvert.IsXmlChar(c))
                     continue;
                 if(i < len - 1)

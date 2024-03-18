@@ -7,8 +7,8 @@ This document is written for **C# programmers** who are developing OpenTAP plugi
 
 Development requires the following software:
 
-- Visual Studio 2019 or above
-- OpenTAP 
+- Visual Studio 2022 or above
+- OpenTAP
 
 ## Suggested Resources
 VISA driver e.g. Keysight I/O libraries for instrument communication
