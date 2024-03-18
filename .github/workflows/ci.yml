@@ -13,7 +13,7 @@ env:
   OPENTAP_NO_UPDATE_CHECK: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_CONSOLE_ANSI_COLOR: true
-  SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller:beta-61
+  SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller:2.1.0-beta.61
 
 jobs:
   GetVersion:
