@@ -453,6 +453,7 @@ namespace OpenTap
                 sessionLogCount += 1;
                 var nextFile = addLogRotateNumber(newName, sessionLogCount);
                 ((FileTraceListener)sender).ChangeFileName(nextFile, false, true);
+                
                 log.Info("Switching log to file {0}", nextFile);
                 recentSystemLogs.AddRecent(Path.GetFullPath(nextFile));
                 RemoveOldLogFiles();
