@@ -34,6 +34,7 @@ namespace OpenTap
             : base(fileName)
         {
             _fileName = Path.GetFullPath(fileName);
+
         }
 
         public event EventHandler FileSizeLimitReached;
