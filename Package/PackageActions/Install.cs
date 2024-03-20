@@ -413,6 +413,15 @@ namespace OpenTap.Package
                     Log.Error("Could not resolve {0}{1}",
                         string.Join(", ", Packages.Select(x => $"{x}")),
                         string.IsNullOrWhiteSpace(Version) ? "" : $" v{Version}");
+
+                    // If the requested package is a bundle, the easiest way to resolve the resolution error is to uninstall the bundle.
+                    if (Packages.Length == 1 &&
+                        targetInstallation.GetPackages().FirstOrDefault(p => p.Name == Packages[0]) is PackageDef pkg &&
+                        pkg.IsBundle())
+                    {
+                        Log.Error( $"Please try manually uninstalling '{Packages[0]}' and re-installing it.");
+                        return (int)PackageExitCodes.PackageDependencyError;
+                    }
                 }
                 else
                 {
