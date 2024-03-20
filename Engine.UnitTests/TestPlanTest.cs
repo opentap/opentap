@@ -16,6 +16,7 @@ using System.ComponentModel;
 using System.Threading;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using System.Text;
+using OpenTap.Diagnostic;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -156,6 +157,38 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(summaryLines[5].Contains(testFileName));
             Assert.IsTrue(summaryLines[5].EndsWith("[1.5 kB]"));
             
+        }
+
+        [Test]
+        public void TestRunSelectedResultParameter([Values(true, false)] bool doRunSelected)
+        { 
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new DelayStep());
+            plan.ChildTestSteps.Add(new DelayStep()); 
+
+            var selectedSteps = doRunSelected ? new HashSet<ITestStep>(plan.ChildTestSteps.Take(1)) : null;
+            var results = plan.Execute( Array.Empty<IResultListener>(), Array.Empty<ResultParameter>(), selectedSteps).Parameters;
+            
+            var stepsOverridenResult = results.FirstOrDefault(param => param.Name == "StepListOverridden");
+            Assert.That(stepsOverridenResult, doRunSelected ? Is.Not.Null : Is.Null);
+        }
+        
+        [Test]
+        public void TestBreakConditionResultParameter([Values(true, false)] bool doBreak)
+        {
+            var plan = new TestPlan();
+
+            var sequenceStep = new SequenceStep();
+            plan.ChildTestSteps.Add(sequenceStep);
+            BreakConditionProperty.SetBreakCondition(sequenceStep, BreakCondition.BreakOnFail);
+
+            var verdictStep = new VerdictStep() { VerdictOutput = doBreak ? Verdict.Fail : Verdict.Pass };
+            sequenceStep.ChildTestSteps.Add(verdictStep);
+
+            var results = plan.Execute().Parameters;
+            
+            var breakResult = results.FirstOrDefault(param => param.Name == "CancelledDueToBreakCondition"); 
+            Assert.That(breakResult, doBreak ? Is.Not.Null : Is.Null);
         }
 
         [Test]
