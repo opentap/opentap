@@ -181,11 +181,11 @@ namespace OpenTap
             var runs = new List<TestStepRun>();
 
             bool didBreak = false;
-            void addBreakResult()
+            void addBreakResult(TestStepRun run)
             {
                 if (didBreak) return;
                 didBreak = true;
-                execStage.Parameters.Add(new ResultParameter("CancelledDueToBreakCondition", "Yes")); 
+                execStage.Parameters.Add(new ResultParameter(breakConditionParameterName, run.Id.ToString())); 
             }
 
             try
@@ -199,7 +199,7 @@ namespace OpenTap
                         runs.Add(run);
                     if (run.BreakConditionsSatisfied())
                     {
-                        addBreakResult();
+                        addBreakResult(run);
                         run.LogBreakCondition();
                         break;
                     }
@@ -216,7 +216,7 @@ namespace OpenTap
             }
             catch(TestStepBreakException breakEx)
             {
-                addBreakResult();
+                addBreakResult(breakEx.Run);
                 Log.Info("{0}", breakEx.Message);
             }
             finally
@@ -600,7 +600,14 @@ namespace OpenTap
             {
                 execStage = new TestPlanRun(this, resultListeners.ToList(), initTime, initTimeStamp);
                 if (stepsOverride != null)
-                    execStage.Parameters.Add(new ResultParameter("StepListOverridden", "Yes"));
+                {
+                    var overrides = stepsOverride.Select(o => o.Id.ToString()).ToArray();
+                    // The order of the guids does not really matter. 
+                    // Only that the order is the same across runs
+                    Array.Sort(overrides); 
+                    execStage.Parameters.Add(new ResultParameter(stepsOverrideParameterName, string.Join(",", overrides)));
+                }
+
                 execStage.Start();
 
                 execStage.Parameters.AddRange(PluginManager.GetPluginVersions(allEnabledSteps));
@@ -713,8 +720,10 @@ namespace OpenTap
         }
 
         TestPlanRun currentExecutionState = null;
+        private const string breakConditionParameterName = "CancelledDueToBreakCondition";
+        private const string stepsOverrideParameterName = "StepsOverridden";
 
-        
+
         /// <summary> true if the plan is in its open state. </summary>
         [AnnotationIgnore]
         public bool IsOpen { get { return currentExecutionState != null; } }

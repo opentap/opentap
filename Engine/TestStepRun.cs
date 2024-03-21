@@ -267,9 +267,11 @@ namespace OpenTap
         }
 
         ITypeData stepTypeData;
+        private ITestStep _step;
         
         TestStepRun(ITestStep step)
         {
+            _step = step;
             TestStepId = step.Id;
             TestStepName = step.GetFormattedName();
             stepTypeData = TypeData.GetTypeData(step);
@@ -337,7 +339,7 @@ namespace OpenTap
 
         internal void ThrowDueToBreakConditions()
         {
-            throw new TestStepBreakException(TestStepName, Verdict);
+            throw new TestStepBreakException(_step, this);
         }
 
         internal bool IsStepChildOf(ITestStep step, ITestStep possibleParent)
@@ -547,13 +549,15 @@ namespace OpenTap
 
     class TestStepBreakException : OperationCanceledException
     {
-        public string TestStepName { get; set; }
-        public Verdict Verdict { get; set; }
+        public string TestStepName => Step.GetFormattedName();
+        public Verdict Verdict => Run.Verdict;
+        public ITestStep Step { get; set; }
+        public TestStepRun Run { get; set; }
 
-        public TestStepBreakException(string testStepName, Verdict verdict)
+        public TestStepBreakException(ITestStep step, TestStepRun run)
         {
-            TestStepName = testStepName;
-            Verdict = verdict;
+            Step = step;
+            Run = run;
         }
 
         public override string Message =>
