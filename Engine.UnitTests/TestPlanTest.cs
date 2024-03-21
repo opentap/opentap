@@ -161,7 +161,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void TestRunSelectedResultParameter([Values(null, 1, 3)] int? runSelected)
         { 
-            const string stepsOverrideParameterName = "StepsOverridden"; 
+            const string stepsOverrideParameterName = "StepOverrideList"; 
             
             var plan = new TestPlan();
             var steps = Enumerable.Range(0, 10).Select(_ => new VerdictStep()).ToArray();
@@ -192,7 +192,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void TestBreakConditionResultParameter([Values(true, false)] bool doBreak)
         { 
-            const string breakConditionParameterName = "CancelledDueToBreakCondition"; 
+            const string breakConditionParameterName = "BreakIssuedFrom"; 
             var l = new PlanRunCollectorListener();
             var plan = new TestPlan();
 

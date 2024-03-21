@@ -720,8 +720,8 @@ namespace OpenTap
         }
 
         TestPlanRun currentExecutionState = null;
-        private const string breakConditionParameterName = "CancelledDueToBreakCondition";
-        private const string stepsOverrideParameterName = "StepsOverridden";
+        private const string breakConditionParameterName = "BreakIssuedFrom";
+        private const string stepsOverrideParameterName = "StepOverrideList";
 
 
         /// <summary> true if the plan is in its open state. </summary>
