@@ -113,7 +113,8 @@ namespace OpenTap.Package
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
             List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
-            Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
+            if (!NonInteractive)
+                Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
 
             bool installError = false;
             var installer = new Installer(Target, cancellationToken)
@@ -166,7 +167,7 @@ namespace OpenTap.Package
                     // We could also ask for an RC / Any, but if there are no releases, then it is likely also the case that there are no RCs.
                     // 'any' would be the most likely specifier to succeed, but it is probably a bit too extreme to suggest something so bleeding edge.
                     // A beta version strikes a good middle ground. It is pretty likely to resolve, and probably won't be too unstable.
-                    if (NonInteractiveUserInputInterface.IsSet()) throw;
+                    if (NonInteractive) throw;
                     if (Packages.Length != 1) throw;
                     if (fir.resolveProblems.Count != 1) throw;
 
