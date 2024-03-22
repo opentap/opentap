@@ -157,6 +157,61 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(summaryLines[5].EndsWith("[1.5 kB]"));
             
         }
+        
+        [Test]
+        public void TestRunSelectedResultParameter([Values(null, 1, 3)] int? runSelected)
+        { 
+            var plan = new TestPlan();
+            var steps = Enumerable.Range(0, 10).Select(_ => new VerdictStep()).ToArray();
+            plan.ChildTestSteps.AddRange(steps);
+
+            HashSet<ITestStep> selectedSteps = null;
+            if (runSelected.HasValue)
+                selectedSteps = new HashSet<ITestStep>(steps.Take(runSelected.Value));
+            var results = plan.Execute( Array.Empty<IResultListener>(), Array.Empty<ResultParameter>(), selectedSteps).Parameters;
+            var result = results.FirstOrDefault(param => param.Name == TestPlanRun.SpecialParameterNames.StepOverrideList);
+            if (runSelected.HasValue)
+            {
+                Assert.That(result, Is.Not.Null);
+                var ids = result.Value.ToString().Split(',');
+                Assert.That(ids.Length, Is.EqualTo(runSelected.Value));
+                for (int i = 0; i < runSelected; i++)
+                {
+                    var id = steps[i].Id.ToString();
+                    Assert.That(ids.Any(r => r == id));
+                }
+            }
+            else
+            {
+                Assert.That(result, Is.Null);
+            }
+        }
+        
+        [Test]
+        public void TestBreakConditionResultParameter([Values(true, false)] bool doBreak)
+        { 
+            var l = new PlanRunCollectorListener();
+            var plan = new TestPlan();
+
+            var sequenceStep = new SequenceStep();
+            plan.ChildTestSteps.Add(sequenceStep);
+            BreakConditionProperty.SetBreakCondition(sequenceStep, BreakCondition.BreakOnFail);
+
+            var verdictStep = new VerdictStep() { VerdictOutput = doBreak ? Verdict.Fail : Verdict.Pass };
+            sequenceStep.ChildTestSteps.Add(verdictStep);
+
+            var run = plan.Execute(new[] { l });
+            
+            var breakResult = run.Parameters.FirstOrDefault(param => param.Name == TestPlanRun.SpecialParameterNames.BreakIssuedFrom);
+            if (doBreak)
+            {
+                var stepRun = l.StepRuns.First(r => r.TestStepId == sequenceStep.Id);
+                Assert.That(breakResult, Is.Not.Null);
+                Assert.That(breakResult.Value.ToString(), Is.EqualTo(stepRun.Id.ToString()));
+            }
+            else 
+                Assert.That(breakResult, Is.Null);
+        }
 
         [Test]
         public void TestPlanStepExceptionTest()

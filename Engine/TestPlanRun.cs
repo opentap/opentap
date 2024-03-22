@@ -28,6 +28,25 @@ namespace OpenTap
     [DebuggerDisplay("TestPlanRun {TestPlanName}")]
     public class TestPlanRun : TestRun
     {
+        /// <summary>
+        /// Special Parameters refer to result parameters on a test plan run that describe relevant metadata about the run.
+        /// They can be extracted with e.g. 'Run.Parameters.FirstOrDefault(p => p.Name == SpecialParameterNames.Property)'
+        /// </summary>
+        public class SpecialParameterNames
+        {
+            /// <summary>
+            /// The GUID of the test step run that triggered the break condition that terminated the test plan run.
+            /// If the run was not terminated due to a break condition being satisfied, this parameter will
+            /// not be present.
+            /// </summary>
+            public const string BreakIssuedFrom = "Break Issued From";
+            /// <summary>
+            /// A comma-separated list of GUIDs of the test steps that were specified in the Step Override set.
+            /// If the Step Override feature was not used, this parameter will not be present.
+            /// </summary>
+            public const string StepOverrideList = "Step Override List"; 
+        }
+        
         static readonly TraceSource log = Log.CreateSource("TestPlan");
         static readonly TraceSource resultLog = Log.CreateSource("Resources");
 

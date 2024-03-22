@@ -127,9 +127,9 @@ namespace OpenTap
                             () => PrintWaitingMessage(new List<IResource>() {resultListener})))
                             execStage.ResourceManager.WaitUntilAllResourcesOpened(TapThread.Current.AbortToken);
                     }
-                    catch // this error will also be handled somewhere else.
+                    catch
                     {
-                        
+                         // this error will also be handled somewhere else.
                     }
 
                     execStage.WaitForSerialization();
@@ -180,6 +180,14 @@ namespace OpenTap
             Stopwatch planRunOnlyTimer = Stopwatch.StartNew();
             var runs = new List<TestStepRun>();
 
+            bool didBreak = false;
+            void addBreakResult(TestStepRun run)
+            {
+                if (didBreak) return;
+                didBreak = true;
+                execStage.Parameters.Add(new ResultParameter(TestPlanRun.SpecialParameterNames.BreakIssuedFrom, run.Id.ToString())); 
+            }
+
             try
             {
                 for (int i = 0; i < steps.Count; i++)
@@ -191,6 +199,7 @@ namespace OpenTap
                         runs.Add(run);
                     if (run.BreakConditionsSatisfied())
                     {
+                        addBreakResult(run);
                         run.LogBreakCondition();
                         break;
                     }
@@ -207,6 +216,7 @@ namespace OpenTap
             }
             catch(TestStepBreakException breakEx)
             {
+                addBreakResult(breakEx.Run);
                 Log.Info("{0}", breakEx.Message);
             }
             finally
@@ -521,13 +531,13 @@ namespace OpenTap
                 foreach (var step in stepsOverride)
                 {
                     if (step == null)
-                        throw new ArgumentException("stepsOverride may not contain null", "stepsOverride");
+                        throw new ArgumentException("stepsOverride may not contain null", nameof(stepsOverride));
 
                     var p = step.GetParent<ITestStep>();
                     while (p != null)
                     {
                         if (stepsOverride.Contains(p))
-                            throw new ArgumentException("stepsOverride may not contain steps and their parents.", "stepsOverride");
+                            throw new ArgumentException("stepsOverride may not contain steps and their parents.", nameof(stepsOverride));
                         p = p.GetParent<ITestStep>();
                     }
                 }
@@ -589,6 +599,15 @@ namespace OpenTap
             else
             {
                 execStage = new TestPlanRun(this, resultListeners.ToList(), initTime, initTimeStamp);
+                if (stepsOverride != null)
+                {
+                    var overrides = stepsOverride.Select(o => o.Id.ToString()).ToArray();
+                    // The order of the guids does not really matter. 
+                    // Only that the order is the same across runs
+                    Array.Sort(overrides); 
+                    execStage.Parameters.Add(new ResultParameter(TestPlanRun.SpecialParameterNames.StepOverrideList, string.Join(",", overrides)));
+                }
+
                 execStage.Start();
 
                 execStage.Parameters.AddRange(PluginManager.GetPluginVersions(allEnabledSteps));
@@ -700,9 +719,8 @@ namespace OpenTap
             return Execute(resultListeners, metaDataParameters, null);
         }
 
-        TestPlanRun currentExecutionState = null;
+        TestPlanRun currentExecutionState = null; 
 
-        
         /// <summary> true if the plan is in its open state. </summary>
         [AnnotationIgnore]
         public bool IsOpen { get { return currentExecutionState != null; } }
