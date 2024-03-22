@@ -39,12 +39,12 @@ namespace OpenTap
             /// If the run was not terminated due to a break condition being satisfied, this parameter will
             /// not be present.
             /// </summary>
-            public const string BreakIssuedFrom = "BreakIssuedFrom";
+            public const string BreakIssuedFrom = "Break Issued From";
             /// <summary>
             /// A comma-separated list of GUIDs of the test steps that were specified in the Step Override set.
             /// If the Step Override feature was not used, this parameter will not be present.
             /// </summary>
-            public const string StepOverrideList = "StepOverrideList"; 
+            public const string StepOverrideList = "Step Override List"; 
         }
         
         static readonly TraceSource log = Log.CreateSource("TestPlan");
