@@ -66,12 +66,10 @@ namespace OpenTap.Engine.UnitTests
             var array = new byte[] { 1, 2, 3, 4, 5, 6 };
             api.Write(array);
 
-            var bf = new BinaryFormatter();
+            
             var memstr = new MemoryStream();
             string[] strings2 = new[] { "asd", "", null };
-#pragma warning disable SYSLIB0011 // Type or member is obsolete
-            bf.Serialize(memstr, strings2);
-#pragma warning restore SYSLIB0011 // Type or member is obsolete
+            new TapSerializer().Serialize(memstr, strings2);
             api.Write(memstr.ToArray());
 
             var array2 = new int[] { 1, 2, 3, 4, 5, 6 };
@@ -82,9 +80,7 @@ namespace OpenTap.Engine.UnitTests
             var thedata = api2.Read<byte[]>();
             Assert.IsTrue(array.SequenceEqual(thedata));
             var stream = api2.ReadStream();
-#pragma warning disable SYSLIB0011 // Type or member is obsolete
-            var strings3 = (string[])bf.Deserialize(stream);
-#pragma warning restore SYSLIB0011 // Type or member is obsolete
+            var strings3 = (string[])new TapSerializer().Deserialize(stream);
             strings2.SequenceEqual(strings3);
             var array3 = api2.Read<int[]>();
             Assert.IsTrue(array2.SequenceEqual(array3));
@@ -427,6 +423,40 @@ namespace OpenTap.Engine.UnitTests
             }
             Assert.AreEqual(X, cnt * adds);
             Assert.AreEqual(Y, cnt * adds * 2);
+        }
+
+        [Test]
+        public void TestRetryUtil()
+        {
+            int counter = 0;
+            var x = Utils.Retry(() =>
+            {
+                if (counter < 5)
+                {
+                    counter += 1;
+                    throw new IOException();
+                }
+
+                return counter;
+            }, typeof(IOException), sleepBaseMs: 0, maxRetries: 10);
+            Assert.AreEqual(x, 5);
+        }
+        
+        [Test]
+        public void TestRetryFailure()
+        {
+            int counter = 0;
+            
+            Assert.Throws<IOException>(() => Utils.Retry(() =>
+            {
+                if (counter < 10)
+                {
+                    counter += 1;
+                    throw new IOException();
+                }
+
+                return counter;
+            }, typeof(IOException), sleepBaseMs: 0, maxRetries: 3));
         }
     }
 }

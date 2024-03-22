@@ -62,24 +62,30 @@ namespace OpenTap
         private static readonly TraceSource log = Log.CreateSource("Session");
 
         /// <summary> The number of files kept at a time. </summary>
-        const int maxNumberOfTraceFiles = 20;
+        internal const int MaxNumberOfTraceFiles = 20;
 
         /// <summary> The maximally allowed size of trace files. </summary>
-        const long maxTotalSizeOfTraceFiles = 2_000_000_000L; 
+        internal static long MaxTotalSizeOfSessionLogFiles = 2_000_000_000L;
+
+        /// <summary> The maximally allowed size of individual log files.</summary>
+        internal static ulong LogFileMaxSize = 100_000_000;
 
         /// <summary>
         /// If two sessions needs the same log file name, an integer is added to the name. 
         /// This is the max number of times that we are going to test new names.
         /// </summary>
-        const int maxNumberOfConcurrentSessions = maxNumberOfTraceFiles;
+        const int maxNumberOfConcurrentSessions = MaxNumberOfTraceFiles;
 
         private static FileTraceListener traceListener;
 
         /// <summary>
         /// File path to the current log file. Path is updated upon UI launch.
         /// </summary>
-        public static string GetSessionLogFilePath() => currentLogFile;
+        public static string GetSessionLogFilePath() => traceListener?.FileName ??  currentLogFile;
 
+        /// <summary>
+        /// The current log file base name. This might not be accurate if the log has rolled over due to size.
+        /// </summary>
         static string currentLogFile;
 
         // This controls whether or not session logs should keep files locked
@@ -318,40 +324,41 @@ namespace OpenTap
             return options;
         }
         
-        static RecentFilesList recentSystemlogs = new RecentFilesList(getLogRecentFilesName());
+        static readonly RecentFilesList recentSystemLogs = new RecentFilesList(getLogRecentFilesName());
 
-        /// <summary>
-        /// Renames a previously initialized temporary log file.
-        /// </summary>
-        static void rename(string path, bool newFile = false)
+        static void RemoveOldLogFiles()
         {
-            var sw = System.Diagnostics.Stopwatch.StartNew();
+            List<string> recentFiles = recentSystemLogs.GetRecent().Where(File.Exists).ToList();
 
-            List<string> recentFiles = recentSystemlogs.GetRecent().Where(File.Exists).ToList();
-            long getTotalSize()
+            long CalcTotalSize()
             {
                 return recentFiles.Select(x => new FileInfo(x).Length).Sum();
             }
             
-            bool checkCondition()
+            bool ConditionViolated()
             {
-                bool tooManyFiles = (recentFiles.Count + 1) > maxNumberOfTraceFiles ;
+                bool tooManyFiles = recentFiles.Count > MaxNumberOfTraceFiles;
                 if (tooManyFiles) return true;
 
                 if (recentFiles.Count <= 2) return false; // Do not remove the last couple of log files, event though they might exceed limits.
-                var totalSize = getTotalSize();
-                bool filesTooBig = totalSize > maxTotalSizeOfTraceFiles;
+                
+                var totalSize = CalcTotalSize();
+                bool filesTooBig = totalSize > MaxTotalSizeOfSessionLogFiles;
                 if (filesTooBig) return true;
+                
                 return false;
             }
 
             int ridx = 0;
-            while (checkCondition() && ridx < recentFiles.Count)
+            while (ConditionViolated() && ridx < recentFiles.Count)
             {
                 try
                 {
                     if (File.Exists(recentFiles[ridx]))
+                    {
+                        log.Debug("Deleting log file: {0}", recentFiles[ridx]);
                         File.Delete(recentFiles[ridx]);
+                    }
                     recentFiles.RemoveAt(ridx);
                 }
                 catch (Exception)
@@ -359,6 +366,16 @@ namespace OpenTap
                     ridx++;
                 }
             }
+        }
+        
+        /// <summary>
+        /// Renames a previously initialized temporary log file.
+        /// </summary>
+        static void rename(string path, bool newLogFile = false)
+        {
+            var sw = System.Diagnostics.Stopwatch.StartNew();
+
+            
             string name = Path.GetFileNameWithoutExtension(path);
             string dir = Path.GetDirectoryName(path);
             string ext = Path.GetExtension(path);
@@ -368,7 +385,7 @@ namespace OpenTap
                 try
                 {
                     path = Path.Combine(dir, name + (idx == 0 ? "" : idx.ToString()) + ext);
-                    if (traceListener == null || newFile)
+                    if (traceListener == null)
                     {
                         if (string.IsNullOrWhiteSpace(dir) == false)
                             Directory.CreateDirectory(Path.GetDirectoryName(path));
@@ -383,13 +400,14 @@ namespace OpenTap
                             traceListener = new FileTraceListener(path);
                         }
                         
-                        traceListener.FileSizeLimit = 100000000; // max size for log files is 100MB.
+                        traceListener.FileSizeLimit = LogFileMaxSize;
                         traceListener.FileSizeLimitReached += TraceListener_FileSizeLimitReached;
                         Log.AddListener(traceListener);
                     }
                     else
                     {
-                        traceListener.ChangeFileName(path, NoExclusiveWriteLock);
+                        traceListener.ChangeFileName(path, NoExclusiveWriteLock, startNewLog: newLogFile);
+                        traceListener.FileSizeLimit = LogFileMaxSize;
                     }
                     fileNameChanged = true;
                     break;
@@ -407,7 +425,7 @@ namespace OpenTap
             {
                 currentLogFile = path;
                 log.Debug(sw, "Session log loaded as '{0}'.", currentLogFile);
-                recentSystemlogs.AddRecent(Path.GetFullPath(path));
+                recentSystemLogs.AddRecent(Path.GetFullPath(path));
             }
 
             try
@@ -421,30 +439,26 @@ namespace OpenTap
             {
                 // Ignore in case of race conditions.
             }
+            
+            RemoveOldLogFiles();
         }
 
         static int sessionLogCount = 0;
-        static object sessionLogRotateLock = new object();
+        static readonly object sessionLogRotateLock = new object();
         static void TraceListener_FileSizeLimitReached(object sender, EventArgs e)
         {
-            traceListener.FileSizeLimitReached -= TraceListener_FileSizeLimitReached;
-            
-            Task.Factory.StartNew(() =>
+            lock (sessionLogRotateLock)
             {
-                lock (sessionLogRotateLock)
-                {
-                    string newname = currentLogFile.Replace("__" + sessionLogCount.ToString(), "");
-
-                    sessionLogCount += 1;
-                    var nextFile = addLogRotateNumber(newname, sessionLogCount);
-
-                    log.Info("Switching log to the file {0}", nextFile);
-
-                    Log.RemoveListener((FileTraceListener)sender);
-
-                    rename(nextFile, newFile: true);
-                }
-            });
+                var newName = currentLogFile.Replace("__" + sessionLogCount, "");
+                sessionLogCount += 1;
+                var nextFile = addLogRotateNumber(newName, sessionLogCount);
+                ((FileTraceListener)sender).ChangeFileName(nextFile, false, true);
+                
+                log.Info("Switching log to file {0}", nextFile);
+                recentSystemLogs.AddRecent(Path.GetFullPath(nextFile));
+                RemoveOldLogFiles();
+            }
+            
         }
 
         static string addLogRotateNumber(string fullname, int cnt)
@@ -462,15 +476,22 @@ namespace OpenTap
                 return Path.Combine(dir, filename + "__" + cnt.ToString());
             }
         }
-
+        
         /// <summary>
         /// Renames a previously initialized temporary log file.
         /// </summary>
-        public static void Rename(string path)
+        public static void Rename(string path) => Rename(path, false);
+        
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="path"></param>
+        /// <param name="newLogFile">If a new log file should be created or we should rename the existing one.</param>
+        internal static void Rename(string path, bool newLogFile)
         {
             try
             {
-                rename(path);
+                rename(path, newLogFile: newLogFile);
             }
             catch (UnauthorizedAccessException e)
             {

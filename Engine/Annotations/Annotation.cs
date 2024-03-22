@@ -139,7 +139,7 @@ namespace OpenTap
         string Example { get; }
     }
 
-    /// <summary> Defines how an error annotation works. Note: Multiple of IErrorAnnotation can be used in the same annotation. In this case the erros will be concatenated. </summary>
+    /// <summary> Defines how an error annotation works. Note: Multiple of IErrorAnnotation can be used in the same annotation. In this case the errors will be concatenated. </summary>
     public interface IErrorAnnotation : IAnnotation
     {
         /// <summary> The list of errors for this annotation. </summary>
@@ -1776,25 +1776,6 @@ namespace OpenTap
             }
 
             bool isWriting;
-
-            void ResizeGenericArray(ref IList list, int newSize)
-            {
-                var t = list.GetType();
-                var elementType = t.GetElementType();
-                
-                // We need to create the correct instance of the generic method 'Array.Resize'.
-                // If we use the `Array.Resize<object>` variant, we are going to run into issues later
-                // when we try to write the value back to the source object.
-                var resizeMethodInfo = typeof(Array).GetMethod(nameof(Array.Resize),
-                    BindingFlags.Static | BindingFlags.Public);
-                var resizeInstance = resizeMethodInfo.MakeGenericMethod(elementType);
-                
-                object[] args = { list, newSize };
-                resizeInstance.Invoke(null, args);
-                // Array.Resize accepts an array as a ref argument.
-                // The result was therefore stored in the argument array.
-                list = args[0] as IList;
-            }
             
             public void Write(object source)
             {
@@ -1810,17 +1791,22 @@ namespace OpenTap
                         rdonly = true;
                     if (!rdonly)
                     {
-                        lst2.Clear();
-
+                        // Arrays must be re-allocated
                         if (lst2.GetType().IsArray)
                         {
-                            // If lst2 is an array, resize it to have the exact number of elements required
+                            // If lst2 is an array, re-allocate it to have the exact number of elements required
                             var cnt = Elements.Count();
                             if (cnt != lst2.Count)
                             {
-                                ResizeGenericArray(ref lst2, cnt);
+                                var elemType = lst2.GetType().GetElementType();
+                                lst2 = Array.CreateInstance(elemType!, cnt);
                                 objValue.Value = lst2;
                             }
+                        }
+                        // Dynamic collections can just be cleared
+                        else
+                        {
+                            lst2.Clear();
                         }
                     }
 
@@ -2760,6 +2746,16 @@ namespace OpenTap
                 }
             }
 
+            if (annotation.Source is ITestStep step)
+            {
+                // if any parent step has disabled their child steps list.
+                // then the settings of this step should be disabled.
+                // There is an overlap between it being "ReadOnly" and "Disabled"
+                // in this case we want it to be disabled, because e.g buttons should not be clickable.
+                if(step.GetParents().Any(parent => parent.ChildTestSteps.IsReadOnly))
+                    annotation.Add(DisabledSettingsAnnotation.Instance);
+            }
+
             if (mem != null)
             {
                 if (annotation.Get<IObjectValueAnnotation>() == null)
@@ -2789,6 +2785,8 @@ namespace OpenTap
 
                 if (mem.ReflectionInfo.DescendsTo(typeof(TimeSpan)))
                     annotation.Add(new TimeSpanAnnotation(annotation));
+                if (mem.ReflectionInfo.DescendsTo(typeof(DateTime)))
+                    annotation.Add(new DateTimeAnnotation(annotation));
                 
                 Sequence.ProcessPattern(attributes, 
                     (UnitAttribute x) => annotation.Add(x), 
@@ -3008,6 +3006,13 @@ namespace OpenTap
                 }
             }
         }
+    }
+
+    
+    internal class DisabledSettingsAnnotation : IEnabledAnnotation
+    {
+        public bool IsEnabled => false;
+        public static DisabledSettingsAnnotation Instance { get; } = new DisabledSettingsAnnotation();
     }
 
     internal class DisplayAnnotationWrapper : IAnnotation, IDisplayAnnotation, IOwnedAnnotation

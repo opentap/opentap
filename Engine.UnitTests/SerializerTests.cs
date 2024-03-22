@@ -40,6 +40,31 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        [TestCase("No Trailing Space")]
+        [TestCase("Yes Trailing Space ")]
+        public void TestSerializeInstrumentsWithTrailingSpaceInName(string name)
+        {
+            using var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            var ins = new ScpiInstrument() { Name = name };
+            var scpiStep1 = new ScpiTestStep() { Instrument = ins };
+            InstrumentSettings.Current.Add(ins);
+            var plan = new TestPlan()
+            {
+                ChildTestSteps = { scpiStep1 }
+            };
+
+            { // Verify deserialization completed without errors
+                var str = plan.SerializeToString();
+                var ser = new TapSerializer();
+                var plan2 = ser.DeserializeFromString(str) as TestPlan;
+                var scpiStep2 = plan2.ChildTestSteps[0] as ScpiTestStep;
+
+                Assert.AreSame(scpiStep1.Instrument, scpiStep2.Instrument);
+                Assert.That(ser.Errors.Count(), Is.EqualTo(0));
+            }
+        }
+
+        [Test]
         public void TestPackageVersionLicenseSerializer()
         {
             var packageVersion = new PackageVersion("pkg", SemanticVersion.Parse("1.0.0"), "Linux", CpuArchitecture.AnyCPU, DateTime.Now, 
@@ -301,7 +326,7 @@ namespace OpenTap.Engine.UnitTests
             public override bool Serialize(XElement node, object obj, ITypeData expectedType)
             {
                 if (visitedNodes.Add(node) == false) return false;
-                return Serializer.Serialize(node, obj, expectedType);
+                return Serializer.Serialize(node, obj, expectedType, true);
             }
             
             public bool NeededForDeserialization

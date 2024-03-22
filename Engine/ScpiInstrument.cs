@@ -9,20 +9,12 @@ using System.Threading;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Xml.Serialization;
 using System.Text;
 
 namespace OpenTap
 {
-    internal enum IEEEBinaryType
-    {
-        BinaryType_UI1,
-        BinaryType_I2,
-        BinaryType_I4,
-        BinaryType_R4,
-        BinaryType_R8,
-    }
-
     internal class VISAException : Exception
     {
         public int ErrorCode { get; private set; }
@@ -725,22 +717,18 @@ namespace OpenTap
             return ScpiQueryBlock<byte>(query);
         }
 
-        private Array ReadIEEEBlock(IEEEBinaryType type)
+        private T[] ReadIEEEBlock<T>() where T : struct
         {
-            return LockRetry<Array>(() => DoReadIEEEBlock(type));
+            return LockRetry<T[]>(() => DoReadIEEEBlock<T>());
         }
 
         //Work around for bug found IVI Shared Components. #2487
-        private Array DoReadIEEEBlock(IEEEBinaryType type, bool seekToBlock = true, bool flushToEND = true)
+        private T[] DoReadIEEEBlock<T>(bool seekToBlock = true, bool flushToEND = true) where T: struct
         {
             //Variable Declarations
             int dataSize;
             int dataSizeLen;
             byte[] dataBytes;
-
-            //Variables to process bytes coming back from the instrument
-            int dataTypeLen;
-            Array data;
 
             //save the termchar for later use
             byte termChar = TerminationCharacter;
@@ -828,34 +816,13 @@ namespace OpenTap
                 TerminationCharacter = termChar;
                 TerminationCharacterEnabled = termCharEn;
             }
-
-            //
+   
+            //Variables to process bytes coming back from the instrument
+            int dataTypeLen = Marshal.SizeOf<T>();
+            
             //Part 2) Format the bytes that come back from the read.
             //Note, if the instrument returns big endian data, we have to correct for it.
-            //
-            switch (type)
-            {
-                case IEEEBinaryType.BinaryType_UI1:
-                    return dataBytes; // Return early
-                case IEEEBinaryType.BinaryType_I2:
-                    dataTypeLen = 2;
-                    data = new Int16[dataSize / dataTypeLen];
-                    break;
-                case IEEEBinaryType.BinaryType_I4:
-                    dataTypeLen = 4;
-                    data = new Int32[dataSize / dataTypeLen];
-                    break;
-                case IEEEBinaryType.BinaryType_R4:
-                    dataTypeLen = 4;
-                    data = new Single[dataSize / dataTypeLen];
-                    break;
-                case IEEEBinaryType.BinaryType_R8:
-                    dataTypeLen = 8;
-                    data = new double[dataSize / dataTypeLen];
-                    break;
-                default:
-                    return null;
-            }
+            var data = new T[dataSize / dataTypeLen];
 
             // Emulate VISA-COM behavior.
             if (dataSize != data.Length * dataTypeLen)
@@ -898,38 +865,30 @@ namespace OpenTap
                 switch (Type.GetTypeCode(typeof(T)))
                 {
                     case TypeCode.Byte:
-                        return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_UI1);
                     case TypeCode.SByte:
-                        return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_UI1);
-
                     case TypeCode.Int16:
-                        return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_I2);
                     case TypeCode.UInt16:
-                        return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_I2);
-
                     case TypeCode.Int32:
-                        return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_I4);
                     case TypeCode.UInt32:
-                        return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_I4);
+                    case TypeCode.Single:
+                    case TypeCode.Double:
+                        return ReadIEEEBlock<T>();
 
                     // Do binary conversion for 64 bit integers
                     case TypeCode.Int64:
                     case TypeCode.UInt64:
                         {
-                            byte[] result = (byte[])ReadIEEEBlock(IEEEBinaryType.BinaryType_UI1);
+                            // TODO: This looks unnecessary
+                            // Figure out if any special handling is required for 64 bit reads at all
+                            byte[] result = ReadIEEEBlock<byte>();
 
                             if (result.Length < 8)
-                                return new T[0];
+                                return Array.Empty<T>();
 
                             T[] arr = new T[result.Length / 8];
                             Buffer.BlockCopy(result, 0, arr, 0, arr.Length * 8);
                             return arr;
                         }
-
-                    case TypeCode.Single:
-                        return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_R4);
-                    case TypeCode.Double:
-                        return (T[])ReadIEEEBlock(IEEEBinaryType.BinaryType_R8);
                     default:
                         throw new Exception("Unsupported IEEE488.2 block type: " + typeof(T).Name);
                 }

@@ -84,8 +84,9 @@ namespace OpenTap.Cli
 
             string arguments = new CommandLineSplit(Environment.CommandLine).Args;
             string message = null;
-            
-            using (ExecutorSubProcess subproc = ExecutorSubProcess.Create(Path.Combine(ExecutorClient.ExeDir, "tap"), arguments))
+
+            string tapCommand = OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap";
+            using (ExecutorSubProcess subproc = ExecutorSubProcess.Create(Path.Combine(ExecutorClient.ExeDir, tapCommand), arguments))
             {
                 subproc.MessageReceived += (s, msg) =>
                 {

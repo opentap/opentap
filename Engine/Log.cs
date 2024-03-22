@@ -177,40 +177,20 @@ namespace OpenTap
     {
         private TextWriter writer;
 
-        private Mutex LockObject = new Mutex(false);
-
-        private void LockOutput()
-        {
-            LockObject.WaitOne();
-        }
-
-        private void UnlockOutput()
-        {
-            LockObject.ReleaseMutex();
-        }
+        readonly object lockObject = new object();
 
         /// <summary>
         /// The writer that is used as the output.
         /// </summary>
-        public System.IO.TextWriter Writer
+        public TextWriter Writer
         {
-            get
-            {
-                return writer;
-            }
+            get => writer;
             set
             {
                 if (writer != value)
                 {
-                    LockOutput();
-                    try
-                    {
+                    lock(lockObject)
                         writer = value;
-                    }
-                    finally
-                    {
-                        UnlockOutput();
-                    }
                 }
             }
         }
@@ -219,16 +199,16 @@ namespace OpenTap
         /// Creates a new TextWriterTraceListener writing to the given filename.
         /// </summary>
         public TextWriterTraceListener(string filename)
-            : this(new System.IO.FileStream(filename, System.IO.FileMode.Append))
+            : this(new FileStream(filename, FileMode.Append))
         {
         }
 
         /// <summary>
         /// Creates a new TextWriterTraceListener writing to the given stream.
         /// </summary>
-        public TextWriterTraceListener(System.IO.Stream stream)
+        public TextWriterTraceListener(Stream stream)
         {
-            Writer = new System.IO.StreamWriter(stream);
+            Writer = new StreamWriter(stream);
         }
 
         /// <summary>
@@ -236,15 +216,8 @@ namespace OpenTap
         /// </summary>
         public override void Write(string message)
         {
-            LockOutput();
-            try
-            {
+            lock(lockObject)
                 Writer.Write(message);
-            }
-            finally
-            {
-                UnlockOutput();
-            }
         }
 
         /// <summary>
@@ -252,15 +225,8 @@ namespace OpenTap
         /// </summary>
         public override void WriteLine(string message)
         {
-            LockOutput();
-            try
-            {
+            lock(lockObject)
                 Writer.WriteLine(message);
-            }
-            finally
-            {
-                UnlockOutput();
-            }
         }
 
         /// <summary>
@@ -269,16 +235,8 @@ namespace OpenTap
         public override void Flush()
         {
             base.Flush();
-            LockOutput();
-            try
-            {
-                if (writer != null)
-                    writer.Flush();
-            }
-            finally
-            {
-                UnlockOutput();
-            }
+            lock(lockObject) 
+                writer.Flush();
         }
 
         /// <summary>
@@ -286,18 +244,13 @@ namespace OpenTap
         /// </summary>
         public void Dispose()
         {
-            LockOutput();
-            try
+            lock(lockObject)
             {
                 if (writer != null)
                 {
                     writer.Close();
                     writer = null;
                 }
-            }
-            finally
-            {
-                UnlockOutput();
             }
         }
     }
@@ -449,7 +402,7 @@ namespace OpenTap
             var timespan = ShortTimeSpan.FromSeconds(elapsed.TotalSeconds);
 
             if (sb == null)
-                sb = new StringBuilder();
+                sb = StringBuilderCache.GetStringBuilder();
             sb.Clear();
             if (args.Length == 0)
             {
@@ -841,6 +794,19 @@ namespace OpenTap
                 ex.Rethrow();
             else
                 (ex.InnerException ?? ex).Rethrow();
+        }
+    }
+
+    static class StringBuilderCache
+    {
+        [ThreadStatic]
+        static StringBuilder sb;
+
+        public static StringBuilder GetStringBuilder()
+        {
+            var sb2 = sb ??= new StringBuilder();
+            sb2.Clear();
+            return sb2;   
         }
     }
 }

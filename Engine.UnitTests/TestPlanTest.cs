@@ -134,22 +134,28 @@ namespace OpenTap.Engine.UnitTests
         public void PrintTestPlanRunSummaryTest()
         {
 
+            var testFile = new byte[1500];
+            var testFileName = $"OpenTap.UnitTests.{nameof(PrintTestPlanRunSummaryTest)}.testFile.bin";
+            File.Delete(testFileName);
+            File.WriteAllBytes(testFileName, testFile);
+
             TestTraceListener trace = new TestTraceListener();
             Log.AddListener(trace);
 
             TestPlan target = new TestPlan();
             target.PrintTestPlanRunSummary = true;
-            target.Steps.Add(new TestStepTest());
+            target.Steps.Add(new TestStepTest() {PublishArtifact = testFileName});
             PlanRunCollectorListener pl = new PlanRunCollectorListener();
             var planRun = target.Execute(ResultSettings.Current.Concat(new IResultListener[] { pl }));
             Log.Flush();
             Log.RemoveListener(trace);
-            var summaryLines = trace.allLog.ToString().Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Where(l => l.Contains(": Summary "));
-            Assert.AreEqual(4, summaryLines.Count(), "Did not find the expected number of summary lines in the log.");
-
-            trace.AssertErrors(new string[] { "No instruments found.", "Keysight Internal! This version is not licensed. Do not distribute outside Keysight." });
+            var summaryLines = trace.allLog.ToString().Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Where(l => l.Contains(": Summary ")).ToArray();
+            Assert.AreEqual(6, summaryLines.Count(), "Did not find the expected number of summary lines in the log.");
             Assert.AreEqual(Verdict.Pass, pl.StepRuns.First().Verdict);
-            ResultSettings.Current.Clear();
+            Assert.IsTrue(summaryLines[4].Contains("1 artifacts registered"));
+            Assert.IsTrue(summaryLines[5].Contains(testFileName));
+            Assert.IsTrue(summaryLines[5].EndsWith("[1.5 kB]"));
+            
         }
 
         [Test]

@@ -89,6 +89,16 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
+        [TestCase("http://packages.opentap.io")]
+        [TestCase("https://packages.opentap.io")]
+        [TestCase("packages.opentap.io")]
+        public void TestInstantiateHttpRepository(string repo)
+        {
+            // Some plugins depend on being able to instantiate http package repository without a scheme
+            new HttpPackageRepository(repo);
+        }
+
+        [Test]
         public void TestUserId()
         {
             var idPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), "OpenTap", "OpenTapGeneratedId");
@@ -522,6 +532,7 @@ namespace OpenTap.Package.UnitTests
         [TestCase("", ".", typeof(FilePackageRepository))]              // Current directory (single dot)
         [TestCase("http://opentap.io", "http://packages.opentap.io", typeof(HttpPackageRepository))]  // Http scheme
         [TestCase("http://opentap.io", "https://packages.opentap.io", typeof(HttpPackageRepository))] // Https scheme
+        [TestCase("http://opentap.io", "packages.opentap.io", typeof(HttpPackageRepository))]         // No scheme
         [TestCase("http://opentap.io", "C:/a", typeof(FilePackageRepository))]                        // Windows absolute path
         [TestCase("http://opentap.io", "/a/b", typeof(HttpPackageRepository))]                        // Linux absolute path
         [TestCase("http://opentap.io", "a/b", typeof(HttpPackageRepository))]                         // Relative path
@@ -574,7 +585,9 @@ namespace OpenTap.Package.UnitTests
             var versions = httpPackageRepository.GetPackageVersions(packages.FirstOrDefault());
             Assert.IsTrue(versions.Any());
             string query = "query Query {packages(class:\"package\", version:\"any\"){ name version description dependencies{ name version} }}";
+#pragma warning disable CS0618 // Type or member is obsolete
             var resp = httpPackageRepository.QueryGraphQL(query);
+#pragma warning restore CS0618 // Type or member is obsolete
             Assert.IsNotNull(resp);
             string file = "C:/Temp/Test.TapPackage";
             try

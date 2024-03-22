@@ -57,7 +57,7 @@ namespace OpenTap.Plugins
                 {
                     var item = list[i];
                     var newelem = new XElement(testStepName);
-                    Serializer.Serialize(newelem, item);
+                    Serializer.Serialize(newelem, item, null, true);
                     elem.Add(newelem);
                 }
                 return true;

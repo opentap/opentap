@@ -13,6 +13,7 @@ env:
   OPENTAP_NO_UPDATE_CHECK: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_CONSOLE_ANSI_COLOR: true
+  SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller:2.1.0-beta.61
 
 jobs:
   GetVersion:
@@ -21,11 +22,15 @@ jobs:
       ShortVersion: ${{ steps.gitversion.outputs.ShortVersion }}
       LongVersion: ${{ steps.gitversion.outputs.LongVersion }}
       GitVersion: ${{ steps.gitversion.outputs.GitVersion }}
+      SmartInstallerVersion: ${{ steps.smartInstallerVersion.outputs.ver }}
     steps:
       # The get-gitversion action installs OpenTAP and fetches with fetch-depth: 0
       - name: GitVersion
         id: gitversion
         uses: opentap/get-gitversion@bump-opentap
+      - name: SmartInstallerVersion
+        id: smartInstallerVersion
+        run: echo "VER=$SMARTINSTALLER_IMAGE" >> $GITHUB_OUTPUT
 
   CheckSecrets:
     runs-on: ubuntu-latest
@@ -288,8 +293,8 @@ jobs:
           path: bin/
       - name: Test
         run: |
-          $ErrorActionPreference = "Stop"
-          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=1200000 RunConfiguration.TreatNoTestsAsError=true
+          $ErrorActionPreference = "Stop"                                                  # Timeout: 5 minutes (normally takes 2 minutes to run) 
+          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=300000 RunConfiguration.TreatNoTestsAsError=true
 
   TestPackage:
     runs-on: windows-2022
@@ -311,8 +316,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
-          cd bin/Release
-          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TreatNoTestsAsError=true
+          cd bin/Release                                                                                                                            # Timeout: 10 minutes (normally takes 5 minutes to run)
+          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=600000 RunConfiguration.TreatNoTestsAsError=true
 
   TestWindowsPlan:
     runs-on: windows-2022
@@ -749,8 +754,7 @@ jobs:
       - GetVersion
       - Package-Win
     container:
-      #beta.5 was force-overwritten so now we are using a sha256 hash for a docker image.
-      image: ghcr.io/opentap/smartinstaller@sha256:f9cc89cce025be9b7dad011347a02b8c4304655f343aff1ac9396d22b148ec42 
+      image: ${{ needs.GetVersion.outputs.SmartInstallerVersion }}      
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -808,7 +812,7 @@ jobs:
       - GetVersion
       - Package-Cross
     container:
-      image: ghcr.io/opentap/smartinstaller:2.1.0-beta.12
+      image: ${{ needs.GetVersion.outputs.SmartInstallerVersion }}      
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}

@@ -41,6 +41,12 @@ namespace OpenTap.Package
 
         [UnnamedCommandLineArgument("package(s)", Required = true)]
         public string[] Packages { get; set; }
+        
+        /// <summary>
+        /// Never prompt for user input.
+        /// </summary>
+        [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
+        public bool NonInteractive { get; set; } = false;
 
         /// <summary>
         /// Represents the --out command line argument which specifies the path to the output file.
@@ -81,7 +87,11 @@ namespace OpenTap.Package
             AddTokensFromRepositories(Tokens, Repository);
             List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
             
-            Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
+            if (NonInteractive)
+                UserInput.SetInterface(new NonInteractiveUserInputInterface());
+            
+            if (!NonInteractive)
+                Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
 
             List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                 destinationInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories,

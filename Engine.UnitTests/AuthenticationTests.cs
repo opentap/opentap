@@ -71,9 +71,11 @@ namespace OpenTap.UnitTests
 
             var ti = TokenInfo.FromResponse(response, "packages.opentap.io");
             DateTime dateTime = new DateTime(2022, 7, 5, 11, 02, 56);
+#pragma warning disable CS0618 // Type or member is obsolete
             TimeSpan timeSpan = ti.Expiration - dateTime;
-            Console.WriteLine(dateTime.ToString());
-            Console.WriteLine(ti.Expiration.ToString());
+            Console.WriteLine(dateTime);
+            Console.WriteLine(ti.Expiration);
+#pragma warning restore CS0618 // Type or member is obsolete
             Console.WriteLine(timeSpan.ToString());
 
             Assert.IsTrue(timeSpan.Days == 0);

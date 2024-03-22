@@ -467,6 +467,7 @@ namespace OpenTap
             if (member == null) throw new ArgumentNullException(nameof(member));
             if (source == null) throw new ArgumentNullException(nameof(source));
             if (name == null) throw new ArgumentNullException(nameof(name));
+            if (source == target) throw new InvalidOperationException("Source and target cannot be the same object.");
             if (name.Length == 0) throw new ArgumentException("Cannot be an empty string.", nameof(name));
             { // Verify that the member belongs to the type.   
                 var sourceType = TypeData.GetTypeData(source);

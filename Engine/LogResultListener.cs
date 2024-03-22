@@ -81,7 +81,7 @@ namespace OpenTap
 
         void FilterCopyStream(Stream input, Stream outStream)
         {
-            using StreamWriter streamWriter = new StreamWriter(outStream, System.Text.Encoding.UTF8);
+            using StreamWriter streamWriter = new StreamWriter(outStream, System.Text.Encoding.UTF8, bufferSize: 4 * 1024, leaveOpen: true);
             using StreamReader streamReader = new StreamReader(input);
             
             Regex rx = new Regex("^(?<time>[^;]+);(?<source>[^;]+);(?<level>[^;]+)");

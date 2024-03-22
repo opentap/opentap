@@ -146,3 +146,28 @@ SDK Examples contains the following projects:
 |**`PluginDevelopment\PluginDevelopment.csproj`**                    | Creates a plugin package that contains several test steps, DUT resources, instrument resources, and result listeners.                                              |
 |**`TestPlanExecution\BuildTestPlan.Api\BuildTestPlan.Api.csproj`**  | Shows how to build, save and execute a test plan using the OpenTAP API.  |
 |**`TestPlanExecution\RunTestPlan.Api\RunTestPlan.Api.csproj`**      | Shows how to load and run a test plan using the OpenTAP API.   |
+
+## Offline Development
+
+In order to develop OpenTAP plugins using the NuGet package in an offline environment, there are some manual steps:
+
+1. Install Dotnet 6 SDK
+2. Create a directory for local NuGet packages. Let's call it `\path\to\nuget\source`
+3. Download required NuGet packages and put them in the local source directory:
+> [OpenTAP](https://www.nuget.org/packages/OpenTAP)
+
+> [NETStandard.Library 2.0.3](https://www.nuget.org/packages/NETStandard.Library/2.0.3)
+
+> [Microsoft.NETCore.Platforms 1.1.0](https://www.nuget.org/packages/Microsoft.NETCore.Platforms/1.1.0)
+4. Add the local source to the list of nuget sources: 
+> `dotnet nuget add source \path\to\nuget\source`
+5. Build your project with e.g. dotnet build
+
+With these steps, you should be able to build an OpenTAP plugin if it does not have any dependencies.
+If you have additional NuGet dependencies, they can of course be added to the source you just created.
+
+OpenTAP plugin dependencies consumed with the `AdditionalOpenTapPackage` feature must be added to the OpenTAP package cache:
+- Windows: `C:\Users\<username>\Appdata\Local\OpenTap\PackageCache\`.
+- Linux:  `/home/<username>/.local/share/OpenTap/PackageCache/`.
+
+If the directory does not exist you must create it.

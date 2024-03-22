@@ -46,6 +46,7 @@ namespace OpenTap.Engine.UnitTests
         {
             public override void Run() { }
         }
+        public string PublishArtifact;
         /// <summary>
         /// Initializes a new instance of the TestStepTest class.
         /// </summary>
@@ -57,6 +58,10 @@ namespace OpenTap.Engine.UnitTests
         {
             Results.Publish("UnitTest", new List<string>() { "Channel", "Power [dBm]" }, 27, 1.11, 2, 0);
             Verdict = Verdict.Pass;
+            if (string.IsNullOrEmpty(PublishArtifact) == false)
+            {
+                StepRun.PublishArtifact(PublishArtifact);
+            }
         }
 
         public static TestPlan CreateGenericTestPlan()

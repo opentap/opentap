@@ -59,7 +59,6 @@ namespace OpenTap.Engine.UnitTests
                 new DialogStep(), new BusyStep(), new ArtifactStep(), new SerializeEnumTest.Step1(), new SerializeEnumTest.Step2(),
                 new MemberDataProviderTests.Delay2Step(), new ResultTest.ActionStep(), new DutStep2(), new IfStep()
             };
-            HashSet<object> values = new HashSet<object>();
             int threadCount = 2;
             var threadWaitSem = new Semaphore(0, threadCount);
             var mainWaitSem = new Semaphore(0, threadCount);
@@ -74,7 +73,7 @@ namespace OpenTap.Engine.UnitTests
                     threadWaitSem.WaitOne();
                     try
                     {
-                        TestStepExtensions.GetObjectSettings<object, ITestStep, object>(steps, false, (t, data) => t, values);
+                        TestStepExtensions.GetObjectSettings<object, ITestStep, object>(steps, false, (t, data) => t, new HashSet<object>());
                     }
                     catch (Exception e)
                     {

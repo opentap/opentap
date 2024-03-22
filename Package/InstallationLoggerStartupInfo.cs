@@ -14,6 +14,13 @@ namespace OpenTap.Package
         {
             var log = Log.CreateSource("Installation");
             var packages = Installation.Current.GetPackages();
+            if (packages.Count == 0)
+            {
+                // This can happen when OpenTAP has been built from source.
+                log.Debug("Installation contains no installed packages.");
+                return;
+            }
+
             var longestName = packages.Max(p => p.Name.Length);
             foreach (var pkg in packages)
             {

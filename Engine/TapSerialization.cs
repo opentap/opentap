@@ -259,7 +259,12 @@ namespace OpenTap
         /// <returns></returns>
         public T GetSerializer<T>() where T : ITapSerializerPlugin
         {
-            return serializers.OfType<T>().FirstOrDefault();
+            foreach (var item in serializers)
+            {
+                if (item is T found)
+                    return found;
+            }
+            return default;
         }
 
         /// <summary> Adds new serializers to the serializer. Will insert them based on the order property. </summary>
