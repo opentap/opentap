@@ -13,6 +13,9 @@ namespace OpenTap.Package
     [Display("list", Group: "package", Description: "List locally installed packages and browse the online package repository.")]
     public class PackageListAction : LockingPackageAction
     {
+        [CommandLineArgument("token", Description = CommandLineArgumentTokenDescription)]
+        public string[] Tokens { get; set; }
+        
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
@@ -50,6 +53,7 @@ namespace OpenTap.Package
             OS ??= GuessHostOS();
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
+            Repository = ExtractRepositoryTokens(Repository, true);
             List<IPackageRepository> repositories = new List<IPackageRepository>();
 
             if (Installed == false)

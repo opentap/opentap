@@ -19,8 +19,8 @@ namespace OpenTap.Package
         public bool ForceInstall { get; set; }
 
         [CommandLineArgument("dependencies", Description = "Download dependencies without asking.", ShortName = "y")]
-        public bool InstallDependencies { get; set; }
-
+        public bool InstallDependencies { get; set; } 
+        
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
@@ -81,6 +81,7 @@ namespace OpenTap.Package
             Installation destinationInstallation = new Installation(destinationDir);
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
+            Repository = ExtractRepositoryTokens(Repository, true);
             List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
             
             if (NonInteractive)
