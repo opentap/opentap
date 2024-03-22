@@ -169,7 +169,7 @@ namespace OpenTap.Engine.UnitTests
             if (runSelected.HasValue)
                 selectedSteps = new HashSet<ITestStep>(steps.Take(runSelected.Value));
             var results = plan.Execute( Array.Empty<IResultListener>(), Array.Empty<ResultParameter>(), selectedSteps).Parameters;
-            var result = results.FirstOrDefault(param => param.Name == TestPlan.stepsOverrideParameterName);
+            var result = results.FirstOrDefault(param => param.Name == TestPlanRun.SpecialParameterNames.StepOverrideList);
             if (runSelected.HasValue)
             {
                 Assert.That(result, Is.Not.Null);
@@ -202,7 +202,7 @@ namespace OpenTap.Engine.UnitTests
 
             var run = plan.Execute(new[] { l });
             
-            var breakResult = run.Parameters.FirstOrDefault(param => param.Name == TestPlan.breakConditionParameterName);
+            var breakResult = run.Parameters.FirstOrDefault(param => param.Name == TestPlanRun.SpecialParameterNames.BreakIssuedFrom);
             if (doBreak)
             {
                 var stepRun = l.StepRuns.First(r => r.TestStepId == sequenceStep.Id);

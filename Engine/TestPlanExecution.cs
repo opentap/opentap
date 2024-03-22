@@ -185,7 +185,7 @@ namespace OpenTap
             {
                 if (didBreak) return;
                 didBreak = true;
-                execStage.Parameters.Add(new ResultParameter(breakConditionParameterName, run.Id.ToString())); 
+                execStage.Parameters.Add(new ResultParameter(TestPlanRun.SpecialParameterNames.BreakIssuedFrom, run.Id.ToString())); 
             }
 
             try
@@ -605,7 +605,7 @@ namespace OpenTap
                     // The order of the guids does not really matter. 
                     // Only that the order is the same across runs
                     Array.Sort(overrides); 
-                    execStage.Parameters.Add(new ResultParameter(stepsOverrideParameterName, string.Join(",", overrides)));
+                    execStage.Parameters.Add(new ResultParameter(TestPlanRun.SpecialParameterNames.StepOverrideList, string.Join(",", overrides)));
                 }
 
                 execStage.Start();
@@ -719,10 +719,7 @@ namespace OpenTap
             return Execute(resultListeners, metaDataParameters, null);
         }
 
-        TestPlanRun currentExecutionState = null;
-        internal const string breakConditionParameterName = "BreakIssuedFrom";
-        internal const string stepsOverrideParameterName = "StepOverrideList";
-
+        TestPlanRun currentExecutionState = null; 
 
         /// <summary> true if the plan is in its open state. </summary>
         [AnnotationIgnore]
