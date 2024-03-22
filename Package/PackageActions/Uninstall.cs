@@ -47,7 +47,7 @@ namespace OpenTap.Package
             }
 
             // Skip auto-correction if ignore-missing is specified
-            if (!IgnoreMissing) 
+            if (IgnoreMissing == false && NonInteractive == false) 
                 Packages = AutoCorrectPackageNames.Correct(Packages, Array.Empty<IPackageRepository>());
 
             var installation = new Installation(Target);
