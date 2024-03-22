@@ -53,7 +53,7 @@ namespace OpenTap.Package
             OS ??= GuessHostOS();
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
-            AddTokensFromRepositories(Tokens, Repository);
+            Repository = ExtractRepositoryTokens(Repository, true);
             List<IPackageRepository> repositories = new List<IPackageRepository>();
 
             if (Installed == false)

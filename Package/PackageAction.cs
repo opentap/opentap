@@ -74,33 +74,75 @@ namespace OpenTap.Package
         /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
         public abstract int Execute(CancellationToken cancellationToken);
 
-        internal void AddTokensFromRepositories(string[] tokens, string[] repositories)
+        internal string[] ExtractRepositoryTokens(string[] repositories, bool saveSettings)
         {
-            tokens ??= Array.Empty<string>();
+            // Repositories can have additional arguments appended as key-value-pairs. 
+            // Currently, the only supported key is 'token=<repo token>'
+            // The goal here is the following:
+            // 1. Extract the tokens
+            // 2. Add them to AuthenticationSettings
+            // 3. Save the updated settings if needed and requested
+            // 4. Return the list of repositories without the kvps
             repositories ??= Array.Empty<string>();
+            var result = new string[repositories.Length];
+            bool tokenAdded = false;
 
-            for (int i = 0; i < tokens.Length; i++)
+            for (int i = 0; i < repositories.Length; i++)
             {
-                var token = tokens[i];
-                if (string.IsNullOrWhiteSpace(token))
-                    throw new ExitCodeException(ExitCodes.ArgumentError, $"Token #{i + 1} is empty.");
-                var repo = repositories.Length > i ? repositories[i] : null;
-                if (repo == null)
+                var argument = repositories[i];
+
+                var parts = argument.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries);
+                var repo = parts[0];
+                string token = null;
+                
+                for (int j = 1; j < parts.Length; j++)
                 {
-                    log.Warning($"No repository specified for token #{i + 1}. Token will not be used.");
-                    break;
-                }
+                    var part = parts[j];
+                    // A user token could contain an equal sign. It should be fine if we just use the first equal
+                    // sign as a pivot. This is also the way environment variables are handled on Unix systems.
+                    var pivot = part.IndexOf('=');
+                    var key = part.Substring(0, pivot);
+                    var value = part.Substring(pivot + 1);
+                    switch (key)
+                    {
+                        case "token":
+                            token = value;
+                            break;
+                        default:
+                            log.Warning(
+                                $"Unrecognized key '{key}' specified in repository argument '{argument}'. Argument will be ignored.");
+                            break;
+                    }
+                } 
 
                 if (!Uri.TryCreate(repo, UriKind.Absolute, out var uri))
                     throw new ExitCodeException(ExitCodes.ArgumentError,
                         $"Repository '{repo}' is not an absolute uri.");
 
-                AuthenticationSettings.Current.Tokens.Add(new TokenInfo()
+                // Add the specified token to the current authentication settings
+                if (token != null)
                 {
-                    Domain = uri.Authority,
-                    AccessToken = tokens[i],
-                });
+                    tokenAdded = true;
+                    // If a token is already configured for this repo, update it
+                    if (AuthenticationSettings.Current.Tokens.FirstOrDefault(t => t.Domain.Equals(uri.Authority)) is
+                        TokenInfo t)
+                    {
+                        t.AccessToken = token;
+                    }
+                    // Otherwise, add it
+                    else
+                    {
+                        AuthenticationSettings.Current.Tokens.Add(new TokenInfo(token, null, uri.Authority));
+                    }
+                }
+
+                result[i] = repo;
             }
+            
+            if (saveSettings && tokenAdded)
+                AuthenticationSettings.Current.Save();
+
+            return result;
         }
     }
 
