@@ -161,8 +161,6 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void TestRunSelectedResultParameter([Values(null, 1, 3)] int? runSelected)
         { 
-            const string stepsOverrideParameterName = "StepOverrideList"; 
-            
             var plan = new TestPlan();
             var steps = Enumerable.Range(0, 10).Select(_ => new VerdictStep()).ToArray();
             plan.ChildTestSteps.AddRange(steps);
@@ -171,7 +169,7 @@ namespace OpenTap.Engine.UnitTests
             if (runSelected.HasValue)
                 selectedSteps = new HashSet<ITestStep>(steps.Take(runSelected.Value));
             var results = plan.Execute( Array.Empty<IResultListener>(), Array.Empty<ResultParameter>(), selectedSteps).Parameters;
-            var result = results.FirstOrDefault(param => param.Name == stepsOverrideParameterName);
+            var result = results.FirstOrDefault(param => param.Name == TestPlan.stepsOverrideParameterName);
             if (runSelected.HasValue)
             {
                 Assert.That(result, Is.Not.Null);
@@ -192,7 +190,6 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void TestBreakConditionResultParameter([Values(true, false)] bool doBreak)
         { 
-            const string breakConditionParameterName = "BreakIssuedFrom"; 
             var l = new PlanRunCollectorListener();
             var plan = new TestPlan();
 
@@ -205,7 +202,7 @@ namespace OpenTap.Engine.UnitTests
 
             var run = plan.Execute(new[] { l });
             
-            var breakResult = run.Parameters.FirstOrDefault(param => param.Name == breakConditionParameterName);
+            var breakResult = run.Parameters.FirstOrDefault(param => param.Name == TestPlan.breakConditionParameterName);
             if (doBreak)
             {
                 var stepRun = l.StepRuns.First(r => r.TestStepId == sequenceStep.Id);
