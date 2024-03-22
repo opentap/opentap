@@ -122,63 +122,129 @@ namespace OpenTap
     /// <summary> Standard implementation of UserInputInterface for Command Line interfaces</summary>
     public class CliUserInputInterface : IUserInputInterface
     {
+        /// <summary>
+        /// Thrown when userinput is requested when reading input from stdin and EOF is reached
+        /// </summary>
+        internal class EOFException : Exception
+        {
+            /// <summary>
+            /// Initializes a new instance of the <see cref="EOFException"/> class with the specified message.
+            /// </summary>
+            /// <param name="message"></param>
+            public EOFException(string message) : base(message)
+            {
+            }
+        }
+
+        private bool IsPipeInput { get; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CliUserInputInterface"/> class in interactive mode. 
+        /// </summary>
+        public CliUserInputInterface()
+        {
+            IsPipeInput = Console.IsInputRedirected;
+        }
+
         readonly Mutex userInputMutex = new Mutex();
         readonly object readerLock = new object();
 
-        void IUserInputInterface.RequestUserInput(object dataObject, TimeSpan timeout, bool modal)
+        private TapThread StartKeyboardReader()
         {
-            if(readerThread == null)
+            return TapThread.Start(() =>
             {
-                lock (readerLock)
+                try
                 {
-                    if (readerThread == null)
-                    {
-                        readerThread = TapThread.Start(() =>
-                        {
-                            try
-                            {
-                                var sb = new StringBuilder();
-                                
-                                while (true)
-                                {
-                                    
-                                    var chr = Console.ReadKey(true);
-                                    if (chr.KeyChar == 0)
-                                        continue;
-                                    if (chr.Key != ConsoleKey.Enter && chr.Key != ConsoleKey.Backspace)
-                                        Console.Write(IsSecure ? '*' : chr.KeyChar);
-                                    
-                                    if (chr.Key == ConsoleKey.Enter)
-                                    {
-                                        lines.Add(sb.ToString());
-                                        sb.Clear();
-                                        Console.WriteLine();
-                                    }
+                    var sb = new StringBuilder();
 
-                                    if (chr.Key == ConsoleKey.Backspace)
-                                    {
-                                        if(sb.Length > 0){
-                                            sb.Remove(sb.Length - 1, 1);
-                                            // delete current char and move back.
-                                            Console.Write("\b \b");
-                                        }
-                                        
-                                    }
-                                    else
-                                    {
-                                        sb.Append(chr.KeyChar);
-                                    }
-                                }
-                            }
-                            catch(Exception e)
+                    while (true)
+                    {
+                        var chr = Console.ReadKey(true);
+                        if (chr.KeyChar == 0)
+                            continue;
+                        if (chr.Key != ConsoleKey.Enter && chr.Key != ConsoleKey.Backspace)
+                            Console.Write(IsSecure ? '*' : chr.KeyChar);
+
+                        if (chr.Key == ConsoleKey.Enter)
+                        {
+                            lines.Add(sb.ToString());
+                            sb.Clear();
+                            Console.WriteLine();
+                        }
+
+                        if (chr.Key == ConsoleKey.Backspace)
+                        {
+                            if (sb.Length > 0)
                             {
-                                log.Error(e);
+                                sb.Remove(sb.Length - 1, 1);
+                                // delete current char and move back.
+                                Console.Write("\b \b");
                             }
-                        }, "Console Reader");
+                        }
+                        else
+                        {
+                            sb.Append(chr.KeyChar);
+                        }
                     }
                 }
+                catch (Exception e)
+                {
+                    log.Error(e);
+                }
+            }, "Console Reader");
+        }
+
+        private bool EOFReached = false;
+
+        private TapThread StartPipeReader()
+        {
+            return TapThread.Start(() =>
+            {
+                const int EOF = -1;
+                int b;
+                var buf = new List<byte>();
+                var stdin = Console.OpenStandardInput();
+                do
+                {
+                    b = stdin.ReadByte();
+                    switch (b)
+                    {
+                        // If the line was terminaed, add the buffer to the list of lines, and clear the buffer.
+                        case '\n':
+                        case EOF:
+                            lines.Add(Encoding.UTF8.GetString(buf.ToArray()));
+                            buf.Clear();
+                            break;
+                        // Otherwise, add the char we just read to the buffer
+                        default:
+                            buf.Add((byte)b);
+                            break;
+                    }
+                } while (b != EOF); 
+                EOFReached = true;
+            }, "Pipe Reader");
+        }
+
+        private void MaybeStartReader()
+        {
+            if (readerThread == null)
+                lock (readerLock)
+                    if (readerThread == null)
+                    {
+                        readerThread = IsPipeInput ? StartPipeReader() : StartKeyboardReader();
+                    }
+        }
+
+        void IUserInputInterface.RequestUserInput(object dataObject, TimeSpan timeout, bool modal)
+        {
+            // If we are running in pipe mode, and EOF was reached, error or return immediately
+            if (EOFReached && IsPipeInput)
+            {
+                throw new EOFException("End of input stream reached.");
             }
-            
+
+            MaybeStartReader();
+
             DateTime timeoutAt;
             if (timeout == TimeSpan.MaxValue)
                 timeoutAt = DateTime.MaxValue;
@@ -197,7 +263,6 @@ namespace OpenTap
 
             try
             {
-                
                 var a = AnnotationCollection.Annotate(dataObject);
                 var members = a.Get<IMembersAnnotation>()?.Members;
 
@@ -318,16 +383,15 @@ namespace OpenTap
                         Console.Write($"({str.Value}): ");
                     else Console.WriteLine(":");
                     
-                    
                     if (secure)
                     {
-                        var read2 = (awaitReadLine(timeoutAt, true) ?? "").Trim();
+                        var read2 = (awaitReadLine(timeoutAt, true)).Trim();
                         _message.Get<IObjectValueAnnotation>().Value = read2.ToSecureString();
                         continue;
 
                     }
 
-                    var read = (awaitReadLine(timeoutAt, false) ?? "").Trim();
+                    var read = (awaitReadLine(timeoutAt, false)).Trim();
                     if (read == "")
                     {
                         // accept the default value.
@@ -385,7 +449,22 @@ namespace OpenTap
                 while (DateTime.Now <= timeOut)
                 {
                     if (lines.TryTake(out string line, 20, TapThread.Current.AbortToken))
-                        return line;
+                    {
+                        if (IsPipeInput && line == null)
+                        {
+                            EOFReached = true;
+                            // Write an empty line to avoid the exception message appearing as the answer to the prompt
+                            Console.WriteLine();
+                            throw new EOFException("End of input stream reached.");
+                        }
+
+                        // Echo the output to stdout to indicate which option was picked from the pipe.
+                        // Otherwise the stdout of the dialogue becomes confusing
+                        if (IsPipeInput && secure == false && !string.IsNullOrWhiteSpace(line))
+                            Console.WriteLine($"<<< '{line}'");
+
+                        return line ?? "";
+                    }
                 }
 
                 Console.WriteLine();
@@ -399,10 +478,12 @@ namespace OpenTap
         }
 
         TapThread readerThread = null;
-        BlockingCollection<string> lines = new BlockingCollection<string>();
-        
+
+        // Set a capacity on the blocking collection
+        private BlockingCollection<string> lines = new BlockingCollection<string>(1);
+
         static readonly SessionLocal<bool> isLoaded = new SessionLocal<bool>();
-        
+
         /// <summary> Loads the CLI user input interface. Note, once it is loaded it cannot be unloaded. </summary>
         public static void Load()
         {
@@ -427,7 +508,7 @@ namespace OpenTap
                 cli.userInputMutex.WaitOne();
                 return Utils.WithDisposable(cli.userInputMutex.ReleaseMutex);
             }
-            
+
             // when CliUserInputInterface is not being used we don't have to do this.
             return Utils.WithDisposable(Utils.Noop);
         }

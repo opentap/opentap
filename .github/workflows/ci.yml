@@ -231,10 +231,11 @@ jobs:
         run: |
           dotnet restore /p:Platform=${{ matrix.Architecture }}
       - name: Build
-        run: |
-          dotnet build --no-restore -c Release /p:Platform=${{ matrix.Architecture }}
-          dotnet build --no-restore tap/tap.csproj -c Release /p:Platform=${{ matrix.Architecture }}
-          get-content ./bin/Release/tap.runtimeconfig.json
+        run: dotnet build --no-restore -c Release /p:Platform=${{ matrix.Architecture }}
+      - name: Build tap.csproj
+        run: dotnet build --no-restore tap/tap.csproj -c Release /p:Platform=${{ matrix.Architecture }}
+      - name: cat tap.runtimeconfig.json 
+        run: get-content ./bin/Release/tap.runtimeconfig.json
       - name: Upload binaries
         uses: actions/upload-artifact@v3
         with:
@@ -339,9 +340,8 @@ jobs:
           name: win-x64-bin
           path: bin/Release/
       - name: Test
-        run: |
-          cd bin/Release
-          ./tap.exe run ../../tests/regression.TapPlan --verbose --color
+        working-directory: bin/Release
+        run: ./tap.exe run ../../tests/regression.TapPlan --verbose --color
       - uses: actions/upload-artifact@v3
         if: ${{ failure() }}
         with:

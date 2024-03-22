@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan">
+  <Steps>
+    <TestStep type="OpenTap.Plugins.BasicSteps.SweepParameterStep" Id="d81ecd6a-9e5f-41f1-bc2f-6546a7aae264" OpenTap.Visibility="Visible">
+      <SweepValues>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>d81ecd6a-9e5f-41f1-bc2f-6546a7aae264</Loop>
+          <Parameters_x0020__x005C__x0020_Write_x0020_Speed>500</Parameters_x0020__x005C__x0020_Write_x0020_Speed>
+        </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>d81ecd6a-9e5f-41f1-bc2f-6546a7aae264</Loop>
+          <Parameters_x0020__x005C__x0020_Write_x0020_Speed>100</Parameters_x0020__x005C__x0020_Write_x0020_Speed>
+        </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>d81ecd6a-9e5f-41f1-bc2f-6546a7aae264</Loop>
+          <Parameters_x0020__x005C__x0020_Write_x0020_Speed>10</Parameters_x0020__x005C__x0020_Write_x0020_Speed>
+        </SweepRow>
+        <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+          <Enabled>true</Enabled>
+          <Loop>d81ecd6a-9e5f-41f1-bc2f-6546a7aae264</Loop>
+          <Parameters_x0020__x005C__x0020_Write_x0020_Speed>0</Parameters_x0020__x005C__x0020_Write_x0020_Speed>
+        </SweepRow>
+      </SweepValues>
+      <Selected>
+        <KeyValuePairOfString>
+          <Key>Parameters \ Write Speed</Key>
+          <Value>true</Value>
+        </KeyValuePairOfString>
+      </Selected>
+      <Name Metadata="Step Name">Sweep {Parameters}</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Plugins.BasicSteps.SweepParameterStep" Id="2b9606bd-385e-46c5-ad11-a2f9b4f022d0" OpenTap.Visibility="Visible">
+          <SweepValues>
+            <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+              <Enabled>true</Enabled>
+              <Loop>2b9606bd-385e-46c5-ad11-a2f9b4f022d0</Loop>
+              <Parameters_x0020__x005C__x0020_Write_x0020_Mode>WriteChars</Parameters_x0020__x005C__x0020_Write_x0020_Mode>
+            </SweepRow>
+            <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+              <Enabled>true</Enabled>
+              <Loop>2b9606bd-385e-46c5-ad11-a2f9b4f022d0</Loop>
+              <Parameters_x0020__x005C__x0020_Write_x0020_Mode>WriteLines</Parameters_x0020__x005C__x0020_Write_x0020_Mode>
+            </SweepRow>
+            <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+              <Enabled>true</Enabled>
+              <Loop>2b9606bd-385e-46c5-ad11-a2f9b4f022d0</Loop>
+              <Parameters_x0020__x005C__x0020_Write_x0020_Mode>WriteAll</Parameters_x0020__x005C__x0020_Write_x0020_Mode>
+            </SweepRow>
+          </SweepValues>
+          <Selected>
+            <KeyValuePairOfString>
+              <Key>Parameters \ Write Mode</Key>
+              <Value>true</Value>
+            </KeyValuePairOfString>
+          </Selected>
+          <Name Metadata="Step Name">Sweep {Parameters}</Name>
+          <ChildTestSteps>
+            <TestStep type="OpenTap.Plugins.BasicSteps.SweepParameterStep" Id="db563fc5-9dd9-4777-925d-7b490560c8fe" OpenTap.Visibility="Visible">
+              <SweepValues>
+                <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+                  <Enabled>true</Enabled>
+                  <Loop>db563fc5-9dd9-4777-925d-7b490560c8fe</Loop>
+                  <Parameters_x0020__x005C__x0020_Pipe_x0020_Data>
+                    <Base64>aGVsbG8Kd29ybGQK</Base64>
+                  </Parameters_x0020__x005C__x0020_Pipe_x0020_Data>
+                  <Parameters_x0020__x005C__x0020_Expected_x0020_Exit_x0020_Code>0</Parameters_x0020__x005C__x0020_Expected_x0020_Exit_x0020_Code>
+                </SweepRow>
+                <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+                  <Enabled>true</Enabled>
+                  <Loop>db563fc5-9dd9-4777-925d-7b490560c8fe</Loop>
+                  <Parameters_x0020__x005C__x0020_Pipe_x0020_Data>
+                    <Base64>aGVsbG8Kd29ybGQyCg==</Base64>
+                  </Parameters_x0020__x005C__x0020_Pipe_x0020_Data>
+                  <Parameters_x0020__x005C__x0020_Expected_x0020_Exit_x0020_Code>3</Parameters_x0020__x005C__x0020_Expected_x0020_Exit_x0020_Code>
+                </SweepRow>
+                <SweepRow type="OpenTap.Plugins.BasicSteps.SweepRow">
+                  <Enabled>true</Enabled>
+                  <Loop>db563fc5-9dd9-4777-925d-7b490560c8fe</Loop>
+                  <Parameters_x0020__x005C__x0020_Pipe_x0020_Data>
+                    <Base64>aGVsbG8yCndvcmxkCg==</Base64>
+                  </Parameters_x0020__x005C__x0020_Pipe_x0020_Data>
+                  <Parameters_x0020__x005C__x0020_Expected_x0020_Exit_x0020_Code>3</Parameters_x0020__x005C__x0020_Expected_x0020_Exit_x0020_Code>
+                </SweepRow>
+              </SweepValues>
+              <Selected>
+                <KeyValuePairOfString>
+                  <Key>Parameters \ Expected Exit Code</Key>
+                  <Value>true</Value>
+                </KeyValuePairOfString>
+                <KeyValuePairOfString>
+                  <Key>Parameters \ Pipe Data</Key>
+                  <Value>true</Value>
+                </KeyValuePairOfString>
+              </Selected>
+              <Name Metadata="Step Name">Sweep {Parameters}</Name>
+              <ChildTestSteps>
+                <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.PipingProcessStep" Id="897f3045-5f3b-4520-831c-1e69c4f129c1">
+                  <Application>tap</Application>
+                  <Arguments>test user-input -a hello -a world</Arguments>
+                  <ExpectedExitCode Parameter="Parameters \ Expected Exit Code" Scope="db563fc5-9dd9-4777-925d-7b490560c8fe">3</ExpectedExitCode>
+                  <WriteSpeed Parameter="Parameters \ Write Speed" Scope="d81ecd6a-9e5f-41f1-bc2f-6546a7aae264">0</WriteSpeed>
+                  <StdIn Parameter="Parameters \ Pipe Data" Scope="db563fc5-9dd9-4777-925d-7b490560c8fe">
+                    <Base64>aGVsbG8yCndvcmxkCg==</Base64>
+                  </StdIn>
+                  <Mode Parameter="Parameters \ Write Mode" Scope="2b9606bd-385e-46c5-ad11-a2f9b4f022d0">WriteAll</Mode>
+                  <Name Metadata="Step Name">{Write Mode} - {Write Speed} - Expect {Expected Exit Code}</Name>
+                </TestStep>
+              </ChildTestSteps>
+              <Parameters_x0020__x005C__x0020_Pipe_x0020_Data>
+                <Base64>aGVsbG8yCndvcmxkCg==</Base64>
+              </Parameters_x0020__x005C__x0020_Pipe_x0020_Data>
+              <Parameters_x0020__x005C__x0020_Expected_x0020_Exit_x0020_Code>3</Parameters_x0020__x005C__x0020_Expected_x0020_Exit_x0020_Code>
+            </TestStep>
+          </ChildTestSteps>
+          <Parameters_x0020__x005C__x0020_Write_x0020_Mode>WriteAll</Parameters_x0020__x005C__x0020_Write_x0020_Mode>
+        </TestStep>
+      </ChildTestSteps>
+      <Parameters_x0020__x005C__x0020_Write_x0020_Speed>0</Parameters_x0020__x005C__x0020_Write_x0020_Speed>
+    </TestStep>
+  </Steps>
+</TestPlan>
