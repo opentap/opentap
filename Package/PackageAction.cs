@@ -101,6 +101,11 @@ namespace OpenTap.Package
                     // A user token could contain an equal sign. It should be fine if we just use the first equal
                     // sign as a pivot. This is also the way environment variables are handled on Unix systems.
                     var pivot = part.IndexOf('=');
+                    if (pivot == -1)
+                    {
+                        log.Warning($"Missing '=' sign in key-value-pair '{part}'. This value will be ignored.");
+                        continue;
+                    }
                     var key = part.Substring(0, pivot);
                     var value = part.Substring(pivot + 1);
                     switch (key)
@@ -110,7 +115,7 @@ namespace OpenTap.Package
                             break;
                         default:
                             log.Warning(
-                                $"Unrecognized key '{key}' specified in repository argument '{argument}'. Argument will be ignored.");
+                                $"Unrecognized key '{key}' specified in repository argument '{argument}'. This value will be ignored.");
                             break;
                     }
                 } 
