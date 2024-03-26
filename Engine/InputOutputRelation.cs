@@ -217,11 +217,63 @@ namespace OpenTap
                     }
 
                     object value = GetOutput(connection.OutputMember, src);
+                    try
+                    {
+                        value = ConvertValue(value, connection.InputMember.TypeDescriptor);
+                    }
+                    catch (Exception convertException)
+                    {
+                        throw new Exception($"Unable to convert value for the '{connection.inputMember.Name}' setting: {convertException.Message}", convertException);
+                    }
                     value = AssignOutputEvent.Invoke(target, value, connection.InputMember);
                     connection.InputMember.SetValue(target, value);
                 }
             }
             defer();
+        }
+
+        internal static bool CanConvert(ITypeData to, ITypeData from)
+        {
+            if (from.DescendsTo(to))
+                return true;
+            if (to is TypeData td1 && from is TypeData td2)
+            {
+                if (td1.IsNumeric || td1.IsString || td1.Type == typeof(bool))
+                {
+                    switch (td2.TypeCode)
+                    {
+                        case TypeCode.Double:
+                        case TypeCode.Single:
+                        case TypeCode.Int32:
+                        case TypeCode.Int16:
+                        case TypeCode.Int64:
+                        case TypeCode.UInt32:
+                        case TypeCode.UInt16:
+                        case TypeCode.UInt64:
+                        case TypeCode.Byte:
+                        case TypeCode.SByte:
+                        case TypeCode.Decimal:
+                        case TypeCode.String:
+                        case TypeCode.Boolean:
+                            return true;
+                        default: return false;
+                    }
+                }
+            }
+            return false;
+        }
+    
+        internal static object ConvertValue(object value, ITypeData to)
+        {
+            if (value == null) return null;
+            
+            if (to is TypeData td1 && td1.TypeCode != TypeCode.Object)
+            {
+                if(td1.Type != value.GetType())
+                    return Convert.ChangeType(value, td1.Type);
+            }
+            return value;
+
         }
 
         static readonly AcceleratedDynamicMember<IInputOutputRelations> Inputs = new AcceleratedDynamicMember<IInputOutputRelations>()

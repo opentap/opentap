@@ -4,7 +4,6 @@ using System.Linq;
 using System.Xml.Serialization;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests;
-using OpenTap.EngineUnitTestUtils;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -424,7 +423,115 @@ namespace OpenTap.UnitTests
             int i3 = rl.LogString.IndexOf("Log Step 3 of 3\" started");
             Assert.IsTrue(i1 < i2);
             Assert.IsTrue(i2 < i3);
+        }
 
+        public class InputOutputTypesStep : TestStep
+        {
+            [Output]
+            public int IntInput { get; set; }
+            [Output]
+            public double DoubleInput { get; set; }
+            [Output]
+            public string StringInput { get; set; }
+            [Output]
+            public float FloatInput { get; set; }
+
+            public override void Run()
+            {
+                
+            }
+        }
+
+        [Test]
+        public void TestInputOutputTypes()
+        {
+            var step1 = new InputOutputTypesStep();
+            var step2 = new InputOutputTypesStep();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.AddRange(new[]
+            {
+                step1, step2
+            });
+            {
+                var intMember = TypeData.GetTypeData(step1).GetMember(nameof(InputOutputTypesStep.IntInput));
+                var doubleMember = TypeData.GetTypeData(step1).GetMember(nameof(InputOutputTypesStep.DoubleInput));
+                var stringMember = TypeData.GetTypeData(step1).GetMember(nameof(InputOutputTypesStep.StringInput));
+                var floatMember = TypeData.GetTypeData(step1).GetMember(nameof(InputOutputTypesStep.FloatInput));
+                InputOutputRelation.Assign(step2, doubleMember, step1, stringMember);
+                InputOutputRelation.Assign(step2, stringMember, step1, doubleMember);
+                InputOutputRelation.Assign(step2, intMember, step1, doubleMember);
+                InputOutputRelation.Assign(step2, floatMember, step1, floatMember);
+            }
+            {
+                step1.IntInput = 1;
+                step1.DoubleInput = 2;
+                step1.StringInput = "3";
+                step1.FloatInput = 4;
+                InputOutputRelation.UpdateInputs(step2);
+                Assert.AreEqual(2, step2.IntInput);
+                Assert.AreEqual(3.0, step2.DoubleInput);
+                Assert.AreEqual("2", step2.StringInput);
+                Assert.AreEqual(4, step2.FloatInput);
+                
+                // When one of the inputs is assigned an invalid value, an exception should be thrown on UpdateInputs.
+                step1.StringInput = "abc";
+                Assert.Throws<Exception>(() => InputOutputRelation.UpdateInputs(step2));
+            }
+        }
+
+        enum SpecialValue
+        {
+            UnspecifiedResult
+        }
+        [TestCase("A", typeof(double), typeof(FormatException))]
+        [TestCase("A", typeof(float), typeof(FormatException))]
+        [TestCase("A", typeof(int), typeof(FormatException))]
+        [TestCase("1", typeof(int), 1)]
+        [TestCase("True", typeof(int), typeof(FormatException))]
+        [TestCase("True", typeof(bool), true)]
+        [TestCase(true, typeof(int), 1)]
+        [TestCase(true, typeof(double), 1.0)]
+        [TestCase(false, typeof(double), 0.0)]
+        [TestCase(false, typeof(int), 0)]
+        [TestCase(false, typeof(string), "False")]
+        [TestCase(long.MaxValue, typeof(float), SpecialValue.UnspecifiedResult)]
+        [TestCase(long.MaxValue, typeof(double), SpecialValue.UnspecifiedResult)]
+        [TestCase(long.MaxValue, typeof(long), long.MaxValue)]
+        [TestCase(long.MaxValue, typeof(int), typeof(OverflowException))]
+        [TestCase(ulong.MaxValue, typeof(long), typeof(OverflowException))]
+        [TestCase(100000, typeof(byte), typeof(OverflowException))]
+        [TestCase(255, typeof(byte), 255)]
+        [TestCase(256, typeof(byte), typeof(OverflowException))]
+        [TestCase(1e20, typeof(int), typeof(OverflowException))]
+        [TestCase(1e20, typeof(byte), typeof(OverflowException))]
+        [TestCase(1.0, typeof(byte), 1)]
+        [TestCase(1.0, typeof(int), 1)]
+        [TestCase(1.0, typeof(float), 1.0)]
+        [TestCase(1.0, typeof(double), 1.0)]
+        [TestCase(1.0, typeof(string), "1")]
+        public void TestConvertOutputToInput(object from, Type intoType, object exceptionOrResult)
+        {
+            var toTypeData = TypeData.FromType(intoType);
+            var fromTypeData = TypeData.GetTypeData(from);
+            Assert.IsTrue(InputOutputRelation.CanConvert(fromTypeData, toTypeData));
+            try
+            {
+                var to = InputOutputRelation.ConvertValue(from, toTypeData);
+                Assert.IsFalse(exceptionOrResult is Exception);
+                if (Equals(exceptionOrResult, SpecialValue.UnspecifiedResult))
+                {
+                    var to2 = (double)InputOutputRelation.ConvertValue(to, TypeData.FromType(typeof(double)));
+                    Assert.IsTrue(to2 != 0.0);
+                }
+                else
+                {
+                    Assert.AreEqual(exceptionOrResult, to);
+                }
+            }
+            catch (Exception e)
+            {
+                Assert.AreEqual(exceptionOrResult, e.GetType());
+            }
         }
     }
 }
