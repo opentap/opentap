@@ -153,58 +153,5 @@ namespace OpenTap
             FileVersionInfo info = FileVersionInfo.GetVersionInfo(assemblyPath);
             return info.ProductVersion;
         }
-
-        internal static byte[] ByteOrderMark = new byte[] { 0xEF, 0xBB, 0xBF };
-        public static string EscapeBadPathChars(string path)
-        {
-            try
-            {
-                new FileInfo(path);
-            }
-            catch
-            {
-                var fname = Path.GetFileName(path);
-                var dirname = Path.GetDirectoryName(path);
-                
-                var pathchars = Path.GetInvalidPathChars();
-                foreach (var chr in pathchars)
-                {
-                    dirname = dirname.Replace(chr, '_');
-                }
-
-                var filechars = Path.GetInvalidFileNameChars();
-                foreach (var chr in filechars)
-                {
-                    fname = fname.Replace(chr, '_');
-                }
-
-                path = Path.Combine(dirname, fname);
-
-                new FileInfo(path);
-            }
-            return path;
-        }
-
-        public static string CreateUniqueFileName(string path)
-        {
-            if (!File.Exists(path)) return path;
-
-            var dir = Path.GetDirectoryName(path);
-            var ext = Path.GetExtension(path);
-            var name = Path.GetFileNameWithoutExtension(path);
-
-            int i = 2;
-
-            // Just put some upper bound on this
-            while (i < 100000)
-            {
-                var newPath = Path.Combine(dir, name + " (" + i + ")" + ext);
-
-                if (!File.Exists(newPath)) return newPath;
-                i++;
-            }
-
-            return path;
-        }
     }
 }

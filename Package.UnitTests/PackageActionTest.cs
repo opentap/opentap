@@ -204,9 +204,9 @@ namespace OpenTap.Package.UnitTests
                     Assert.AreEqual(0, act.Execute(CancellationToken.None));
                 }
 
-                Event? warningLog = log.Events.FirstOrNull(x =>
+                var warningLog = log.Events.FirstOrDefault(x =>
                     x.EventType == (int) LogEventType.Warning &&
-                    x.Message.Contains("is incompatible with the host platform"));
+                    x.Message.Contains("is incompatible with the host platform")).Message;
                 if (OperatingSystem.Current != OperatingSystem.Windows)
                     Assert.IsNotNull(warningLog);
                 else
@@ -245,9 +245,9 @@ namespace OpenTap.Package.UnitTests
                 if (OperatingSystem.Current == OperatingSystem.Windows || specifyPlatform)
                 {
                     Assert.AreEqual(0, exitCode);
-                    var warningLog = log.Events.FirstOrNull(x =>
+                    var warningLog = log.Events.FirstOrDefault(x =>
                         x.EventType == (int) LogEventType.Warning &&
-                        x.Message.Contains("is incompatible with the host platform"));
+                        x.Message.Contains("is incompatible with the host platform")).Message;
                     if (specifyPlatform && OperatingSystem.Current != OperatingSystem.Windows)
                         Assert.IsNotNull(warningLog);
                     else
@@ -255,8 +255,8 @@ namespace OpenTap.Package.UnitTests
                 }
                 else
                 {
-                    var errorlog = log.Events.FirstOrNull(x =>
-                        x.Message.Contains("is incompatible with the host platform"));
+                    var errorlog = log.Events.FirstOrDefault(x =>
+                        x.Message.Contains("is incompatible with the host platform")).Message;
                     
                     // succeeded due to 'force'.
                     Assert.AreEqual(0, exitCode);

@@ -15,7 +15,6 @@
     <Compile Include="$(MSBuildThisFileDirectory)ArgumentsParser.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ConsoleUtils.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)CountedHashSet.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ExecutorInterop.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)FileSystemHelper.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ICliActionExtensions.cs" />

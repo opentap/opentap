@@ -4,16 +4,12 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.ComponentModel;
 using System.IO;
-using System.IO.Compression;
 using System.Runtime.InteropServices;
-using System.IO.MemoryMappedFiles;
-using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Text;
@@ -131,37 +127,7 @@ namespace OpenTap
             else
                 return displayName.Trim();
         }
-        static Dictionary<MemberInfo, string> helpLinkLookup = new Dictionary<MemberInfo, string>(1024);
-
-        /// <summary>
-        /// Gets the HelpLinkAttribute text of a type or member. If no HelpLinkAttribute exists, it looks for a class level help link. Also looks at parent classes. Finally, it returns null if no help link was found.
-        ///  </summary>
-        /// <param name="member"></param>
-        /// <returns></returns>
-        public static string GetHelpLink(this MemberInfo member)
-        {
-            lock (helpLinkLookup)
-            {
-                if (!helpLinkLookup.ContainsKey(member))
-                {
-                    string str = null;
-                    try
-                    {
-                        var attr = member.GetAttribute<HelpLinkAttribute>();
-                        if (attr != null)
-                            str = attr.HelpLink;
-                        if (str == null && member.DeclaringType != null)
-                            str = member.DeclaringType.GetHelpLink(); // Recursively look for class level help.
-                    }
-                    catch
-                    {   // this might happen for outdated plugins where an Attribute type ceased to exist.
-                    }
-                    helpLinkLookup[member] = str;
-                }
-                return helpLinkLookup[member];
-            }
-        }
-
+       
         static object[] getAttributes(MemberInfo mem)
         {
             try
@@ -532,23 +498,6 @@ namespace OpenTap
         }
     }
     
-
-    static class StreamUtils
-    {
-        public static byte[] CompressStreamToBlob(Stream stream)
-        {
-            using (var compressedStream = new MemoryStream())
-            {
-                var zipper = new GZipStream(compressedStream, CompressionMode.Compress);
-
-                stream.CopyTo(zipper);
-                zipper.Close();
-                return compressedStream.ToArray();
-
-            }
-        }
-    }
-
     internal class Memorizer
     {
         /// <summary>
@@ -821,13 +770,6 @@ namespace OpenTap
             }
         }
 
-        public List<MemorizerKey> GetKeys()
-        {
-            lock (memorizerTable)
-            {
-                return memorizerTable.Keys.ToList();
-            }
-        }
 
         public void InvalidateAll()
         {
@@ -847,23 +789,6 @@ namespace OpenTap
         }
     }
 
-    static class HashCode
-    {
-        private const long Prime1 = 2654435761U;
-        private const long Prime2 = 2246822519U;
-        private const long Prime3 = 3266489917U;
-        private const long Prime4 = 668265263U;
-        private const long Prime5 = 374761393U;
-        
-        public static long Combine(long a, long b) => (a + Prime2) * Prime1 + (b + Prime3) * Prime4;
-        public static long GetHashCodeLong(this object x) => x?.GetHashCode() ?? 0;
-        public static int Combine<T1, T2>(T1 a, T2 b, long seed = 0) => (int)Combine(seed, a.GetHashCodeLong(), b.GetHashCodeLong());
-
-        public static int Combine<T1, T2, T3>(T1 a, T2 b, T3 c) =>
-            Combine(Combine(a, b), c);
-        public static int Combine<T1, T2, T3, T4>(T1 a, T2 b, T3 c, T4 d) =>
-            Combine(Combine(a, b, c), d);
-    }
 
     static class Utils
     {
@@ -909,27 +834,13 @@ namespace OpenTap
         public static readonly bool IsDebugBuild = false;
 #endif
 
-        static public Action ActionDefault = () => { };
-
         /// <summary> Swaps two variables </summary>
         public static void Swap<T>(ref T a, ref T b) => (a, b) = (b, a);
-
-        /// <summary> Clamps val to be between min and max, returning the result. </summary>
-        public static T Clamp<T>(this T val, T min, T max) where T : IComparable<T>
-        {
-            if (val.CompareTo(min) < 0) return min;
-            if (val.CompareTo(max) > 0) return max;
-            return val;
-        }
-
-        /// <summary> Returns arg. </summary>
-        public static T Identity<T>(T id) => id;
 
         /// <summary> Do nothing. </summary>
         public static void Noop()
         {
         }
-
 
         /// <summary>
         /// Returns the element for which selector returns the max value.
@@ -1018,7 +929,7 @@ namespace OpenTap
         /// </summary>
         /// <param name="source"></param>
         /// <param name="pred"></param>
-        public static void RemoveIf(this System.Collections.IList source, Predicate<object> pred)
+        public static void RemoveIf(this IList source, Predicate<object> pred)
         {
 
             for (int i = source.Count - 1; i >= 0; i--)
@@ -1028,11 +939,6 @@ namespace OpenTap
                     source.RemoveAt(i);
                 }
             }
-        }
-
-        static void flattenHeirarchy<T>(IEnumerable<T> lst, Func<T, IEnumerable<T>> lookup, IList<T> result)
-        {
-            flattenHeirarchy(lst, lookup, result, null);
         }
 
         private static void flattenHeirarchy<T>(IEnumerable<T> lst, Func<T, IEnumerable<T>> lookup, IList<T> result,
@@ -1074,18 +980,6 @@ namespace OpenTap
             return buffer;
         }
 
-        public static List<T> FlattenHeirarchy<T>(IEnumerable<T> lst, Func<T, T> lookup, bool distinct = false,
-            List<T> buffer = null)
-        {
-            if (buffer != null)
-                buffer.Clear();
-            else
-                buffer = new List<T>();
-            flattenHeirarchy(lst, x => new[] { lookup(x) }, buffer, distinct ? new HashSet<T>() : null);
-            return buffer;
-        }
-
-
         public static void FlattenHeirarchyInto<T>(IEnumerable<T> lst, Func<T, IEnumerable<T>> lookup, ISet<T> set)
         {
             foreach (var item in lst)
@@ -1097,19 +991,7 @@ namespace OpenTap
                         FlattenHeirarchyInto(sublist, lookup, set);
                 }
             }
-
         }
-
-        public static IEnumerable<T> Recurse<T>(T item, Func<T, T> selector)
-        {
-            yield return item;
-            while (true)
-            {
-                item = selector(item);
-                yield return item;
-            }
-        }
-
 
         public static void ForEach<T>(this IEnumerable<T> source, Action<T> func)
         {
@@ -1161,26 +1043,6 @@ namespace OpenTap
                 if (--count < 0)
                     return true;
             return false;
-        }
-
-        /// <summary>
-        /// Adds a range of values to a list.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="lst"></param>
-        /// <param name="values"></param>
-        public static void AddRange<T>(this IList<T> lst, IEnumerable<T> values)
-        {
-            foreach (var value in values)
-                lst.Add(value);
-        }
-
-        [Obsolete("Cannot add to array", true)]
-        public static void AddRange<T>(this T[] lst, IEnumerable<T> values)
-        {
-            // This function is intentionally added to avoid adding the arrays.
-            // They also implement IList, so they normally hit the other overload.
-            throw new NotSupportedException();
         }
 
         /// <summary>
@@ -1245,33 +1107,6 @@ namespace OpenTap
             return default(T2);
         }
 
-
-        //We need to remember the timers or they risk getting garbage collected before elapsing.
-        readonly static HashSet<System.Threading.Timer> delayTimers = new HashSet<System.Threading.Timer>();
-
-        /// <summary>
-        /// Calls function after a delay.
-        /// </summary>
-        /// <param name="ms"></param>
-        /// <param name="function"></param>
-        public static void Delay(int ms, Action function)
-        {
-            lock (delayTimers)
-            {
-                System.Threading.Timer timer = null;
-                timer = new System.Threading.Timer(obj =>
-                {
-                    lock (delayTimers) //happens in a new thread to no race.
-                    {
-                        delayTimers.Remove(timer);
-                    }
-
-                    function();
-                }, null, ms, System.Threading.Timeout.Infinite);
-                delayTimers.Add(timer); //see note for delayTimers.
-            }
-        }
-
         /// <summary>
         /// Merged a dictionary into another, overwriting colliding keys.
         /// </summary>
@@ -1284,37 +1119,6 @@ namespace OpenTap
             foreach (var kv in srcDict)
             {
                 dstDict[kv.Key] = kv.Value;
-            }
-        }
-
-        /// <summary>
-        /// Almost the same as string.Split, except it preserves split chars as 1 length strings. The process can always be reversed by String.Join("", result).
-        /// </summary>
-        /// <param name="str"></param>
-        /// <param name="splitValues"></param>
-        /// <returns></returns>
-        public static IEnumerable<string> SplitPreserve(this string str, params char[] splitValues)
-        {
-            var splitHash = splitValues.ToHashSet();
-            int offset = 0;
-
-            for (int i = 0; i < str.Length; i++)
-            {
-                var c = str[i];
-
-                if (splitHash.Contains(c))
-                {
-                    var newStr = str.Substring(offset, i - offset);
-                    if (newStr.Length > 0) yield return newStr;
-
-                    yield return new string(c, 1);
-                    offset = i + 1;
-                }
-            }
-
-            if (offset < str.Length)
-            {
-                yield return str.Substring(offset, str.Length - offset);
             }
         }
 
@@ -1347,26 +1151,6 @@ namespace OpenTap
             }
         }
 
-        /// <summary>
-        /// Lazily reads all the lines of a file. Should only be read once.
-        /// </summary>
-        /// <param name="filePath"></param>
-        /// <returns></returns>
-        public static IEnumerable<string> ReadFileLines(string filePath)
-        {
-            using (var str = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            {
-                using (var read = new StreamReader(str))
-                {
-                    string line;
-                    while ((line = read.ReadLine()) != null)
-                    {
-                        yield return line;
-                    }
-                }
-            }
-        }
-
         public static string ConvertToUnsecureString(this System.Security.SecureString securePassword)
         {
             if (securePassword == null)
@@ -1392,30 +1176,6 @@ namespace OpenTap
             return result;
         }
 
-        public static Type TypeOf(TypeCode typeCode)
-        {
-            switch (typeCode)
-            {
-                case TypeCode.Single: return typeof(float);
-                case TypeCode.Double: return typeof(double);
-                case TypeCode.SByte: return typeof(sbyte);
-                case TypeCode.Int16: return typeof(short);
-                case TypeCode.Int32: return typeof(int);
-                case TypeCode.Int64: return typeof(long);
-                case TypeCode.Byte: return typeof(byte);
-                case TypeCode.UInt16: return typeof(ushort);
-                case TypeCode.UInt32: return typeof(uint);
-                case TypeCode.UInt64: return typeof(ulong);
-                case TypeCode.String: return typeof(string);
-                case TypeCode.Boolean: return typeof(bool);
-                case TypeCode.DateTime: return typeof(DateTime);
-                case TypeCode.Decimal: return typeof(decimal);
-                case TypeCode.Char: return typeof(char);
-            }
-
-            return typeof(object);
-        }
-
         public static bool IsNumeric(object obj)
         {
             switch (obj)
@@ -1435,11 +1195,6 @@ namespace OpenTap
                 default: return false;
             }
 
-        }
-
-        public static bool IsFinite(double value)
-        {
-            return false == (double.IsInfinity(value) || double.IsNaN(value));
         }
 
         public static bool Compatible(Version searched, Version referenced)
@@ -1473,98 +1228,6 @@ namespace OpenTap
                 r = (_e & ~_flag);
 
             return (T)Enum.ToObject(typeof(T), r);
-        }
-
-        static double churnDoubleNumber(string a, ref int offset)
-        {
-            // consider using CultureInfo.NumberFormatInfo for decimal separators.
-            // this would come at a performance penalty.
-
-            double val = 0.0;
-            int neg = 1;
-            bool pls = false;
-            bool decfound = false;
-            double dec = 1;
-            while (offset < a.Length)
-            {
-                var c = a[offset];
-                switch (c)
-                {
-                    case '-':
-                        if (neg == -1 || pls) return neg * val * dec;
-                        neg = -1;
-                        break;
-                    case '.':
-                        if (decfound) return neg * val * dec;
-                        decfound = true;
-                        break;
-                    default:
-                        int digit = c - '0';
-                        if (digit < 0 || digit > 9)
-                            return neg * val * dec;
-                        val = val * 10 + digit;
-                        if (decfound)
-                            dec *= 0.1;
-                        break;
-                }
-
-                offset += 1;
-            }
-
-            return neg * val * dec;
-        }
-
-        /// <summary>
-        /// Natural compare takes numbers into account in comparison of strings. Normal sorted: [1,10,100,11,2,23,3] Natural sorted: [1,2,3,10,11,23,100]
-        /// </summary>
-        /// <param name="A"></param>
-        /// <param name="B"></param>
-        /// <returns></returns>
-        public static int NaturalCompare(string A, string B)
-        {
-
-            if (A == null || B == null) // null -> use string.Compare behavior.
-                return string.Compare(A, B);
-
-            int ai = 0, bi = 0;
-            for (;; ai++, bi++)
-            {
-                if (ai == A.Length)
-                {
-                    if (bi == B.Length) return 0;
-                    return -1;
-                }
-
-                if (bi == B.Length) return 1;
-                int nextai = ai;
-                double numA = churnDoubleNumber(A, ref nextai);
-                int nextbi = bi;
-                double numB = churnDoubleNumber(B, ref nextbi);
-                if (nextai != ai && nextbi == bi) return -1;
-                if (nextbi != bi && nextai == ai) return 1;
-                if (nextai != ai && numA != numB)
-                {
-                    return numA.CompareTo(numB);
-                }
-
-                int cmp = A[ai].CompareTo(B[bi]);
-                if (cmp != 0) return cmp;
-            }
-        }
-
-        /// <summary> Shuffle a list in place. </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="col"></param>
-        public static void Shuffle<T>(this IList<T> col)
-        {
-            Random rnd = new Random();
-            for (int i = 0; i < col.Count; i++)
-            {
-                var j = rnd.Next(0, col.Count);
-                var a = col[i];
-                col[i] = col[j];
-                col[j] = a;
-            }
         }
 
         public static string EnumToReadableString(Enum value)
@@ -1734,19 +1397,6 @@ namespace OpenTap
     {
         /// <summary> Turns item into a one element array, unless it is null.</summary>
         public static T[] AsSingle<T>(this T item) => item == null ? Array.Empty<T>() : new[] {item};
-
-        /// <summary>
-        /// First or null, which for struct types returns a null value instead of a default(T) that FirstOrDefault does.
-        /// </summary>
-        public static T? FirstOrNull<T>(this IEnumerable<T> items, Func<T, bool> p) where T: struct
-        {
-            foreach (var item in items)
-            {
-                if (p(item))
-                    return item;
-            }
-            return null;
-        }
         
         /// <summary>
         /// Like distinct but keeps the last item. Returns List because we need to iterate until last element anyway.
@@ -1766,7 +1416,7 @@ namespace OpenTap
             return d.OrderBy(kv => kv.Value).Select(kv => kv.Key).ToList();
         }
         
-                internal static int ProcessPattern<T1>(IEnumerator objs, Action<T1> f1)
+        internal static int ProcessPattern<T1>(IEnumerator objs, Action<T1> f1)
         {
             while (objs.MoveNext())
             {
@@ -1985,14 +1635,7 @@ namespace OpenTap
             Array.Resize(ref array, array.Length + appendage.Length);
             Array.Copy(appendage, 0, array, preLen, appendage.Length);
         }
-
-        public static T PopAt<T>(this IList<T> list, int index)
-        {
-            var value = list[index];
-            list.RemoveAt(index);
-            return value;
-        }
-        
+       
         public static IEnumerable<T2> TrySelect<T, T2>(this IEnumerable<T> src, Func<T, T2> f,
             Action<Exception, T> handler) => src.TrySelect<T, T2, Exception>(f, handler);
         public static IEnumerable<T2> TrySelect<T, T2>(this IEnumerable<T> src, Func<T,T2> f,
@@ -2016,8 +1659,8 @@ namespace OpenTap
             }
         }
     }
-
-    internal class Time
+    
+    internal static class Time
     {
         /// <summary>
         /// A TimeSpan from seconds that does not round to nearest millisecond. (TimeSpan.FromSeconds does that).
@@ -2041,311 +1684,13 @@ namespace OpenTap
             {
                 if (double.IsNaN(seconds))
                     throw new ArithmeticException("Nan is not a supported time value.");
+                
                 if (seconds < 0)
                     return TimeSpan.MinValue;
+                
                 return TimeSpan.MaxValue;
             }
-            
-
         }
-    }
-
-    /// <summary>
-    /// for sharing data between processes.
-    /// </summary>
-    class MemoryMappedApi : IDisposable
-    {
-        /// <summary>
-        /// The name of the API, e.g the file where the data is shared.
-        /// </summary>
-        public readonly string Name;
-        MemoryMappedFile mappedFile;
-        MemoryStream storedData = new MemoryStream();
-        uint user;
-
-        /// <summary>
-        /// Creates a memory mapped API.
-        /// </summary>
-        /// <param name="name"></param>
-        public MemoryMappedApi(string name)
-        {
-            Name = name;
-            try
-            {
-                mappedFile = MemoryMappedFile.OpenExisting(Name);
-                using (var accessor = mappedFile.CreateViewAccessor())
-                    accessor.Write(0, user = accessor.ReadUInt32(0) + 1);
-            }
-            catch (FileNotFoundException)
-            {   // This is OK.
-                user = 0;
-            }
-        }
-
-        /// <summary>
-        /// Creates a MemoryMappedApi with a globally unique name.
-        /// </summary>
-        public MemoryMappedApi(): this(Guid.NewGuid().ToString())
-        {
-        }
-        
-        /// <summary>
-        /// Writes the data to the memory mapped file. 
-        /// </summary>
-        public void Persist()
-        {
-            if (mappedFile != null)
-                mappedFile.Dispose();
-
-            mappedFile = MemoryMappedFile.CreateNew(Name, 4 + storedData.Length);
-            storedData.Position = 0;
-            using (var stream = mappedFile.CreateViewStream(4,storedData.Length))
-            {
-                storedData.CopyTo(stream);
-                stream.Flush();
-            }
-        }
-        
-
-        /// <summary>
-        /// Wait for the user id written in the file to increment, which means that it has been opened by another process.
-        /// </summary>
-        public void WaitForHandover()
-        {
-            while(mappedFile != null)
-            {
-                using(var access = mappedFile.CreateViewAccessor())
-                {
-                    if(user == access.ReadUInt32(0))
-                    {
-                        System.Threading.Thread.Sleep(20);
-                        continue;
-                    }
-                    break;
-                }
-            }
-        }
-        
-        /// <summary>
-        /// Same as WaitForHandover but async.
-        /// </summary>
-        /// <returns></returns>
-        public Task WaitForHandoverAsync()
-        {
-            return Task.Run(new Action(WaitForHandover));
-        }
-
-        /// <summary>
-        /// Write a dataobject to the stream.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="data"></param>
-        public void Write<T>(T data) where T : IConvertible
-        {
-            if (typeof(T) == typeof(string))
-            {
-                Write((string)(object)data);
-                return;
-            }
-            var typecode = Type.GetTypeCode(data.GetType());
-            if (typecode == TypeCode.Empty || typecode == TypeCode.Object)
-                throw new NotSupportedException("Type {0} is not a primitive type. See TypeCode to find supported versions of T[]");
-            write(typecode);
-            write(toByteArray(data));
-        }
-
-        /// <summary>
-        /// Writes an array to the stream. The element type must be one of the supported ones.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="data"></param>
-        public void Write<T>(T[] data) where T : IConvertible
-        {
-            var newtypecode = Type.GetTypeCode(typeof(T));
-            if (newtypecode == TypeCode.Empty || newtypecode == TypeCode.Object)
-                throw new NotSupportedException("Type {0} is not a primitive type. See TypeCode to find supported versions of T[]");
-            var newtypecode2 = 64 + (byte)newtypecode;
-            write((TypeCode)newtypecode2);
-            write(toByteArray(data));
-        }
-        
-        /// <summary>
-        /// Write a string to the stream.
-        /// </summary>
-        /// <param name="data"></param>
-        public void Write(string data)
-        {
-            write(TypeCode.String);
-            write(System.Text.Encoding.UTF8.GetBytes(data));
-        }
-
-        /// <summary>
-        /// Start reading from the beginning.
-        /// </summary>
-        public void ReadRewind()
-        {
-            readOffset = 4;
-        }
-
-        /// <summary>
-        /// Get a stream pointing to the next object.
-        /// </summary>
-        /// <returns></returns>
-        public Stream ReadStream()
-        {
-            long offset = readOffset;
-            int length = 0;
-            using (var readstream = mappedFile.CreateViewStream(readOffset, 0, MemoryMappedFileAccess.Read))
-            {
-                readTypeCode(readstream); // read type code
-                length = readLen(readstream);
-                offset += readstream.Position;
-                readOffset += readstream.Position + length;
-            }
-            return mappedFile.CreateViewStream(offset, length, MemoryMappedFileAccess.ReadWrite);
-        }
-
-        /// <summary>
-        /// Reads an object from the stream.
-        /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
-        public T Read<T>()
-        {
-            return (T)Read();
-        }
-
-        public virtual void Dispose()
-        {
-            if (mappedFile != null)
-            {
-                mappedFile.Dispose();
-                mappedFile = null;
-            }
-        }
-
-        /// <summary>
-        /// Read an object from the mapped file. It will then increment the read offset, so next time read is called the next item will be retrived.
-        /// </summary>
-        /// <returns></returns>
-        public object Read()
-        {
-            using (var readstream = mappedFile.CreateViewStream(readOffset, 0, MemoryMappedFileAccess.Read))
-            {
-                var typecode = readTypeCode(readstream);
-                object obj;
-                if ((byte)typecode > 64)
-                {
-                    typecode = typecode - 64;
-                    var bytes = read(readstream);
-                    obj = arrayFromByteArray(bytes, Utils.TypeOf(typecode));
-                }
-                else
-                {
-                    var bytes = read(readstream);
-                    obj = fromByteArray(bytes, Utils.TypeOf(typecode));
-                }
-                readOffset += readstream.Position;
-                return obj;
-            }
-        }
-
-        void write(byte[] data)
-        {
-            var len = BitConverter.GetBytes(data.Length);
-            storedData.Write(len, 0, len.Length);
-            storedData.Write(data, 0, data.Length);
-        }
-
-        void write(TypeCode code)
-        {
-            storedData.WriteByte((byte)code);
-        }
-
-        TypeCode readTypeCode(Stream str)
-        {
-            return (TypeCode)str.ReadByte();
-        }
-
-        byte[] read(Stream stream)
-        {
-            byte[] len = new byte[4];
-            stream.Read(len, 0, len.Length);
-            var length = BitConverter.ToInt32(len, 0);
-            byte[] buffer = new byte[length];
-            stream.Read(buffer, 0, buffer.Length);
-            return buffer;
-        }
-        
-        int readLen(Stream stream)
-        {
-            byte[] len = new byte[4];
-            stream.Read(len, 0, len.Length);
-            var length = BitConverter.ToInt32(len, 0);
-            return length;
-        }
-
-        byte[] toByteArray(object value)
-        {
-            int rawsize = Marshal.SizeOf(value);
-            byte[] rawdata = new byte[rawsize];
-            GCHandle handle =
-                GCHandle.Alloc(rawdata,
-                GCHandleType.Pinned);
-            Marshal.StructureToPtr(value,
-                handle.AddrOfPinnedObject(),
-                false);
-            handle.Free();
-            return rawdata;
-        }
-
-        byte[] toByteArray<T>(T[] array)
-        {
-            if (array.Length == 0) return new byte[0];
-            int elemSize = Marshal.SizeOf(array[0]);
-            byte[] rawdata = new byte[elemSize * array.Length];
-            GCHandle handle =
-                GCHandle.Alloc(rawdata,
-                GCHandleType.Pinned);
-            var addr = Marshal.UnsafeAddrOfPinnedArrayElement(array, 0);
-            Marshal.Copy(addr, rawdata, 0, rawdata.Length);
-            handle.Free();
-            return rawdata;
-        }
-
-        Array arrayFromByteArray(byte[] bytearray, Type ElementType)
-        {
-            if (ElementType == typeof(byte))
-                return bytearray;
-            int elementSize = Marshal.SizeOf(ElementType);
-            Array array = Array.CreateInstance(ElementType, bytearray.Length / elementSize);
-            GCHandle handle2 =
-                GCHandle.Alloc(array,
-                GCHandleType.Pinned);
-            var addr2 = Marshal.UnsafeAddrOfPinnedArrayElement(array, 0);
-            Marshal.Copy(bytearray, 0, addr2, bytearray.Length);
-            return array;
-        }
-
-        T fromByteArray<T>(byte[] rawValue)
-        {
-            GCHandle handle = GCHandle.Alloc(rawValue, GCHandleType.Pinned);
-            T structure = (T)Marshal.PtrToStructure(handle.AddrOfPinnedObject(), typeof(T));
-            handle.Free();
-            return structure;
-        }
-
-        object fromByteArray(byte[] rawValue, Type t)
-        {
-            if (t == typeof(string))
-                return System.Text.Encoding.UTF8.GetString(rawValue);
-            GCHandle handle = GCHandle.Alloc(rawValue, GCHandleType.Pinned);
-            object structure = Marshal.PtrToStructure(handle.AddrOfPinnedObject(), t);
-            handle.Free();
-            return structure;
-        }
-        
-        long readOffset = 4;
     }
     
     /// <summary> Invoke an action after a timeout, unless canceled. </summary>
@@ -2426,69 +1771,4 @@ namespace OpenTap
             Cancel();
         }
     }
-
-
-    internal static class ResultStoreExtensions
-    {
-        /// <summary>
-        /// Ensures that we get a valid expected duration, which is a positive double number. Otherwise is null.
-        /// </summary>
-        /// <param name="store">The Result Store to be extended.</param>
-        /// <param name="log">The Log where to write details in case of exceptions.</param>
-        /// <param name="testStepRun">The Test Step Run to measure the average on.</param>
-        /// <param name="estimatedWindowLength">The estimated window lenght.</param>
-        /// <returns>Returs a nullable double, which whether is null in case no average is retrieved or a positive average duration.</returns>
-        public static double? EnsurePositiveAverageDurationForStep(this IResultStore store, TraceSource log, TestStepRun testStepRun, int estimatedWindowLength)
-        {
-            double? expectedDuration = null;
-            try
-            {
-                expectedDuration = store.GetAverageDuration(testStepRun, estimatedWindowLength)?.TotalSeconds;
-                if (expectedDuration != null && expectedDuration < 0.0)
-                {
-                    expectedDuration = null;
-                }
-            }
-            catch (Exception ex)
-            {
-                if (Utils.ErrorOnce(log, testStepRun, "Unable to Get Average Duration, because: '{0}'", ex))
-                {
-                    log.Debug(ex);
-                }
-                expectedDuration = null;
-            }
-            return expectedDuration;
-        }
-
-        /// <summary>
-        /// Ensures that we get a valid expected duration, which is a positive double number. Otherwise is null.
-        /// </summary>
-        /// <param name="store">The Result Store to be extended.</param>
-        /// <param name="log">The Log where to write details in case of exceptions.</param>
-        /// <param name="testPlanRun">The Test Plan Run to measure the average on.</param>
-        /// <param name="estimatedWindowLength">The estimated window lenght.</param>
-        /// <returns>Returs a nullable double, which whether is null in case no average is retrieved or a positive average duration.</returns>
-        public static double? EnsurePositiveAverageDurationForPlan(this IResultStore store, TraceSource log, TestPlanRun testPlanRun, int estimatedWindowLength)
-        {
-            double? expectedDuration = null;
-            try
-            {
-                expectedDuration = store.GetAverageDuration(testPlanRun, estimatedWindowLength)?.TotalSeconds;
-                if (expectedDuration != null && expectedDuration < 0.0)
-                {
-                    expectedDuration = null;
-                }
-            }
-            catch (Exception ex)
-            {
-                if (Utils.ErrorOnce(log, testPlanRun, "Unable to Get Average Duration, because: '{0}'", ex))
-                {
-                    log.Debug(ex);
-                }
-                expectedDuration = null;
-            }
-            return expectedDuration;
-        }
-    }
-
 }

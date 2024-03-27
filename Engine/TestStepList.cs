@@ -479,5 +479,11 @@ namespace OpenTap
             }
             return null;
         }
+
+        internal void AddRange(IEnumerable<ITestStep> steps)
+        {
+            foreach(var step in steps)
+                Add(step);
+        }
     }
 }
