@@ -245,6 +245,13 @@ namespace OpenTap
         {
             list.Add(item);
         }
+
+        internal void AddRange(IEnumerable<ContainedType> items)
+        {
+            foreach (var item in items)
+                Add(item);
+        }
+        
         /// <summary>
         /// Removes all elements from the collection.
         /// </summary>

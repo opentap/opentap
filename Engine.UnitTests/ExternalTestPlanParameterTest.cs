@@ -114,7 +114,8 @@ namespace OpenTap.Engine.UnitTests
             var dut1 = new DummyDut {Name = "DUT1"};
             var dut2 = new DummyDut {Name = "DUT2"};
             
-            DutSettings.Current.AddRange(new []{dut1, dut2});
+            DutSettings.Current.Add(dut1);
+            DutSettings.Current.Add(dut2);
             try
             {
                 step.Dut = dut1;

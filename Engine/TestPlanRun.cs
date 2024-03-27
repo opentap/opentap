@@ -203,7 +203,10 @@ namespace OpenTap
 
         internal void WaitForResultListener(IResultListener rl)
         {
-            resultWorkers[rl].Wait();
+            do
+            {
+                resultWorkers[rl].Wait();
+            } while (resultWorkers[rl].IsBusy);
         }
         #endregion
 

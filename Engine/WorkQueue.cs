@@ -59,6 +59,7 @@ namespace OpenTap
 
         /// <summary> The current number of items in the work queue. If called from the worker thread, this number will be 0 for that last worker. </summary>
         public int QueueSize => workItems.Count;
+        internal bool IsBusy => QueueSize > 0 || countdown > 0;
 
         readonly object threadCreationLock = new object();
         readonly CancellationTokenSource cancel = new CancellationTokenSource();

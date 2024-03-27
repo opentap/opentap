@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 // associated with an assembly.
 [assembly: AssemblyCompany("Keysight Technologies")]
 [assembly: AssemblyProduct("OpenTAP")]
-[assembly: AssemblyCopyright("© Keysight Technologies 2012-2018")]
+[assembly: AssemblyCopyright("© Keysight Technologies 2012-2024")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

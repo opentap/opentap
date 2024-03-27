@@ -315,7 +315,8 @@ namespace OpenTap.Plugins.BasicSteps
 
                     if (HideSteps == false)
                     {
-                        ChildTestSteps.AddRange(tp.ChildTestSteps);
+                        foreach (var item in tp.ChildTestSteps)
+                            ChildTestSteps.Add(item);
 
                         foreach (var step in RecursivelyGetChildSteps(TestStepSearch.All))
                         {

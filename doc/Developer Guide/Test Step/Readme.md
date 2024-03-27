@@ -431,10 +431,51 @@ Because the resource references are declared as properties:
 This convention applies for many different types.
 
 ## Inputs and Outputs
-Inputs and outputs are test step settings that transfer data between test steps during a test plan run. This is useful in situations where one step depends on a result from another step, but could also be used for flow control. 
+Inputs and outputs are test step settings that transfer data between test steps during test plan execution. 
+This is useful in situations where one test step depends on a result from another test step, but it can also be used for flow control.
 
-For examples, see:
+There are two ways to use outputs: 
+- Connecting the output to any fitting setting of a different step.
+- Using the Input<T> class to require an input from another test step.
 
+In both cases, the output setting needs to be marked with the `[Output]` attribute.
+
+### Connecting Outputs to Settings
+
+Outputs can be connected to settings of other test steps. For example if one test step has an output property containing an error message, that can be connected to the Message of a dialog test step. 
+That way it is possible to make the user extra aware of the error message.
+
+When connecting outputs to settings, the output property needs to have a type that is compatible with the setting it is connected to. The compatibility of types is both checked at test plan build time and test plan run time.
+For example, a number output can be connected to a number setting, but it cannot be connected to an Instrument setting. This compatibility is checked at design time so that it is not possible to create the wrong connection in this case.
+However, a string can be connected to a number setting. In this case, if the string can be converted to a number, the connection will work. If not, an exception will be thrown during runtime and the test step will return an Error verdict.
+
+Below is a matrix of compatible types:
+
+| Input  / Output   | Number (int,float,...) | String | Boolean | Instrument | Subclass of Instrument | DUT | 
+|-------------------|------------------------| ---- |---------| ---- |-----------------------| ---- | 
+| Number            | ✔️	                    | ✔️	| ✔️️️	    | ❌	| ❌	                    | ❌	|
+| String            | ✔️	                    | ✔️	| ✔️️	    | ❌	| ❌	                    | ❌	|
+| Boolean           | ✔️	                    | ✔️	| ✔️️	    | ❌	| ❌	                    | ❌	|
+| Instrument        | ❌	                     | ❌	| ❌	| ✔️	| ✔️	                   | ❌	|
+| Subclass of Instrument | ❌	                     | ❌	| ❌	| ❌️	| ✔️                | ❌	|
+| DUT               | ❌	                     | ❌	| ❌	| ❌	| ❌	                    | ✔️	|
+
+Connecting two settings is generally done through a user interface. Right-click the setting you want to assign an output to and then click "Assign Output".
+
+![Assigning an output](./AssignOutput.png)
+
+Then you will be prompted to select an output.
+
+![Selecting an output](./AssignOutput2.png)
+
+You will be able to select the scope of the output and the specific output. The scope refers to some scope in the test plan. Each parent of the test step owning the input is a scope. So the Test Plan scope refers to all the outputs in the test plan at the test plan level.
+Hence it is not possible to select an output from a child test step. If that is wanted, the output from that child test step should be parameterized to the nearest accessible scope.
+
+### Using the ```Input<T>``` object
+
+The Input class specifies a required input from another test step. The Input class is generic, and the type argument specifies the type of the input. The Input class has a Value property that contains the value of the input. If the input is not connected to an output, the Value property will throw an exception when accessed.
+
+For an example of this, see:
 -	 `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\InputOutput`
 
 The generic **Input** class takes one type argument. The Input property references an *Output* of a different step. If no Output is assigned to the Input, the value of the Input is null, and will result in an error.
