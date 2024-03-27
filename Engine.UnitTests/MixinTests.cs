@@ -464,11 +464,6 @@ namespace OpenTap.UnitTests
         {
             yield return new DisplayAttribute(Name, Order: 19999);
         }
-        
-        public IMixinBuilder Clone()
-        {
-            return (IMixinBuilder)this.MemberwiseClone();
-        }
     }
 }
 
