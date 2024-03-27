@@ -210,10 +210,12 @@ namespace OpenTap
 
         readonly ManualResetEventSlim completedEvent = new ManualResetEventSlim(false);
         
+        static readonly CancellationToken NoToken = CancellationToken.None;
+        
         /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing.</summary>
         public void WaitForCompletion()
         {
-            WaitForCompletion(CancellationToken.None);
+            WaitForCompletion(NoToken);
         }
 
         /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing. It does not break when the test plan is aborted</summary>
@@ -223,7 +225,7 @@ namespace OpenTap
 
             var currentThread = TapThread.Current;
             if(!WasDeferred && StepThread == currentThread) throw new InvalidOperationException("StepRun.WaitForCompletion called from the thread itself. This will either cause a deadlock or do nothing.");
-            if (cancellationToken == CancellationToken.None)
+            if (cancellationToken == NoToken)
             {
                 completedEvent.Wait();
                 return;
@@ -257,12 +259,17 @@ namespace OpenTap
         /// <summary> Called by TestStep.DoRun after running the step. </summary>
         internal void CompleteStepRun(TestPlanRun planRun, ITestStep step, TimeSpan runDuration)
         {
-            StepThread = null;
+            
             // update values in the run. 
             ResultParameters.UpdateParams(Parameters, step);
             
             Duration = runDuration; // Requires update after TestStepRunStart and before TestStepRunCompleted
             UpgradeVerdict(step.Verdict);
+        }
+
+        internal void SignalCompleted()
+        {
+            StepThread = null;
             completedEvent.Set();
         }
 
@@ -475,12 +482,12 @@ namespace OpenTap
         internal IResultSource ResultSource;
         /// <summary> Sets the result source for this run. </summary>
         public void SetResultSource(IResultSource resultSource) => this.ResultSource = resultSource;
-        
         bool isCompleted => completedEvent.IsSet;
+
+        List<(Guid, Guid)> waitingFor = new List<(Guid, Guid)>();
         
         /// <summary> Will throw an exception when it times out. </summary>
-        /// <exception cref="TimeoutException"></exception>
-        internal TestStepRun WaitForChildStepStart(Guid childStep, int timeout, bool wait)
+        internal TestStepRun WaitForChildStepStart(Guid childStep, bool wait, Guid waiterStep)
         {
             if (stepRuns.TryGetValue(childStep, out var run))
                 return run;
@@ -498,20 +505,34 @@ namespace OpenTap
                     stepRun = id;
                 }
             }
-            
 
-            childStarted += onChildStarted;
+            lock (waitingFor)
+            {
+                childStarted += onChildStarted;
+                waitingFor.Add((waiterStep, childStep));
+                
+                if (Utils2.IsLooped(waitingFor, waiterStep))
+                    throw new InvalidOperationException("Input / output loop detected in WaitForChildStepStart");
+            }
+
             try
             {
-                if (stepRuns.TryGetValue(childStep, out run))
-                    return run;
-                if (!sem.Wait(timeout, TapThread.Current.AbortToken))
-                    throw new TimeoutException("Wait timed out");
-                return stepRun;
+                while (true)
+                {
+                    if (stepRuns.TryGetValue(childStep, out run))
+                        return run;
+                    
+                    if (sem.Wait(5000, TapThread.Current.AbortToken))
+                        return stepRun;
+                }
             }
             finally
             {
-                childStarted -= onChildStarted;
+                lock (waitingFor)
+                {
+                    childStarted -= onChildStarted;
+                    waitingFor.Remove((waiterStep, childStep));
+                }
             }
         }
 

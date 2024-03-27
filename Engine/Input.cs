@@ -176,7 +176,7 @@ namespace OpenTap
                     throw new Exception("Step input requires reference to a TestStep output.");
                 
                 // Wait for the step to complete
-                return (T)InputOutputRelation.GetOutput(Property, Step); 
+                return (T)InputOutputRelation.GetOutput(Property, Step, Guid.NewGuid()); 
             }
         }
 

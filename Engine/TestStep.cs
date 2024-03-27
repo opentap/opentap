@@ -1075,6 +1075,7 @@ namespace OpenTap
                         }
 
                         planRun.AddTestStepRunCompleted(stepRun);
+                        stepRun.SignalCompleted();
                     }
                 }
 

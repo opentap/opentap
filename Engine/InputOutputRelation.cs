@@ -163,31 +163,31 @@ namespace OpenTap
             defer();
         }
 
-        static TestStepRun ResolveStepRun(ITestStep step)
+        static TestStepRun ResolveStepRun(ITestStep step, Guid waiterStep)
         {
             TestStepRun run = step.StepRun;
             if (run != null) return run;
             if (step.Parent is ITestStep parent)
             {
                 // recursively resolve the parent step's run.
-                var parentRun = ResolveStepRun(parent);
+                var parentRun = ResolveStepRun(parent, waiterStep);
                 if (parentRun != null)
                 {
                     // if parentRun.StepThread is the same as the current thread it does not make sense to wait.
-                    return parentRun.WaitForChildStepStart(step.Id, 500, parentRun.StepThread != TapThread.Current);
+                    return parentRun.WaitForChildStepStart(step.Id, parentRun.StepThread != TapThread.Current, waiterStep);
                 }
             }
 
             return null;
-
         }
-        internal static object GetOutput(IMemberData outputMember, object outputObject)
+        
+        internal static object GetOutput(IMemberData outputMember, object outputObject, Guid inputStepGuid)
         {
             var avail = outputMember.GetAttribute<OutputAttribute>()?.Availability ??
                         OutputAttribute.DefaultAvailability;
             if (avail != OutputAvailability.BeforeRun && outputObject is ITestStep step )
             {
-                TestStepRun run = ResolveStepRun(step);  
+                TestStepRun run = ResolveStepRun(step, inputStepGuid);  
                 if (run != null)
                     run.WaitForOutput(avail, step);
             }
@@ -216,7 +216,7 @@ namespace OpenTap
                         continue;
                     }
 
-                    object value = GetOutput(connection.OutputMember, src);
+                    object value = GetOutput(connection.OutputMember, src, connection.InputObject is ITestStep step ? step.Id : Guid.NewGuid());
                     try
                     {
                         value = ConvertValue(value, connection.InputMember.TypeDescriptor);

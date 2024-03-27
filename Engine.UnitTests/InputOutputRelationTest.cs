@@ -58,11 +58,15 @@ namespace OpenTap.UnitTests
             public double ExpectedInput { get; set; }
             
             public bool Defer { get; set; }
+            public double DelaySecs { get; set; } = 0.0;
             
             public override void Run()
             {
                 if(CheckExpectedInput && ExpectedInput != Input)
                     throw new Exception("Input has unexpected value");
+                
+                if(DelaySecs > 0.0)
+                    TapThread.Sleep(TimeSpan.FromSeconds(DelaySecs));
                 UpgradeVerdict(Verdict.Pass);
                 this.Results.Defer(() => Output = Input);
                 Output2 = Input;
@@ -107,6 +111,7 @@ namespace OpenTap.UnitTests
         [TestCase(2)]
         [TestCase(4)]
         [TestCase(8)] // connect 8 inputs/outputs and update across 8 threads.
+        [TestCase(64)]
         public void TestInputOutputRelationsInTestPlanParallelN(int n)
         {
             var plan = new TestPlan();
@@ -125,9 +130,28 @@ namespace OpenTap.UnitTests
                 var inputMember = TypeData.GetTypeData(newStep).GetMember(nameof(OutputInput.Input));
                 InputOutputRelation.Assign(newStep, inputMember, prevStep, outputMember );
             }
-            
             var r = plan.Execute();
             Assert.AreEqual(Verdict.Pass, r.Verdict);
+        }
+        [Test]
+        public void TestInputOutputLoop()
+        {
+            var plan = new TestPlan();
+            var parallel = new ParallelStep();
+            
+            plan.ChildTestSteps.Add(parallel);
+            var step1 = new OutputInput {Output = 5, Input = 5, Name = "Step 1"};
+            var step2 = new OutputInput {Output = 5, Input = 5, Name = "Step 1"};
+            var step3 = new OutputInput {Output = 5, Input = 5, Name = "Step 1"};
+            var a = TypeData.GetTypeData(step1).GetMember(nameof(step1.Input));
+            var b = TypeData.GetTypeData(step1).GetMember(nameof(step1.Output));
+            InputOutputRelation.Assign(step2, a, step1, b);
+            InputOutputRelation.Assign(step3, a, step2, b);
+            InputOutputRelation.Assign(step1, a, step3, b);
+            parallel.ChildTestSteps.AddRange(new [] {step1, step2, step3});
+           
+            var r = plan.Execute();
+            Assert.AreEqual(Verdict.Error, r.Verdict);
         }
 
         [Test]
