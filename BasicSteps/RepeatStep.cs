@@ -75,6 +75,10 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
 
+        [Output(OutputAvailability.BeforeRun)]
+        [Display("Iteration", "The current iteration.", Group: "Outputs", Order: 5)]
+        public uint Iteration => iteration;
+
         #endregion
 
         public RepeatStep()
