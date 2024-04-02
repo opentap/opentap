@@ -10,6 +10,7 @@ namespace OpenTap.Metrics
         /// <summary> The metric member object. </summary>
         IMemberData Member { get; }
 
+        /// <summary> The attributes of the metric. </summary>
         public IEnumerable<object> Attributes => Member.Attributes;
         
         /// <summary> The name of the metric group. </summary>
@@ -21,12 +22,9 @@ namespace OpenTap.Metrics
         /// <summary> The name of the metric. </summary>
         public string Name => Member.Name;
 
-        /// <summary>
-        /// creates an instance.
-        /// </summary>
-        /// <param name="source"></param>
-        /// <param name="mem"></param>
-        /// <param name="groupName"></param>
+        /// <summary> Creates a new instance of the metric info. </summary>
+        /// <param name="mem">The metric member object.</param>
+        /// <param name="groupName">The name of the metric group.</param> 
         public MetricInfo(IMemberData mem, string groupName)
         {
             Member = mem;
@@ -82,6 +80,8 @@ namespace OpenTap.Metrics
                 return hashCode;
             }
         }
+        
+        /// <summary> Gets the value of the metric. </summary>
         public object GetValue(object metricSource)
         {
             if (Member != null)

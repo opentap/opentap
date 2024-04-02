@@ -75,21 +75,21 @@ namespace OpenTap.Metrics
 
         private static HashSet<MetricInfo> _interest = new HashSet<MetricInfo>();
 
+        /// <summary> Push a double metric. </summary>
         public static void PushMetric(MetricInfo metric, double value)
         {
             PushMetric(new DoubleMetric(metric, value));
         }
         
+        /// <summary> Push a boolean metric. </summary>
         public static void PushMetric(MetricInfo metric, bool value)
         {
             PushMetric(new BooleanMetric(metric, value));
         }
         
         /// <summary>
-        /// Push a metric,
+        /// Push a non-specific metric. This method is private to avoid pushing any kind of metric.
         /// </summary>
-        /// <param name="table"></param>
-        /// <param name="columnMetrics"></param>
         /// <exception cref="ArgumentException"></exception>
         static void PushMetric(IMetric metric)
         {
