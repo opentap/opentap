@@ -69,7 +69,7 @@ namespace OpenTap
                 .SelectMany(childStep =>
                 {
                     return TypeData.GetTypeData(childStep).GetMembers()
-                        .Where(y => y.HasAttribute<OutputAttribute>() && y.TypeDescriptor == outputType)
+                        .Where(y => y.HasAttribute<OutputAttribute>() && InputOutputRelation.CanConvert(y.TypeDescriptor, outputType))
                         .Select(mem => SelectedOutputItem.Create(childStep, mem));
                 })
                 .Where(item => steps.Contains(item.Step) == false)
@@ -77,7 +77,7 @@ namespace OpenTap
             
             // Add the current scope
             list.AddRange(TypeData.GetTypeData(scope).GetMembers()
-                .Where(y => y.HasAttribute<OutputAttribute>() && y.TypeDescriptor == outputType)
+                .Where(y => y.HasAttribute<OutputAttribute>() && InputOutputRelation.CanConvert(y.TypeDescriptor, outputType))
                 .Select(mem => SelectedOutputItem.Create(scope, mem)));
 
             return list.ToArray();

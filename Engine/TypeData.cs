@@ -103,7 +103,7 @@ namespace OpenTap
                 return isValueType;
             }
         }
-
+        internal TypeCode TypeCode => typeCode;
         internal bool IsNumeric
         {
             get
