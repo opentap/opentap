@@ -964,7 +964,7 @@ namespace OpenTap
                     try
                     {
                         if (readInputsError != null)
-                            throw readInputsError;
+                            ExceptionDispatchInfo.Capture(readInputsError).Throw();
                         
                         if (Step is TestStep _step)
                             _step.Results = new ResultSource(stepRun, Step.PlanRun);
@@ -1064,6 +1064,7 @@ namespace OpenTap
                             }
                         }
                         TimeSpan time = swatch.Elapsed;
+                        
                         stepRun.CompleteStepRun(planRun, Step, time);
                         if (Step.Verdict == Verdict.NotSet)
                         {
