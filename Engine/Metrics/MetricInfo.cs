@@ -6,28 +6,31 @@ namespace OpenTap.Metrics
     /// <summary> Information about a given metric, </summary>
     public class MetricInfo 
     {
-        /// <summary> The source object of the metric. </summary>
-        public object Source { get; }
+        
         /// <summary> The metric member object. </summary>
-        public IMemberData Member { get; }
+        IMemberData Member { get; }
+
+        public IEnumerable<object> Attributes => Member.Attributes;
         
         /// <summary> The name of the metric group. </summary>
-        public string MetricGroupName { get; }
+        public string GroupName { get; }
 
         /// <summary> Gets the full name of the metric. </summary>
-        public string MetricFullName => $"{MetricGroupName} / {Member.GetDisplayAttribute().Name}";
-        
+        public string MetricFullName => $"{GroupName} / {Member.GetDisplayAttribute().Name}";
+         
+        /// <summary> The name of the metric. </summary>
+        public string Name => Member.Name;
+
         /// <summary>
         /// creates an instance.
         /// </summary>
         /// <param name="source"></param>
         /// <param name="mem"></param>
-        /// <param name="memberKey"></param>
-        public MetricInfo(object source, IMemberData mem, string memberKey)
+        /// <param name="groupName"></param>
+        public MetricInfo(IMemberData mem, string groupName)
         {
-            Source = source;
             Member = mem;
-            MetricGroupName = memberKey;
+            GroupName = groupName;
         }
 
         /// <summary>
@@ -59,8 +62,7 @@ namespace OpenTap.Metrics
         {
             if (obj is MetricInfo otherMetric)
             {
-                return otherMetric.MetricGroupName == MetricGroupName && object.Equals(otherMetric.Member, Member) &&
-                       Source == otherMetric.Source;
+                return otherMetric.GroupName == GroupName && object.Equals(otherMetric.Member, Member);
             }
 
             return false;
@@ -74,11 +76,17 @@ namespace OpenTap.Metrics
         {
             unchecked
             {
-                var hashCode = (Source != null ? Source.GetHashCode() : 0);
+                var hashCode = 0;
                 hashCode = (hashCode * 397) ^ (Member != null ? Member.GetHashCode() : 0);
-                hashCode = (hashCode * 397) ^ (MetricGroupName != null ? MetricGroupName.GetHashCode() : 0);
+                hashCode = (hashCode * 397) ^ (GroupName != null ? GroupName.GetHashCode() : 0);
                 return hashCode;
             }
+        }
+        public object GetValue(object metricSource)
+        {
+            if (Member != null)
+                return Member.GetValue(metricSource);
+            return null;
         }
     }
 }

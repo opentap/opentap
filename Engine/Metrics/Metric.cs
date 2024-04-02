@@ -25,7 +25,7 @@ namespace OpenTap.Metrics
         
         /// <summary> Get information about the metrics available to query. </summary>
         /// <returns></returns>
-        public static IEnumerable<MetricInfo> GetMetricInfos()
+        public static IEnumerable<(MetricInfo metric, object source)> GetMetricInfos()
         {
             var types = TypeData.GetDerivedTypes<IMetricProducer>().Where(x => x.CanCreateInstance);
             List<IMetricProducer> producers = new List<IMetricProducer>();
@@ -43,28 +43,47 @@ namespace OpenTap.Metrics
                 }
             }
 
-            foreach (object instr in InstrumentSettings.Current.Cast<object>().Concat(DutSettings.Current)
+            foreach (var metricSource in InstrumentSettings.Current.Cast<object>().Concat(DutSettings.Current)
                          .Concat(producers))
             {
-            
-                var td = TypeData.GetTypeData(instr);
+
+                var type1 = TypeData.GetTypeData(metricSource);
                 
-                string name = (instr as IResource)?.Name ?? td.GetDisplayAttribute().Name;
-                var memberGrp = td.GetMembers()
-                    .Where(member => member.HasAttribute<MetricAttribute>())
-                    .ToLookup(td => td.GetAttribute<MetricAttribute>().Name ?? name);
+                string name = (metricSource as IResource)?.Name ?? type1.GetDisplayAttribute().Name;
+                var memberGrp = type1.GetMembers()
+                    .Where(member => member.HasAttribute<MetricAttribute>() && TypeIsSupported(member.TypeDescriptor))
+                    .ToLookup(type2 => type2.GetAttribute<MetricAttribute>().Name ?? name);
                 foreach (var member in memberGrp)
                 {
                     foreach(var mem in member)
-                        yield return new MetricInfo(instr, mem, member.Key);
+                        yield return (new MetricInfo(mem, member.Key), metricSource);
                 }
             }
+        }
+        
+        /// <summary> For now only double and bool type are supported. </summary>
+        /// <param name="td"></param>
+        /// <returns></returns>
+        static bool TypeIsSupported(ITypeData td)
+        {
+            var type = td.AsTypeData().Type;
+            return type == typeof(double) || type == typeof(bool) || type == typeof(int);
         }
 
         private static readonly ConcurrentDictionary<ITypeData, IMetricProducer> _metricProducers =
             new ConcurrentDictionary<ITypeData, IMetricProducer>();
 
         private static HashSet<MetricInfo> _interest = new HashSet<MetricInfo>();
+
+        public static void PushMetric(MetricInfo metric, double value)
+        {
+            PushMetric(new DoubleMetric(metric, value));
+        }
+        
+        public static void PushMetric(MetricInfo metric, bool value)
+        {
+            PushMetric(new BooleanMetric(metric, value));
+        }
         
         /// <summary>
         /// Push a metric,
@@ -72,71 +91,78 @@ namespace OpenTap.Metrics
         /// <param name="table"></param>
         /// <param name="columnMetrics"></param>
         /// <exception cref="ArgumentException"></exception>
-        public static void PushMetric(ResultTable table, params MetricInfo[] columnMetrics)
+        static void PushMetric(IMetric metric)
         {
-            if (table.Columns.Length != columnMetrics.Length)
-                throw new ArgumentException("There has to be as many metrics as columns");
+            var metrics = new[]
+            {
+                metric.Info
+            };
             foreach (var consumer in _consumers.GetElements())
             {
-                var thisInterest = consumer.GetInterest(columnMetrics);
-                if(thisInterest.Any())
-                    consumer.OnPushMetric(table);
+                var thisInterest = consumer.GetInterest(metrics);
+                if (thisInterest.Any())
+                    consumer.OnPushMetric(metric);
             }
         }
+        
+        static readonly TraceSource log = Log.CreateSource("Metric");
 
         /// <summary> Poll metrics. </summary>
         public static void PollMetrics()
         {
             var allMetrics = GetMetricInfos().ToArray();
             Dictionary<IMetricConsumer, MetricInfo[]> interestLookup = new Dictionary<IMetricConsumer, MetricInfo[]>();
+            HashSet<MetricInfo> InterestMetrics = new HashSet<MetricInfo>();
             foreach (var consumer in _consumers.GetElements())
             {
-                interestLookup[consumer] = consumer.GetInterest(allMetrics).ToArray();
+                interestLookup[consumer] = consumer.GetInterest(allMetrics.Select(item => item.Item1)).ToArray();
+                InterestMetrics.UnionWith(interestLookup[consumer]);
             }
 
             var interest2 = interestLookup.Values.SelectMany(x => x).Distinct().ToHashSet();
             _interest = interest2;
-            foreach (var producer in interest2.Select(x => x.Source).Distinct().OfType<IMetricUpdateCallback>())
+            foreach (var producer in allMetrics.Where(x => InterestMetrics.Contains(x.Item1)).Select(x => x.Item2).OfType<IMetricUpdateCallback>().Distinct())
             {
                 producer.UpdateMetrics();
             }
             
-            Dictionary<MetricInfo, object> metricValues = new Dictionary<MetricInfo, object>();
-            foreach (var metric in interest2)
+            Dictionary<MetricInfo, IMetric> metricValues = new Dictionary<MetricInfo, IMetric>();
+            foreach (var metric in allMetrics)
             {
-                metricValues[metric] = metric.Member.GetValue(metric.Source);
+                if(interest2.Contains(metric.Item1) == false)
+                    continue;
+                IMetric metricObject = null;
+                var metricValue = metric.Item1.GetValue(metric.Item2);
+                switch (metricValue)
+                {
+                    case bool v:
+                        metricObject = new BooleanMetric( metric.Item1, v);
+                        break;
+                    case double v:
+                        metricObject = new DoubleMetric( metric.Item1, v);
+                        break;
+                    case int v:
+                        metricObject = new DoubleMetric( metric.Item1, v);
+                        break;
+                    default:
+                        log.ErrorOnce(metric, "Metric value is not a supported type: {0} of type {1}",  metric.Item1.Name, metricValue?.GetType().Name ?? "null");
+                        break;
+                }
+                if (metricObject != null)
+                {
+                    metricValues[ metric.Item1] = metricObject;
+                }
             }
 
-            foreach (var consumer in interestLookup)
+            foreach (var consumerInterest in interestLookup)
             {
-                foreach (var grp in consumer.Value.GroupBy(x => x.MetricGroupName))
+                var consumer = consumerInterest.Key;
+                foreach (var metric in consumerInterest.Value)
                 {
-                    var columns = grp.Select(mem =>
+                    if (metricValues.TryGetValue(metric, out var metricValue))
                     {
-                        var parameters = new List<ResultParameter>();
-                        if (mem.Member.GetAttribute<UnitAttribute>() is UnitAttribute unit)
-                        {
-                            parameters.Add(new ResultParameter("Unit", unit.Unit));
-                        }
-
-                        var memValue = metricValues[mem] ?? "";
-                        Array array;
-                        if (memValue is IConvertible)
-                        {
-                            array = Array.CreateInstance(memValue.GetType(), 1);
-                        }
-                        else
-                        {
-                            array = new string[1];
-                            memValue = memValue.ToString();
-                        }
-
-                        array.SetValue(memValue, 0);
-
-                        return new ResultColumn(mem.Member.GetDisplayAttribute().Name, array, parameters.ToArray());
-                    });
-                    var table = new ResultTable(grp.Key, columns.ToArray());
-                    consumer.Key.OnPushMetric(table);
+                        consumer.OnPushMetric(metricValue);
+                    }
                 }
             }
         }
@@ -146,12 +172,14 @@ namespace OpenTap.Metrics
         {
             var type = TypeData.GetTypeData(source);
             var mem = type.GetMember(member);
-            if (mem != null && mem.GetAttribute<MetricAttribute>() is MetricAttribute metric)
+            if (mem?.GetAttribute<MetricAttribute>() is MetricAttribute metric)
             {
-                return new MetricInfo(source, mem,
-                    metric.Name ?? (source as IResource)?.Name ?? type.GetDisplayAttribute()?.Name);
+                if (TypeIsSupported(mem.TypeDescriptor))
+                {
+                    return new MetricInfo(mem,
+                        metric.Name ?? (source as IResource)?.Name ?? type.GetDisplayAttribute()?.Name);
+                }
             }
-
             return null;
         }
     }

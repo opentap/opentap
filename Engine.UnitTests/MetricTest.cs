@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using NUnit.Framework;
 using OpenTap.Metrics;
 namespace OpenTap.UnitTests
@@ -29,18 +28,9 @@ namespace OpenTap.UnitTests
             {
                 _offset += 1;
                 X = _offset;
-                
-                x.Add(_offset);
-                y.Add(Y = Math.Sin(_offset * 0.1));
+                Metric.PushMetric(xMetric, X);
+                Metric.PushMetric(yMetric, Math.Sin(_offset * 0.1));
             }
-
-            var table = new ResultTable("TestMetricProducer", new ResultColumn[]
-            {
-                new ResultColumn("X", x.ToArray()),
-                new ResultColumn("Y", y.ToArray())
-            });
-            Metric.PushMetric(table, xMetric, yMetric);
-
         }   
     }
     
@@ -81,18 +71,21 @@ namespace OpenTap.UnitTests
             [Unit("cm")]
             public int Test { get; private set; }
 
+            public readonly int Count = 10;
+
             public void PushRangeValues()
             {
                 var iMetric = Metric.GetMetricInfo(this, nameof(Test));
                 if (Metric.HasInterest(iMetric) == false)
                     return;
                 var lst = new List<int>();
-                for (int i = 0; i < 10; i++)
+                for (int i = 0; i < Count; i++)
                 {
                     lst.Add(i);
                     Test++;
+                    Metric.PushMetric(iMetric, Test);
                 }
-                Metric.PushMetric(new ResultTable(Name, new []{iMetric.CreateColumn(lst.ToArray())}), iMetric);
+                
             }
             
         }
@@ -102,13 +95,13 @@ namespace OpenTap.UnitTests
       
             public void Clear()
             {
-                ResultTables.Clear();
+                MetricValues.Clear();
             }
 
-            public List<ResultTable> ResultTables = new List<ResultTable>();
-            public void OnPushMetric(ResultTable table)
+            public List<IMetric> MetricValues = new List<IMetric>();
+            public void OnPushMetric(IMetric table)
             {
-                ResultTables.Add(table);
+                MetricValues.Add(table);
             }
 
             public HashSet<MetricInfo> MetricFilter { get; set; } = new HashSet<MetricInfo>();
@@ -125,15 +118,15 @@ namespace OpenTap.UnitTests
                 var instrTest = new IdleResultTestInstrument();
 
                 InstrumentSettings.Current.Add(instrTest);
-                var metrics = Metric.GetMetricInfos();
+                var metrics = Metric.GetMetricInfos().Select(x => x.Item1).ToArray();
                 
-                Assert.IsTrue(metrics.Any(m => m.MetricFullName == "INST / Metrics \\ v"));
+                Assert.IsTrue(metrics.Any(m => m.MetricFullName == "INST / v"));
 
                 Assert.Contains("Test Metric Producer / Y", metrics.Select(m => m.MetricFullName).ToArray());
                 InstrumentSettings.Current.Remove(instrTest);
-                metrics = Metric.GetMetricInfos();
+                metrics = Metric.GetMetricInfos().Select(x => x.Item1).ToArray();
                 
-                Assert.IsFalse(metrics.Any(m => m.MetricFullName == "INST / Metrics \\ v"));
+                Assert.IsFalse(metrics.Any(m => m.MetricFullName == "INST / v"));
             }
         }
 
@@ -148,9 +141,9 @@ namespace OpenTap.UnitTests
                 
                 InstrumentSettings.Current.Add(instrTest);
                 var metricInfos = Metric.GetMetricInfos();
-                foreach (var metric in Metric.GetMetricInfos())
+                foreach (var metric in metricInfos)
                 {
-                    consumer.MetricFilter.Add(metric);
+                    consumer.MetricFilter.Add(metric.Item1);
                 }
                 
                 Metric.RegisterConsumer(consumer);
@@ -159,15 +152,15 @@ namespace OpenTap.UnitTests
 
                 instrTest.PushRangeValues();
                 
-                var results0 = consumer.ResultTables.ToArray();
-                Assert.AreEqual(3, results0.Length);
+                var results0 = consumer.MetricValues.ToArray();
+                Assert.AreEqual(17, results0.Length);
                 
                 consumer.Clear();
-                consumer.MetricFilter.Remove(consumer.MetricFilter.FirstOrDefault(x => x.Member.Name == "Test"));
+                consumer.MetricFilter.Remove(consumer.MetricFilter.FirstOrDefault(x => x.Name == "Test"));
                 Metric.PollMetrics();
                 instrTest.PushRangeValues();
-                var results2 = consumer.ResultTables.ToArray();
-                Assert.AreEqual(2, results2.Length);
+                var results2 = consumer.MetricValues.ToArray();
+                Assert.AreEqual(6, results2.Length);
             }
         }
     }
