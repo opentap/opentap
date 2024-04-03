@@ -59,7 +59,7 @@ namespace OpenTap
                 return false;
             }
 
-            public override int GetHashCode() => HashCode.Combine(Step,  Member, 7730122);
+            public override int GetHashCode() => (7771239 + Step.GetHashCode() * 13 + Member.GetHashCode()) * 19;
         }
 
         public static SelectedOutputItem[] GetAvailableOutputs(ITestStepParent scope, ITestStepParent[] steps, ITypeData outputType)
