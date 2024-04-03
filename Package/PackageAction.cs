@@ -76,6 +76,7 @@ namespace OpenTap.Package
 
         internal string[] ExtractRepositoryTokens(string[] repositories, bool saveSettings)
         {
+            if (repositories == null) return null;
             // Repositories can have additional arguments appended as key-value-pairs. 
             // Currently, the only supported key is 'token=<repo token>'
             // The goal here is the following:
@@ -83,7 +84,6 @@ namespace OpenTap.Package
             // 2. Add them to AuthenticationSettings
             // 3. Save the updated settings if needed and requested
             // 4. Return the list of repositories without the kvps
-            repositories ??= Array.Empty<string>();
             var result = new string[repositories.Length];
             bool tokenAdded = false;
 
@@ -94,7 +94,7 @@ namespace OpenTap.Package
                 var parts = argument.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries);
                 var repo = parts[0];
                 string token = null;
-                
+
                 for (int j = 1; j < parts.Length; j++)
                 {
                     var part = parts[j];
@@ -106,6 +106,7 @@ namespace OpenTap.Package
                         log.Warning($"Missing '=' sign in key-value-pair '{part}'. This value will be ignored.");
                         continue;
                     }
+
                     var key = part.Substring(0, pivot);
                     var value = part.Substring(pivot + 1);
                     switch (key)
@@ -120,26 +121,26 @@ namespace OpenTap.Package
                     }
                 }
 
-                if (!repo.StartsWith("http", StringComparison.InvariantCultureIgnoreCase))
-                    repo = "https://" + repo;
-                if (!Uri.TryCreate(repo, UriKind.Absolute, out var uri))
-                    throw new ExitCodeException((int)ExitCodes.ArgumentError,
-                        $"Repository '{repo}' is not an absolute uri.");
-
-                // Add the specified token to the current authentication settings
-                if (token != null)
+                // Only accepts tokens for http repositories
+                var repoType = PackageRepositoryHelpers.DetermineRepositoryType(repo);
+                if (repoType is HttpPackageRepository && Uri.TryCreate(repoType.Url, UriKind.Absolute, out var uri))
                 {
-                    tokenAdded = true;
-                    // If a token is already configured for this repo, update it
-                    if (AuthenticationSettings.Current.Tokens.FirstOrDefault(t => t.Domain.Equals(uri.Authority)) is
-                        TokenInfo t)
+                    repo = repoType.Url;
+                    // Add the specified token to the current authentication settings
+                    if (token != null)
                     {
-                        t.AccessToken = token;
-                    }
-                    // Otherwise, add it
-                    else
-                    {
-                        AuthenticationSettings.Current.Tokens.Add(new TokenInfo(token, null, uri.Authority));
+                        tokenAdded = true;
+                        // If a token is already configured for this repo, update it
+                        if (AuthenticationSettings.Current.Tokens.FirstOrDefault(t => t.Domain.Equals(uri.Authority)) is
+                            TokenInfo t)
+                        {
+                            t.AccessToken = token;
+                        }
+                        // Otherwise, add it
+                        else
+                        {
+                            AuthenticationSettings.Current.Tokens.Add(new TokenInfo(token, null, uri.Authority));
+                        }
                     }
                 }
 

@@ -229,7 +229,7 @@ namespace OpenTap.Package.UnitTests
             Log.AddListener(ll);
             var install = new PackageListAction()
             {
-                Repository = new[] { "url;token=123", "url2;token=ghi;abc=def" },
+                Repository = new[] { "http://url;token=123", "https://url2;token=ghi;abc=def" },
             };
             install.Execute(CancellationToken.None);
             
