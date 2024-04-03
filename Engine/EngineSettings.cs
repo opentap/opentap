@@ -3,10 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.ComponentModel;
 using System.Xml.Serialization;
+using OpenTap.Metrics;
 
 namespace OpenTap
 {
@@ -15,7 +14,7 @@ namespace OpenTap
     /// </summary>
     [Display("Engine", "Engine Settings")]
     [HelpLink(@"EditorHelp.chm::/Configurations/Engine Configuration.html")]
-    public class EngineSettings : ComponentSettings<EngineSettings>
+    public class EngineSettings : ComponentSettings<EngineSettings>, IMetricUpdateCallback, IMetricProducer
     {
         /// <summary>
         /// Enum to represent choices for <see cref="AbortTestPlan"/> setting.
@@ -151,6 +150,23 @@ namespace OpenTap
         {
             StartupDir = System.IO.Directory.GetCurrentDirectory();
             Environment.SetEnvironmentVariable("ENGINE_DIR", System.IO.Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
+        }
+        
+        // -- Metrics --
+        /// <summary>  Memory usage in MB. </summary>
+        [Metric]
+        [Unit("MB")]
+        [Display("Memory Usage", "The current memory usage of the application.")]
+        public double MemoryUsage { get; private set; }
+
+        /// <summary>  Number of currently active threads. </summary>
+        [Metric]
+        [Display("Threads", "The number of currently active threads.")]
+        public double ThreadCount => TapThread.ThreadCount;
+
+        void IMetricUpdateCallback.UpdateMetrics()
+        {
+            MemoryUsage = Math.Round(GC.GetTotalMemory(false) / 1024.0 / 1024.0, 2);
         }
     }
 }

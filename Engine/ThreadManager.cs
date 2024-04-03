@@ -165,6 +165,7 @@ namespace OpenTap
     {
         #region fields
         static readonly ThreadManager manager = new ThreadManager();
+        internal static uint ThreadCount => manager.ThreadCount;
         
         static readonly SessionLocal<ThreadManager> sessionThreadManager = new SessionLocal<ThreadManager>(manager);
         Action action;
