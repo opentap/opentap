@@ -102,6 +102,7 @@ namespace OpenTap.Plugins
             var properties = serializableMembers.GetOrCreateValue(t2, t3 => t3.GetMembers()
                 .Where(x => x.HasAttribute<XmlIgnoreAttribute>() == false)
                 .ToArray());
+
             try
             {
                 
@@ -227,6 +228,7 @@ namespace OpenTap.Plugins
                                     {
                                         property.SetValue(newobj, x);
                                     }
+                                    
                                     if (property.HasAttribute<DeserializeInPlaceAttribute>())
                                     {
                                         var current = property.GetValue(newobj);

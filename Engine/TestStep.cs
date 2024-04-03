@@ -916,9 +916,17 @@ namespace OpenTap
             TapThread.ThrowIfAborted();
             if (!Step.Enabled)
                 throw new Exception("Test step not enabled."); // Do not run step if it has been disabled
-            
-            InputOutputRelation.UpdateInputs(Step);
-            
+
+            Exception readInputsError = null;
+            try
+            {
+                InputOutputRelation.UpdateInputs(Step);
+            }
+            catch (Exception e)
+            {
+                readInputsError = e;
+            }
+
             var stepRun = Step.StepRun = new TestStepRun(Step, parentRun, attachedParameters, planRun)
             {
                 TestStepPath = Step.GetStepPath()
@@ -955,6 +963,9 @@ namespace OpenTap
                         TapThread.Current.AbortToken);
                     try
                     {
+                        if (readInputsError != null)
+                            ExceptionDispatchInfo.Capture(readInputsError).Throw();
+                        
                         if (Step is TestStep _step)
                             _step.Results = new ResultSource(stepRun, Step.PlanRun);
                         TestPlan.Log.Info("{0} started.", stepRun.TestStepPath);
@@ -1053,6 +1064,7 @@ namespace OpenTap
                             }
                         }
                         TimeSpan time = swatch.Elapsed;
+                        
                         stepRun.CompleteStepRun(planRun, Step, time);
                         if (Step.Verdict == Verdict.NotSet)
                         {
@@ -1064,6 +1076,7 @@ namespace OpenTap
                         }
 
                         planRun.AddTestStepRunCompleted(stepRun);
+                        stepRun.SignalCompleted();
                     }
                 }
 
