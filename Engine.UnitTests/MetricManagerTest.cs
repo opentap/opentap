@@ -8,7 +8,7 @@ using OpenTap.Metrics;
 namespace OpenTap.UnitTests
 {
     [Display("Test Metric Producer")]
-    public class TestMetricProducer : IMetricProducer
+    public class TestMetricSource : IMetricSource
     {
         [Metric] [Unit("I")] public double X { get; private set; }
 
@@ -19,25 +19,25 @@ namespace OpenTap.UnitTests
         private int _offset = 0;
         public void PushMetric()
         {
-            var xMetric = Metric.GetMetricInfo(this, nameof(X));
-            var yMetric = Metric.GetMetricInfo(this, nameof(Y));
-            if (!Metric.HasInterest(xMetric)) return;
+            var xMetric = MetricManager.GetMetricInfo(this, nameof(X));
+            var yMetric = MetricManager.GetMetricInfo(this, nameof(Y));
+            if (!MetricManager.HasInterest(xMetric)) return;
             var x = new List<double>();
             var y = new List<double>();
             for (int i = 0; i < 100; i++)
             {
                 _offset += 1;
                 X = _offset;
-                Metric.PushMetric(xMetric, X);
-                Metric.PushMetric(yMetric, Math.Sin(_offset * 0.1));
+                MetricManager.PushMetric(xMetric, X);
+                MetricManager.PushMetric(yMetric, Math.Sin(_offset * 0.1));
             }
         }   
     }
     
     [TestFixture]
-    public class MetricTest
+    public class MetricManagerTest
     {   
-        public class IdleResultTestInstrument : Instrument, IMetricUpdateCallback, IStatusName
+        public class IdleResultTestInstrument : Instrument, IMetricUpdateCallback
         {
             public IdleResultTestInstrument()
             {
@@ -75,22 +75,22 @@ namespace OpenTap.UnitTests
 
             public void PushRangeValues()
             {
-                var iMetric = Metric.GetMetricInfo(this, nameof(Test));
-                if (Metric.HasInterest(iMetric) == false)
+                var iMetric = MetricManager.GetMetricInfo(this, nameof(Test));
+                if (MetricManager.HasInterest(iMetric) == false)
                     return;
                 var lst = new List<int>();
                 for (int i = 0; i < Count; i++)
                 {
                     lst.Add(i);
                     Test++;
-                    Metric.PushMetric(iMetric, Test);
+                    MetricManager.PushMetric(iMetric, Test);
                 }
                 
             }
             
         }
 
-        public class TestMetricsConsumer : IMetricConsumer
+        public class TestMetricsListener : IMetricListener
         {
       
             public void Clear()
@@ -118,13 +118,13 @@ namespace OpenTap.UnitTests
                 var instrTest = new IdleResultTestInstrument();
 
                 InstrumentSettings.Current.Add(instrTest);
-                var metrics = Metric.GetMetricInfos().Select(x => x.Item1).ToArray();
+                var metrics = MetricManager.GetMetricInfos().Select(x => x.Item1).ToArray();
                 
                 Assert.IsTrue(metrics.Any(m => m.MetricFullName == "INST / v"));
 
                 Assert.Contains("Test Metric Producer / Y", metrics.Select(m => m.MetricFullName).ToArray());
                 InstrumentSettings.Current.Remove(instrTest);
-                metrics = Metric.GetMetricInfos().Select(x => x.Item1).ToArray();
+                metrics = MetricManager.GetMetricInfos().Select(x => x.Item1).ToArray();
                 
                 Assert.IsFalse(metrics.Any(m => m.MetricFullName == "INST / v"));
             }
@@ -136,18 +136,18 @@ namespace OpenTap.UnitTests
             using (Session.Create())
             {
                 InstrumentSettings.Current.Clear();
-                var consumer = new TestMetricsConsumer(); 
+                var consumer = new TestMetricsListener(); 
                 var instrTest = new IdleResultTestInstrument();
                 
                 InstrumentSettings.Current.Add(instrTest);
-                var metricInfos = Metric.GetMetricInfos();
+                var metricInfos = MetricManager.GetMetricInfos();
                 foreach (var metric in metricInfos)
                 {
                     consumer.MetricFilter.Add(metric.Item1);
                 }
                 
-                Metric.RegisterConsumer(consumer);
-                Metric.PollMetrics();
+                MetricManager.RegisterConsumer(consumer);
+                MetricManager.PollMetrics();
                 
 
                 instrTest.PushRangeValues();
@@ -157,7 +157,7 @@ namespace OpenTap.UnitTests
                 
                 consumer.Clear();
                 consumer.MetricFilter.Remove(consumer.MetricFilter.FirstOrDefault(x => x.Name == "Test"));
-                Metric.PollMetrics();
+                MetricManager.PollMetrics();
                 instrTest.PushRangeValues();
                 var results2 = consumer.MetricValues.ToArray();
                 Assert.AreEqual(6, results2.Length);

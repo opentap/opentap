@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenTap.Metrics
 {
@@ -11,24 +12,38 @@ namespace OpenTap.Metrics
         IMemberData Member { get; }
 
         /// <summary> The attributes of the metric. </summary>
-        public IEnumerable<object> Attributes => Member.Attributes;
+        public IEnumerable<object> Attributes { get; }
         
         /// <summary> The name of the metric group. </summary>
         public string GroupName { get; }
 
         /// <summary> Gets the full name of the metric. </summary>
-        public string MetricFullName => $"{GroupName} / {Member.GetDisplayAttribute().Name}";
+        public string MetricFullName => $"{GroupName} / {Name}";
          
         /// <summary> The name of the metric. </summary>
-        public string Name => Member.Name;
-
-        /// <summary> Creates a new instance of the metric info. </summary>
+        public string Name { get; }
+        
+        /// <summary> Creates a new metric info based on a member name. </summary>
         /// <param name="mem">The metric member object.</param>
-        /// <param name="groupName">The name of the metric group.</param> 
+        /// <param name="groupName">The name of the metric group.</param>
         public MetricInfo(IMemberData mem, string groupName)
         {
             Member = mem;
             GroupName = groupName;
+            Attributes = Member.Attributes.ToArray();
+            var metricAttribute = Attributes.OfType<MetricAttribute>()?.FirstOrDefault();
+            Name  = metricAttribute?.Name ?? Member.GetDisplayAttribute()?.Name;
+        }
+        /// <summary> Creates a new metric info based on custom data. </summary>
+        /// <param name="name">The name of the metric.</param>
+        /// <param name="groupName">The name of the metric group.</param>
+        /// <param name="attributes">The attributes of the metric.</param>
+        public MetricInfo(string name, string groupName, IEnumerable<object> attributes)
+        {
+            Name = name;
+            Member = null;
+            GroupName = groupName;
+            Attributes = attributes;
         }
 
         /// <summary>
@@ -38,20 +53,6 @@ namespace OpenTap.Metrics
         public override string ToString() => $"Metric: {MetricFullName}";
 
         /// <summary>
-        /// Creates a column.
-        /// </summary>
-        /// <param name="array"></param>
-        /// <returns></returns>
-        public ResultColumn CreateColumn(Array array)
-        {
-            var list = new List<IParameter>();
-            if(Member.GetAttribute<UnitAttribute>() is UnitAttribute unit)
-                list.Add(new ResultParameter("Unit", unit.Unit));
-            
-            return new ResultColumn(this.Member.GetDisplayAttribute().Name, array, list.ToArray());
-        }
-
-        /// <summary>
         /// Implements equality for metric info.
         /// </summary>
         /// <param name="obj"></param>
@@ -59,10 +60,8 @@ namespace OpenTap.Metrics
         public override bool Equals(object obj)
         {
             if (obj is MetricInfo otherMetric)
-            {
-                return otherMetric.GroupName == GroupName && object.Equals(otherMetric.Member, Member);
-            }
-
+                return otherMetric.GroupName == GroupName && Name == otherMetric.Name &&  Equals(otherMetric.Member, Member);
+            
             return false;
         }
         
@@ -72,21 +71,13 @@ namespace OpenTap.Metrics
         /// <returns></returns>
         public override int GetHashCode()
         {
-            unchecked
-            {
-                var hashCode = 0;
-                hashCode = (hashCode * 397) ^ (Member != null ? Member.GetHashCode() : 0);
-                hashCode = (hashCode * 397) ^ (GroupName != null ? GroupName.GetHashCode() : 0);
-                return hashCode;
-            }
+           return  HashCode.Combine(Name.GetHashCode(), GroupName?.GetHashCode()?? 0, Member?.GetHashCode(), 5639212);
         }
         
         /// <summary> Gets the value of the metric. </summary>
         public object GetValue(object metricSource)
         {
-            if (Member != null)
-                return Member.GetValue(metricSource);
-            return null;
+            return Member?.GetValue(metricSource);
         }
     }
 }

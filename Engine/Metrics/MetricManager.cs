@@ -6,18 +6,18 @@ using System.Linq;
 namespace OpenTap.Metrics
 {
     /// <summary>
-    /// Utility methods for metrics,.
+    ///  Class for managing metrics.
     /// </summary>
-    public static class Metric
+    public static class MetricManager
     {
-        private static readonly WeakHashSet<IMetricConsumer> _consumers =
-            new WeakHashSet<IMetricConsumer>();
+        static readonly WeakHashSet<IMetricListener> _consumers =
+            new WeakHashSet<IMetricListener>();
 
         /// <summary> Register a metric consumer. </summary>
-        /// <param name="consumer"></param>
-        public static void RegisterConsumer(IMetricConsumer consumer)
+        /// <param name="listener"></param>
+        public static void RegisterConsumer(IMetricListener listener)
         {
-            _consumers.Add(consumer);
+            _consumers.Add(listener);
         }
 
         /// <summary> Returns true if a metric has interest. </summary>
@@ -27,18 +27,18 @@ namespace OpenTap.Metrics
         /// <returns></returns>
         public static IEnumerable<(MetricInfo metric, object source)> GetMetricInfos()
         {
-            var types = TypeData.GetDerivedTypes<IMetricProducer>().Where(x => x.CanCreateInstance);
-            List<IMetricProducer> producers = new List<IMetricProducer>();
+            var types = TypeData.GetDerivedTypes<IMetricSource>().Where(x => x.CanCreateInstance);
+            List<IMetricSource> producers = new List<IMetricSource>();
             foreach (var type in types.Select(t => t))
             {
                 if (type.DescendsTo(typeof(ComponentSettings)))
                 {
-                    if(ComponentSettings.GetCurrent(type) is IMetricProducer producer)
+                    if(ComponentSettings.GetCurrent(type) is IMetricSource producer)
                         producers.Add(producer);
                 }
                 else
                 {
-                    if (_metricProducers.GetOrAdd(type, t => (IMetricProducer)t.CreateInstance()) is IMetricProducer m)
+                    if (_metricProducers.GetOrAdd(type, t => (IMetricSource)t.CreateInstance()) is IMetricSource m)
                         producers.Add(m);
                 }
             }
@@ -49,10 +49,10 @@ namespace OpenTap.Metrics
 
                 var type1 = TypeData.GetTypeData(metricSource);
                 
-                string name = (metricSource as IResource)?.Name ?? type1.GetDisplayAttribute().Name;
+                string sourceName = (metricSource as IResource)?.Name ?? type1.GetDisplayAttribute().Name;
                 var memberGrp = type1.GetMembers()
                     .Where(member => member.HasAttribute<MetricAttribute>() && TypeIsSupported(member.TypeDescriptor))
-                    .ToLookup(type2 => type2.GetAttribute<MetricAttribute>().Name ?? name);
+                    .ToLookup(type2 => type2.GetAttribute<MetricAttribute>().Group ?? sourceName);
                 foreach (var member in memberGrp)
                 {
                     foreach(var mem in member)
@@ -61,7 +61,7 @@ namespace OpenTap.Metrics
             }
         }
         
-        /// <summary> For now only double and bool type are supported. </summary>
+        /// <summary> For now only double, int and bool type are supported. </summary>
         /// <param name="td"></param>
         /// <returns></returns>
         static bool TypeIsSupported(ITypeData td)
@@ -70,8 +70,8 @@ namespace OpenTap.Metrics
             return type == typeof(double) || type == typeof(bool) || type == typeof(int);
         }
 
-        private static readonly ConcurrentDictionary<ITypeData, IMetricProducer> _metricProducers =
-            new ConcurrentDictionary<ITypeData, IMetricProducer>();
+        private static readonly ConcurrentDictionary<ITypeData, IMetricSource> _metricProducers =
+            new ConcurrentDictionary<ITypeData, IMetricSource>();
 
         private static HashSet<MetricInfo> _interest = new HashSet<MetricInfo>();
 
@@ -111,7 +111,7 @@ namespace OpenTap.Metrics
         public static void PollMetrics()
         {
             var allMetrics = GetMetricInfos().ToArray();
-            Dictionary<IMetricConsumer, MetricInfo[]> interestLookup = new Dictionary<IMetricConsumer, MetricInfo[]>();
+            Dictionary<IMetricListener, MetricInfo[]> interestLookup = new Dictionary<IMetricListener, MetricInfo[]>();
             HashSet<MetricInfo> InterestMetrics = new HashSet<MetricInfo>();
             foreach (var consumer in _consumers.GetElements())
             {
@@ -177,7 +177,7 @@ namespace OpenTap.Metrics
                 if (TypeIsSupported(mem.TypeDescriptor))
                 {
                     return new MetricInfo(mem,
-                        metric.Name ?? (source as IResource)?.Name ?? type.GetDisplayAttribute()?.Name);
+                        metric.Group ?? (source as IResource)?.Name ?? type.GetDisplayAttribute()?.Name);
                 }
             }
             return null;

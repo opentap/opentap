@@ -14,7 +14,7 @@ namespace OpenTap
     /// </summary>
     [Display("Engine", "Engine Settings")]
     [HelpLink(@"EditorHelp.chm::/Configurations/Engine Configuration.html")]
-    public class EngineSettings : ComponentSettings<EngineSettings>, IMetricUpdateCallback, IMetricProducer
+    public class EngineSettings : ComponentSettings<EngineSettings>, IMetricUpdateCallback, IMetricSource
     {
         /// <summary>
         /// Enum to represent choices for <see cref="AbortTestPlan"/> setting.
@@ -154,14 +154,14 @@ namespace OpenTap
         
         // -- Metrics --
         /// <summary>  Memory usage in MB. </summary>
-        [Metric]
+        [Metric("Memory Usage")]
         [Unit("MB")]
-        [Display("Memory Usage", "The current memory usage of the application.")]
+        [Display("Memory Usage", "The current memory usage of the application.", Group: "Metrics")]
         public double MemoryUsage { get; private set; }
 
         /// <summary>  Number of currently active threads. </summary>
-        [Metric]
-        [Display("Threads", "The number of currently active threads.")]
+        [Metric("Threads")]
+        [Display("Threads", "The number of currently active threads.", Group: "Metrics")]
         public double ThreadCount => TapThread.ThreadCount;
 
         void IMetricUpdateCallback.UpdateMetrics()
