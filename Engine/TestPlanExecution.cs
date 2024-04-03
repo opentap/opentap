@@ -188,6 +188,13 @@ namespace OpenTap
                 execStage.Parameters.Add(new ResultParameter(TestPlanRun.SpecialParameterNames.BreakIssuedFrom, run.Id.ToString())); 
             }
 
+            TestStepRun getBreakingRun(TestStepRun first)
+            {
+                while ((first.Exception as TestStepBreakException)?.Run is { } inner)
+                    first = inner;
+                return first;
+            }
+
             try
             {
                 for (int i = 0; i < steps.Count; i++)
@@ -199,7 +206,8 @@ namespace OpenTap
                         runs.Add(run);
                     if (run.BreakConditionsSatisfied())
                     {
-                        addBreakResult(run);
+                        var breakingRun = getBreakingRun(run);
+                        addBreakResult(breakingRun);
                         run.LogBreakCondition();
                         break;
                     }
@@ -216,7 +224,8 @@ namespace OpenTap
             }
             catch(TestStepBreakException breakEx)
             {
-                addBreakResult(breakEx.Run);
+                var breakingRun = getBreakingRun(breakEx.Run);
+                addBreakResult(breakingRun);
                 Log.Info("{0}", breakEx.Message);
             }
             finally
@@ -228,8 +237,6 @@ namespace OpenTap
                     execStage.UpgradeVerdict(run.Verdict);
                 }    
             }
-
-            
            
             Log.Debug(planRunOnlyTimer, "Test step runs finished.");
             

@@ -1000,6 +1000,7 @@ namespace OpenTap
             {
                 TestPlan.Log.Info(e.Message);
                 Step.UpgradeVerdict(e.Verdict);
+                stepRun.Exception = e;
             }
             catch (Exception e)
             {

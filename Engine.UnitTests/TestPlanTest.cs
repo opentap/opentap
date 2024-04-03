@@ -205,7 +205,7 @@ namespace OpenTap.Engine.UnitTests
             var breakResult = run.Parameters.FirstOrDefault(param => param.Name == TestPlanRun.SpecialParameterNames.BreakIssuedFrom);
             if (doBreak)
             {
-                var stepRun = l.StepRuns.First(r => r.TestStepId == sequenceStep.Id);
+                var stepRun = l.StepRuns.First(r => r.TestStepId == verdictStep.Id);
                 Assert.That(breakResult, Is.Not.Null);
                 Assert.That(breakResult.Value.ToString(), Is.EqualTo(stepRun.Id.ToString()));
             }
