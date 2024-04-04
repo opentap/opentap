@@ -1490,7 +1490,7 @@ namespace OpenTap.Engine.UnitTests
 
             // run an excessively long and parallel test plan.
             // since its parallel, this should go very fast still.
-            int Count = 100; 
+            int Count = 1000; 
             double maxDuration = 50;
 
             TestPlan plan = new TestPlan();

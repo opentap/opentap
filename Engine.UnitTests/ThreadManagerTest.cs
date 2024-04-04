@@ -13,6 +13,41 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        public void TestReuseThread()
+        {
+            int id = 0;
+            int id2 = 0;
+            int id3 = 0;
+            int id4 = 0;
+            int id5 = 0;
+            TapThread.StartAwaitable(() =>
+            {
+                id = Thread.CurrentThread.ManagedThreadId;
+            }).Wait();
+            TapThread.StartAwaitable(() =>
+            {
+                id2 = Thread.CurrentThread.ManagedThreadId;
+            }).Wait();
+            TapThread.StartAwaitable(() =>
+            {
+                id3 = Thread.CurrentThread.ManagedThreadId;
+                TapThread.StartAwaitable(() =>
+                {
+                    id4 = Thread.CurrentThread.ManagedThreadId;
+                }).Wait();
+                TapThread.StartAwaitable(() =>
+                {
+                    id5 = Thread.CurrentThread.ManagedThreadId;
+                }).Wait();
+            }).Wait();
+
+        }
+
+        
+        
+
+
+        [Test]
         public void TestWorkQueueContext()
         {
             var blockBaseThreadWait = new SemaphoreSlim(0);

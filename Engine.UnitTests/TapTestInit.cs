@@ -40,7 +40,8 @@ namespace OpenTap.Engine.UnitTests
             {
                 Assert.Fail("This should not occur.");
             }
-            
+            ThreadManager.ShutDown();
+
             //Session.RootSession.Dispose();
             //Session.RootSession.DisposeSessionLocals();
         }
