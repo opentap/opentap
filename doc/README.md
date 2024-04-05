@@ -15,7 +15,7 @@ We recommend that you [download the Developer's System](https://www.keysight.com
 
 ## Install OpenTAP
 ### Windows
-1. Download OpenTAP from our homepage [here](https://opentap.io/downloads). 
+1. Download the [installer](https://packages.opentap.io/4.0/Objects/www/OpenTAP.exe?format=full).
 2. Start the installer.
 
 ### Linux
@@ -24,7 +24,7 @@ The Snap permissions for dotnet does not permit it to read *hidden* files (files
 
 For Ubuntu 20.04 and up, we provide an installer similar to the windows installer.
 
-1. Download OpenTAP from our homepage [here](https://opentap.io/downloads). 
+1. Download the [installer](https://packages.opentap.io/4.0/Objects/www/OpenTAP?os=Linux&format=full).
 2. Make the installer executable: `chmod +x path-to-installer`
 3. Start the installer.
 
@@ -40,7 +40,23 @@ sudo ./opentap.linux --quiet
 ```
 
 The installer is likely to work on other Linux distributions, but additional dependencies
-may be required on these platforms, e.g. dotnet 6 runtime.
+may be required on these platforms, such as dotnet 6 runtime.
+
+### MacOS
+There is no installer available on Mac. Instead, OpenTAP must be installed using the terminal:
+
+```bash
+# Download the latest OpenTAP release
+curl -Lo opentap.zip 'https://packages.opentap.io/4.0/Objects/Packages/OpenTAP?os=MacOS&architecture=arm64'
+# Extract it wherever you would like the installation to be
+unzip ./opentap.zip -d opentap
+# Make tap executable
+chmod +x ./opentap/tap
+```
+
+OpenTAP requires dotnet 6 runtime. If you do not already have dotnet installed, get it from [Microsoft](https://learn.microsoft.com/en-us/dotnet/core/install/macos).
+
+Verify the installation works by trying for example `./opentap/tap package list --installed`.
 
 ### Docker
 We also provide docker images for running OpenTAP. You can find them at
