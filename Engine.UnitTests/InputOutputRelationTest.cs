@@ -557,5 +557,52 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(exceptionOrResult, e.GetType());
             }
         }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TestInputAndOutputWithRemovedMixins(bool way)
+        {
+            var seq1 = new SequenceStep();
+            var b1 = new TestNumberMixinBuilder()
+            {
+                Name = "Test",
+                IsOutput = true
+            };
+            var seq2 = new SequenceStep();
+            var b2 = new TestNumberMixinBuilder
+            {
+                Name = "Test"
+            };
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(seq1);
+            plan.ChildTestSteps.Add(seq2);
+
+            MixinFactory.LoadMixin(seq1, b1);
+            MixinFactory.LoadMixin(seq2, b2);
+            
+            var member1 = (MixinMemberData) TypeData.GetTypeData(seq1).GetMember("Number.Test");
+            var member2 = (MixinMemberData) TypeData.GetTypeData(seq2).GetMember("Number.Test");
+            InputOutputRelation. Assign(seq2, member2, seq1, member1);
+            
+            var x1 = InputOutputRelation.GetRelations(seq1).Count();
+            var x12 = InputOutputRelation.GetRelations(seq2).Count();
+            Assert.AreEqual(1, x1);
+            Assert.AreEqual(1, x12);
+            
+            // Now the input/output relation has been set up.
+            // Two things can happen:
+            // 1. The mixin is removed from seq1 -> the input member is lost.
+            // 2. The mixin is removed from seq2 -> the output member is lost.
+            // in either case the relation should be removed.
+            
+            if(way)
+                MixinFactory.UnloadMixin(seq1, member1);
+            else
+                MixinFactory.UnloadMixin(seq2, member2);
+            var x2 = InputOutputRelation.GetRelations(seq1).Count();
+            var x22 = InputOutputRelation.GetRelations(seq2).Count();
+            Assert.AreEqual(0, x2);
+            Assert.AreEqual(0, x22);
+        }
     }
 }
