@@ -1000,6 +1000,7 @@ namespace OpenTap
             {
                 TestPlan.Log.Info(e.Message);
                 Step.UpgradeVerdict(e.Verdict);
+                stepRun.Exception = e;
             }
             catch (Exception e)
             {
@@ -1030,13 +1031,12 @@ namespace OpenTap
                     {
                         runTask.Wait();
                     }
-                    catch (TestStepBreakException e)
-                    {
-                        TestPlan.Log.Info(e.Message);
-                        Step.Verdict = Verdict.Error;
-                    }
                     catch (Exception e)
                     {
+                        // Tasks wrap exceptions in AggregateExceptions with a single exception
+                        while (e is AggregateException aex && aex.InnerExceptions.Count == 1)
+                            e = aex.InnerException;
+                        
                         if (e is ThreadAbortException || (e is OperationCanceledException && TapThread.Current.AbortToken.IsCancellationRequested) )
                         {
                             if (TapThread.Current.AbortToken.IsCancellationRequested && Step.Verdict < Verdict.Aborted)
@@ -1045,6 +1045,11 @@ namespace OpenTap
                                 TestPlan.Log.Warning("Test step {0} was canceled.", stepRun.TestStepPath);
                             else
                                 TestPlan.Log.Warning("Test step {0} was canceled with message '{1}'.", stepRun.TestStepPath, e.Message);
+                        }
+                        else if (e is TestStepBreakException brk)
+                        {
+                            TestPlan.Log.Info(brk.Message);
+                            Step.UpgradeVerdict(brk.Verdict);
                         }
                         else
                         {

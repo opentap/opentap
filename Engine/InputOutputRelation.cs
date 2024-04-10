@@ -146,6 +146,15 @@ namespace OpenTap
                         defer = defer.Bind(Unassign, connection);
                     }
                 }
+
+                if (connection.OutputMember is IDynamicMemberData dyn && dyn.IsDisposed)
+                {
+                    defer = defer.Bind(Unassign, connection);
+                }
+                else if (connection.InputMember  is IDynamicMemberData dyn2 && dyn2.IsDisposed)
+                {
+                    defer = defer.Bind(Unassign, connection);
+                }
             }
 
             foreach (var connection in getInputRelations(target))
@@ -157,6 +166,14 @@ namespace OpenTap
                     {
                         defer = defer.Bind(Unassign, connection);
                     }
+                }
+                if (connection.InputMember is IDynamicMemberData dyn && dyn.IsDisposed)
+                {
+                    defer = defer.Bind(Unassign, connection);
+                }
+                else if (connection.OutputMember  is IDynamicMemberData dyn2 && dyn2.IsDisposed)
+                {
+                    defer = defer.Bind(Unassign, connection);
                 }
             }
 

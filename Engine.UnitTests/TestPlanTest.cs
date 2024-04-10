@@ -205,12 +205,51 @@ namespace OpenTap.Engine.UnitTests
             var breakResult = run.Parameters.FirstOrDefault(param => param.Name == TestPlanRun.SpecialParameterNames.BreakIssuedFrom);
             if (doBreak)
             {
-                var stepRun = l.StepRuns.First(r => r.TestStepId == sequenceStep.Id);
+                var stepRun = l.StepRuns.First(r => r.TestStepId == verdictStep.Id);
                 Assert.That(breakResult, Is.Not.Null);
                 Assert.That(breakResult.Value.ToString(), Is.EqualTo(stepRun.Id.ToString()));
             }
             else 
                 Assert.That(breakResult, Is.Null);
+        }
+
+        [Test]
+        public void TestCaughtBreakConditionNotPropagated([Values(true, false)] bool doCatch)
+        {
+            var l = new PlanRunCollectorListener();
+            var plan = new TestPlan();
+
+            var sequenceStep = new SequenceStep();
+            plan.ChildTestSteps.Add(sequenceStep);
+
+            var verdictStep = new VerdictStep() { VerdictOutput = Verdict.Fail };
+            sequenceStep.ChildTestSteps.Add(verdictStep);
+
+            BreakConditionProperty.SetBreakCondition(verdictStep, BreakCondition.BreakOnFail);
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnFail);
+            if (doCatch)
+            {
+                // Since sequence step breaks on error, it will 'catch' the break issued from verdictstep
+                BreakConditionProperty.SetBreakCondition(sequenceStep, BreakCondition.BreakOnError); 
+            }
+            else
+            {
+                BreakConditionProperty.SetBreakCondition(sequenceStep, BreakCondition.BreakOnFail); 
+            }
+            
+            var run = plan.Execute(new[] { l });
+
+            var breakResult = run.Parameters.FirstOrDefault(param => param.Name == TestPlanRun.SpecialParameterNames.BreakIssuedFrom);
+            if (doCatch)
+            {
+                Assert.That(breakResult, Is.Null);
+            }
+            else
+            { 
+                var stepRun = l.StepRuns.First(r => r.TestStepId == verdictStep.Id);
+                Assert.That(breakResult, Is.Not.Null);
+                Assert.That(breakResult.Value.ToString(), Is.EqualTo(stepRun.Id.ToString()));
+            }
         }
 
         [Test]

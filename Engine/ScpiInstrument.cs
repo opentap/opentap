@@ -224,6 +224,18 @@ namespace OpenTap
         [Display("Verbose SCPI Logging", Groups: new []{"VISA", "Debug"}, Order:4.2, Collapsed:true, Description: "Enables verbose logging of SCPI communication.")]
         public bool VerboseLoggingEnabled { get; set; } = true;
 
+        /// <summary>
+        /// When true, will send *IDN? right after establishing a connection.
+        /// </summary>
+        [Display("Send *IDN? On Connect", Groups: new[] { "VISA", "Debug" }, Order: 4.3, Collapsed: true, Description: "Send *IDN? when opening the connection to the instrument.")]
+        public bool SendIDNOnConnect { get; set; }
+
+        /// <summary>
+        /// When true, will send *CLS right after establishing a connection.
+        /// </summary>
+        [Display("Send *CLS On Connect", Groups: new[] { "VISA", "Debug" }, Order: 4.4, Collapsed: true, Description: "Send *CLS when opening the connection to the instrument.")]
+        public bool SendCLSOnConnect { get; set; }
+
         #endregion
 
         /// <summary>
@@ -263,6 +275,8 @@ namespace OpenTap
 
             // default value for settings:
             SendClearOnConnect = true;
+            SendIDNOnConnect = true;
+            SendCLSOnConnect = true;
             Rules.Add(() => LockHoldoff >= 0, "Lock holdoff must be positive.", nameof(LockHoldoff));
             Rules.Add(() => IoTimeout >= 0, "I/O timeout must be positive.", nameof(IoTimeout));
             Rules.Add(visaAddrValid, "Invalid VISA address format.", nameof(VisaAddress));
@@ -369,11 +383,16 @@ namespace OpenTap
                         base.Open();
                         SetTerminationCharacter(scpiIO.ID);
 
-                        IdnString = QueryIdn();
-                        IdnString = IdnString.Trim();
-                        Log.Info("Now connected to: " + IdnString);
-
-                        CommandCls(); // Empty error log
+                        if (SendIDNOnConnect)
+                        {
+                            IdnString = QueryIdn();
+                            IdnString = IdnString.Trim();
+                            Log.Info("Now connected to: " + IdnString);
+                        }
+                        if (SendCLSOnConnect)
+                        {
+                            CommandCls(); // Empty error log
+                        }
 
                         try
                         {

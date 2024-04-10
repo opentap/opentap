@@ -427,17 +427,13 @@ namespace OpenTap.UnitTests
             yield return new EmbedPropertiesAttribute();
             yield return new DisplayAttribute("Test Mixin", Order: 19999);
         }
-        
-        public IMixinBuilder Clone()
-        {
-            return (IMixinBuilder)this.MemberwiseClone();
-        }
     }
     
     [MixinBuilder(typeof(ITestStepParent))]
     public class TestNumberMixinBuilder : ValidatingObject, IMixinBuilder
     {
         public string Name { get; set; }
+        public bool IsOutput { get; set; }
         public TestNumberMixinBuilder()
         {
             
@@ -463,6 +459,9 @@ namespace OpenTap.UnitTests
         IEnumerable<Attribute> GetAttributes()
         {
             yield return new DisplayAttribute(Name, Order: 19999);
+
+            if (IsOutput)
+                yield return new OutputAttribute();
         }
     }
 }
