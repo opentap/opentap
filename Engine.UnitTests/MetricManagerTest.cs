@@ -69,6 +69,7 @@ namespace OpenTap.UnitTests
             
             [Metric]
             [Unit("cm")]
+            [Range(minimum:  0.0)]
             public int Test { get; private set; }
 
             public readonly int Count = 10;
@@ -119,6 +120,12 @@ namespace OpenTap.UnitTests
 
                 InstrumentSettings.Current.Add(instrTest);
                 var metrics = MetricManager.GetMetricInfos().Select(x => x.Item1).ToArray();
+
+                var testMetric = metrics.FirstOrDefault(m => m.MetricFullName == "INST / Test");
+                Assert.IsNotNull(testMetric);
+                var range = testMetric.Attributes.OfType<RangeAttribute>().FirstOrDefault();
+                Assert.IsNotNull(range);
+                Assert.IsTrue(range.Minimum == 0.0);
                 
                 Assert.IsTrue(metrics.Any(m => m.MetricFullName == "INST / v"));
 

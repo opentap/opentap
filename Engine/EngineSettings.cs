@@ -157,15 +157,17 @@ namespace OpenTap
         [Metric("Memory Usage")]
         [Unit("MB")]
         [Display("Memory Usage", "The current memory usage of the application.", Group: "Metrics")]
+        [Range(minimum: 0)]
         public double MemoryUsage { get; private set; }
 
         /// <summary>  Number of currently active threads. </summary>
         [Metric("Threads")]
         [Display("Threads", "The number of currently active threads.", Group: "Metrics")]
+        [Range(minimum: 0)]
         public double ThreadCount => TapThread.ThreadCount;
 
         void IMetricUpdateCallback.UpdateMetrics()
-        {
+        {   
             MemoryUsage = Math.Round(GC.GetTotalMemory(false) / 1024.0 / 1024.0, 2);
         }
     }

@@ -15,7 +15,7 @@ namespace OpenTap.Metrics
         public DateTime Time { get; }
         
         /// <summary> The unit of the metric. May be left empty.. </summary>
-        public string Unit { get; }
+        string Unit =>  Info.Attributes.OfType<UnitAttribute>().FirstOrDefault()?.Unit;
 
         /// <summary> Creates a new instance of the double metric. </summary>
         public DoubleMetric(MetricInfo info, double value, DateTime? time = null)
@@ -23,7 +23,6 @@ namespace OpenTap.Metrics
             Value = value;
             Info = info;
             Time = time ?? DateTime.Now;
-            Unit = Info.Attributes.OfType<UnitAttribute>().FirstOrDefault()?.Unit;
         }
         
         /// <summary> Returns a string representation of the double metric. </summary>

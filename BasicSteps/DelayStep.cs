@@ -11,6 +11,7 @@ namespace OpenTap.Plugins.BasicSteps
     public class DelayStep : TestStep
     {
         [Display("Time Delay", Description: "The amount of time to wait before continuing."), Unit("s")]
+        [Range(0.0)]
         public double DelaySecs {
             get => delaySecs;
             set
