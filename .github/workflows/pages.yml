@@ -46,7 +46,7 @@ jobs:
         password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - run: |
           mkdir Help API
           ver=$(grep ^version .gitversion | sed 's/version[ ]*=[ ]*//' | cut -d. -f 1-2)
@@ -59,13 +59,13 @@ jobs:
           mv OpenTapApiReference.chm $rootdir/Help/
           cp -r . $rootdir/API/
       - name: Upload binaries (CHM)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: doc-api-chm
           retention-days: 5
           path: Help/OpenTapApiReference.chm
       - name: Upload binaries (HTML)
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: doc-api-html
           retention-days: 5
@@ -77,11 +77,11 @@ jobs:
       - Build-ApiDoc
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Prepare
         run: rm 'doc/User Guide/Readme.md' 'doc/Developer Guide/Readme.md'
       - name: Download API Artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: doc-api-html
           path: API
@@ -92,7 +92,7 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         name: Setup NPM
         with:
           node-version: 14
