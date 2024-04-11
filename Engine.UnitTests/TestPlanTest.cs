@@ -274,9 +274,12 @@ namespace OpenTap.Engine.UnitTests
 
             { // Move repeat step into the parallel step                        
                 plan.ChildTestSteps.Remove(repeat);
+                // Verify the step is null after removing it
+                Assert.That(ifVerdict.InputVerdict.Step, Is.Null);
                 par.ChildTestSteps.Add(repeat);
+                // Verify the step can still be computed after adding it back
                 Assert.That(ifVerdict.InputVerdict.Step, Is.EqualTo(dialog));
-            }
+            } 
         }
 
         [Test]

@@ -87,13 +87,16 @@ namespace OpenTap
             }
         }
 
+        private ITestStepParent topmostParent = null;
         Action unbindStep = () => { };
 
         ITestStep step;
         /// <summary>   Gets or sets the TestStep that has the output property to which this Input is connected. </summary>
-        public ITestStep Step 
+        public ITestStep Step
         {
-            get => step;
+            // step may have been unset if it was removed from the plan, or if it was moved.
+            // If this is the case, check if a step with the previous step id is still in the test plan.
+            get => step ??= topmostParent?.ChildTestSteps.GetStep(stepId);
             set
             {
                 if(step != value)
@@ -115,6 +118,7 @@ namespace OpenTap
                         parent = parent.Parent;
                     }
                     
+                    topmostParent = parents.LastOrDefault(); 
                     unbindStep = () => parents.ForEach(p => p.ChildTestSteps.CollectionChanged -= ChildTestSteps_CollectionChanged);
                     updatePropertyFromName();
                 }
