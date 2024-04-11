@@ -52,9 +52,9 @@ namespace OpenTap
                 string[] parts = propertyName.Split('|');
                 if (parts.Length == 1)
                 {
-                    if (Step != null)
+                    if (step != null)
                     {
-                        ITypeData stepType = TypeData.GetTypeData(Step);
+                        ITypeData stepType = TypeData.GetTypeData(step);
                         Property = stepType.GetMember(parts[0]);    
                     }
                     else
@@ -135,17 +135,17 @@ namespace OpenTap
         {
             get
             {
-                if (Step == null || Property == null)
+                if (step == null || Property == null)
                     throw new Exception("Step input requires reference to a TestStep output.");
                 
                 // Wait for the step to complete
-                return (T)InputOutputRelation.GetOutput(Property, Step, Guid.NewGuid()); 
+                return (T)InputOutputRelation.GetOutput(Property, step, Guid.NewGuid()); 
             }
         }
 
         T GetValueNonBlocking()
         {
-            if (Step != null && Property?.GetValue(Step) is T v)
+            if (step != null && Property?.GetValue(Step) is T v)
                 return v;
             return default;
         }
@@ -160,7 +160,7 @@ namespace OpenTap
         public override bool Equals(object obj)
         {
             if(obj is Input<T> other)
-                return other.Step == Step && other.Property == Property;
+                return other.step == step && other.Property == Property;
             return false;
         }
 
@@ -168,12 +168,12 @@ namespace OpenTap
         /// <returns></returns>
         public override int GetHashCode()
         {
-            return (Step?.GetHashCode() ?? 0) ^ (Property?.GetHashCode() ?? 0);
+            return (step?.GetHashCode() ?? 0) ^ (Property?.GetHashCode() ?? 0);
         }
 
         object ICloneable.Clone() => new Input<T>
         {
-            Step = Step,
+            step = step,
             Property = Property
         };
 
