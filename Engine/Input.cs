@@ -87,16 +87,27 @@ namespace OpenTap
             }
         }
 
-        private ITestStepParent topmostParent = null;
-        Action unbindStep = () => { };
+        private ITestStepParent getTopmostParent()
+        {
+            if (step == null) return null;
+            ITestStepParent parent = step;
+            while (parent.Parent != null)
+                parent = parent.Parent;
+            return parent;
+        }
 
         ITestStep step;
         /// <summary>   Gets or sets the TestStep that has the output property to which this Input is connected. </summary>
         public ITestStep Step
         {
-            // step may have been unset if it was removed from the plan, or if it was moved.
-            // If this is the case, check if a step with the previous step id is still in the test plan.
-            get => step ??= topmostParent?.ChildTestSteps.GetStep(stepId);
+            get
+            {
+                // If the step is part of the test plan heirarchy, return the step.
+                // Otherwise, return null.
+                if (step != null && getTopmostParent().ChildTestSteps.GetStep(step.Id) != null)
+                    return step;
+                return null;
+            }
             set
             {
                 if(step != value)
@@ -107,19 +118,7 @@ namespace OpenTap
                     {   
                         return;
                     }
-                    stepId = step.Id;
-                    unbindStep();
-                    List<ITestStepParent> parents = new List<ITestStepParent>();
-                    var parent = step.Parent;
-                    while(parent != null)
-                    {
-                        parents.Add(parent);
-                        parent.ChildTestSteps.CollectionChanged += ChildTestSteps_CollectionChanged;
-                        parent = parent.Parent;
-                    }
-                    
-                    topmostParent = parents.LastOrDefault(); 
-                    unbindStep = () => parents.ForEach(p => p.ChildTestSteps.CollectionChanged -= ChildTestSteps_CollectionChanged);
+                    stepId = step.Id; 
                     updatePropertyFromName();
                 }
             }
@@ -128,46 +127,6 @@ namespace OpenTap
         // the step ID is used for storing the step ID when moving the Step owning the Input.
         // otherwise, after moving the step (taking it out of the test plan and moving it back in) the Step might be null.
         Guid stepId;
-        void ChildTestSteps_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-        {
-            if (Step != null && e.OldItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove)
-            {
-                if (e.OldItems.Contains(step) || Step.GetParents().Any(e.OldItems.Contains))
-                {
-                    stepId = Step.Id;
-                    Step = null;
-                }
-            }
-            else if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
-            {
-                if (Step != null)
-                    stepId = Step.Id;
-                Step = null;
-            }
-            else if (e.NewItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
-            {
-                // Update the Step value when the step has moved inside the test plan.
-                // We do this because we want to set the Input to null if the test plan changes in a way
-                //     where the target step disappears.
-
-                // Avoid setting the Step if the property name is null - this usually means that 
-                //     the property has been set to null, but the stepId still has a remaining value.
-                //     this should be ok to ignore.
-                if (Property == null)
-                    return;
-
-                var steps = e.NewItems.OfType<ITestStep>();
-                var allSteps = Utils.FlattenHeirarchy(steps, x => x.ChildTestSteps).Distinct();
-                foreach (var step in allSteps)
-                {
-                    if (step.Id == stepId)
-                    {
-                        Step = step;
-                        return;
-                    }
-                }
-            }
-        }
 
         /// <summary>   Gets the value of the connected output property. </summary>
         /// <exception cref="Exception">    Thrown when this Input does not contain a reference to a TestStep output. </exception>
