@@ -444,9 +444,8 @@ namespace OpenTap
         /// <returns></returns>
         public IEnumerable<ITestStep> GetSteps(TestStepSearch stepSearch)
         {
-            return this
-                .Where(step => stepSearch == TestStepSearch.All
-               || ((stepSearch == TestStepSearch.EnabledOnly) == step.Enabled));
+            if (stepSearch == TestStepSearch.All) return this;
+            return this.Where(step => stepSearch == TestStepSearch.EnabledOnly == step.Enabled);
         }
 
         /// <summary>
