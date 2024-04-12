@@ -58,6 +58,11 @@ namespace OpenTap.Metrics
                     foreach(var mem in member)
                         yield return (new MetricInfo(mem, member.Key), metricSource);
                 }
+                if (metricSource is IAdditionalMetricSources source2)
+                {
+                    foreach (var metric in source2.AdditionalMetrics)
+                        yield return (metric, metricSource);
+                }
             }
         }
         
@@ -86,6 +91,11 @@ namespace OpenTap.Metrics
         {
             PushMetric(new BooleanMetric(metric, value));
         }
+        /// <summary> Push a string metric. </summary>
+        public static void PushMetric(MetricInfo metric, string value)
+        {
+            PushMetric(new StringMetric(metric, value));
+        }
         
         /// <summary>
         /// Push a non-specific metric. This method is private to avoid pushing any kind of metric.
@@ -110,7 +120,7 @@ namespace OpenTap.Metrics
         /// <summary> Poll metrics. </summary>
         public static void PollMetrics()
         {
-            var allMetrics = GetMetricInfos().ToArray();
+            var allMetrics = GetMetricInfos().Where(metric => metric.metric.Ephemeral == false).ToArray();
             Dictionary<IMetricListener, MetricInfo[]> interestLookup = new Dictionary<IMetricListener, MetricInfo[]>();
             HashSet<MetricInfo> InterestMetrics = new HashSet<MetricInfo>();
             foreach (var consumer in _consumers.GetElements())
@@ -143,6 +153,9 @@ namespace OpenTap.Metrics
                         break;
                     case int v:
                         metricObject = new DoubleMetric( metric.Item1, v);
+                        break;
+                    case string v:
+                        metricObject = new StringMetric( metric.Item1, v);
                         break;
                     default:
                         log.ErrorOnce(metric, "Metric value is not a supported type: {0} of type {1}",  metric.Item1.Name, metricValue?.GetType().Name ?? "null");

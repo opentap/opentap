@@ -1,12 +1,16 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace OpenTap.Metrics
 {
+
     /// <summary> Information about a given metric, </summary>
     public class MetricInfo 
     {
+        /// <summary> Whether this metric can be polled or will be published out of band. </summary>
+        public bool Ephemeral { get; }
+        
+        public MetricKind Kind { get; }
         
         /// <summary> The metric member object. </summary>
         IMemberData Member { get; }
@@ -31,19 +35,34 @@ namespace OpenTap.Metrics
             Member = mem;
             GroupName = groupName;
             Attributes = Member.Attributes.ToArray();
-            var metricAttribute = Attributes.OfType<MetricAttribute>()?.FirstOrDefault();
-            Name  = metricAttribute?.Name ?? Member.GetDisplayAttribute()?.Name;
+            var metricAttr = Attributes.OfType<MetricAttribute>().FirstOrDefault();
+            if (metricAttr != null)
+                Ephemeral = metricAttr.Ephemeral;
+            if (mem.TypeDescriptor.IsNumeric())
+            {
+                Kind = MetricKind.Double;
+            }else if (mem.TypeDescriptor.DescendsTo(typeof(string)))
+            {
+                Kind = MetricKind.String;
+            }else if (mem.TypeDescriptor.DescendsTo(typeof(bool)))
+            {
+                Kind = MetricKind.Boolean;
+            }
+            
+            Name  = metricAttr?.Name ?? Member.GetDisplayAttribute()?.Name;
         }
         /// <summary> Creates a new metric info based on custom data. </summary>
         /// <param name="name">The name of the metric.</param>
         /// <param name="groupName">The name of the metric group.</param>
         /// <param name="attributes">The attributes of the metric.</param>
-        public MetricInfo(string name, string groupName, IEnumerable<object> attributes)
+        ///  <param name="ephemeral"> Whether the metric is ephemeral. </param>
+        public MetricInfo(string name, string groupName, IEnumerable<object> attributes, bool ephemeral)
         {
             Name = name;
             Member = null;
             GroupName = groupName;
             Attributes = attributes;
+            Ephemeral = ephemeral;
         }
 
         /// <summary>

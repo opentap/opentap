@@ -14,9 +14,6 @@ namespace OpenTap.Metrics
         /// <summary> The time the metric was recorded. </summary>
         public DateTime Time { get; }
         
-        /// <summary> The unit of the metric. May be left empty.. </summary>
-        string Unit =>  Info.Attributes.OfType<UnitAttribute>().FirstOrDefault()?.Unit;
-
         /// <summary> Creates a new instance of the double metric. </summary>
         public DoubleMetric(MetricInfo info, double value, DateTime? time = null)
         {
@@ -28,9 +25,10 @@ namespace OpenTap.Metrics
         /// <summary> Returns a string representation of the double metric. </summary>
         public override string ToString()
         {
-            return $"{Info.MetricFullName}: {Value} {Unit} at {Time}";
+            return $"{Info.MetricFullName}: {Value} at {Time}";
         }
 
         object IMetric.Value => Value;
     }
+
 }
