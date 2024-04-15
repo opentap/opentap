@@ -32,6 +32,9 @@ namespace OpenTap.Engine.UnitTests
             DelayStep delay = new DelayStep();
             Input<double> secs = new Input<double>() { Step = delay, Property = prop};
             
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(delay);
+            
             delay.DelaySecs = 2;
             Assert.AreEqual(secs.Value, delay.DelaySecs);
 
@@ -49,8 +52,6 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(secs == secs6);
 
             { // test serialize
-                var plan = new TestPlan();
-                plan.ChildTestSteps.Add(delay);
                 plan.ChildTestSteps.Add(new ReadInputStep() { Input = secs });
 
                 var planxml = new TapSerializer().SerializeToString(plan);

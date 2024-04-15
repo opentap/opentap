@@ -52,9 +52,9 @@ namespace OpenTap
                 string[] parts = propertyName.Split('|');
                 if (parts.Length == 1)
                 {
-                    if (Step != null)
+                    if (step != null)
                     {
-                        ITypeData stepType = TypeData.GetTypeData(Step);
+                        ITypeData stepType = TypeData.GetTypeData(step);
                         Property = stepType.GetMember(parts[0]);    
                     }
                     else
@@ -87,13 +87,27 @@ namespace OpenTap
             }
         }
 
-        Action unbindStep = () => { };
+        private ITestStepParent getTopmostParent()
+        {
+            if (step == null) return null;
+            ITestStepParent parent = step;
+            while (parent.Parent != null)
+                parent = parent.Parent;
+            return parent;
+        }
 
         ITestStep step;
         /// <summary>   Gets or sets the TestStep that has the output property to which this Input is connected. </summary>
-        public ITestStep Step 
+        public ITestStep Step
         {
-            get => step;
+            get
+            {
+                // If the step is part of the test plan heirarchy, return the step.
+                // Otherwise, return null.
+                if (step != null && getTopmostParent().ChildTestSteps.GetStep(step.Id) != null)
+                    return step;
+                return null;
+            }
             set
             {
                 if(step != value)
@@ -104,18 +118,7 @@ namespace OpenTap
                     {   
                         return;
                     }
-                    stepId = step.Id;
-                    unbindStep();
-                    List<ITestStepParent> parents = new List<ITestStepParent>();
-                    var parent = step.Parent;
-                    while(parent != null)
-                    {
-                        parents.Add(parent);
-                        parent.ChildTestSteps.CollectionChanged += ChildTestSteps_CollectionChanged;
-                        parent = parent.Parent;
-                    }
-                    
-                    unbindStep = () => parents.ForEach(p => p.ChildTestSteps.CollectionChanged -= ChildTestSteps_CollectionChanged);
+                    stepId = step.Id; 
                     updatePropertyFromName();
                 }
             }
@@ -124,46 +127,6 @@ namespace OpenTap
         // the step ID is used for storing the step ID when moving the Step owning the Input.
         // otherwise, after moving the step (taking it out of the test plan and moving it back in) the Step might be null.
         Guid stepId;
-        void ChildTestSteps_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
-        {
-            if (Step != null && e.OldItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Remove)
-            {
-                if (e.OldItems.Contains(step) || Step.GetParents().Any(e.OldItems.Contains))
-                {
-                    stepId = Step.Id;
-                    Step = null;
-                }
-            }
-            else if (e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Reset)
-            {
-                if (Step != null)
-                    stepId = Step.Id;
-                Step = null;
-            }
-            else if (e.NewItems != null && e.Action == System.Collections.Specialized.NotifyCollectionChangedAction.Add)
-            {
-                // Update the Step value when the step has moved inside the test plan.
-                // We do this because we want to set the Input to null if the test plan changes in a way
-                //     where the target step disappears.
-
-                // Avoid setting the Step if the property name is null - this usually means that 
-                //     the property has been set to null, but the stepId still has a remaining value.
-                //     this should be ok to ignore.
-                if (Property == null)
-                    return;
-
-                var steps = e.NewItems.OfType<ITestStep>();
-                var allSteps = Utils.FlattenHeirarchy(steps, x => x.ChildTestSteps).Distinct();
-                foreach (var step in allSteps)
-                {
-                    if (step.Id == stepId)
-                    {
-                        Step = step;
-                        return;
-                    }
-                }
-            }
-        }
 
         /// <summary>   Gets the value of the connected output property. </summary>
         /// <exception cref="Exception">    Thrown when this Input does not contain a reference to a TestStep output. </exception>
@@ -172,17 +135,17 @@ namespace OpenTap
         {
             get
             {
-                if (Step == null || Property == null)
+                if (step == null || Property == null)
                     throw new Exception("Step input requires reference to a TestStep output.");
                 
                 // Wait for the step to complete
-                return (T)InputOutputRelation.GetOutput(Property, Step, Guid.NewGuid()); 
+                return (T)InputOutputRelation.GetOutput(Property, step, Guid.NewGuid()); 
             }
         }
 
         T GetValueNonBlocking()
         {
-            if (Step != null && Property?.GetValue(Step) is T v)
+            if (step != null && Property?.GetValue(Step) is T v)
                 return v;
             return default;
         }
@@ -197,7 +160,7 @@ namespace OpenTap
         public override bool Equals(object obj)
         {
             if(obj is Input<T> other)
-                return other.Step == Step && other.Property == Property;
+                return other.step == step && other.Property == Property;
             return false;
         }
 
@@ -205,12 +168,12 @@ namespace OpenTap
         /// <returns></returns>
         public override int GetHashCode()
         {
-            return (Step?.GetHashCode() ?? 0) ^ (Property?.GetHashCode() ?? 0);
+            return (step?.GetHashCode() ?? 0) ^ (Property?.GetHashCode() ?? 0);
         }
 
         object ICloneable.Clone() => new Input<T>
         {
-            Step = Step,
+            step = step,
             Property = Property
         };
 
