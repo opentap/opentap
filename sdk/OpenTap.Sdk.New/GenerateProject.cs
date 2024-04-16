@@ -234,8 +234,15 @@ namespace OpenTap.Sdk.New
         private static int InstallTemplate(CancellationToken token)
         {
             var sdk = Installation.Current.FindPackage("SDK");
-            var template = sdk.Files.First(f => Path.GetExtension(f.FileName) == ".nupkg");
+            if (sdk == null)
+                throw new ExitCodeException(1, "Package SDK is not installed.");
+            var template = sdk.Files.FirstOrDefault(f => Path.GetExtension(f.FileName) == ".nupkg");
+            if (template == null)
+                throw new ExitCodeException(2, "Unable to find template package. Is the SDK package installed?");
             var fn = Path.Combine(Installation.Current.Directory, template.FileName);
+            if (!File.Exists(fn))
+                throw new ExitCodeException(3,
+                    "Template package does not exist. The SDK package may be broken. Please reinstall SDK.");
 
             var si = new ProcessStartInfo("dotnet", $"new --install \"{fn}\"")
             {
