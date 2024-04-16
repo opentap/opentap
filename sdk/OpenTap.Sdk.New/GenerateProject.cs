@@ -68,12 +68,49 @@ namespace OpenTap.Sdk.New
 
             return false;
         }
-
+        
+        [CommandLineArgument("DUT", Description = "Include a DUT in the project.", ShortName = "D")]
+        public bool DUT { get; set; } 
+        [CommandLineArgument("Instrument", Description = "Include an Instrument in the project.", ShortName = "I")]
+        public bool Instrument { get; set; }
+        [CommandLineArgument("ComponentSettings", Description = "Include a Component Setting in the project.", ShortName = "S")]
+        public bool ComponentSettings { get; set; }
+        [CommandLineArgument("ResultListener", Description = "Include a Result Listener in the project.", ShortName = "R")]
+        public bool ResultListener { get; set; }
+        [CommandLineArgument("CliAction", Description = "Include a CLI Action in the project.", ShortName = "C")]
+        public bool CliAction { get; set; } 
+        [CommandLineArgument("Editor", Description = "The default Editor to install.", ShortName = "E")]
+        public string Editor { get; set; } = "TUI";
+        
+        private int DotnetNew(string projectName, DirectoryInfo directory, string template,
+            CancellationToken token)
+        {
+            var args = $"new {template} --name \"{projectName}\" --output \"{directory.FullName}\" --Editor {Editor}";
+            if (DUT)
+                args += " --DUT";
+            if (Instrument)
+                args += " --Instrument";
+            if (ComponentSettings)
+                args += " --ComponentSettings";
+            if (ResultListener)
+                args += " --ResultListener";
+            if (CliAction)
+                args += " --CliAction";
+            return RunDotnet(args, token);
+        }
+        
         public override int Execute(CancellationToken cancellationToken)
         {
             if (!Validate(name: Name, allowWhiteSpace: false, allowLeadingNumbers: false, allowAlphaNumericOnly: true))
             {
                 return (int)ExitCodes.ArgumentError;
+            }
+
+            var editors = new string[] { "TUI", "Editor" };
+            if (!editors.Contains(Editor))
+            {
+                log.Error($"Unknown editor '{Editor}'.");
+                return 1;
             }
 
             var dest = string.IsNullOrWhiteSpace(output)
@@ -99,7 +136,7 @@ namespace OpenTap.Sdk.New
                 if (string.IsNullOrWhiteSpace(output))
                     dest = dest.CreateSubdirectory(Name);
 
-                int result = DotnetNew(Name, dest, "sln", cancellationToken);
+                int result = DotnetNewSln(Name, dest, cancellationToken);
                 sln = dest.EnumerateFiles("*.sln").FirstOrDefault();
                 if (result != 0 || sln == null || !sln.Exists)
                 {
@@ -229,12 +266,11 @@ namespace OpenTap.Sdk.New
 
         }
 
-        private static int DotnetNew(string projectName, DirectoryInfo directory, string template,
-            CancellationToken token)
+        private static int DotnetNewSln(string projectName, DirectoryInfo directory, CancellationToken token)
         {
-            var args = $"new {template} --name \"{projectName}\" --output \"{directory.FullName}\"";
+            var args = $"new sln --name \"{projectName}\" --output \"{directory.FullName}\"";
             return RunDotnet(args, token);
-        }
+        } 
 
         private static int DotnetSlnAdd(FileInfo sln, FileInfo csproj, CancellationToken token)
         {
