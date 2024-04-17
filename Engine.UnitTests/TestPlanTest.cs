@@ -794,6 +794,51 @@ namespace OpenTap.Engine.UnitTests
             StringAssert.Contains("Test plan reference is trying to load itself leading to recursive loop.", trace.GetLog());
             File.Delete(filePath);
         }
+        
+        [Test]
+        public void ParameterizedTestPlanReferenceTest()
+        {
+            var path = Path.GetTempFileName();
+            
+            { // Create test plan with external parameter
+                var subplan = new TestPlan();
+                var logStep = new LogStep() { LogMessage = "Initial Value" };
+                var logInfo = TypeData.GetTypeData(logStep);
+                subplan.ChildTestSteps.Add(logStep);
+                subplan.ExternalParameters.Add(logStep, logInfo.GetMember(nameof(logStep.LogMessage)));
+                subplan.Save(path); 
+            }
+
+            try
+            { // Add the created test plan as a child step of a sweep loop
+                var reference = new TestPlanReference { Filepath = { Text = path } };
+                var sweep = new SweepLoop() {
+                    ChildTestSteps =
+                    {
+                        reference
+                    }
+                }; 
+
+                string GetLogMessageParameter(AnnotationCollection a)
+                {
+                    var avail = a.Get<IMembersAnnotation>().Members.FirstOrDefault(m => m.Name == "Sweep Parameters")
+                        ?.Get<IAvailableValuesAnnotationProxy>();
+                    var v = avail?.AvailableValues.FirstOrDefault(v => v.Name == "ExpandedMemberData");
+                    return v?.Get<IStringValueAnnotation>()?.Value;
+                }
+
+                var a = AnnotationCollection.Annotate(sweep);
+                Assert.That(GetLogMessageParameter(a), Is.Null);
+                reference.LoadTestPlan();
+                a.Read();
+                Assert.That(GetLogMessageParameter(a), Is.EqualTo("Log Message"));
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+        
         [Test]
         public void RelativeTestPlanTest()
         {
