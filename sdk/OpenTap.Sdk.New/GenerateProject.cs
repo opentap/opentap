@@ -161,7 +161,7 @@ namespace OpenTap.Sdk.New
             
             // If no output directory was requested, or if we just created a new solution in the requested directory,
             // put the project in a directory of the same name in the solution directory
-            if (string.IsNullOrWhiteSpace(output) || newSolution)
+            if (string.IsNullOrWhiteSpace(output) || newSolution || sln.Directory.FullName.Equals(dest.FullName))
                 dest = sln.Directory.CreateSubdirectory(Name);
 
             // Create the new project
