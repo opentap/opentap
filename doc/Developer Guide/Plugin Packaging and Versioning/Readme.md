@@ -94,7 +94,7 @@ For example:
 The **SourceUrl** element in the configuration file is a link to the package source code. This is intended for open sourced projects.
 
 #### SourceLicense Element
-The license of the open sources project. Must be a [SPDX identifier](https://spdx.org/licenses/).
+The license of the open source project. Must be a [SPDX identifier](https://spdx.org/licenses/).
 
 #### Dependency Element
 OpenTAP will automatically add dependencies to other packages if they are referenced in the plugin code. 

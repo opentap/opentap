@@ -30,38 +30,39 @@ After upload, go to [packages.opentap.io](https://packages.opentap.io) and follo
 
 
 ### Uploading from CLI
-If you have a project/solution that gets regular updates, it's best practice to run builds, tests and publishing of OpenTAP packages as part of a build pipeline (CI/CD).
+If you have a project/solution that gets regular updates, it's best practice to run builds, tests and publishing of OpenTAP packages as part of a build pipeline [(CI/CD)](../Continuous%20Integration/Readme.md).
 
-For uploading packages in a CI/CD environment, you can use the "Repository Client" package for OpenTAP. This package has CLI commands to upload an OpenTAP package to the repository.
+To upload packages in a CI/CD environment, we recommend using the `Repository Client` plugin. You can install it using the `setup-opentap` action.
 
-To install the "Repository Client", run: `tap package install "Repository Client" --version 1.0`
+Then, to upload your package to [packages.opentap.io](https://packages.opentap.io), run: `tap repo upload MyPackage.TapPackage --token <USER_TOKEN>`
 
-Then to upload your package to [packages.opentap.io](https://packages.opentap.io) run: `tap repo upload MyPackage.TapPackage --token <USER_TOKEN>`
+> Note: You need a UserToken from the OpenTAP Repository before you can upload. On packages.opentap.io you can login and create new UserTokens directly on the homepage. For other OpenTAP repositories, you should contact the administrator of that OpenTAP Repository.
 
-> Note: You need a UserToken from the OpenTAP Repository before you can upload. On packages.opentap.io you can login and create new UserTokens directly on the homepage. For other OpenTAP repositories you should contact the administrator of that OpenTAP Repository.
-
-Below is an example of a Github workflow that automatically publishes any TapPackages.
+Below is an example of a Github workflow that automatically publishes TapPackages.
 
 
 ```yml
 Publish:
-  if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
-  environment: packages.opentap.io
-  runs-on: ubuntu-latest
-  needs:
-    - Build
-  steps:
-    - name: Download Artifacts
-      uses: actions/download-artifact@v3
-      with:
-        name: package
-        path: ./
-    - name: Setup OpenTAP
-      uses: opentap/setup-opentap@v1.0
-      with:
-        version: 9.18.4
-    - name: Install Repository Client
-      run: tap package install -f "Repository Client" --version 1.0
-    - name: Publish
-      run: tap repo upload -t ${{ secrets.USER_TOKEN }} *.TapPackage
+    # Only publish on the main branch, the release branch, or if the commit is tagged.
+    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    # This step depends on the build step
+    needs:
+      - Build
+    steps:
+      # Download the tap-package artifact from the Build step
+      - name: Download TapPackage Arfifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tap-package
+          path: .
+      # Setup OpenTAP with the PackagePublish package in order to publish the newly created package
+      - name: Setup OpenTAP
+        uses: opentap/setup-opentap@v1.0
+        with:
+          version: 9.18.4
+          packages: "Repository Client"
+      # Publish the package. This requires the package management key to be configured in the 'PUBLIC_REPO_PASS' environment variable.
+      - name: Publish
+        run: tap repo upload --token ${{ secrets.REPO_USERTOKEN }} *.TapPackage
 ```
