@@ -246,7 +246,7 @@ namespace OpenTap.Sdk.New
 
             var si = new ProcessStartInfo("dotnet", $"new --install \"{fn}\"")
             {
-                UseShellExecute = true,
+                UseShellExecute = false,
             };
 
             var p = new Process() { StartInfo = si };
@@ -259,7 +259,7 @@ namespace OpenTap.Sdk.New
         {
             var si = new ProcessStartInfo("dotnet", args)
             {
-                UseShellExecute = true,
+                UseShellExecute = false,
             };
 
             log.Info($"Running dotnet {args}");
