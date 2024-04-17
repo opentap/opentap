@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using NUnit.Framework;
+using OpenTap.Authentication;
 using OpenTap.Diagnostic;
 
 namespace OpenTap.Package.UnitTests
@@ -216,6 +217,26 @@ namespace OpenTap.Package.UnitTests
             {
                 new PackageUninstallAction {Packages = new[] {packageName}}.Execute(CancellationToken.None);
             }
+        }
+
+        [Test]
+        public void RepositoryTokenCliTest()
+        {
+            using var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            var messages = new List<Event>();
+            var ll = new EventTraceListener();
+            ll.MessageLogged += evts => messages.AddRange(evts);
+            Log.AddListener(ll);
+            var install = new PackageListAction()
+            {
+                Repository = new[] { "http://url;token=123", "https://url2;token=ghi;abc=def" },
+            };
+            install.Execute(CancellationToken.None);
+            
+            Assert.That(AuthenticationSettings.Current.Tokens.Any(t => t.Domain == "url" && t.AccessToken == "123"));
+            Assert.That(AuthenticationSettings.Current.Tokens.Any(t => t.Domain == "url2" && t.AccessToken == "ghi"));
+            
+            Assert.That(messages.Any(m => m.EventType == (int)LogEventType.Warning && m.Message.StartsWith("Unrecognized key 'abc'")));
         }
 
         [Test]

@@ -112,6 +112,7 @@ namespace OpenTap.Package
             var targetInstallation = new Installation(Target);
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
+            Repository = ExtractRepositoryTokens(Repository, true);
             List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
             if (!NonInteractive)
                 Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
