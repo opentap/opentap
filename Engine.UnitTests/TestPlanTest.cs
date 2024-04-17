@@ -253,6 +253,36 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void TestMoveSteps()
+        {
+            var plan = new TestPlan();
+            var par = new ParallelStep();
+            var repeat = new RepeatStep();
+            var dialog = new DialogStep();
+            var ifVerdict = new IfStep();
+
+            plan.ChildTestSteps.Add(par);
+            plan.ChildTestSteps.Add(repeat);
+            repeat.ChildTestSteps.Add(dialog);
+            repeat.ChildTestSteps.Add(ifVerdict);
+
+
+            { // Set dialog as the input step for ifVerdict
+                ifVerdict.InputVerdict.Step = dialog;
+                Assert.That(ifVerdict.InputVerdict.Step, Is.EqualTo(dialog));
+            }
+
+            { // Move repeat step into the parallel step                        
+                plan.ChildTestSteps.Remove(repeat);
+                // Verify the step is null after removing it
+                Assert.That(ifVerdict.InputVerdict.Step, Is.Null);
+                par.ChildTestSteps.Add(repeat);
+                // Verify the step can still be computed after adding it back
+                Assert.That(ifVerdict.InputVerdict.Step, Is.EqualTo(dialog));
+            } 
+        }
+
+        [Test]
         public void TestPlanStepExceptionTest()
         {
             var preAbortTestPlan = EngineSettings.Current.AbortTestPlan;
