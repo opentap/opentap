@@ -882,6 +882,7 @@ jobs:
 
 
   Docker-Linux:
+    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     runs-on: ubuntu-20.04
     environment: sign
     strategy:
