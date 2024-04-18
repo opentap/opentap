@@ -3,83 +3,102 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 
-using System;
-using Newtonsoft.Json.Linq;
 using OpenTap.Cli;
 using OpenTap.Package;
-using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
+using System.Xml.Linq;
+using Newtonsoft.Json.Linq;
 
 namespace OpenTap.Sdk.New
 {
     [Display("project", "OpenTAP C# Project (.csproj). Including a new TestStep, solution file (.sln) and package.xml.", Groups: new[] { "sdk", "new" })]
     public class GenerateProject : GenerateType
     {
+        enum InstallTemplateResponse
+        {
+            No,
+            Yes,
+        }
+
+        [Display("Install OpenTAP Dotnet Templates?")]
+        class InstallTemplateQuestion
+        {
+
+            [Browsable(true)]
+            [Layout(LayoutMode.FullRow)]
+            public string Message =>
+                "OpenTAP dotnet new templates are not installed. Do you wish to install the templates?";
+
+            [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+            [Submit]
+            public InstallTemplateResponse Response { get; set; } = InstallTemplateResponse.Yes;
+        }
+
+        #region ExitCodes
+
+        // Exit codes are documented here: https://github.com/dotnet/templating/wiki/Exit-Codes
+        private const int TemplateNotFound = 103;
+
+        #endregion
+
         [CommandLineArgument("out", ShortName = "o", Description = "Destination directory for generated files.")]
-        public override string output { get => base.output; set => base.output = value; }
+        public override string output
+        {
+            get => base.output;
+            set => base.output = value;
+        }
 
         [UnnamedCommandLineArgument("name", Required = true)]
         public string Name { get; set; }
 
-        private SemanticVersion GetOpenTapVersion()
+        private static bool IsAncestor(DirectoryInfo root, DirectoryInfo dest)
         {
-            var version = NugetInterop.GetLatestNugetVersion();
-            if(version == null)
+            while (dest != null)
             {
-                log.Warning("Unable to get an OpenTAP version from Nuget, using the local version instead.");
-                // cannot get opentap version. Try something else..
-                var v2 = new Installation(Path.GetDirectoryName(typeof(ITestStep).Assembly.Location)).GetOpenTapPackage()?.Version;
-                if(v2 == null) // panic?
-                    v2 = new SemanticVersion(9, 8, 3, null, null);
-                version = new SemanticVersion(v2.Major, v2.Minor, v2.Patch, null, null);
+                if (root.FullName.Equals(dest.FullName))
+                    return true;
+                dest = dest.Parent;
             }
 
-            return version;
+            return false;
         }
-
-        private void CreateSolutionFile(DirectoryInfo dest)
+        
+        [CommandLineArgument("DUT", Description = "Include a DUT in the project.", ShortName = "D")]
+        public bool DUT { get; set; } 
+        [CommandLineArgument("Instrument", Description = "Include an Instrument in the project.", ShortName = "I")]
+        public bool Instrument { get; set; }
+        [CommandLineArgument("ComponentSettings", Description = "Include a Component Setting in the project.", ShortName = "S")]
+        public bool ComponentSettings { get; set; }
+        [CommandLineArgument("ResultListener", Description = "Include a Result Listener in the project.", ShortName = "R")]
+        public bool ResultListener { get; set; }
+        [CommandLineArgument("CliAction", Description = "Include a CLI Action in the project.", ShortName = "C")]
+        public bool CliAction { get; set; } 
+        [CommandLineArgument("Editor", Description = "The default Editor to install.", ShortName = "E")]
+        public string Editor { get; set; } = "TUI";
+        
+        private int DotnetNew(string projectName, DirectoryInfo directory, string template,
+            CancellationToken token)
         {
-            var slnFile = dest.EnumerateFiles("*.sln").FirstOrDefault();
-            bool newProject = slnFile == null;
-            if (newProject)
-            {
-                var slnFileName = Path.Combine(dest.FullName, Name + ".sln");
-                using (var reader = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream("OpenTap.Sdk.New.Resources.newProjectSlnTemplate.txt")))
-                {
-                    var content = ReplaceInTemplate(reader.ReadToEnd(), Name, Guid.NewGuid().ToString().ToUpper());
-                    WriteFile(slnFileName, content);
-                    log.Info("The solution file keeps track of all the projects in this directory.");
-                    log.Info("When you create new projects in this directory with the 'tap sdk new project' command, they are automatically added to the solution.\n");
-                }
-                
-                if (dest.EnumerateFiles("Directory.Build.props").Any() == false)
-                {
-                    using (var reader = new StreamReader(Assembly.GetExecutingAssembly()
-                        .GetManifestResourceStream("OpenTap.Sdk.New.Resources.Directory.Build.props.txt")))
-                    {
-                        var version = GetOpenTapVersion();
-                        var content = ReplaceInTemplate(reader.ReadToEnd(), version.ToString());
-                        WriteFile(Path.Combine(dest.FullName, "Directory.Build.props"), content);
-                        log.Info("'Directory.Build.props' contains solution-wide settings. " +
-                                 "Its primary purpose is to ensure that all your projects use the same version of OpenTAP, and build into the same directory.\n");
-                    }
-                }
-            }
-            else
-            {
-                AddProjectToSolutionFile(Name, slnFile);
-                log.Info($"Added project {Name} to solution {slnFile.FullName}");
-            }
-            
+            var args = $"new {template} --name \"{projectName}\" --output \"{directory.FullName}\" --Editor {Editor}";
+            if (DUT)
+                args += " --DUT";
+            if (Instrument)
+                args += " --Instrument";
+            if (ComponentSettings)
+                args += " --ComponentSettings";
+            if (ResultListener)
+                args += " --ResultListener";
+            if (CliAction)
+                args += " --CliAction";
+            return RunDotnet(args, token);
         }
-
+        
         public override int Execute(CancellationToken cancellationToken)
         {
             if (!Validate(name: Name, allowWhiteSpace: false, allowLeadingNumbers: false, allowAlphaNumericOnly: true))
@@ -87,170 +106,204 @@ namespace OpenTap.Sdk.New
                 return (int)ExitCodes.ArgumentError;
             }
 
-            var dest = string.IsNullOrWhiteSpace(output) ? new DirectoryInfo(WorkingDirectory) : new DirectoryInfo(output);
-            
-            if (!dest.Exists)
+            var editors = new string[] { "TUI", "Editor" };
+            if (!editors.Contains(Editor))
             {
-                log.Debug($"Creating '{dest.FullName}' as it does not exist.");
-                dest = Directory.CreateDirectory(dest.FullName);
+                log.Error($"Unknown editor '{Editor}'.");
+                return 1;
             }
 
-            var newProject = dest.EnumerateFiles("*.sln").Any() == false;            
+            var dest = string.IsNullOrWhiteSpace(output)
+                ? new DirectoryInfo(WorkingDirectory)
+                : new DirectoryInfo(output);
+            if (!dest.Exists) dest.Create();
+            var sln = dest.EnumerateFiles("*.sln").FirstOrDefault();
 
-            if (newProject && string.IsNullOrWhiteSpace(output))
+            if (sln == null)
             {
-                var exists = dest.EnumerateDirectories().FirstOrDefault(x => x.Name == Name);
-                dest = exists ?? new DirectoryInfo(Path.Combine(dest.FullName, Name)); 
-            }
-            
-            log.Info($"Creating project in '{dest.FullName}'");
-
-            if (dest.Exists && dest.EnumerateDirectories().Any(x => x.Name == Name))
-            {
-                if (newProject)
-                    throw new Exception($"Cannot create solution directory {Name} because a directory with that name already exists.");
-                throw new Exception($"Project '{Name}' already exists in this solution.");
+                // Check if there is a solution file in the working directory, and if the working directory is an ancestor of the destination
+                var workingDirectory = new DirectoryInfo(WorkingDirectory);
+                if (IsAncestor(workingDirectory, dest))
+                    sln = workingDirectory.EnumerateFiles("*.sln").FirstOrDefault();
             }
 
-            if (newProject)
+            bool newSolution = sln == null;
+            if (sln == null)
             {
-                var parentInstall = GetAncestorTapInstall(dest);
-                if (parentInstall != null)
+                // create solution file.
+                // If an output folder was specified, put the solution file there.
+                // If no output folder was specified, create a directory and put the solution there.
+                if (string.IsNullOrWhiteSpace(output))
+                    dest = dest.CreateSubdirectory(Name);
+
+                int result = DotnetNewSln(Name, dest, cancellationToken);
+                sln = dest.EnumerateFiles("*.sln").FirstOrDefault();
+                if (result != 0 || sln == null || !sln.Exists)
                 {
-                    // warn about potential issues and prompt to continue
-                    log.Warning($"OpenTAP installation detected in directory '{parentInstall.DirectoryName}'.\n" +
-                                $"Creating a project as a descendant of another OpenTAP installation can cause the installation to stop working correctly.\n");
+                    return result;
+                } 
 
-                    log.Info("Are you sure you want to continue?");
+                // Create a Directory.Build.Props file for the new solution
+                if (dest.EnumerateFiles("Directory.Build.props").Any() == false)
+                {
+                    using var reader = new StreamReader(Assembly.GetExecutingAssembly()!
+                        .GetManifestResourceStream("OpenTap.Sdk.New.Resources.Directory.Build.props.txt")!);
+                    var version = GetOpenTapVersion();
+                    var content = ReplaceInTemplate(reader.ReadToEnd(), version.ToString());
+                    WriteFile(Path.Combine(dest.FullName, "Directory.Build.props"), content);
+                    log.Info("'Directory.Build.props' contains solution-wide settings. " +
+                             "Its primary purpose is to ensure that all your projects use the same version of OpenTAP, and build into the same directory.\n");
+                }
+            } 
 
-                    var request = new OverrideRequest();
-                    UserInput.Request(request, true);
+            // BUG: creating new project with --out location causes
+            // solution and project to be created in the same directory 
+            
+            // If no output directory was requested, or if we just created a new solution in the requested directory,
+            // put the project in a directory of the same name in the solution directory
+            if (string.IsNullOrWhiteSpace(output) || newSolution || sln.Directory.FullName.Equals(dest.FullName))
+                dest = sln.Directory.CreateSubdirectory(Name);
 
-                    if (request.Override == RequestEnum.No)
-                    {
-                        log.Info("Project creation cancelled.");
-                        return (int)ExitCodes.Success;
+            // Create the new project
+            int exitCode = DotnetNew(Name, dest, "opentap", cancellationToken);
+            if (exitCode == TemplateNotFound)
+            {
+                var question = new InstallTemplateQuestion();
+                UserInput.Request(question, true);
+                if (question.Response == InstallTemplateResponse.Yes)
+                {
+                    exitCode = InstallTemplate(cancellationToken);
+                    if (exitCode == 0)
+                        exitCode = DotnetNew(Name, dest, "opentap", cancellationToken);
+                }
+            }
+
+            if (exitCode != 0)
+                return exitCode;
+
+            var csproj = dest.EnumerateFiles("*.csproj").First();
+            
+            // Update the OpenTAP version in the .csproj if a Directory.Build.props file exists.
+            if (sln.Directory.EnumerateFiles("Directory.Build.props").Any())
+                ReplaceVersion(csproj);
+            
+            
+            // add the new project to the solution
+            exitCode = DotnetSlnAdd(sln, csproj, cancellationToken);
+
+            return exitCode;
+        }
+
+        private static void ReplaceVersion(FileInfo csproj)
+        {
+            // The nuget .csproj templates specify an OpenTAP version. The OpenTAP version is already controlled
+            // from the build props file. Update OpenTAP versions from the .csproj to use the variable instead.
+            var doc = XElement.Load(csproj.FullName);
+            var itemgroups = doc.Elements("ItemGroup").ToArray();
+            foreach (var grp in itemgroups)
+            {
+                var refs = grp.Elements("PackageReference").ToArray();
+                foreach (var r in refs)
+                {
+                    if (r?.Attribute("Include")?.Value == "OpenTAP")
+                    { 
+                        r.SetAttributeValue("Version", "$(OpenTapVersion)");
                     }
                 }
             }
-
-            if (!dest.Exists)
-                dest.Create();
-
-            CreateSolutionFile(dest);
-
-            dest = dest.CreateSubdirectory(Name);
-            
-            var csprojFile = Path.Combine(dest.FullName, Name + ".csproj");
-
-            using (var reader = new StreamReader(Assembly.GetExecutingAssembly()
-                .GetManifestResourceStream("OpenTap.Sdk.New.Resources.csprojTemplate.txt")))
-            {
-                var content = reader.ReadToEnd();
-                WriteFile(csprojFile, content);
-            }
-            log.Info("The '.csproj' file contains the configuration specific to this project.\n");
-
-            new GenerateTestStep() { Name = Name, WorkingDirectory = dest.FullName, output = Path.Combine(dest.FullName, $"{Name}.cs") }.Execute(cancellationToken);
-            log.Info("This is a basic TestStep.\n");
-
-            new GeneratePackageXml() { Name = Name, WorkingDirectory = dest.FullName, output = Path.Combine(dest.FullName, "package.xml") }.Execute(cancellationToken);
-            log.Info("The 'package.xml' file tells OpenTAP which files to package when creating a '.TapPackage'. ");
-            log.Info("When building in release mode, OpenTAP will attempt to build a TapPackage according to the contents of this file. ");
-            log.Info("Alternatively, you can build a package manually with 'tap package create path/to/package.xml'.\n");
-
-            if (newProject)
-            {
-                log.Info($"After you build this project, OpenTAP will be installed in '{(Path.Combine(dest.Parent.FullName, "bin", "Debug"))}'");
-            }
-
-            log.Info("Build the project and use an editor to create a test plan to use your new test step! See https://doc.opentap.io/User%20Guide/Editors/ for more info on the different editors!");
-            return (int)ExitCodes.Success;
+            doc.Save(csproj.FullName);
         }
 
-        private FileInfo GetAncestorTapInstall(DirectoryInfo dest)
+        private static void WaitForExit(Process p, CancellationToken token)
         {
-            if (dest == null)
-                return null;
-            
-            if (dest.Exists)
+            var evt = new ManualResetEventSlim(false);
+            var trd = TapThread.Start(() =>
             {
-                var ignore = dest.EnumerateFiles().FirstOrDefault(x => x.Name == ".OpenTapIgnore");
-                if (ignore != null) return null;
-
-                var file = dest.EnumerateFiles().FirstOrDefault(x => x.Name == "OpenTap.dll");
-                if (file != null)
+                while (!p.WaitForExit(100) && !token.IsCancellationRequested)
                 {
-                    return file;
+                    // wait
                 }
-            }
-            
-            return GetAncestorTapInstall(dest.Parent);
+
+                evt.Set();
+            });
+
+            WaitHandle.WaitAny(new[] { token.WaitHandle, evt.WaitHandle });
+            token.ThrowIfCancellationRequested();
         }
 
-        private void AddProjectToSolutionFile(string name, FileInfo slnFile)
+        private static int InstallTemplate(CancellationToken token)
         {
-            var newGuid = Guid.NewGuid().ToString().ToUpper();
+            var sdk = Installation.Current.FindPackage("SDK");
+            if (sdk == null)
+                throw new ExitCodeException(1, "Package SDK is not installed.");
+            var template = sdk.Files.FirstOrDefault(f => Path.GetExtension(f.FileName) == ".nupkg");
+            if (template == null)
+                throw new ExitCodeException(2, "Unable to find template package. Is the SDK package installed?");
+            var fn = Path.Combine(Installation.Current.Directory, template.FileName);
+            if (!File.Exists(fn))
+                throw new ExitCodeException(3,
+                    "Template package does not exist. The SDK package may be broken. Please reinstall SDK.");
+
+            var si = new ProcessStartInfo("dotnet", $"new --install \"{fn}\"")
+            {
+                UseShellExecute = false,
+            };
+
+            var p = new Process() { StartInfo = si };
+            p.Start();
+            WaitForExit(p, token);
+            return p.ExitCode;
+        }
+
+        private static int RunDotnet(string args, CancellationToken token)
+        {
+            var si = new ProcessStartInfo("dotnet", args)
+            {
+                UseShellExecute = false,
+            };
+
+            log.Info($"Running dotnet {args}");
+
+            var p = new Process() { StartInfo = si };
+            p.Start();
+
+            WaitForExit(p, token);
+
+            return p.ExitCode;
+
+        }
+
+        private static int DotnetNewSln(string projectName, DirectoryInfo directory, CancellationToken token)
+        {
+            var args = $"new sln --name \"{projectName}\" --output \"{directory.FullName}\"";
+            return RunDotnet(args, token);
+        } 
+
+        private static int DotnetSlnAdd(FileInfo sln, FileInfo csproj, CancellationToken token)
+        {
+            // dotnet sln <SLN_FILE> add [<PROJECT_PATH>...] [options]
+            var args = $"sln \"{sln.FullName}\" add \"{csproj.FullName}\"";
+            return RunDotnet(args, token);
+        }
+
+        private static SemanticVersion _opentapVersion = null;
+        private SemanticVersion GetOpenTapVersion()
+        {
+            if (_opentapVersion == null)
+                _opentapVersion = NugetInterop.GetLatestNugetVersion();
             
-            string solution = "";
-                
-            using (var reader = new StreamReader(slnFile.FullName))
+            if (_opentapVersion == null)
             {
-                solution = reader.ReadToEnd();
-            }
-            
-            // First add the project to the solution
-            var projectLine =
-                $"Project(\"{{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}}\") = \"{Name}\", \"{Name}/{Name}.csproj\", \"{{{newGuid}}}\"\nEndProject\n";
-
-            // Insert the new project before the EndProject tag
-            var lastProjectLoc = solution.IndexOf("Global");
-            solution = solution.Substring(0, lastProjectLoc) + projectLine + solution.Substring(lastProjectLoc, solution.Length - lastProjectLoc);
-            
-            // Then add the project to the existing build configurations
-            var configurationBlockRE = new Regex(@" +GlobalSection\(ProjectConfigurationPlatforms\) += +postSolution");
-            var lines = solution.Split('\n').Select(x => x.TrimEnd()).ToList();
-            int index = -1;
-            for (int i = 0; i < lines.Count; i++)
-            {
-                var line = lines[i];
-                if (configurationBlockRE.Match(line).Success)
-                {
-                    index = i + 1; // Configurations start on the next line
-                    break;
-                }
+                log.Warning("Unable to get an OpenTAP version from Nuget, using the local version instead.");
+                // cannot get opentap version. Try something else..
+                var v2 = new Installation(Path.GetDirectoryName(typeof(ITestStep).Assembly.Location))
+                    .GetOpenTapPackage()?.Version;
+                if (v2 == null) // panic?
+                    v2 = new SemanticVersion(9, 24, 0, null, null);
+                _opentapVersion = new SemanticVersion(v2.Major, v2.Minor, v2.Patch, null, null);
             }
 
-            // Skip configuration generation if no configuration block is found
-            if (index != -1)
-            {
-                var configurations = new List<string>();
-
-                while (lines[index].Contains("EndGlobalSection") == false && index < lines.Count)
-                {
-                    var line = lines[index];
-                    var configStart = line.IndexOf('}') + 1;
-                    var config = line.Substring(configStart);
-                    configurations.Add(config.Trim());
-                    index++;
-                }
-
-                configurations.Reverse();
-                
-                foreach (var configuration in configurations)
-                {
-                    var padding = lines[index - 1].IndexOf('{');
-                    
-                    lines.Insert(index, "".PadLeft(padding) + "{" + newGuid + "}" + configuration);
-                }
-
-                solution = string.Join(Environment.NewLine, lines);
-            }
-
-            using (var writer = new StreamWriter(slnFile.FullName))
-            {
-                writer.Write(solution);
-            }
+            return _opentapVersion;
         }
     }
 
@@ -260,14 +313,16 @@ namespace OpenTap.Sdk.New
         public static SemanticVersion GetLatestNugetVersion()
         {
             var log = Log.CreateSource("Nuget");
-            
+
             try
             {
                 using (var http = new HttpClient())
                 {
                     var sw = Stopwatch.StartNew();
-                    var stringTask = http.GetAsync("https://api-v2v3search-0.nuget.org/query?q=packageid:opentap&prerelease=false");
-                    log.Debug("Getting the latest OpenTAP Nuget package version. This can be changed in the project settings.");
+                    var stringTask =
+                        http.GetAsync("https://api-v2v3search-0.nuget.org/query?q=packageid:opentap&prerelease=false");
+                    log.Debug(
+                        "Getting the latest OpenTAP Nuget package version. This can be changed in the project settings.");
                     while (!stringTask.Wait(1000, TapThread.Current.AbortToken))
                     {
                         if (sw.ElapsedMilliseconds > 10000)
@@ -279,7 +334,7 @@ namespace OpenTap.Sdk.New
 
                     log.Debug(sw, "Got response from server");
                     var content = str.Content.ReadAsStringAsync().Result;
-                    
+
                     var j = JObject.Parse(content);
                     log.Debug("Parsed JSON content");
                     if (SemanticVersion.TryParse(j["data"][0]["version"].Value<string>(), out SemanticVersion v))
@@ -294,5 +349,4 @@ namespace OpenTap.Sdk.New
             }
         }
     }
-
 }
