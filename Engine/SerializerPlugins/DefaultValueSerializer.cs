@@ -45,7 +45,7 @@ namespace OpenTap.Plugins
             try
             {
                 elems.Add(elem);
-                bool ok = Serializer.Serialize(elem, obj, expectedType);
+                bool ok = Serializer.Serialize(elem, obj, expectedType, true);
 
                 if (defaultValueLookup.TryGetValue(elem, out var defaultValue))
                 {

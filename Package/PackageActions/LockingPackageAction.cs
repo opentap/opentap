@@ -19,9 +19,14 @@ namespace OpenTap.Package
     /// </summary>
     public abstract class LockingPackageAction : PackageAction
     {
+        internal const string CommandLineArgumentTokenDescription =
+            "Specify one or more user tokens to use for repository authentication.\n" +
+            "Has no effect without manually specifying repositories with '--repository'.";
         internal const string CommandLineArgumentRepositoryDescription =
             "Override the package repository.\n" +
-            "The default is http://packages.opentap.io.";
+            "The default is https://packages.opentap.io.\n" +
+            "An authentication token can be optionally supplied by appending ';token=<token>' to the url.\n" +
+            "Example: https://packages.opentap.io;token=1234";
         internal const string CommandLineArgumentNoCacheDescription =
             "A package cache is used by default.\n" +
             "This can be controlled from ./Settings/Package Manager.xml\n" +

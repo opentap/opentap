@@ -56,7 +56,7 @@ namespace OpenTap.Package.UnitTests
                 for (int i = 0; i < 2; i++)
                 {
                     // uninstall twice, once for each Test4 package xml.
-                    new PackageUninstallAction { Packages = new[] { "Test4" } }.Execute(CancellationToken.None);
+                    new PackageUninstallAction { Packages = new[] { "Test4" }, NonInteractive = true }.Execute(CancellationToken.None);
                 }
                 var i2 = new Installation(installDir);
                 

@@ -146,6 +146,15 @@ namespace OpenTap
                         defer = defer.Bind(Unassign, connection);
                     }
                 }
+
+                if (connection.OutputMember is IDynamicMemberData dyn && dyn.IsDisposed)
+                {
+                    defer = defer.Bind(Unassign, connection);
+                }
+                else if (connection.InputMember  is IDynamicMemberData dyn2 && dyn2.IsDisposed)
+                {
+                    defer = defer.Bind(Unassign, connection);
+                }
             }
 
             foreach (var connection in getInputRelations(target))
@@ -158,36 +167,44 @@ namespace OpenTap
                         defer = defer.Bind(Unassign, connection);
                     }
                 }
+                if (connection.InputMember is IDynamicMemberData dyn && dyn.IsDisposed)
+                {
+                    defer = defer.Bind(Unassign, connection);
+                }
+                else if (connection.OutputMember  is IDynamicMemberData dyn2 && dyn2.IsDisposed)
+                {
+                    defer = defer.Bind(Unassign, connection);
+                }
             }
 
             defer();
         }
 
-        static TestStepRun ResolveStepRun(ITestStep step)
+        static TestStepRun ResolveStepRun(ITestStep step, Guid waiterStep)
         {
             TestStepRun run = step.StepRun;
             if (run != null) return run;
             if (step.Parent is ITestStep parent)
             {
                 // recursively resolve the parent step's run.
-                var parentRun = ResolveStepRun(parent);
+                var parentRun = ResolveStepRun(parent, waiterStep);
                 if (parentRun != null)
                 {
                     // if parentRun.StepThread is the same as the current thread it does not make sense to wait.
-                    return parentRun.WaitForChildStepStart(step.Id, 500, parentRun.StepThread != TapThread.Current);
+                    return parentRun.WaitForChildStepStart(step.Id, parentRun.StepThread != TapThread.Current, waiterStep);
                 }
             }
 
             return null;
-
         }
-        internal static object GetOutput(IMemberData outputMember, object outputObject)
+        
+        internal static object GetOutput(IMemberData outputMember, object outputObject, Guid inputStepGuid)
         {
             var avail = outputMember.GetAttribute<OutputAttribute>()?.Availability ??
                         OutputAttribute.DefaultAvailability;
             if (avail != OutputAvailability.BeforeRun && outputObject is ITestStep step )
             {
-                TestStepRun run = ResolveStepRun(step);  
+                TestStepRun run = ResolveStepRun(step, inputStepGuid);  
                 if (run != null)
                     run.WaitForOutput(avail, step);
             }
@@ -216,12 +233,64 @@ namespace OpenTap
                         continue;
                     }
 
-                    object value = GetOutput(connection.OutputMember, src);
+                    object value = GetOutput(connection.OutputMember, src, connection.InputObject is ITestStep step ? step.Id : Guid.NewGuid());
+                    try
+                    {
+                        value = ConvertValue(value, connection.InputMember.TypeDescriptor);
+                    }
+                    catch (Exception convertException)
+                    {
+                        throw new Exception($"Unable to convert value for the '{connection.inputMember.Name}' setting: {convertException.Message}", convertException);
+                    }
                     value = AssignOutputEvent.Invoke(target, value, connection.InputMember);
                     connection.InputMember.SetValue(target, value);
                 }
             }
             defer();
+        }
+
+        internal static bool CanConvert(ITypeData to, ITypeData from)
+        {
+            if (from.DescendsTo(to))
+                return true;
+            if (to is TypeData td1 && from is TypeData td2)
+            {
+                if (td1.IsNumeric || td1.IsString || td1.Type == typeof(bool))
+                {
+                    switch (td2.TypeCode)
+                    {
+                        case TypeCode.Double:
+                        case TypeCode.Single:
+                        case TypeCode.Int32:
+                        case TypeCode.Int16:
+                        case TypeCode.Int64:
+                        case TypeCode.UInt32:
+                        case TypeCode.UInt16:
+                        case TypeCode.UInt64:
+                        case TypeCode.Byte:
+                        case TypeCode.SByte:
+                        case TypeCode.Decimal:
+                        case TypeCode.String:
+                        case TypeCode.Boolean:
+                            return true;
+                        default: return false;
+                    }
+                }
+            }
+            return false;
+        }
+    
+        internal static object ConvertValue(object value, ITypeData to)
+        {
+            if (value == null) return null;
+            
+            if (to is TypeData td1 && td1.TypeCode != TypeCode.Object)
+            {
+                if(td1.Type != value.GetType())
+                    return Convert.ChangeType(value, td1.Type);
+            }
+            return value;
+
         }
 
         static readonly AcceleratedDynamicMember<IInputOutputRelations> Inputs = new AcceleratedDynamicMember<IInputOutputRelations>()

@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -209,10 +210,12 @@ namespace OpenTap
 
         readonly ManualResetEventSlim completedEvent = new ManualResetEventSlim(false);
         
+        static readonly CancellationToken NoToken = CancellationToken.None;
+        
         /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing.</summary>
         public void WaitForCompletion()
         {
-            WaitForCompletion(CancellationToken.None);
+            WaitForCompletion(NoToken);
         }
 
         /// <summary>  Waits for the test step run to be entirely done. This includes any deferred processing. It does not break when the test plan is aborted</summary>
@@ -222,7 +225,7 @@ namespace OpenTap
 
             var currentThread = TapThread.Current;
             if(!WasDeferred && StepThread == currentThread) throw new InvalidOperationException("StepRun.WaitForCompletion called from the thread itself. This will either cause a deadlock or do nothing.");
-            if (cancellationToken == CancellationToken.None)
+            if (cancellationToken == NoToken)
             {
                 completedEvent.Wait();
                 return;
@@ -256,40 +259,49 @@ namespace OpenTap
         /// <summary> Called by TestStep.DoRun after running the step. </summary>
         internal void CompleteStepRun(TestPlanRun planRun, ITestStep step, TimeSpan runDuration)
         {
-            StepThread = null;
+            
             // update values in the run. 
             ResultParameters.UpdateParams(Parameters, step);
             
             Duration = runDuration; // Requires update after TestStepRunStart and before TestStepRunCompleted
             UpgradeVerdict(step.Verdict);
+        }
+
+        internal void SignalCompleted()
+        {
+            StepThread = null;
             completedEvent.Set();
         }
 
+        ITypeData stepTypeData;
+        private ITestStep _step;
+        
+        TestStepRun(ITestStep step)
+        {
+            _step = step;
+            TestStepId = step.Id;
+            TestStepName = step.GetFormattedName();
+            stepTypeData = TypeData.GetTypeData(step);
+            TestStepTypeName = stepTypeData.AsTypeData().AssemblyQualifiedName;
+            Parameters = ResultParameters.GetParams(step);
+            Verdict = Verdict.NotSet;
+        }
+        
         /// <summary>
         /// Constructor for TestStepRun.
         /// </summary>
         /// <param name="step">Property Step.</param>
         /// <param name="parent">Property Parent. </param>
         /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the steps.</param>
-        public TestStepRun(ITestStep step, Guid parent, IEnumerable<ResultParameter> attachedParameters = null)
+        public TestStepRun(ITestStep step, Guid parent, IEnumerable<ResultParameter> attachedParameters = null): this(step)
         {
-            TestStepId = step.Id;
-            TestStepName = step.GetFormattedName();
-            TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step);
-            Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent;
         }
-        
-        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters, TestPlanRun testPlanRun)
+
+        internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters, TestPlanRun testPlanRun): this(step)
         {
             this.testPlanRun = testPlanRun;
-            TestStepId = step.Id;
-            TestStepName = step.GetFormattedName();
-            TestStepTypeName = TypeData.FromType(step.GetType()).AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step);
-            Verdict = Verdict.NotSet;
             if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent.Id;
             BreakCondition = calculateBreakCondition(step, parent);
@@ -334,7 +346,7 @@ namespace OpenTap
 
         internal void ThrowDueToBreakConditions()
         {
-            throw new TestStepBreakException(TestStepName, Verdict);
+            throw new TestStepBreakException(_step, this);
         }
 
         internal bool IsStepChildOf(ITestStep step, ITestStep possibleParent)
@@ -378,7 +390,7 @@ namespace OpenTap
             // load member data for results.
             List<IMemberData> resultMembers = null;
             List<IMemberData> primitiveMembers = null;
-            foreach (var member in TypeData.GetTypeData(step).GetMembers())
+            foreach (var member in stepTypeData.GetMembers())
             {
                 if (member.HasAttribute<ResultAttribute>())
                 {
@@ -457,25 +469,25 @@ namespace OpenTap
                 ResultSource.Defer(() =>
                 {
                     deferDone.Set();
-                    stepRuns.Clear();
+                    stepRuns = ImmutableDictionary<Guid, TestStepRun>.Empty;
                 });
             }
             else
             {
                 deferDone.Set();
-                stepRuns.Clear();
+                stepRuns = ImmutableDictionary<Guid, TestStepRun>.Empty;
             }
         }
 
         internal IResultSource ResultSource;
         /// <summary> Sets the result source for this run. </summary>
         public void SetResultSource(IResultSource resultSource) => this.ResultSource = resultSource;
-        
         bool isCompleted => completedEvent.IsSet;
+
+        List<(Guid, Guid)> waitingFor = new List<(Guid, Guid)>();
         
         /// <summary> Will throw an exception when it times out. </summary>
-        /// <exception cref="TimeoutException"></exception>
-        internal TestStepRun WaitForChildStepStart(Guid childStep, int timeout, bool wait)
+        internal TestStepRun WaitForChildStepStart(Guid childStep, bool wait, Guid waiterStep)
         {
             if (stepRuns.TryGetValue(childStep, out var run))
                 return run;
@@ -493,20 +505,34 @@ namespace OpenTap
                     stepRun = id;
                 }
             }
-            
 
-            childStarted += onChildStarted;
+            lock (waitingFor)
+            {
+                childStarted += onChildStarted;
+                waitingFor.Add((waiterStep, childStep));
+                
+                if (Utils2.IsLooped(waitingFor, waiterStep))
+                    throw new InvalidOperationException("Input / output loop detected in WaitForChildStepStart");
+            }
+
             try
             {
-                if (stepRuns.TryGetValue(childStep, out run))
-                    return run;
-                if (!sem.Wait(timeout, TapThread.Current.AbortToken))
-                    throw new TimeoutException("Wait timed out");
-                return stepRun;
+                while (true)
+                {
+                    if (stepRuns.TryGetValue(childStep, out run))
+                        return run;
+                    
+                    if (sem.Wait(5000, TapThread.Current.AbortToken))
+                        return stepRun;
+                }
             }
             finally
             {
-                childStarted -= onChildStarted;
+                lock (waitingFor)
+                {
+                    childStarted -= onChildStarted;
+                    waitingFor.Remove((waiterStep, childStep));
+                }
             }
         }
 
@@ -514,11 +540,11 @@ namespace OpenTap
         
         // we keep a mapping of the most recent run of any child step. This is important to be able to update inputs.
         // the guid is the ID of a step.
-        ConcurrentDictionary<Guid, TestStepRun> stepRuns = new ConcurrentDictionary<Guid, TestStepRun>(); 
+        ImmutableDictionary<Guid, TestStepRun> stepRuns = ImmutableDictionary<Guid, TestStepRun>.Empty; 
         internal override void ChildStarted(TestStepRun stepRun)
         {
             base.ChildStarted(stepRun);
-            stepRuns[stepRun.TestStepId] = stepRun;
+            Utils.InterlockedSwap(ref stepRuns, () => stepRuns.SetItem(stepRun.TestStepId, stepRun));
             childStarted?.Invoke(stepRun);
         }
         
@@ -544,13 +570,15 @@ namespace OpenTap
 
     class TestStepBreakException : OperationCanceledException
     {
-        public string TestStepName { get; set; }
-        public Verdict Verdict { get; set; }
+        public string TestStepName => Step.GetFormattedName();
+        public Verdict Verdict => Run.Verdict;
+        public ITestStep Step { get; set; }
+        public TestStepRun Run { get; set; }
 
-        public TestStepBreakException(string testStepName, Verdict verdict)
+        public TestStepBreakException(ITestStep step, TestStepRun run)
         {
-            TestStepName = testStepName;
-            Verdict = verdict;
+            Step = step;
+            Run = run;
         }
 
         public override string Message =>

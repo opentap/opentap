@@ -102,6 +102,7 @@ namespace OpenTap.Plugins
             var properties = serializableMembers.GetOrCreateValue(t2, t3 => t3.GetMembers()
                 .Where(x => x.HasAttribute<XmlIgnoreAttribute>() == false)
                 .ToArray());
+
             try
             {
                 
@@ -223,17 +224,11 @@ namespace OpenTap.Plugins
                                 }
                                 else
                                 {
-                                    Action<object> setValue = x =>
+                                    void setValue(object x)
                                     {
-                                        var current = property.GetValue(newobj);
                                         property.SetValue(newobj, x);
-                                        if (false == Equals(current, x))
-                                        { // for some value-like type, it may be needed
-                                            // to set the parent object when a property is changed
-                                            // example: complex test plan parameters.
-                                            setter(newobj);
-                                        }
-                                    };
+                                    }
+                                    
                                     if (property.HasAttribute<DeserializeInPlaceAttribute>())
                                     {
                                         var current = property.GetValue(newobj);
@@ -599,7 +594,8 @@ namespace OpenTap.Plugins
                 char c = str[i];
                 if (c == '\r') // special case. Somehow deserialization turns \n into \r.
                     return false;
-                
+                if (char.IsLetter(c))
+                    continue;
                 if (XmlConvert.IsXmlChar(c))
                     continue;
                 if(i < len - 1)

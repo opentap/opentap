@@ -97,9 +97,9 @@ namespace OpenTap
             if (cache == null)
             {
                 cache = new AnnotationCache();
-                annotation.ParentAnnotation.Add(cache);
+                annotation.ParentAnnotation?.Add(cache);
             }
-            var subannotation = cache?.Annotate(items) ?? AnnotationCollection.Annotate(items.Length == 1 ? items[0] : items);
+            var subannotation = cache.Annotate(items) ?? AnnotationCollection.Annotate(items.Length == 1 ? items[0] : items);
             annotation.Add(new SubMember(subannotation, bigList, member));
             var subMembers = subannotation.Get<IMembersAnnotation>();
             var firstmem = parameterizedMembers.First().Item2;

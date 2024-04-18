@@ -444,9 +444,8 @@ namespace OpenTap
         /// <returns></returns>
         public IEnumerable<ITestStep> GetSteps(TestStepSearch stepSearch)
         {
-            return this
-                .Where(step => stepSearch == TestStepSearch.All
-               || ((stepSearch == TestStepSearch.EnabledOnly) == step.Enabled));
+            if (stepSearch == TestStepSearch.All) return this;
+            return this.Where(step => stepSearch == TestStepSearch.EnabledOnly == step.Enabled);
         }
 
         /// <summary>
@@ -478,6 +477,12 @@ namespace OpenTap
                 }
             }
             return null;
+        }
+
+        internal void AddRange(IEnumerable<ITestStep> steps)
+        {
+            foreach(var step in steps)
+                Add(step);
         }
     }
 }

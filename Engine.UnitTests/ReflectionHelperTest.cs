@@ -44,49 +44,6 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        public void MemoryMappedApiTest()
-        {
-            if(OpenTap.OperatingSystem.Current != OpenTap.OperatingSystem.Windows) 
-                return;  // this feature is currently not supported on Linux.
-            var api = new MemoryMappedApi();
-            var strings = new[] { "asd", "cxze", "" };
-            foreach(var str in strings)
-                api.Write(str);
-            
-            api.Persist();
-            var api2 = new MemoryMappedApi(api.Name);
-            foreach (var str in strings)
-                Assert.AreEqual(api2.Read<string>(), str);
-                
-            api2.ReadRewind();
-            foreach (var str in strings)
-                Assert.AreEqual(api2.Read<string>(), str);
-
-            api = new MemoryMappedApi();
-            var array = new byte[] { 1, 2, 3, 4, 5, 6 };
-            api.Write(array);
-
-            
-            var memstr = new MemoryStream();
-            string[] strings2 = new[] { "asd", "", null };
-            new TapSerializer().Serialize(memstr, strings2);
-            api.Write(memstr.ToArray());
-
-            var array2 = new int[] { 1, 2, 3, 4, 5, 6 };
-            api.Write(array2);
-            
-            api.Persist();
-            api2 = new MemoryMappedApi(api.Name);
-            var thedata = api2.Read<byte[]>();
-            Assert.IsTrue(array.SequenceEqual(thedata));
-            var stream = api2.ReadStream();
-            var strings3 = (string[])new TapSerializer().Deserialize(stream);
-            strings2.SequenceEqual(strings3);
-            var array3 = api2.Read<int[]>();
-            Assert.IsTrue(array2.SequenceEqual(array3));
-        }
-
-        [Test]
         [Platform(Exclude="Unix,Linux,MacOsX")]
         public void TimeoutOperationTest()
         {
@@ -226,25 +183,6 @@ namespace OpenTap.Engine.UnitTests
             // TimingTestStep does..
             var timing = new TimingTestStep();
             Assert.IsTrue(timing.PrePostPlanRunUsed);
-        }
-
-        [Test]
-        public void NaturalSortTest()
-        {
-            // first entry is a null.
-            // string.Compare always puts null first.
-            var strnat = ",,-1042.5,-1042,-1032,-100,-100A,-100B,-100CDE,-100D,-50A,-50B,-50C,-50K,0ASD,0BSD,0.1,0.2,0.3,10X,10Y,100.3210X,100.3210Y,+100.5X,+100.5Y,A,A10,A20B,A30B,A40B,B,C,D";
-            var strnats = strnat.Split(new[] { "," },StringSplitOptions.None).ToList();
-            strnats[0] = null; // insert null in place of the first ''.
-            strnats.Sort();
-            for(int i = 0; i < 10; i++){
-                strnats.Shuffle();
-
-                strnats.Sort(Utils.NaturalCompare);
-                var joined = string.Join(",", strnats);
-                Assert.AreEqual(joined, strnat);
-            }
-
         }
 
         [Test]

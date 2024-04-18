@@ -19,8 +19,8 @@ namespace OpenTap.Package
         public bool ForceInstall { get; set; }
 
         [CommandLineArgument("dependencies", Description = "Download dependencies without asking.", ShortName = "y")]
-        public bool InstallDependencies { get; set; }
-
+        public bool InstallDependencies { get; set; } 
+        
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
@@ -38,6 +38,12 @@ namespace OpenTap.Package
 
         [UnnamedCommandLineArgument("package(s)", Required = true)]
         public string[] Packages { get; set; }
+        
+        /// <summary>
+        /// Never prompt for user input.
+        /// </summary>
+        [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
+        public bool NonInteractive { get; set; } = false;
 
         /// <summary>
         /// Represents the --out command line argument which specifies the path to the output file.
@@ -75,8 +81,14 @@ namespace OpenTap.Package
             Installation destinationInstallation = new Installation(destinationDir);
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
+            Repository = ExtractRepositoryTokens(Repository, true);
             List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
-            Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
+            
+            if (NonInteractive)
+                UserInput.SetInterface(new NonInteractiveUserInputInterface());
+            
+            if (!NonInteractive)
+                Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
 
             List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                 destinationInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories,

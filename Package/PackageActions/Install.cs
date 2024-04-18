@@ -112,8 +112,10 @@ namespace OpenTap.Package
             var targetInstallation = new Installation(Target);
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
+            Repository = ExtractRepositoryTokens(Repository, true);
             List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
-            Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
+            if (!NonInteractive)
+                Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
 
             bool installError = false;
             var installer = new Installer(Target, cancellationToken)
@@ -166,7 +168,7 @@ namespace OpenTap.Package
                     // We could also ask for an RC / Any, but if there are no releases, then it is likely also the case that there are no RCs.
                     // 'any' would be the most likely specifier to succeed, but it is probably a bit too extreme to suggest something so bleeding edge.
                     // A beta version strikes a good middle ground. It is pretty likely to resolve, and probably won't be too unstable.
-                    if (NonInteractiveUserInputInterface.IsSet()) throw;
+                    if (NonInteractive) throw;
                     if (Packages.Length != 1) throw;
                     if (fir.resolveProblems.Count != 1) throw;
 
@@ -413,6 +415,15 @@ namespace OpenTap.Package
                     Log.Error("Could not resolve {0}{1}",
                         string.Join(", ", Packages.Select(x => $"{x}")),
                         string.IsNullOrWhiteSpace(Version) ? "" : $" v{Version}");
+
+                    // If the requested package is a bundle, the easiest way to resolve the resolution error is to uninstall the bundle.
+                    if (Packages.Length == 1 &&
+                        targetInstallation.GetPackages().FirstOrDefault(p => p.Name == Packages[0]) is PackageDef pkg &&
+                        pkg.IsBundle())
+                    {
+                        Log.Error( $"Please try manually uninstalling '{Packages[0]}' and re-installing it.");
+                        return (int)PackageExitCodes.PackageDependencyError;
+                    }
                 }
                 else
                 {

@@ -58,7 +58,7 @@ namespace OpenTap.Plugins.BasicSteps
         /// <summary>
         /// Initializes a new instance of the SweepParam class. For use when programatically creating a <see cref="SweepLoop"/>
         /// </summary>
-        /// <param name="prop">Property to sweep. This should be one of the properties on one of the childsteps of the <see cref="SweepLoop"/>.</param>
+        /// <param name="props">Property to sweep. This should be one of the properties on one of the childsteps of the <see cref="SweepLoop"/>.</param>
         public SweepParam(IEnumerable<IMemberData> props) : this()
         {
             Members = props.Distinct().ToArray();

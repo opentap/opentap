@@ -109,7 +109,7 @@ These runners come equipped with most of the compilers and build tools you want,
 
 OpenTAP only uses default runners, and is tested using `windows-2022`, `ubuntu-20.04`, and `macos-11`.
 
-> This example assumes that `PUBLIC_REPO_PASS` is configured as a secret in the repository. A secret can be configured by going to `Settings > Secrets > Actions > New repository secret`
+> This example assumes that `REPO_USERTOKEN` is configured as a secret in the source repository. A secret can be configured by going to `Settings > Secrets > Actions > New repository secret`. For more information about user tokens and packaging, see [Package Publishing](../Package%20Publishing/Readme.md).
 
 A workflow is defined by a yaml file, e.g. `.github/workflows/ci.yml`. 
 Here is an example of how a GitHub Action can be configured to build, test, and publish an OpenTAP plugin:
@@ -151,10 +151,6 @@ jobs:
       # Build your project
       - name: Build
         run: dotnet build -c Release
-      # Create the tap package
-      - name: Package
-        working-directory: bin/Release
-        run: ./tap package create package.xml
       # Upload the package so it can be downloaded from GitHub, 
       # and consumed by other steps in this workflow
       - name: Upload binaries
@@ -191,7 +187,7 @@ jobs:
       steps:
         # Download the tap-package artifact from the Build step
         - name: Download TapPackage Arfifact
-          uses: actions/download-artifact@v3
+          uses: actions/download-artifact@v4
           with:
             name: tap-package
             path: .
@@ -199,11 +195,11 @@ jobs:
         - name: Setup OpenTAP
           uses: opentap/setup-opentap@v1.0
           with:
-            version: 9.17.4
-            packages: "PackagePublish:rc"
+            version: 9.18.4
+            packages: "Repository Client"
         # Publish the package. This requires the package management key to be configured in the 'PUBLIC_REPO_PASS' environment variable.
         - name: Publish
-          run: tap package publish -r http://packages.opentap.io -k ${{ secrets.PUBLIC_REPO_PASS }} *.TapPackage
+          run: tap repo upload --token ${{ secrets.REPO_USERTOKEN }} *.TapPackage
 ```
 
 

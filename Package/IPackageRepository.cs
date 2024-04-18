@@ -279,6 +279,20 @@ namespace OpenTap.Package
                     }
                 }
 
+                if (!Directory.Exists(url))
+                {
+                    try
+                    {
+                        var repo2 = new HttpPackageRepository(url);
+                        if (repo2.Version != null)
+                            return repo2;
+                    }
+                    catch
+                    {
+                        // probably not an http repo
+                    }
+                }
+
                 if (AuthenticationSettings.Current.BaseAddress != null)
                     return DetermineRepositoryType(new Uri(new Uri(AuthenticationSettings.Current.BaseAddress), url).AbsoluteUri);
                     

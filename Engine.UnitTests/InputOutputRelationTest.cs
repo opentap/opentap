@@ -4,7 +4,6 @@ using System.Linq;
 using System.Xml.Serialization;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests;
-using OpenTap.EngineUnitTestUtils;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -59,11 +58,15 @@ namespace OpenTap.UnitTests
             public double ExpectedInput { get; set; }
             
             public bool Defer { get; set; }
+            public double DelaySecs { get; set; } = 0.0;
             
             public override void Run()
             {
                 if(CheckExpectedInput && ExpectedInput != Input)
                     throw new Exception("Input has unexpected value");
+                
+                if(DelaySecs > 0.0)
+                    TapThread.Sleep(TimeSpan.FromSeconds(DelaySecs));
                 UpgradeVerdict(Verdict.Pass);
                 this.Results.Defer(() => Output = Input);
                 Output2 = Input;
@@ -108,6 +111,7 @@ namespace OpenTap.UnitTests
         [TestCase(2)]
         [TestCase(4)]
         [TestCase(8)] // connect 8 inputs/outputs and update across 8 threads.
+        [TestCase(64)]
         public void TestInputOutputRelationsInTestPlanParallelN(int n)
         {
             var plan = new TestPlan();
@@ -126,9 +130,28 @@ namespace OpenTap.UnitTests
                 var inputMember = TypeData.GetTypeData(newStep).GetMember(nameof(OutputInput.Input));
                 InputOutputRelation.Assign(newStep, inputMember, prevStep, outputMember );
             }
-            
             var r = plan.Execute();
             Assert.AreEqual(Verdict.Pass, r.Verdict);
+        }
+        [Test]
+        public void TestInputOutputLoop()
+        {
+            var plan = new TestPlan();
+            var parallel = new ParallelStep();
+            
+            plan.ChildTestSteps.Add(parallel);
+            var step1 = new OutputInput {Output = 5, Input = 5, Name = "Step 1"};
+            var step2 = new OutputInput {Output = 5, Input = 5, Name = "Step 1"};
+            var step3 = new OutputInput {Output = 5, Input = 5, Name = "Step 1"};
+            var a = TypeData.GetTypeData(step1).GetMember(nameof(step1.Input));
+            var b = TypeData.GetTypeData(step1).GetMember(nameof(step1.Output));
+            InputOutputRelation.Assign(step2, a, step1, b);
+            InputOutputRelation.Assign(step3, a, step2, b);
+            InputOutputRelation.Assign(step1, a, step3, b);
+            parallel.ChildTestSteps.AddRange(new [] {step1, step2, step3});
+           
+            var r = plan.Execute();
+            Assert.AreEqual(Verdict.Error, r.Verdict);
         }
 
         [Test]
@@ -424,7 +447,162 @@ namespace OpenTap.UnitTests
             int i3 = rl.LogString.IndexOf("Log Step 3 of 3\" started");
             Assert.IsTrue(i1 < i2);
             Assert.IsTrue(i2 < i3);
+        }
 
+        public class InputOutputTypesStep : TestStep
+        {
+            [Output]
+            public int IntInput { get; set; }
+            [Output]
+            public double DoubleInput { get; set; }
+            [Output]
+            public string StringInput { get; set; }
+            [Output]
+            public float FloatInput { get; set; }
+
+            public override void Run()
+            {
+                
+            }
+        }
+
+        [Test]
+        public void TestInputOutputTypes()
+        {
+            var step1 = new InputOutputTypesStep();
+            var step2 = new InputOutputTypesStep();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.AddRange(new[]
+            {
+                step1, step2
+            });
+            {
+                var intMember = TypeData.GetTypeData(step1).GetMember(nameof(InputOutputTypesStep.IntInput));
+                var doubleMember = TypeData.GetTypeData(step1).GetMember(nameof(InputOutputTypesStep.DoubleInput));
+                var stringMember = TypeData.GetTypeData(step1).GetMember(nameof(InputOutputTypesStep.StringInput));
+                var floatMember = TypeData.GetTypeData(step1).GetMember(nameof(InputOutputTypesStep.FloatInput));
+                InputOutputRelation.Assign(step2, doubleMember, step1, stringMember);
+                InputOutputRelation.Assign(step2, stringMember, step1, doubleMember);
+                InputOutputRelation.Assign(step2, intMember, step1, doubleMember);
+                InputOutputRelation.Assign(step2, floatMember, step1, floatMember);
+            }
+            {
+                step1.IntInput = 1;
+                step1.DoubleInput = 2;
+                step1.StringInput = "3";
+                step1.FloatInput = 4;
+                InputOutputRelation.UpdateInputs(step2);
+                Assert.AreEqual(2, step2.IntInput);
+                Assert.AreEqual(3.0, step2.DoubleInput);
+                Assert.AreEqual("2", step2.StringInput);
+                Assert.AreEqual(4, step2.FloatInput);
+                
+                // When one of the inputs is assigned an invalid value, an exception should be thrown on UpdateInputs.
+                step1.StringInput = "abc";
+                Assert.Throws<Exception>(() => InputOutputRelation.UpdateInputs(step2));
+            }
+        }
+
+        enum SpecialValue
+        {
+            UnspecifiedResult
+        }
+        [TestCase("A", typeof(double), typeof(FormatException))]
+        [TestCase("A", typeof(float), typeof(FormatException))]
+        [TestCase("A", typeof(int), typeof(FormatException))]
+        [TestCase("1", typeof(int), 1)]
+        [TestCase("True", typeof(int), typeof(FormatException))]
+        [TestCase("True", typeof(bool), true)]
+        [TestCase(true, typeof(int), 1)]
+        [TestCase(true, typeof(double), 1.0)]
+        [TestCase(false, typeof(double), 0.0)]
+        [TestCase(false, typeof(int), 0)]
+        [TestCase(false, typeof(string), "False")]
+        [TestCase(long.MaxValue, typeof(float), SpecialValue.UnspecifiedResult)]
+        [TestCase(long.MaxValue, typeof(double), SpecialValue.UnspecifiedResult)]
+        [TestCase(long.MaxValue, typeof(long), long.MaxValue)]
+        [TestCase(long.MaxValue, typeof(int), typeof(OverflowException))]
+        [TestCase(ulong.MaxValue, typeof(long), typeof(OverflowException))]
+        [TestCase(100000, typeof(byte), typeof(OverflowException))]
+        [TestCase(255, typeof(byte), 255)]
+        [TestCase(256, typeof(byte), typeof(OverflowException))]
+        [TestCase(1e20, typeof(int), typeof(OverflowException))]
+        [TestCase(1e20, typeof(byte), typeof(OverflowException))]
+        [TestCase(1.0, typeof(byte), 1)]
+        [TestCase(1.0, typeof(int), 1)]
+        [TestCase(1.0, typeof(float), 1.0)]
+        [TestCase(1.0, typeof(double), 1.0)]
+        [TestCase(1.0, typeof(string), "1")]
+        public void TestConvertOutputToInput(object from, Type intoType, object exceptionOrResult)
+        {
+            var toTypeData = TypeData.FromType(intoType);
+            var fromTypeData = TypeData.GetTypeData(from);
+            Assert.IsTrue(InputOutputRelation.CanConvert(fromTypeData, toTypeData));
+            try
+            {
+                var to = InputOutputRelation.ConvertValue(from, toTypeData);
+                Assert.IsFalse(exceptionOrResult is Exception);
+                if (Equals(exceptionOrResult, SpecialValue.UnspecifiedResult))
+                {
+                    var to2 = (double)InputOutputRelation.ConvertValue(to, TypeData.FromType(typeof(double)));
+                    Assert.IsTrue(to2 != 0.0);
+                }
+                else
+                {
+                    Assert.AreEqual(exceptionOrResult, to);
+                }
+            }
+            catch (Exception e)
+            {
+                Assert.AreEqual(exceptionOrResult, e.GetType());
+            }
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TestInputAndOutputWithRemovedMixins(bool way)
+        {
+            var seq1 = new SequenceStep();
+            var b1 = new TestNumberMixinBuilder()
+            {
+                Name = "Test",
+                IsOutput = true
+            };
+            var seq2 = new SequenceStep();
+            var b2 = new TestNumberMixinBuilder
+            {
+                Name = "Test"
+            };
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(seq1);
+            plan.ChildTestSteps.Add(seq2);
+
+            MixinFactory.LoadMixin(seq1, b1);
+            MixinFactory.LoadMixin(seq2, b2);
+            
+            var member1 = (MixinMemberData) TypeData.GetTypeData(seq1).GetMember("Number.Test");
+            var member2 = (MixinMemberData) TypeData.GetTypeData(seq2).GetMember("Number.Test");
+            InputOutputRelation. Assign(seq2, member2, seq1, member1);
+            
+            var x1 = InputOutputRelation.GetRelations(seq1).Count();
+            var x12 = InputOutputRelation.GetRelations(seq2).Count();
+            Assert.AreEqual(1, x1);
+            Assert.AreEqual(1, x12);
+            
+            // Now the input/output relation has been set up.
+            // Two things can happen:
+            // 1. The mixin is removed from seq1 -> the input member is lost.
+            // 2. The mixin is removed from seq2 -> the output member is lost.
+            // in either case the relation should be removed.
+            
+            if(way)
+                MixinFactory.UnloadMixin(seq1, member1);
+            else
+                MixinFactory.UnloadMixin(seq2, member2);
+            var x2 = InputOutputRelation.GetRelations(seq1).Count();
+            var x22 = InputOutputRelation.GetRelations(seq2).Count();
+            Assert.AreEqual(0, x2);
+            Assert.AreEqual(0, x22);
         }
     }
 }

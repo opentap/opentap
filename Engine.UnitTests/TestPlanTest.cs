@@ -134,22 +134,152 @@ namespace OpenTap.Engine.UnitTests
         public void PrintTestPlanRunSummaryTest()
         {
 
+            var testFile = new byte[1500];
+            var testFileName = $"OpenTap.UnitTests.{nameof(PrintTestPlanRunSummaryTest)}.testFile.bin";
+            File.Delete(testFileName);
+            File.WriteAllBytes(testFileName, testFile);
+
             TestTraceListener trace = new TestTraceListener();
             Log.AddListener(trace);
 
             TestPlan target = new TestPlan();
             target.PrintTestPlanRunSummary = true;
-            target.Steps.Add(new TestStepTest());
+            target.Steps.Add(new TestStepTest() {PublishArtifact = testFileName});
             PlanRunCollectorListener pl = new PlanRunCollectorListener();
             var planRun = target.Execute(ResultSettings.Current.Concat(new IResultListener[] { pl }));
             Log.Flush();
             Log.RemoveListener(trace);
-            var summaryLines = trace.allLog.ToString().Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Where(l => l.Contains(": Summary "));
-            Assert.AreEqual(4, summaryLines.Count(), "Did not find the expected number of summary lines in the log.");
-
-            trace.AssertErrors(new string[] { "No instruments found.", "Keysight Internal! This version is not licensed. Do not distribute outside Keysight." });
+            var summaryLines = trace.allLog.ToString().Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Where(l => l.Contains(": Summary ")).ToArray();
+            Assert.AreEqual(6, summaryLines.Count(), "Did not find the expected number of summary lines in the log.");
             Assert.AreEqual(Verdict.Pass, pl.StepRuns.First().Verdict);
-            ResultSettings.Current.Clear();
+            Assert.IsTrue(summaryLines[4].Contains("1 artifacts registered"));
+            Assert.IsTrue(summaryLines[5].Contains(testFileName));
+            Assert.IsTrue(summaryLines[5].EndsWith("[1.5 kB]"));
+            
+        }
+        
+        [Test]
+        public void TestRunSelectedResultParameter([Values(null, 1, 3)] int? runSelected)
+        { 
+            var plan = new TestPlan();
+            var steps = Enumerable.Range(0, 10).Select(_ => new VerdictStep()).ToArray();
+            plan.ChildTestSteps.AddRange(steps);
+
+            HashSet<ITestStep> selectedSteps = null;
+            if (runSelected.HasValue)
+                selectedSteps = new HashSet<ITestStep>(steps.Take(runSelected.Value));
+            var results = plan.Execute( Array.Empty<IResultListener>(), Array.Empty<ResultParameter>(), selectedSteps).Parameters;
+            var result = results.FirstOrDefault(param => param.Name == TestPlanRun.SpecialParameterNames.StepOverrideList);
+            if (runSelected.HasValue)
+            {
+                Assert.That(result, Is.Not.Null);
+                var ids = result.Value.ToString().Split(',');
+                Assert.That(ids.Length, Is.EqualTo(runSelected.Value));
+                for (int i = 0; i < runSelected; i++)
+                {
+                    var id = steps[i].Id.ToString();
+                    Assert.That(ids.Any(r => r == id));
+                }
+            }
+            else
+            {
+                Assert.That(result, Is.Null);
+            }
+        }
+        
+        [Test]
+        public void TestBreakConditionResultParameter([Values(true, false)] bool doBreak)
+        { 
+            var l = new PlanRunCollectorListener();
+            var plan = new TestPlan();
+
+            var sequenceStep = new SequenceStep();
+            plan.ChildTestSteps.Add(sequenceStep);
+            BreakConditionProperty.SetBreakCondition(sequenceStep, BreakCondition.BreakOnFail);
+
+            var verdictStep = new VerdictStep() { VerdictOutput = doBreak ? Verdict.Fail : Verdict.Pass };
+            sequenceStep.ChildTestSteps.Add(verdictStep);
+
+            var run = plan.Execute(new[] { l });
+            
+            var breakResult = run.Parameters.FirstOrDefault(param => param.Name == TestPlanRun.SpecialParameterNames.BreakIssuedFrom);
+            if (doBreak)
+            {
+                var stepRun = l.StepRuns.First(r => r.TestStepId == verdictStep.Id);
+                Assert.That(breakResult, Is.Not.Null);
+                Assert.That(breakResult.Value.ToString(), Is.EqualTo(stepRun.Id.ToString()));
+            }
+            else 
+                Assert.That(breakResult, Is.Null);
+        }
+
+        [Test]
+        public void TestCaughtBreakConditionNotPropagated([Values(true, false)] bool doCatch)
+        {
+            var l = new PlanRunCollectorListener();
+            var plan = new TestPlan();
+
+            var sequenceStep = new SequenceStep();
+            plan.ChildTestSteps.Add(sequenceStep);
+
+            var verdictStep = new VerdictStep() { VerdictOutput = Verdict.Fail };
+            sequenceStep.ChildTestSteps.Add(verdictStep);
+
+            BreakConditionProperty.SetBreakCondition(verdictStep, BreakCondition.BreakOnFail);
+            BreakConditionProperty.SetBreakCondition(plan, BreakCondition.BreakOnFail);
+            if (doCatch)
+            {
+                // Since sequence step breaks on error, it will 'catch' the break issued from verdictstep
+                BreakConditionProperty.SetBreakCondition(sequenceStep, BreakCondition.BreakOnError); 
+            }
+            else
+            {
+                BreakConditionProperty.SetBreakCondition(sequenceStep, BreakCondition.BreakOnFail); 
+            }
+            
+            var run = plan.Execute(new[] { l });
+
+            var breakResult = run.Parameters.FirstOrDefault(param => param.Name == TestPlanRun.SpecialParameterNames.BreakIssuedFrom);
+            if (doCatch)
+            {
+                Assert.That(breakResult, Is.Null);
+            }
+            else
+            { 
+                var stepRun = l.StepRuns.First(r => r.TestStepId == verdictStep.Id);
+                Assert.That(breakResult, Is.Not.Null);
+                Assert.That(breakResult.Value.ToString(), Is.EqualTo(stepRun.Id.ToString()));
+            }
+        }
+
+        [Test]
+        public void TestMoveSteps()
+        {
+            var plan = new TestPlan();
+            var par = new ParallelStep();
+            var repeat = new RepeatStep();
+            var dialog = new DialogStep();
+            var ifVerdict = new IfStep();
+
+            plan.ChildTestSteps.Add(par);
+            plan.ChildTestSteps.Add(repeat);
+            repeat.ChildTestSteps.Add(dialog);
+            repeat.ChildTestSteps.Add(ifVerdict);
+
+
+            { // Set dialog as the input step for ifVerdict
+                ifVerdict.InputVerdict.Step = dialog;
+                Assert.That(ifVerdict.InputVerdict.Step, Is.EqualTo(dialog));
+            }
+
+            { // Move repeat step into the parallel step                        
+                plan.ChildTestSteps.Remove(repeat);
+                // Verify the step is null after removing it
+                Assert.That(ifVerdict.InputVerdict.Step, Is.Null);
+                par.ChildTestSteps.Add(repeat);
+                // Verify the step can still be computed after adding it back
+                Assert.That(ifVerdict.InputVerdict.Step, Is.EqualTo(dialog));
+            } 
         }
 
         [Test]
@@ -664,6 +794,51 @@ namespace OpenTap.Engine.UnitTests
             StringAssert.Contains("Test plan reference is trying to load itself leading to recursive loop.", trace.GetLog());
             File.Delete(filePath);
         }
+        
+        [Test]
+        public void ParameterizedTestPlanReferenceTest()
+        {
+            var path = Path.GetTempFileName();
+            
+            { // Create test plan with external parameter
+                var subplan = new TestPlan();
+                var logStep = new LogStep() { LogMessage = "Initial Value" };
+                var logInfo = TypeData.GetTypeData(logStep);
+                subplan.ChildTestSteps.Add(logStep);
+                subplan.ExternalParameters.Add(logStep, logInfo.GetMember(nameof(logStep.LogMessage)));
+                subplan.Save(path); 
+            }
+
+            try
+            { // Add the created test plan as a child step of a sweep loop
+                var reference = new TestPlanReference { Filepath = { Text = path } };
+                var sweep = new SweepLoop() {
+                    ChildTestSteps =
+                    {
+                        reference
+                    }
+                }; 
+
+                string GetLogMessageParameter(AnnotationCollection a)
+                {
+                    var avail = a.Get<IMembersAnnotation>().Members.FirstOrDefault(m => m.Name == "Sweep Parameters")
+                        ?.Get<IAvailableValuesAnnotationProxy>();
+                    var v = avail?.AvailableValues.FirstOrDefault(v => v.Name == "ExpandedMemberData");
+                    return v?.Get<IStringValueAnnotation>()?.Value;
+                }
+
+                var a = AnnotationCollection.Annotate(sweep);
+                Assert.That(GetLogMessageParameter(a), Is.Null);
+                reference.LoadTestPlan();
+                a.Read();
+                Assert.That(GetLogMessageParameter(a), Is.EqualTo("Log Message"));
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+        
         [Test]
         public void RelativeTestPlanTest()
         {

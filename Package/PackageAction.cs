@@ -11,6 +11,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using OpenTap.Authentication;
 
 namespace OpenTap.Package
 {
@@ -72,6 +73,95 @@ namespace OpenTap.Package
         /// </summary>
         /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
         public abstract int Execute(CancellationToken cancellationToken);
+
+        internal string[] ExtractRepositoryTokens(string[] repositories, bool saveSettings)
+        {
+            if (repositories == null) return null;
+            // Repositories can have additional arguments appended as key-value-pairs. 
+            // Currently, the only supported key is 'token=<repo token>'
+            // The goal here is the following:
+            // 1. Extract the tokens
+            // 2. Add them to AuthenticationSettings
+            // 3. Save the updated settings if needed and requested
+            // 4. Return the list of repositories without the kvps
+            var result = new string[repositories.Length];
+            bool tokenAdded = false;
+
+            for (int i = 0; i < repositories.Length; i++)
+            {
+                var argument = repositories[i];
+
+                var parts = argument.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries);
+                var repo = parts[0];
+                string token = null;
+
+                for (int j = 1; j < parts.Length; j++)
+                {
+                    var part = parts[j];
+                    // A user token could contain an equal sign. It should be fine if we just use the first equal
+                    // sign as a pivot. This is also the way environment variables are handled on Unix systems.
+                    var pivot = part.IndexOf('=');
+                    if (pivot == -1)
+                    {
+                        log.Warning($"Missing '=' sign in key-value-pair '{part}'. This value will be ignored.");
+                        continue;
+                    }
+
+                    var key = part.Substring(0, pivot);
+                    var value = part.Substring(pivot + 1);
+                    switch (key)
+                    {
+                        case "token":
+                            token = value;
+                            break;
+                        default:
+                            log.Warning(
+                                $"Unrecognized key '{key}' specified in repository argument '{argument}'. This value will be ignored.");
+                            break;
+                    }
+                }
+
+                // Only accepts tokens for http repositories
+                var repoType = PackageRepositoryHelpers.DetermineRepositoryType(repo);
+                if (repoType is HttpPackageRepository && Uri.TryCreate(repoType.Url, UriKind.Absolute, out var uri))
+                {
+                    repo = repoType.Url;
+                    // Add the specified token to the current authentication settings
+                    if (token != null)
+                    {
+                        tokenAdded = true;
+                        // If a token is already configured for this repo, update it
+                        if (AuthenticationSettings.Current.Tokens.FirstOrDefault(t => t.Domain.Equals(uri.Authority)) is
+                            TokenInfo t)
+                        {
+                            t.AccessToken = token;
+                        }
+                        // Otherwise, add it
+                        else
+                        {
+                            AuthenticationSettings.Current.Tokens.Add(new TokenInfo(token, null, uri.Authority));
+                        }
+                    }
+                }
+
+                result[i] = repo;
+            }
+
+            if (saveSettings && tokenAdded)
+            {
+                try
+                {
+                    AuthenticationSettings.Current.Save();
+                }
+                catch (Exception e)
+                {
+                    log.Warning($"Error saving credentials: '{e.Message}");
+                    log.Debug(e);
+                }
+            }
+
+            return result;
+        }
     }
 
     internal static class PackageActionHelper

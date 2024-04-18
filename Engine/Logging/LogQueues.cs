@@ -121,8 +121,9 @@ namespace OpenTap.Diagnostic
         void maybeWaitForProcessing()
         {
             // Check Capacity for the size of each buffer.
-            // if there are more than 4 x Capacity we wait for them to be processed.
-            while (_first?.Next?.Next?.Next?.Next != null)
+            // if there are more than 3 x Capacity we wait for them to be processed.
+            
+            if (_first?.Next?.Next?.Next != null)
                 TapThread.Sleep(10);
         }
         

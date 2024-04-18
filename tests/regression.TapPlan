@@ -109,6 +109,10 @@
           <Filepath>../../tests/test-cli-load-plan-with-error.TapPlan</Filepath>
           <Name Metadata="Step Name">Test Plan {Referenced Plan}</Name>
         </TestStep>
+        <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Id="beef7d35-9a8e-4b78-b04b-c0ffe98d2a83">
+          <Filepath>../../tests/test-piped-input.TapPlan</Filepath>
+          <Name Metadata="Step Name">Test Plan {Referenced Plan}</Name>
+        </TestStep>
       </ChildTestSteps>
     </TestStep>
   </Steps>

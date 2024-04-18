@@ -72,5 +72,11 @@ namespace OpenTap
         {
             isDisposed = true;
         }
+
+        /// <summary> Creates a string representation of this mixin member data</summary>
+        public override string ToString()
+        {
+            return $"MixinMemberData: {Name}";
+        }
     }
 }

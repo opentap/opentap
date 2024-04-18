@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Xml.Serialization;
@@ -2461,7 +2462,7 @@ namespace OpenTap.UnitTests
                 
             }
         }
-        
+
         [Test]
         public void TestReadOnlyStepSettings()
         {
@@ -2469,6 +2470,49 @@ namespace OpenTap.UnitTests
             var a = AnnotationCollection.Annotate(step.ChildTestSteps[0]);
             var member = a.GetMember(nameof(DelayStep.DelaySecs));
             Assert.IsTrue(member.GetAll<IEnabledAnnotation>().Any(x => x.IsEnabled == false));
+        }
+
+        public class DateTimeStep : TestStep
+        {
+            public DateTime MyDate { get; set; }
+            public override void Run()
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        [Test]
+        public void TestTimeAnnotations()
+        {
+            var times = new DateTimeStep();
+            var a = AnnotationCollection.Annotate(times);
+            var members = a.Get<IMembersAnnotation>().Members.ToLookup(m => m.Name);
+
+            var date = members[nameof(DateTimeStep.MyDate)].First();
+            var dsv = date.Get<IStringValueAnnotation>();
+
+            string[] GetErrors() => date.GetAll<IErrorAnnotation>().SelectMany(a => a.Errors).ToArray();
+
+            Assert.AreEqual(default(DateTime), times.MyDate);
+            StringAssert.StartsWith("0001-01-01", dsv.Value);
+            times.MyDate = DateTime.Parse("1000-11-30", DateTimeFormatInfo.InvariantInfo);
+            a.Read();
+            StringAssert.StartsWith("1000-11-30", dsv.Value);
+
+            dsv.Value = "1978-07-27";
+            Assert.AreEqual(0, GetErrors().Count());
+            a.Write();
+
+            Assert.AreEqual(7, times.MyDate.Month);
+            Assert.AreEqual(27, times.MyDate.Day);
+            Assert.AreEqual(1978, times.MyDate.Year);
+
+            dsv.Value = "garbage string";
+
+            Assert.AreEqual(1, GetErrors().Count());
+
+            dsv.Value = "0001-01-01";
+            Assert.AreEqual(0, GetErrors().Count());
         }
     }
 }

@@ -35,7 +35,7 @@ namespace OpenTap
     // which contains the added properties.
     //
 
-    class EmbeddedMemberData : IMemberData
+    class EmbeddedMemberData : IMemberData, IDynamicMemberData
     {
         public IMemberData OwnerMember => ownerMember;
         public IMemberData InnerMember => innerMember;
@@ -48,7 +48,7 @@ namespace OpenTap
 
         public IEnumerable<object> Attributes  => attributes ?? (attributes = loadAndTransformAttributes());
         public string Name { get; }
-
+ 
         public object GetValue(object owner)
         {
             var target = ownerMember.GetValue(owner);
@@ -198,6 +198,7 @@ namespace OpenTap
             return attributes = list.ToArray();
         }
 
+        bool IDynamicMemberData.IsDisposed => OwnerMember is IDynamicMemberData dyn && dyn.IsDisposed;
     }
 
     class EmbeddedTypeData : ITypeData

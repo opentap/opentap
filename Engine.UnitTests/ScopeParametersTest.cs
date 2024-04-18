@@ -796,7 +796,8 @@ namespace OpenTap.UnitTests
                 for (int i = 0; i < iterations; i++)
                     instruments[i] = new DummyInstrument();
                 step2.Instrument = instruments[0];
-                InstrumentSettings.Current.AddRange(instruments);
+                foreach(var instr in instruments)
+                    InstrumentSettings.Current.Add(instr);
                 plan.ChildTestSteps.Add(step1);
                 step1.ChildTestSteps.Add(step2);
                 var mem = TypeData.GetTypeData(step2).GetMember(nameof(step2.Instrument));

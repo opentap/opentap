@@ -872,7 +872,7 @@ namespace OpenTap
         {
             var name = Step.GetFormattedName();
 
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = StringBuilderCache.GetStringBuilder();
             sb.Append('"');
 
             void getParentNames(ITestStep step)
@@ -916,9 +916,17 @@ namespace OpenTap
             TapThread.ThrowIfAborted();
             if (!Step.Enabled)
                 throw new Exception("Test step not enabled."); // Do not run step if it has been disabled
-            
-            InputOutputRelation.UpdateInputs(Step);
-            
+
+            Exception readInputsError = null;
+            try
+            {
+                InputOutputRelation.UpdateInputs(Step);
+            }
+            catch (Exception e)
+            {
+                readInputsError = e;
+            }
+
             var stepRun = Step.StepRun = new TestStepRun(Step, parentRun, attachedParameters, planRun)
             {
                 TestStepPath = Step.GetStepPath()
@@ -955,6 +963,9 @@ namespace OpenTap
                         TapThread.Current.AbortToken);
                     try
                     {
+                        if (readInputsError != null)
+                            ExceptionDispatchInfo.Capture(readInputsError).Throw();
+                        
                         if (Step is TestStep _step)
                             _step.Results = new ResultSource(stepRun, Step.PlanRun);
                         TestPlan.Log.Info("{0} started.", stepRun.TestStepPath);
@@ -989,6 +1000,7 @@ namespace OpenTap
             {
                 TestPlan.Log.Info(e.Message);
                 Step.UpgradeVerdict(e.Verdict);
+                stepRun.Exception = e;
             }
             catch (Exception e)
             {
@@ -1019,13 +1031,12 @@ namespace OpenTap
                     {
                         runTask.Wait();
                     }
-                    catch (TestStepBreakException e)
-                    {
-                        TestPlan.Log.Info(e.Message);
-                        Step.Verdict = Verdict.Error;
-                    }
                     catch (Exception e)
                     {
+                        // Tasks wrap exceptions in AggregateExceptions with a single exception
+                        while (e is AggregateException aex && aex.InnerExceptions.Count == 1)
+                            e = aex.InnerException;
+                        
                         if (e is ThreadAbortException || (e is OperationCanceledException && TapThread.Current.AbortToken.IsCancellationRequested) )
                         {
                             if (TapThread.Current.AbortToken.IsCancellationRequested && Step.Verdict < Verdict.Aborted)
@@ -1034,6 +1045,11 @@ namespace OpenTap
                                 TestPlan.Log.Warning("Test step {0} was canceled.", stepRun.TestStepPath);
                             else
                                 TestPlan.Log.Warning("Test step {0} was canceled with message '{1}'.", stepRun.TestStepPath, e.Message);
+                        }
+                        else if (e is TestStepBreakException brk)
+                        {
+                            TestPlan.Log.Info(brk.Message);
+                            Step.UpgradeVerdict(brk.Verdict);
                         }
                         else
                         {
@@ -1053,6 +1069,7 @@ namespace OpenTap
                             }
                         }
                         TimeSpan time = swatch.Elapsed;
+                        
                         stepRun.CompleteStepRun(planRun, Step, time);
                         if (Step.Verdict == Verdict.NotSet)
                         {
@@ -1064,6 +1081,7 @@ namespace OpenTap
                         }
 
                         planRun.AddTestStepRunCompleted(stepRun);
+                        stepRun.SignalCompleted();
                     }
                 }
 

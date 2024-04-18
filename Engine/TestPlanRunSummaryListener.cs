@@ -8,7 +8,6 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Text;
-using OpenTap.Plugins;
 
 namespace OpenTap
 {
@@ -86,22 +85,24 @@ namespace OpenTap
                 stepRuns = null;
             }
         }
-
+        
         public override void OnTestStepRunCompleted(TestStepRun stepRun)
         { // this is mostly for updating stepRun's duration.
             
             if (stepRun == null)
                 throw new ArgumentNullException(nameof(stepRun));
             base.OnTestStepRunCompleted(stepRun);
-            if (stepRuns == null) return;
+            if (stepRuns == null)
+                return;
             stepRuns[stepRun.Id] = TestStepRunData.FromTestStepRun(stepRun);
             if (stepRuns.Count > stepRunLimit)
-            {
+            {  
+                // Too many steps, so we skip the summary.
                 stepRuns = null;
             }
         }
 
-        int stepRunIndent(TestStepRunData stepRun)
+        static int stepRunIndent(IDictionary<Guid, TestStepRunData> stepRuns, TestStepRunData stepRun)
         {
             int indent = 0;
             TestStepRunData p = stepRun;
@@ -115,9 +116,9 @@ namespace OpenTap
             return indent;
         }
 
-        void printSummary(TestStepRunData run, int maxIndent, int idx, ILookup<Guid, TestStepRunData> lookup)
+        static void printSummary(IDictionary<Guid, TestStepRunData> stepRuns, TestStepRunData run, int maxIndent, int idx, ILookup<Guid, TestStepRunData> lookup)
         {
-            int indentcnt = stepRunIndent(run);
+            int indentcnt = stepRunIndent(stepRuns, run);
             string indent = new String(' ', indentcnt * 2);
             string inverseIndent = new String(' ', maxIndent * 2 - indentcnt * 2);
             
@@ -129,11 +130,23 @@ namespace OpenTap
 
             int idx2 = 0;
             foreach (TestStepRunData run2 in lookup[run.Id])
-                printSummary(run2, maxIndent, idx2, lookup);
+                printSummary(stepRuns, run2, maxIndent, idx2, lookup);
         }
 
         private readonly string separator = new string('-', 44);
 
+        static string FormatSize(long size)
+        {
+            
+            if (size < 1000)
+                return $"{size} B";
+            
+            if (size < 1000000)
+                return $"{Math.Round(((double)size) / 1000, 1)} kB";
+            
+            return $"{Math.Round(((double)size) / 1000_000, 1)} MB";
+        } 
+        
         /// <summary> Prints the artifact summary. </summary>
         public void PrintArtifactsSummary()
         {
@@ -151,7 +164,8 @@ namespace OpenTap
                 summaryLog.Info(formatSummary($" {artifacts.Count} artifacts registered. "));
                 foreach (var artifact in artifacts)
                 {
-                    summaryLog.Info($" - {Path.GetFullPath(artifact)}  [{new FileInfo(artifact).Length} B]");
+                    var artifactSize = new FileInfo(artifact).Length;
+                    summaryLog.Info($" - {Path.GetFullPath(artifact)}  [{FormatSize(artifactSize)}]");
                 }
             }
             else
@@ -163,14 +177,17 @@ namespace OpenTap
         /// <summary> Prints the summary. </summary>
         public void PrintSummary()
         {
+            Dictionary<Guid, TestStepRunData> thisRuns = null;
+            Utils.Swap(ref thisRuns, ref stepRuns);
+            
             maxLength = -1;
             if (planRun == null) return; //Something very wrong happened. In this case the use will be informed of an error anyway.
             bool hasOtherVerdict = planRun.Verdict != Verdict.Pass && planRun.Verdict != Verdict.NotSet;
             ILookup<Guid, TestStepRunData> parentLookup = null;
             int maxIndent = 0;
-            if (stepRuns != null)
+            if (thisRuns != null)
             {
-                parentLookup = stepRuns.Values.ToLookup(v => v.Parent);
+                parentLookup = thisRuns.Values.ToLookup(v => v.Parent);
 
                 Func<Guid, int> getMaxIndent = null;
                 getMaxIndent = guid => 1 + parentLookup[guid].Select(step => getMaxIndent(step.Id)).DefaultIfEmpty(0).Max();
@@ -179,7 +196,7 @@ namespace OpenTap
             }
 
             int maxVerdictLength = hasOtherVerdict ? planRun.Verdict.ToString().Length : 0;
-            if (stepRuns != null)
+            if (thisRuns != null)
             {
                 foreach(TestStepRunData run in parentLookup[planRun.Id])
                 {
@@ -212,11 +229,11 @@ namespace OpenTap
             };
 
             summaryLog.Info(formatSummaryHeader($" Summary of test plan started {planRun.StartTime} ", addPadLength));
-            if (stepRuns != null)
+            if (thisRuns != null)
             {
                 int idx = 0;
                 foreach (TestStepRunData run in parentLookup[planRun.Id])
-                    printSummary(run, maxIndent, idx, parentLookup);
+                    printSummary(thisRuns, run, maxIndent, idx, parentLookup);
             }
             else
             {
@@ -234,7 +251,6 @@ namespace OpenTap
             {
                 summaryLog.Info(formatSummary(string.Format(" Test plan completed with verdict {1} in {0,6} ", ShortTimeSpan.FromSeconds(planRun.Duration.TotalSeconds).ToString(), planRun.Verdict)));
             }
-
         }
 
         int getMaxVerdictLength(TestStepRunData run, int maxVerdictLength, ILookup<Guid, TestStepRunData> lookup)

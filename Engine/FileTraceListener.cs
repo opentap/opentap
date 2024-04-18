@@ -15,14 +15,17 @@ namespace OpenTap
     /// TraceListener to be used in the App.Config file of the executable to write trace/log data to
     /// a file.
     /// </summary>
-    class FileTraceListener : TextWriterTraceListener
+    sealed class FileTraceListener : TextWriterTraceListener
     {
         string _fileName;
-        
+
         /// <summary>
         /// If the log should be written with absolute or relative time.
         /// </summary>
         public bool IsRelative { get; set; }
+        
+        /// <summary> The current file name of the trace file. </summary>
+        public string FileName => _fileName;
         /// <summary>
         /// Initializes a new instance of the FileTraceListener class.
         /// </summary>
@@ -31,6 +34,7 @@ namespace OpenTap
             : base(fileName)
         {
             _fileName = Path.GetFullPath(fileName);
+
         }
 
         public event EventHandler FileSizeLimitReached;
@@ -46,8 +50,15 @@ namespace OpenTap
         public FileTraceListener(Stream stream) : base(stream)
         {
         }
-        
-        internal void ChangeFileName(string fileName, bool noExclusiveWriteLock)
+
+        /// <summary>
+        /// Changes the target file name of the file trace listener. Depending on arguments it might leave the old file as it is
+        /// or move the content to the new file.
+        /// </summary>
+        /// <param name="fileName">The file name of the target file.</param>
+        /// <param name="noExclusiveWriteLock">Allow multiple processes to modify the file.</param>
+        /// <param name="startNewLog">Whether to move the content or to start a new log file.</param>
+        internal void ChangeFileName(string fileName, bool noExclusiveWriteLock, bool startNewLog = false)
         {
             string dir = Path.GetDirectoryName(fileName);
             if (string.IsNullOrWhiteSpace(dir) == false)
@@ -58,18 +69,25 @@ namespace OpenTap
             {
                 // Initialize a stream where the underlying file can be deleted. If the file is deleted, writes just go into the void.
                 var stream = new FileStream(fileName, FileMode.Append, FileAccess.Write, FileShare.Read | FileShare.Delete);
-                newwriter = new StreamWriter(stream, Encoding.UTF8) { AutoFlush = true };
+                newwriter = new StreamWriter(stream, Encoding.UTF8)
+                {
+                    AutoFlush = true
+                };
             }
             else
             {
-                newwriter = new StreamWriter(fileName, true, System.Text.Encoding.UTF8) { AutoFlush = true };
+                newwriter = new StreamWriter(fileName, true, System.Text.Encoding.UTF8)
+                {
+                    AutoFlush = true
+                };
             }
-            
+
             var OldWriter = base.Writer;
             base.Writer = newwriter;
-            
+
             OldWriter.Close();
-            if (_fileName != null)
+
+            if (!startNewLog && _fileName != null)
             {
                 Writer.Write(File.ReadAllText(_fileName));
                 File.Delete(_fileName);
@@ -77,21 +95,20 @@ namespace OpenTap
 
             _fileName = Path.GetFullPath(fileName);
         }
-        
+
         long first_timestamp = -1;
-        static ThreadLocal<System.Text.StringBuilder> _sb = new ThreadLocal<System.Text.StringBuilder>(() => new System.Text.StringBuilder());
+        static readonly ThreadLocal<System.Text.StringBuilder> _sb = new ThreadLocal<System.Text.StringBuilder>(() => new System.Text.StringBuilder());
+        readonly object fileTraceLock = new object();
         public override void TraceEvents(IEnumerable<Event> events)
         {
             // Note, this function is heavily optimized.
             // profile carefully after doing any changes!!
 
             if (events == null)
-                throw new ArgumentNullException("events");
-
-            base.TraceEvents(events);
+                throw new ArgumentNullException(nameof(events));
 
             System.Text.StringBuilder sb = _sb.Value;
-            
+
             sb.Clear();
             long lastTick = 0;
             string tickmsg = "";
@@ -101,7 +118,7 @@ namespace OpenTap
                     first_timestamp = evt.Timestamp;
 
                 if (lastTick != evt.Timestamp)
-                {   // lastTick is to ms resolution
+                { // lastTick is to ms resolution
                     // If its the same, dont waste time generating a new string.
                     if (IsRelative)
                     {
@@ -122,10 +139,10 @@ namespace OpenTap
                 int paddingcount = 14 - evt.Source.Length;
                 if (paddingcount > 0)
                     sb.Append(' ', paddingcount);
-                
+
                 sb.Append(" ; ");
                 switch ((LogEventType)evt.EventType)
-                {   // All these should have same padding, but dont calculate runtime.
+                { // All these should have same padding, but dont calculate runtime.
                     case LogEventType.Debug:
                         sb.Append("Debug      ");
                         break;
@@ -139,7 +156,7 @@ namespace OpenTap
                         sb.Append("Error      ");
                         break;
                 }
-                
+
                 sb.Append(" ; ");
                 if (evt.Message != null)
                 {
@@ -147,14 +164,16 @@ namespace OpenTap
                 }
                 sb.AppendLine();
             }
-            this.Write(sb.ToString());
-
-            var streamWriter = Writer as StreamWriter;
-
-            if (streamWriter != null && (ulong)streamWriter.BaseStream.Length > FileSizeLimit)
+            var logStr = sb.ToString();
+            lock (fileTraceLock)
             {
-                if(FileSizeLimitReached != null)
-                    FileSizeLimitReached(this, new EventArgs());
+                this.Write(logStr);
+
+                if (Writer is StreamWriter streamWriter && (ulong)streamWriter.BaseStream.Length > FileSizeLimit)
+                {
+                    if (FileSizeLimitReached != null)
+                        FileSizeLimitReached(this, new EventArgs());
+                }
             }
         }
     }
