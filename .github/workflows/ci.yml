@@ -322,7 +322,9 @@ jobs:
 
   TestWindowsPlan:
     runs-on: windows-2022
-    needs: Build-Win
+    needs: 
+      - Build-Win
+      - Package-Templates
     strategy:
       matrix:
         retries: [ 0, 1 ]
@@ -339,6 +341,13 @@ jobs:
         with:
           name: win-x64-bin
           path: bin/Release/
+      - name: Download Template package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-templates
+          path: sdk-template
+      - name: Install Templates
+        run: dotnet new --install ./sdk-template/*.nupkg
       - name: Test
         working-directory: bin/Release
         run: ./tap.exe run ../../tests/regression.TapPlan --verbose --color
@@ -351,7 +360,9 @@ jobs:
 
   TestLinuxPlan:
     runs-on: ubuntu-20.04
-    needs: Build-Linux
+    needs: 
+    - Build-Linux
+    - Package-Templates
     strategy:
       matrix:
         retries: [ 0, 1 ]
@@ -367,6 +378,13 @@ jobs:
         with:
           name: Linux-bin
           path: bin/Release/
+      - name: Download Template package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-templates
+          path: sdk-template
+      - name: Install Templates
+        run: dotnet new --install ./sdk-template/*.nupkg
       - run: chmod +x bin/Release/tap
         # The .pdb files are in use for some reason during `tap package install`
       - run: rm ./bin/Release/*.pdb
@@ -375,7 +393,9 @@ jobs:
 
   TestMacPlan:
     runs-on: macos-11
-    needs: Build-MacOS
+    needs: 
+      - Build-MacOS
+      - Package-Templates
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -388,6 +408,13 @@ jobs:
         with:
           name: MacOS-bin
           path: bin/Release/
+      - name: Download Template package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-templates
+          path: sdk-template
+      - name: Install Templates
+        run: dotnet new --install ./sdk-template/*.nupkg
       - run: chmod +x bin/Release/tap
         # The .pdb files are in use for some reason during `tap package install`
       - run: rm ./bin/Release/*.pdb

@@ -55,7 +55,7 @@ namespace OpenTap.Sdk.New
             return false;
         }
 
-        public TraceSource log = Log.CreateSource("New");
+        public static TraceSource log = Log.CreateSource("New");
 
         [CommandLineArgument("out", ShortName = "o", Description = "Path to generated file.")]
         public virtual string output { get; set; }

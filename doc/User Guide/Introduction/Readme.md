@@ -81,22 +81,26 @@ containing child steps; a *Sequential* step passes if all of its children pass. 
 steps decide their own verdict conditions.
 
 *Break Conditions* operate based on step verdicts. The default *engine setting* is to abort the test plan if an *Error*
-verdict is encountered, and continue otherwise. The following break conditions can be enabled and disabled individually:
+verdict is encountered, and continue otherwise. The following break conditions can be toggled independently:
 
 1. *Break On Error*
 2. *Break On Fail*
 3. *Break On Inconclusive*
 
-Specifying break conditions overrides the engine settings in the given step, and all child steps of that step. Child
-steps can further override the value set by their ancestor if necessary. When a break condition is encountered, execution
-of all child steps is stopped, and the test plan resumes from the point where the break was encountered.
+Overriding break conditions in a given step affects all child steps in the step's hierarchy.
+The break conditions of a child step can be further overridden, affecting its child hierarchy, and so on.
 
-The following figure illustrates how break conditions can change test execution, as well as how verdicts are propagated
+When a break condition is triggered, execution of the current *hierachy* is interrupted. The verdict that triggered the break condition is
+propagated upwards through the parent hierarchy until the break condition is no longer met. In other words, until the test plan is stopped,
+or until a parent step is reached which does **not** break on the given verdict. 
+In the latter case, test plan execution will resume from the next step in the sequence.
+
+The following figure illustrates how break conditions affect test execution, and how verdicts are propagated
 from child steps to parent steps:
 
 ![](./break_conditions.svg)
 
-Steps are run in the sequence they appear from top to bottom, and verdicts from child steps are propagated upwards to
+Steps run sequentially from top to bottom, and verdicts from child steps are propagated upwards to
 their immediate parent. In this figure, the break condition on each step is specified on the right along with the source.
 **Bold text** means the break condition is explicitly set for that specific step, which is then inherited by child
 steps. Due to the *Break On Error* break condition, the last two steps are never executed in this example.
