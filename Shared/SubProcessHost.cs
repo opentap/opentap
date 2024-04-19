@@ -6,6 +6,7 @@ using System.IO;
 using System.IO.Pipes;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Versioning;
 using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,7 +28,7 @@ namespace OpenTap
 
         public static bool IsAdmin()
         {
-            if (OperatingSystem.Current == OperatingSystem.Windows)
+            if (System.OperatingSystem.IsWindows())
             {
                 using (WindowsIdentity identity = WindowsIdentity.GetCurrent())
                 {
