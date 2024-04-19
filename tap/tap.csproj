@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>tap</AssemblyName>
     <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
-    <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
     <ApplicationIcon>../Installer/Assets/opentap.ico</ApplicationIcon>
     <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
   </PropertyGroup>

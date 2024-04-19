@@ -28,7 +28,7 @@ namespace OpenTap.Package
             {
                 if (false == File.Exists(file))
                     return Array.Empty<byte>();
-                var sha1 = SHA1CryptoServiceProvider.Create();
+                var sha1 = SHA1.Create();
                 using (var fstr = File.OpenRead(file))
                     return sha1.ComputeHash(fstr);
             }

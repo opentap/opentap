@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 
 namespace OpenTap
@@ -64,7 +65,9 @@ namespace OpenTap
             var source = normalizeSource(picture.Source);
             if (Uri.TryCreate(source, UriKind.Absolute, out var uri))
             {
+#pragma warning disable SYSLIB0014
                 var req = WebRequest.Create(uri);
+#pragma warning restore SYSLIB0014
                 var response = await req.GetResponseAsync();
                 return response.GetResponseStream();
             }

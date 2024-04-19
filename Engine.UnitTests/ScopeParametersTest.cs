@@ -395,8 +395,18 @@ namespace OpenTap.UnitTests
             {
                 // verify Enabled<T> works with SweepParameterStep.
                 var annotation = AnnotationCollection.Annotate(sweep);
-                var col = annotation.GetMember(nameof(SweepParameterStep.SelectedParameters)).Get<IStringReadOnlyValueAnnotation>().Value;
-                Assert.AreEqual("EnabledTest, A", col);
+                var col = annotation.GetMember(nameof(SweepParameterStep.SelectedParameters)).Get<IStringReadOnlyValueAnnotation>().Value; 
+                // The order is not deterministic because the implementation is using a dictionary and looping over the content.
+                // The string hashing function used by dotnet can vary across processes, which affects the order.
+                // It may be confusing to users that restarting an application causes the displayed parameters to change,
+                // but this is a cosmetic issue. We can consider changing the underlying implementation to ensure the list
+                // remains sorted on insertion. I have opted not to change the implementation at this time because the
+                // list implementation is directly exposed to the user with methods such as Insert(index, parameter)
+                // which would be impossible to honor if we sort the list anyway. The way the comma separated string
+                // is actually generated is through a MemberDataSequenceStringAnnotation which is widely used, so ordering
+                // the members alphabetically in that implementation is also a no-go since ordering could be important in other contexts.
+                // The least destructive way would be to use a separate annotator for this particular implementation, which seems excessive for a cosmetic issue.
+                Assert.That(col, Is.EqualTo("A, EnabledTest").Or.EqualTo("EnabledTest, A"));
                 var elements = annotation.GetMember(nameof(SweepParameterStep.SweepValues))
                     .Get<ICollectionAnnotation>().AnnotatedElements
                     .Select(elem => elem.GetMember(nameof(ScopeTestStep.EnabledTest)))
@@ -430,7 +440,7 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(((ScopeTestStep)sweep2.ChildTestSteps[0]).Collection.SequenceEqual(new[] {10, 20}));
 
             var name = sweep.GetFormattedName();
-            Assert.AreEqual("Sweep EnabledTest, A", name);
+            Assert.That(name, Is.EqualTo("Sweep A, EnabledTest").Or.EqualTo("Sweep EnabledTest, A"));
 
             { // Testing that sweep parameters are automatically removed after unparameterization.
                 var p = (ParameterMemberData) TypeData.GetTypeData(sweep2).GetMember("Parameters \\ A");
