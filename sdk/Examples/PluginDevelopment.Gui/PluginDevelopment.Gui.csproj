@@ -6,7 +6,7 @@
     <!-- If your plugin is Windows only and you use Windows specific API's, feel free to change "netstandard2.0" below to "net462" and everything will work as when you are debugging. In this case, remember to change "OS" in package.xml to only "windows" -->
     <!-- If your plugin should be cross platform but does not build in release mode, please verify that all API's you used are available. You might need references or nuget packages for API's that are available in NET framework, but not in NetStandard -->
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net8</TargetFramework>
     <Configurations>Debug;Release;Debug CE</Configurations>
     <Platforms>AnyCPU</Platforms>
   </PropertyGroup>

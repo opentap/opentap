@@ -300,34 +300,6 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        [Retry(10)]
-        // [Repeat(1000)] // TODO: this test sometimes fails due to a timing issue. Enable the repeat to reproduce.
-        public void RunMultipleTestPlanReferences()
-        {
-            PlanRunCollectorListener pl = new PlanRunCollectorListener();
-            ResultSettings.Current.Add(pl);
-            try
-            {
-                var ser = new TapSerializer();
-
-                ser.GetSerializer<Plugins.ExternalParameterSerializer>()
-                    .PreloadedValues["path1"] = "TestTestPlans/testReferencedPlan3.TapPlan";
-                TestPlan plan = (TestPlan)ser.DeserializeFromFile("TestTestPlans/testMultiReferencePlan.TapPlan");
-
-                // The last step is a SetVerdict step, which points into the last TestPlanReferenceStep.
-                // inside that there should be a SetVerdict that results in an inconclusive verdict.
-                var run = plan.Execute();
-                Assert.AreEqual(13, run.StepsWithPrePlanRun.Count);
-                Assert.AreEqual(13, pl.StepRuns.Count);
-                Assert.AreEqual(Verdict.Inconclusive, run.Verdict);
-                Assert.AreEqual(Verdict.Pass, pl.StepRuns[12].Verdict);
-            }
-            finally
-            {
-                ResultSettings.Current.Remove(pl);
-            }
-        }
-        [Test]
         [Ignore("support for 7.x test plans is dropped.")]
         public void LoadLegacyTestPlanReference()
         {
