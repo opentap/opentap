@@ -600,10 +600,7 @@ namespace OpenTap
                 {
                     try
                     {
-                        if (!reflectionOnly)
-                            return Assembly.LoadFrom(loadFilename);
-                        else
-                            return Assembly.ReflectionOnlyLoadFrom(loadFilename);
+                        return Assembly.LoadFrom(loadFilename);
                     }
                     catch(Exception ex)
                     {
