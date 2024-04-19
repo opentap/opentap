@@ -18,8 +18,8 @@
     <Owner>OpenTAP</Owner>
     <!-- Common files  -->
     <Files Condition="$(Debug) == false">
-        <File  Condition="$(Platform) != Windows" Path="tap.runtimeconfig.json"/>
-        <File Condition="$(Platform) != Windows" Path="tap.dll">
+        <File Path="tap.runtimeconfig.json"/>
+        <File Path="tap.dll">
             <SetAssemblyInfo Attributes="Version" />
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
@@ -42,8 +42,8 @@
     </Files>
     <!-- For debug builds. Includes debugging symbols and puts all the DLLs in the OpenTAP root directory.  -->
     <Files Condition="$(Debug) == true">
-        <File Condition="$(Platform) != Windows" Path="tap.runtimeconfig.json"/>
-        <File Condition="$(Platform) != Windows" Path="tap.dll"/>
+        <File Path="tap.runtimeconfig.json"/>
+        <File Path="tap.dll"/>
         <File Path="tap.pdb"/>  
         <File Path="OpenTap.dll"/>
         <File Path="OpenTap.pdb"/>
@@ -69,7 +69,11 @@
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <!-- The tap upgrader is only necessary on Windows because we cannot overwrite tap.exe otherwise -->
+        <File Path="Packages/OpenTAP/Tap.Upgrader.runtimeconfig.json" SourcePath="Tap.Upgrader.runtimeconfig.json"/>
         <File Path="Packages/OpenTAP/Tap.Upgrader.exe" SourcePath="Tap.Upgrader.exe">
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
+        <File Path="Packages/OpenTAP/Tap.Upgrader.dll" SourcePath="Tap.Upgrader.dll">
           <SetAssemblyInfo Attributes="Version"/>
           <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
