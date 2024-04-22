@@ -300,7 +300,6 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        [Retry(10)]
         // [Repeat(1000)] // TODO: this test sometimes fails due to a timing issue. Enable the repeat to reproduce.
         public void RunMultipleTestPlanReferences()
         {
