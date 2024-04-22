@@ -241,13 +241,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: Nuget Cache
-        uses: actions/cache@v4
-        id: cache
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }} #hash of project files
-          restore-keys: ${{ runner.os }}-nuget-
       - name: Stamp Version
         run: |
           $AssemblyVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}.0`""
@@ -262,9 +255,7 @@ jobs:
           cat AssemblyInfo.cs
           Pop-Location
       - name: Restore
-        #if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          dotnet restore /p:Platform=${{ matrix.Architecture }}
+        run: dotnet restore /p:Platform=${{ matrix.Architecture }}
       - name: Build
         run: dotnet build --no-restore -c Release /p:Platform=${{ matrix.Architecture }}
       - name: Build tap.csproj
@@ -274,7 +265,7 @@ jobs:
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
-          name: win-${{ matrix.Architecture }}-bin
+          name: win-${{ matrix.architecture }}-bin
           retention-days: 5
           path: |
             bin/Release/*
@@ -352,8 +343,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
-          cd bin/Release                                                                                                                            # Timeout: 10 minutes (normally takes 5 minutes to run)
-          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=600000 RunConfiguration.TreatNoTestsAsError=true
+          cd bin/Release                                                                       # Timeout: 10 minutes (normally takes 5 minutes to run)
+          dotnet vstest OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=600000 RunConfiguration.TreatNoTestsAsError=true
 
   TestWindowsPlan:
     runs-on: windows-2022
