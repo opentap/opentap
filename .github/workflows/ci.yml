@@ -34,7 +34,6 @@ jobs:
 
   CheckSecrets:
     runs-on: ubuntu-latest
-    environment: sign
     outputs:
       gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
       sign_is_set: ${{ steps.check_sign.outputs.is_set }}
@@ -427,7 +426,6 @@ jobs:
   Package-Win:
     if: needs.CheckSecrets.outputs.sign_is_set == 'true'
     runs-on: windows-2022
-    environment: sign
     strategy:
       matrix:
         Architecture: [x86, x64]
@@ -774,7 +772,6 @@ jobs:
   
   Build-Installer-Windows:
     runs-on: ubuntu-latest
-    environment: sign
     needs:
       - GetVersion
       - Package-Win
@@ -885,6 +882,7 @@ jobs:
 
 
   Docker-Linux:
+    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     runs-on: ubuntu-20.04
     environment: sign
     strategy:
