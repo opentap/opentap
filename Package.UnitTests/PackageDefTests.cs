@@ -591,7 +591,7 @@ namespace OpenTap.Package.UnitTests
             string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
 <Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
   <Files>
-    <File Path='System.Reflection.Metadata.dll'/>
+    <File Path='System.Reflection.MetadataLoadContext.dll'/>
   </Files>
 </Package>
 ";
