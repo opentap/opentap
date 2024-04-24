@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection.Metadata.Ecma335;
+using System.Reflection;
 
 namespace OpenTap.Package
 {
@@ -55,11 +55,21 @@ namespace OpenTap.Package
             new Dictionary<PackageDependencyGraph, IPackageRepository>();
         public void LoadFromRepositories()
         {
+            Exception GetInnermostException(Exception ex)
+            {
+                return ex switch
+                {
+                    AggregateException aex when aex.InnerExceptions.Count == 1 => GetInnermostException(
+                        aex.InnerException),
+                    TargetInvocationException tex => GetInnermostException(tex.InnerException),
+                    _ => ex
+                };
+            }
             
             var repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToArray();
             graphs.Clear();
             var graphList = repositories.AsParallel().TrySelect(repo => (graph: GetGraph(repo), repo: repo),
-                (ex, repo) => throw new BadRepoException(ex, repo));
+                (ex, repo) => throw new BadRepoException(GetInnermostException(ex), repo));
             foreach (var r in graphList)
             {
                 if (r.graph == null)
@@ -84,7 +94,8 @@ namespace OpenTap.Package
             
                 if (repo is HttpPackageRepository http)
                 {
-                  return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, "");  
+                    if (http.Version == null) throw new Exception("Repository is unreachable.");
+                    return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, "");
                 } 
                 
                 if (repo is FilePackageRepository fpkg)
