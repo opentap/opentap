@@ -6,6 +6,18 @@ using System.Reflection.Metadata.Ecma335;
 
 namespace OpenTap.Package
 {
+    class BadRepoException : Exception
+    {
+        public override string Message => $"Error querying '{Repository.Url}': " + InnerException.Message;
+        public Exception InnerException { get; }
+        public IPackageRepository Repository { get; set; }
+
+        public BadRepoException(Exception inner, IPackageRepository repo)
+        {
+            InnerException = inner;
+            Repository = repo;
+        }
+    }
     class PackageDependencyCache
     {
         readonly string os;
@@ -46,17 +58,9 @@ namespace OpenTap.Package
             
             var repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToArray();
             graphs.Clear();
-            foreach (var r in repositories.AsParallel().Select(repo =>
-                     {
-                         try
-                         {
-                             return (graph: GetGraph(repo), repo: repo);
-                         }
-                         catch (Exception)
-                         {
-                             return (graph: null, repo: repo);
-                         }
-                     }))
+            var graphList = repositories.AsParallel().TrySelect(repo => (graph: GetGraph(repo), repo: repo),
+                (ex, repo) => throw new BadRepoException(ex, repo));
+            foreach (var r in graphList)
             {
                 if (r.graph == null)
                     continue; // error while querying repo.
