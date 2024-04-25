@@ -947,7 +947,7 @@ jobs:
         run: nuget push OpenTAP.*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json
 
   Publish-TapPackages:
-    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    # if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: packages.opentap.io
     runs-on: ubuntu-latest
     needs:

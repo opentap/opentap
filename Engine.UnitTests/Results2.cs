@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests;
+using OpenTap.EngineUnitTestUtils;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -30,6 +32,31 @@ namespace OpenTap.UnitTests
             }
         }
     }
+    
+    public class VerdictResultPublisher : TestStep
+    {
+        public enum AddMethod
+        {
+            Set,
+            Add,
+        }
+        public AddMethod Method { get; set; }
+        public override void Run()
+        {
+            switch (Method)
+            {
+                case AddMethod.Set:
+                    StepRun.Parameters["Verdict"] = "Something un-verdict like";
+                    break;
+                case AddMethod.Add:
+                    StepRun.Parameters.Add("", "Verdict", "Also not a verdict", new MetaDataAttribute(false, ""));
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+    }
+
     public class PublishResultsSameValues2 : TestStep
     {
 
@@ -86,6 +113,19 @@ namespace OpenTap.UnitTests
                     }
                 }
             }
+        }
+        
+        [TestCase(VerdictResultPublisher.AddMethod.Set)]
+        [TestCase(VerdictResultPublisher.AddMethod.Add)]
+        public void BadStepRun(VerdictResultPublisher.AddMethod m)
+        {
+            var pl = new PlanRunCollectorListener();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new VerdictResultPublisher() { Method = m});
+            var run = plan.Execute(new[] { pl }); 
+            Assert.That(run.Verdict, Is.EqualTo(Verdict.Error));
+            var verdict = pl.StepRuns[0].Verdict;
+            Assert.That(verdict, Is.EqualTo(Verdict.Error));
         }
     }
 }

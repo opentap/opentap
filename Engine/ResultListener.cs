@@ -369,7 +369,14 @@ namespace OpenTap
         public IConvertible this[string name]
         {
             get => this[name, ""];
-            set => this[name, ""] = value;
+            set
+            {
+                if (name == "Verdict" && !IsVerdictLike(value))
+                {
+                    throw new Exception("Attempted to set verdict to something which is not a verdict!");
+                }
+                this[name, ""] = value;
+            }
         }
 
         static void getMetadataFromObject(object res, string nestedName, ICollection<ResultParameter> output)
@@ -684,7 +691,11 @@ namespace OpenTap
         public void Add(ResultParameter parameter) => AddRange(new[] {parameter}); 
 
         int count = 0;
-        
+
+        private bool IsVerdictLike(IConvertible value)
+        {
+            return value is Verdict || (value is string s && Enum.TryParse(s, out Verdict _));
+        }
         void addRangeUnsafe(IEnumerable<ResultParameter> parameters, bool initCollection = false)
         {
             if (initCollection)
@@ -695,7 +706,7 @@ namespace OpenTap
                 var count2 = 0;
                 foreach (var par in parameters)
                 {
-                    if (par?.Name == null) continue; 
+                    if (par?.Name == null) continue;
                     if (indexByName2.TryGetValue(par.Key, out var idx))
                     {
                         data2[idx] = par;
@@ -720,6 +731,11 @@ namespace OpenTap
             
             foreach (var par in parameters)
             {
+                if (par.Name == "Verdict" && !IsVerdictLike(par.Value))
+                {
+                    throw new Exception("Setting verdict result to something which is not a verdict!");
+                }
+                
                 if (!indexByName.TryGetValue(par.Key, out var idx))
                     idx = -1;
 
