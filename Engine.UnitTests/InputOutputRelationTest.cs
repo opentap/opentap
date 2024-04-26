@@ -539,7 +539,7 @@ namespace OpenTap.UnitTests
         {
             var toTypeData = TypeData.FromType(intoType);
             var fromTypeData = TypeData.GetTypeData(from);
-            Assert.That(InputOutputRelation.CanConvert(toTypeData, fromTypeData), Is.EqualTo(canConvert));
+            Assert.IsTrue(canConvert == InputOutputRelation.CanConvert(toTypeData, fromTypeData));
             if (canConvert)
             {
                 try

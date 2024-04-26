@@ -249,15 +249,15 @@ namespace OpenTap
             defer();
         }
 
-        internal static bool CanConvert(ITypeData _to, ITypeData _from)
+        internal static bool CanConvert(ITypeData to, ITypeData from)
         {
-            if (_from.DescendsTo(_to))
+            if (from.DescendsTo(to))
                 return true;
-            if (_to is TypeData to && _from is TypeData from)
+            if (to is TypeData to2 && from is TypeData from2)
             {
-                if (to.IsNumeric || to.IsString || to.Type == typeof(bool))
+                if (to2.IsNumeric || to2.IsString || to2.Type == typeof(bool))
                 {
-                    switch (from.TypeCode)
+                    switch (from2.TypeCode)
                     {
                         case TypeCode.Double:
                         case TypeCode.Single:
@@ -273,7 +273,7 @@ namespace OpenTap
                         case TypeCode.Boolean:
                             return true;
                         case TypeCode.String:
-                            return to.IsString;
+                            return to2.IsString;
                         default: return false;
                     }
                 }
