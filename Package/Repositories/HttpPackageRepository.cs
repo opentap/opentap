@@ -175,7 +175,11 @@ namespace OpenTap.Package
             catch (Exception ex)
             {
                 if (ex is WebException)
+                {
                     CheckRepoApiVersion();
+                    if (IsInError())
+                        log.Warning("Unable to connect to: {0}", Url); 
+                }
 
                 var exception = new WebException("Error communicating with repository at '" + defaultUrl + "'.", ex);
 
@@ -209,7 +213,7 @@ namespace OpenTap.Package
                 }
                 catch
                 {
-                    log.Warning("Unable to connect to: {0}", Url);
+                    // suppress
                 }
                 nextUpdateAt = DateTime.Now + updateRepoVersionHoldOff;
             }
@@ -417,7 +421,11 @@ namespace OpenTap.Package
         {
             // force update version to check for errors.
             CheckRepoApiVersion();
-            if (IsInError()) return Array.Empty<PackageVersion>();
+            if (IsInError())
+            {
+                log.Warning("Unable to connect to: {0}", Url); 
+                return Array.Empty<PackageVersion>();
+            }
 
             var parameters = GetQueryParameters(name: packageName);
 

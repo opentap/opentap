@@ -50,7 +50,7 @@ namespace OpenTap
                 return new SelectedOutputItem(testStepParent, mem);
             }
 
-            public override string ToString() => $"{Member.GetDisplayAttribute().Name} from {(Step as ITestStep).GetFormattedName() ?? "plan"}";
+            public override string ToString() => $"{Member.GetDisplayAttribute().GetFullName()} from {(Step as ITestStep).GetFormattedName() ?? "plan"}";
 
             public override bool Equals(object obj)
             {
@@ -69,7 +69,7 @@ namespace OpenTap
                 .SelectMany(childStep =>
                 {
                     return TypeData.GetTypeData(childStep).GetMembers()
-                        .Where(y => y.HasAttribute<OutputAttribute>() && InputOutputRelation.CanConvert(y.TypeDescriptor, outputType))
+                        .Where(y => y.HasAttribute<OutputAttribute>() && InputOutputRelation.CanConvert(outputType,y.TypeDescriptor ))
                         .Select(mem => SelectedOutputItem.Create(childStep, mem));
                 })
                 .Where(item => steps.Contains(item.Step) == false)
@@ -77,7 +77,7 @@ namespace OpenTap
             
             // Add the current scope
             list.AddRange(TypeData.GetTypeData(scope).GetMembers()
-                .Where(y => y.HasAttribute<OutputAttribute>() && InputOutputRelation.CanConvert(y.TypeDescriptor, outputType))
+                .Where(y => y.HasAttribute<OutputAttribute>() && InputOutputRelation.CanConvert(outputType, y.TypeDescriptor))
                 .Select(mem => SelectedOutputItem.Create(scope, mem)));
 
             return list.ToArray();
