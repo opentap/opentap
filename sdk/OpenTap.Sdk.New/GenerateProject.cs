@@ -20,24 +20,30 @@ namespace OpenTap.Sdk.New
     [Display("project", "OpenTAP C# Project (.csproj). Including a new TestStep, solution file (.sln) and package.xml.", Groups: new[] { "sdk", "new" })]
     public class GenerateProject : GenerateType
     {
-        enum InstallTemplateResponse
+        enum CreateProjectResponse
         {
             No,
             Yes,
-        }
-
-        [Display("Install OpenTAP Dotnet Templates?")]
-        class InstallTemplateQuestion
+        } 
+        
+        class CreateProjectQuestion 
         {
+            public string Name { get; }
 
             [Browsable(true)]
             [Layout(LayoutMode.FullRow)]
-            public string Message =>
-                "OpenTAP dotnet new templates are not installed. Do you wish to install the templates?";
+            public string Message { get; } 
+
 
             [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
             [Submit]
-            public InstallTemplateResponse Response { get; set; } = InstallTemplateResponse.Yes;
+            public CreateProjectResponse Response { get; set; } = CreateProjectResponse.Yes;
+
+            public CreateProjectQuestion(string name, string message)
+            {
+                Name = name;
+                Message = message;
+            }
         }
 
         #region ExitCodes
@@ -128,6 +134,34 @@ namespace OpenTap.Sdk.New
             }
 
             bool newSolution = sln == null;
+
+            if (newSolution)
+            {
+                // Check if the destination directory is inside of an OpenTAP installation.
+                var directory = dest;
+                while (directory != null)
+                {
+                    if (directory.EnumerateFiles(".OpenTapIgnore").Any())
+                        break;
+                    if (directory.EnumerateFiles("OpenTap.dll").Any())
+                    {
+                        log.Warning($"OpenTAP installation detected in directory '{directory.FullName}'.\n" +
+                                    $"Creating a project as a descendant of another OpenTAP installation can cause the installation to stop working correctly.\n");
+                        var request = new CreateProjectQuestion("Really create project?",
+                            "Are you sure you want to continue?")
+                        {
+                            Response = CreateProjectResponse.No
+                        };
+                        UserInput.Request(request, true);
+                        if (request.Response == CreateProjectResponse.No)
+                            return 1;
+                        break;
+                    }
+
+                    directory = directory.Parent;
+                }
+            }
+
             if (sln == null)
             {
                 // create solution file.
@@ -168,9 +202,9 @@ namespace OpenTap.Sdk.New
             int exitCode = DotnetNew(Name, dest, "opentap", cancellationToken);
             if (exitCode == TemplateNotFound)
             {
-                var question = new InstallTemplateQuestion();
+                var question = new CreateProjectQuestion("Install OpenTAP Dotnet Templates?", "OpenTAP dotnet new templates are not installed. Do you wish to install the templates?");
                 UserInput.Request(question, true);
-                if (question.Response == InstallTemplateResponse.Yes)
+                if (question.Response == CreateProjectResponse.Yes)
                 {
                     exitCode = InstallTemplate(cancellationToken);
                     if (exitCode == 0)
