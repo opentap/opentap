@@ -50,7 +50,7 @@ namespace OpenTap
                 return new SelectedOutputItem(testStepParent, mem);
             }
 
-            public override string ToString() => $"{Member.GetDisplayAttribute().Name} from {(Step as ITestStep).GetFormattedName() ?? "plan"}";
+            public override string ToString() => $"{Member.GetDisplayAttribute().GetFullName()} from {(Step as ITestStep).GetFormattedName() ?? "plan"}";
 
             public override bool Equals(object obj)
             {

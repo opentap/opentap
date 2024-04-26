@@ -467,6 +467,31 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        [TestCase("Iteration", "3 of 3")]
+        [TestCase("Outputs \\ Iteration", "3")]
+        public void TestInputOutputNameClash(string output, string expected)
+        {
+            var plan = new TestPlan();
+            var repeat = new RepeatStep();
+            var step = new InputOutputTypesStep();
+            plan.ChildTestSteps.Add(repeat);
+            plan.ChildTestSteps.Add(step);
+
+            var a = AnnotationCollection.Annotate(step);
+            var im = a.GetMember(nameof(step.StringInput));
+            var menu = im.Get<MenuAnnotation>();
+
+            var request = new SelectAssignmentFromAnnotationMenu();
+            UserInput.SetInterface(request);
+            request.SelectName = output;
+            menu.MenuItems.First(x => x.Get<IconAnnotationAttribute>()?.IconName == IconNames.AssignOutput)
+                .Get<IMethodAnnotation>().Invoke();
+
+            plan.Execute();
+            Assert.AreEqual(step.StringInput, expected);
+        }
+
+        [Test]
         public void TestInputOutputTypes()
         {
             var step1 = new InputOutputTypesStep();
