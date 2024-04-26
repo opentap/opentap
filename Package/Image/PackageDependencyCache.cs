@@ -6,18 +6,6 @@ using System.Reflection;
 
 namespace OpenTap.Package
 {
-    class BadRepoException : Exception
-    {
-        public override string Message => $"Error querying '{Repository.Url}': " + InnerException.Message;
-        public Exception InnerException { get; }
-        public IPackageRepository Repository { get; set; }
-
-        public BadRepoException(Exception inner, IPackageRepository repo)
-        {
-            InnerException = inner;
-            Repository = repo;
-        }
-    }
     class PackageDependencyCache
     {
         readonly string os;
@@ -25,7 +13,7 @@ namespace OpenTap.Package
         readonly PackageDependencyGraph graph = new PackageDependencyGraph();
         public PackageDependencyGraph Graph => graph;
         public List<string> Repositories { get; }
-        static readonly  TraceSource log = Log.CreateSource("Package Query");
+        static readonly TraceSource log = Log.CreateSource("Package Query");
 
         public PackageDependencyCache(string os, CpuArchitecture deploymentInstallationArchitecture, IEnumerable<string> repositories = null)
         {
@@ -65,11 +53,15 @@ namespace OpenTap.Package
                     _ => ex
                 };
             }
-            
+
             var repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToArray();
             graphs.Clear();
             var graphList = repositories.AsParallel().TrySelect(repo => (graph: GetGraph(repo), repo: repo),
-                (ex, repo) => throw new BadRepoException(GetInnermostException(ex), repo));
+                (ex, repo) =>
+                {
+                    var innermost = GetInnermostException(ex);
+                    throw new Exception($"Error querying '{repo.Url}': {innermost.Message}", innermost);
+                });
             foreach (var r in graphList)
             {
                 if (r.graph == null)
