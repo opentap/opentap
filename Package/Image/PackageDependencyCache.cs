@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace OpenTap.Package
 {
@@ -60,7 +61,12 @@ namespace OpenTap.Package
                 (ex, repo) =>
                 {
                     var innermost = GetInnermostException(ex);
-                    throw new Exception($"Error querying '{repo.Url}': {innermost.Message}", innermost);
+                    if (innermost is TaskCanceledException or OperationCanceledException)
+                        throw new Exception($"Timeout while querying '{repo.Url}': {innermost.Message}", innermost);
+                    
+                    if (innermost is PackageQueryException)
+                        throw new Exception($"Error querying '{repo.Url}': {innermost.Message}", innermost);
+                    throw new Exception($"Repository is unreachable: {innermost.Message}", innermost);
                 });
             foreach (var r in graphList)
             {
@@ -86,7 +92,6 @@ namespace OpenTap.Package
             
                 if (repo is HttpPackageRepository http)
                 {
-                    if (http.Version == null) throw new Exception("Repository is unreachable.");
                     return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, "");
                 } 
                 
