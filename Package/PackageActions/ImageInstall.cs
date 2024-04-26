@@ -46,6 +46,7 @@ namespace OpenTap.Package
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {
+            Repositories = ExtractRepositoryTokens(Repositories, true);
             if (NonInteractive)
                 UserInput.SetInterface(new NonInteractiveUserInputInterface());
 
