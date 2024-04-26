@@ -141,6 +141,8 @@ namespace OpenTap.Sdk.New
                 var directory = dest;
                 while (directory != null)
                 {
+                    if (directory.EnumerateFiles(".OpenTapIgnore").Any())
+                        break;
                     if (directory.EnumerateFiles("OpenTap.dll").Any())
                     {
                         log.Warning($"OpenTAP installation detected in directory '{directory.FullName}'.\n" +
