@@ -532,54 +532,59 @@ namespace OpenTap.UnitTests
         {
             UnspecifiedResult
         }
-        [TestCase("A", typeof(double), typeof(FormatException))]
-        [TestCase("A", typeof(float), typeof(FormatException))]
-        [TestCase("A", typeof(int), typeof(FormatException))]
-        [TestCase("1", typeof(int), 1)]
-        [TestCase("True", typeof(int), typeof(FormatException))]
-        [TestCase("True", typeof(bool), true)]
-        [TestCase(true, typeof(int), 1)]
-        [TestCase(true, typeof(double), 1.0)]
-        [TestCase(false, typeof(double), 0.0)]
-        [TestCase(false, typeof(int), 0)]
-        [TestCase(false, typeof(string), "False")]
-        [TestCase(long.MaxValue, typeof(float), SpecialValue.UnspecifiedResult)]
-        [TestCase(long.MaxValue, typeof(double), SpecialValue.UnspecifiedResult)]
-        [TestCase(long.MaxValue, typeof(long), long.MaxValue)]
-        [TestCase(long.MaxValue, typeof(int), typeof(OverflowException))]
-        [TestCase(ulong.MaxValue, typeof(long), typeof(OverflowException))]
-        [TestCase(100000, typeof(byte), typeof(OverflowException))]
-        [TestCase(255, typeof(byte), 255)]
-        [TestCase(256, typeof(byte), typeof(OverflowException))]
-        [TestCase(1e20, typeof(int), typeof(OverflowException))]
-        [TestCase(1e20, typeof(byte), typeof(OverflowException))]
-        [TestCase(1.0, typeof(byte), 1)]
-        [TestCase(1.0, typeof(int), 1)]
-        [TestCase(1.0, typeof(float), 1.0)]
-        [TestCase(1.0, typeof(double), 1.0)]
-        [TestCase(1.0, typeof(string), "1")]
-        public void TestConvertOutputToInput(object from, Type intoType, object exceptionOrResult)
+
+        [TestCase("A", typeof(double), null, false)]
+        [TestCase("A", typeof(float), null, false)]
+        [TestCase("A", typeof(int), null, false)]
+        [TestCase("1", typeof(int), null, false)]
+        [TestCase("True", typeof(int), null, false)]
+        [TestCase("True", typeof(bool), null, false)]
+        [TestCase("A", typeof(string), "A", true)]
+        [TestCase(true, typeof(int), 1, true)]
+        [TestCase(true, typeof(double), 1.0, true)]
+        [TestCase(false, typeof(double), 0.0, true)]
+        [TestCase(false, typeof(int), 0, true)]
+        [TestCase(false, typeof(string), "False", true)]
+        [TestCase(long.MaxValue, typeof(float), SpecialValue.UnspecifiedResult, true)]
+        [TestCase(long.MaxValue, typeof(double), SpecialValue.UnspecifiedResult, true)]
+        [TestCase(long.MaxValue, typeof(long), long.MaxValue, true)]
+        [TestCase(long.MaxValue, typeof(int), typeof(OverflowException), true)]
+        [TestCase(ulong.MaxValue, typeof(long), typeof(OverflowException), true)]
+        [TestCase(100000, typeof(byte), typeof(OverflowException), true)]
+        [TestCase(255, typeof(byte), 255, true)]
+        [TestCase(256, typeof(byte), typeof(OverflowException), true)]
+        [TestCase(1e20, typeof(int), typeof(OverflowException), true)]
+        [TestCase(1e20, typeof(byte), typeof(OverflowException), true)]
+        [TestCase(1.0, typeof(byte), 1, true)]
+        [TestCase(1.0, typeof(int), 1, true)]
+        [TestCase(1.0, typeof(float), 1.0, true)]
+        [TestCase(1.0, typeof(double), 1.0, true)]
+        [TestCase(1.0, typeof(string), "1", true)]
+        public void TestConvertOutputToInput(object from, Type intoType, object exceptionOrResult, bool canConvert)
         {
             var toTypeData = TypeData.FromType(intoType);
             var fromTypeData = TypeData.GetTypeData(from);
-            Assert.IsTrue(InputOutputRelation.CanConvert(fromTypeData, toTypeData));
-            try
+            Assert.IsTrue(canConvert == InputOutputRelation.CanConvert(toTypeData, fromTypeData));
+            if (canConvert)
             {
-                var to = InputOutputRelation.ConvertValue(from, toTypeData);
-                Assert.IsFalse(exceptionOrResult is Exception);
-                if (Equals(exceptionOrResult, SpecialValue.UnspecifiedResult))
+                try
                 {
-                    var to2 = (double)InputOutputRelation.ConvertValue(to, TypeData.FromType(typeof(double)));
-                    Assert.IsTrue(to2 != 0.0);
+                    var to = InputOutputRelation.ConvertValue(from, toTypeData);
+                    Assert.IsFalse(exceptionOrResult is Exception);
+                    if (Equals(exceptionOrResult, SpecialValue.UnspecifiedResult))
+                    {
+                        var to2 = (double)InputOutputRelation.ConvertValue(to, TypeData.FromType(typeof(double)));
+                        Assert.IsTrue(to2 != 0.0);
+                    }
+                    else
+                    {
+                        Assert.AreEqual(exceptionOrResult, to);
+                    }
                 }
-                else
+                catch (Exception e)
                 {
-                    Assert.AreEqual(exceptionOrResult, to);
+                    Assert.AreEqual(exceptionOrResult, e.GetType());
                 }
-            }
-            catch (Exception e)
-            {
-                Assert.AreEqual(exceptionOrResult, e.GetType());
             }
         }
 
