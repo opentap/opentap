@@ -11,6 +11,14 @@ using System.Text.Json;
 
 namespace OpenTap.Package
 {
+    internal class PackageQueryException : Exception
+    {
+        public PackageQueryException(string message) : base(message)
+        {
+
+        }
+    }
+
     /// <summary>
     /// This class takes care of making the right package query queries to the repository server.
     /// </summary>
@@ -94,16 +102,16 @@ namespace OpenTap.Package
                         if (err.Contains("error_description="))
                         {
                             var errstring = err.Split('=').LastOrDefault();
-                            if (errstring != null) throw new Exception($"Unauthorized: {errstring}");
+                            if (errstring != null) throw new PackageQueryException($"Unauthorized: {errstring}");
                         }
                     }
 
                     // This should not happen, but to be safe
                     var fallback = string.Join("\n", errors);
-                    throw new Exception($"Unauthorized: {fallback}");
+                    throw new PackageQueryException($"Unauthorized: {fallback}");
                 }
             } 
-            throw new Exception($"{(int)res.StatusCode} {res.StatusCode}.");
+            throw new PackageQueryException($"{(int)res.StatusCode} {res.StatusCode}.");
         }
 
         /// <summary>
