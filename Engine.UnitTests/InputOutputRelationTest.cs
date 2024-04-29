@@ -588,6 +588,19 @@ namespace OpenTap.UnitTests
             }
         }
 
+        
+        [TestCase(typeof(Verdict), typeof(string), true)]
+        [TestCase(typeof(Verdict), typeof(double), false)]
+        [TestCase(typeof(double), typeof(Verdict), false)]
+        [TestCase(typeof(string), typeof(Verdict), false)]
+        public void TestCanConvertBehavior(Type from, Type to, bool canConvert)
+        {
+            var from2 = TypeData.FromType(from);
+            var to2 = TypeData.FromType(to);
+            var canConvertValue = InputOutputRelation.CanConvert(to2, from2);
+            Assert.AreEqual(canConvert, canConvertValue);
+        }
+
         [TestCase(true)]
         [TestCase(false)]
         public void TestInputAndOutputWithRemovedMixins(bool way)
