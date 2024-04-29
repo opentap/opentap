@@ -147,15 +147,12 @@ namespace OpenTap.Package
                 dependencies[(id, GetVersionId(version))] = deps;
             }
         }
-        
+
         /// <summary>
         /// This is only used in unittests. It works for respones from the 3.1/query API, but not the 4.0/query API.
         /// </summary>
-        /// <param name="json"></param>
-        public void LoadFromJson(JsonDocument json)
+        public void LoadFromJson(JsonElement packages)
         {
-            var packages = json.RootElement.GetProperty("packages");
-
             int addPackages = 0;
             foreach (var elem in packages.EnumerateArray())
             {
