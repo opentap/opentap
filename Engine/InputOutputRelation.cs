@@ -255,6 +255,14 @@ namespace OpenTap
                 return true;
             if (to is TypeData to2 && from is TypeData from2)
             {
+                if (from2.Type.IsEnum)
+                {
+                    // if from is an enum, it has TypeCode Int, but we dont allow assigning an enum to a int input.
+                    if (to2.IsString)
+                        return true;
+                    
+                    return false;
+                }
                 if (to2.IsNumeric || to2.IsString || to2.Type == typeof(bool))
                 {
                     switch (from2.TypeCode)
