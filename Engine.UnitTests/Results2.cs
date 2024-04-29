@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -124,6 +125,37 @@ namespace OpenTap.UnitTests
                 var param = run.Parameters[i.ToString()];
                 Assert.AreEqual(param, i);
             }
+        }
+
+        class ParameterAssigningResultListener : ResultListener
+        {
+            public List<string> Assignments = new List<string>();
+            public override void OnTestStepRunStart(TestStepRun stepRun)
+            {
+                base.OnTestStepRunStart(stepRun);
+                foreach (var assignment in Assignments)
+                {
+                    stepRun.Parameters[assignment] = assignment;
+                }
+            }
+        }
+
+        [Test]
+        public void TestRacyResultListeners()
+        {
+            using var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            var collector = new PlanRunCollectorListener();
+            var a1 = new ParameterAssigningResultListener() { Assignments = { "Param1", "Param2", "Param3" } };
+            var a2 = new ParameterAssigningResultListener() { Assignments = { "Param4", "Param5", "Param6" } };
+            ResultSettings.Current.Add(a1);
+            ResultSettings.Current.Add(a2);
+            ResultSettings.Current.Add(collector);
+
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new DelayStep());
+            plan.Execute();
+
+            Assert.AreEqual(collector.StepRunStartEvents[0].Verdict, Verdict.NotSet);
         }
     }
 }
