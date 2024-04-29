@@ -360,6 +360,41 @@ namespace OpenTap.UnitTests
             }
         }
 
+        public class SimpleOutputStep : TestStep
+        {
+            [Output]
+            public double Output { get; set; }
+            public override void Run()
+            {
+                
+            }
+        }
+
+        [Test]
+        public void MixinAsInput()
+        {
+            var plan = new TestPlan();
+            var step1 = new SimpleOutputStep();
+            var step2 = new SequenceStep();
+            plan.ChildTestSteps.Add(step1);
+            plan.ChildTestSteps.Add(step2);
+            
+            var mixinMember = MixinFactory.LoadMixin(step2, new TestNumberMixinBuilder()
+            {
+                Name = "Number"
+            });
+            
+            InputOutputRelation.Assign(step2, mixinMember, step1, TypeData.GetTypeData(step1).GetMember(nameof(step1.Output)));
+            var s = new TapSerializer().SerializeToString(plan);
+            var i1 = s.IndexOf("OpenTap.UnitTests.TestNumberMixinBuilder", StringComparison.Ordinal);
+            var i2 = s.IndexOf("OpenTap.UnitTests.TestNumberMixinBuilder", i1 + 1, StringComparison.Ordinal);
+            //  the xml should only contain the once.
+            // this means it is included at least two times.
+            Assert.IsTrue(i1 != -1);
+            Assert.IsTrue(i2 == -1);
+        }
+        
+
     }
 
     public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin
