@@ -368,7 +368,8 @@ namespace OpenTap
             {
                 try
                 {
-                    listener.OnTestStepRunStart(clone);
+                    // A result listener may modify the parameter. This should not affect other result listeners.
+                    listener.OnTestStepRunStart(clone.Clone());
 
                     if (listener is IExecutionListener ex)
                         ex.OnTestStepExecutionChanged(stepRun.TestStepId, stepRun, StepState.Running, instant);
