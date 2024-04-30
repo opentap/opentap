@@ -46,12 +46,24 @@ namespace OpenTap.Plugins
                 {
                     if (mixins == null)
                     {
-                        mixins = new XElement(rootElemName);
-                        node.Add(mixins);
+                        mixins = node.Element(rootElemName);
+                        if (mixins == null)
+                        {
+                            mixins = new XElement(rootElemName);
+                            node.Add(mixins);
+                        }
                     }
-                    XElement elem = new XElement(mixinElemName);
-                    mixins.Add(elem);
-                    Serializer.Serialize(elem, mixin.Source);
+                    
+                    var encodedName =Serializer.PropertyXmlName(dynamicMember.Name); 
+                    var currentElement = mixins.Element(encodedName);
+                    // in some rare case this already happened once. This happens because we return false below.
+                    // In this case it is safe to ignore it and continue.
+                    if (currentElement == null)
+                    {
+                        XElement elem = new XElement(encodedName);
+                        mixins.Add(elem);
+                        Serializer.Serialize(elem, mixin.Source);
+                    }
                 }
             }
 
