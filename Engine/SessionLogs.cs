@@ -255,37 +255,55 @@ namespace OpenTap
             static RecentFilesList()
             {
                 var mutexName = "opentap_recent_logs_mutex";
-                try
+                const int retries = 5;
+                Exception ex = null;
+                
+                for (int i = 0; i < retries; i++)
                 {
-                    recentLock = new Mutex(false, mutexName);
+                    try
+                    {
+                        recentLock = new Mutex(false, mutexName);
+                        break;
+                    }
+                    catch (UnauthorizedAccessException e)
+                    {
+                        ex = e;
+                        Thread.Sleep(10);
+                    }
                 }
-                catch (UnauthorizedAccessException ex)
-                {
-                    // This is not that serious. Just log it and move on.
-                    log.Debug($"Error creating mutex '{mutexName}': {ex.Message}");
-                }
+
+                if (recentLock == null)
+                    log.Debug($"Error creating mutex '{mutexName}': {ex.Message}"); 
             }
 
             private static readonly Mutex recentLock;
-
+            private static bool recentFilesValid => recentLock != null;
+            
             public string[] GetRecent()
             {
-                recentLock?.WaitOne();
+                if (!recentFilesValid) 
+                    return Array.Empty<string>();
+                
+                recentLock.WaitOne();
                 try
                 {
                     return ensureFileExistsAndReadLines();
                 }
                 finally
                 {
-                    recentLock?.ReleaseMutex();
+                    recentLock.ReleaseMutex();
                 }
             }
 
             public void AddRecent(string newname)
             {
+                // Don't write to the file if we can't get the mutex
+                if (!recentFilesValid) 
+                    return;
+                
                 // Important to lock the file and to re-read if the file was changed since last checked.
                 // otherwise there is a risk that a log file will be forgotten and never cleaned up.
-                recentLock?.WaitOne();
+                recentLock.WaitOne();
                 try
                 {
                     var currentFiles = ensureFileExistsAndReadLines().Append(newname).DistinctLast();
@@ -301,7 +319,7 @@ namespace OpenTap
                 }
                 finally
                 {
-                    recentLock?.ReleaseMutex();
+                    recentLock.ReleaseMutex();
                 }
             }
         }
