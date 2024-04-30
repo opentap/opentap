@@ -144,9 +144,6 @@ namespace OpenTap.Cli
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static int Execute(params string[] args)
         {
-            // Set TapMutex to ensure any installers know about running OpenTAP processes.
-            ReflectionHelper.SetTapMutex();
-
             try
             {
                 // Turn off the default system behavior when CTRL+C is pressed. 

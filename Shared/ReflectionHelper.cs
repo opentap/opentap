@@ -400,19 +400,6 @@ namespace OpenTap
             return null;
         }
 
-        /// <summary>
-        /// Custom mutex to check if an instance of any Tap application is running.
-        /// </summary>
-        static System.Threading.Mutex tapMutex;
-
-        /// <summary>
-        /// Set the custom Tap mutex.
-        /// </summary>
-        public static void SetTapMutex()
-        {
-            tapMutex = new System.Threading.Mutex(false, "TapMutex");
-        }
-
         static readonly Dictionary<Type, PropertyInfo[]> propslookup = new Dictionary<Type, PropertyInfo[]>(1024);
         static PropertyInfo[] getPropertiesTap(Type t)
         {
