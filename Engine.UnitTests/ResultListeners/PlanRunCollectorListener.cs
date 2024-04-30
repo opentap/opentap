@@ -13,6 +13,8 @@ namespace OpenTap.Engine.UnitTests
         public List<TestPlanRun> PlanRuns = new List<TestPlanRun>();
         [XmlIgnore]
         public List<TestStepRun> StepRuns = new List<TestStepRun>();
+        [XmlIgnore]
+        public List<TestStepRun> StepRunStartEvents = new List<TestStepRun>();
 
         public string LogString;
 
@@ -30,6 +32,7 @@ namespace OpenTap.Engine.UnitTests
 
         public override void OnTestStepRunStart(TestStepRun stepRun)
         {
+            StepRunStartEvents.Add(stepRun);
             base.OnTestStepRunStart(stepRun);
         }
 
