@@ -252,19 +252,32 @@ namespace OpenTap
                 return Array.Empty<string>();
             }
 
+            static RecentFilesList()
+            {
+                var mutexName = "opentap_recent_logs_mutex";
+                try
+                {
+                    recentLock = new Mutex(false, mutexName);
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    // This is not that serious. Just log it and move on.
+                    log.Debug($"Error creating mutex '{mutexName}': {ex.Message}");
+                }
+            }
 
-            static Mutex recentLock = new Mutex(false, "opentap_recent_logs_mutex");
+            private static readonly Mutex recentLock;
 
             public string[] GetRecent()
             {
-                recentLock.WaitOne();
+                recentLock?.WaitOne();
                 try
                 {
                     return ensureFileExistsAndReadLines();
                 }
                 finally
                 {
-                    recentLock.ReleaseMutex();
+                    recentLock?.ReleaseMutex();
                 }
             }
 
@@ -272,7 +285,7 @@ namespace OpenTap
             {
                 // Important to lock the file and to re-read if the file was changed since last checked.
                 // otherwise there is a risk that a log file will be forgotten and never cleaned up.
-                recentLock.WaitOne();
+                recentLock?.WaitOne();
                 try
                 {
                     var currentFiles = ensureFileExistsAndReadLines().Append(newname).DistinctLast();
@@ -288,7 +301,7 @@ namespace OpenTap
                 }
                 finally
                 {
-                    recentLock.ReleaseMutex();
+                    recentLock?.ReleaseMutex();
                 }
             }
         }
