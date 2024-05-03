@@ -137,7 +137,8 @@ namespace OpenTap
                 }
             }
         }
-        readonly object upgradeVerdictLock = new object();
+        
+        internal readonly object upgradeVerdictLock = new object();
         
         /// <summary> Calculated abort condition. </summary>
         internal BreakCondition BreakCondition { get; set; }
