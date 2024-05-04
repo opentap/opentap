@@ -574,6 +574,54 @@ namespace OpenTap.Engine.UnitTests
             var fmt = step.GetFormattedName();
             Assert.AreEqual("Delay: Not Set", fmt); 
         }
+
+        [TestCase(Verdict.Pass)]
+        [TestCase(Verdict.Fail)]
+        [TestCase(Verdict.Error)]
+        [TestCase(Verdict.Inconclusive)]
+        [TestCase(Verdict.NotSet)]
+        public void BasicVerdictTest(Verdict verdict)
+        {
+            var plan = new TestPlan();
+            var step = new VerdictStep()
+            {
+                VerdictOutput = verdict
+            };
+            var seq = new SequenceStep();
+            plan.ChildTestSteps.Add(seq);
+
+            seq.ChildTestSteps.Add(step);
+            var run = plan.Execute();
+            Assert.AreEqual(verdict, run.Verdict);
+        }
+
+        [Test]
+        public void UpgradeVerdictRaceCondition()
+        {
+            var plan = new TestPlan();
+            var failStep = new VerdictStep()
+            {
+                VerdictOutput = Verdict.Fail
+            };
+            
+            var parallel = new ParallelStep();
+            parallel.ChildTestSteps.AddRange(new []{failStep});
+            for (int i = 0; i < 20; i++)
+            {
+                var passStep = new VerdictStep
+                {
+                    VerdictOutput = Verdict.Pass
+                };
+                parallel.ChildTestSteps.Add(passStep);
+            }
+            plan.ChildTestSteps.Add(parallel);
+            for (int i = 0; i < 10; i++)
+            {
+                var run = plan.Execute();
+                Assert.AreEqual(Verdict.Fail, run.Verdict);
+            }
+        }
+        
         
         [Test]
         public void ContinueLoop()

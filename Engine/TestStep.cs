@@ -891,10 +891,19 @@ namespace OpenTap
             return sb.ToString();
         }
 
+        static readonly object upgradeVerdictLock = new object();
         internal static void UpgradeVerdict(this ITestStep step, Verdict newVerdict)
         {
             if (step.Verdict < newVerdict)
-                step.Verdict = newVerdict;
+            {
+                var lockObj = step.StepRun?.upgradeVerdictLock ?? upgradeVerdictLock;
+
+                lock (lockObj)
+                {
+                    if (step.Verdict < newVerdict) 
+                        step.Verdict = newVerdict;
+                }
+            }
         }
 
         /// <summary> This is the currently executing test step or null, used to detect deadlock when a step is waiting for its parent. </summary>
