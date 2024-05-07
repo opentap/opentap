@@ -42,6 +42,7 @@ namespace OpenTap.Package
         readonly List<PackageDependencyGraph> graphs = new List<PackageDependencyGraph>();
         readonly Dictionary<PackageDependencyGraph, IPackageRepository> repos =
             new Dictionary<PackageDependencyGraph, IPackageRepository>();
+
         public void LoadFromRepositories()
         {
             Exception GetInnermostException(Exception ex)
@@ -57,18 +58,25 @@ namespace OpenTap.Package
 
             var repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToArray();
             graphs.Clear();
-            var graphList = repositories.AsParallel().TrySelect(repo => (graph: GetGraph(repo), repo: repo),
-                (ex, repo) =>
+            var graphList = repositories.AsParallel().Select(repo =>
+            {
+                try
+                {
+                    return (graph: GetGraph(repo), repo: repo);
+                }
+                catch (Exception ex)
                 {
                     var innermost = GetInnermostException(ex);
                     if (innermost is TaskCanceledException or OperationCanceledException)
-                        throw new Exception($"Timeout while querying '{repo.Url}': {innermost.Message}", innermost);
-                    
-                    if (innermost is PackageQueryException)
-                        throw new Exception($"Error querying '{repo.Url}': {innermost.Message}", innermost);
-                    throw new Exception($"Repository is unreachable: {innermost.Message}", innermost);
-                });
-            foreach (var r in graphList)
+                        log.Warning($"Timeout while querying '{repo.Url}': {innermost.Message}", innermost);
+                    else if (innermost is PackageQueryException)
+                        log.Warning($"Error querying '{repo.Url}': {innermost.Message}", innermost);
+                    else
+                        log.Warning($"Repository is unreachable: {innermost.Message}", innermost);
+                    return (graph: null, repo: repo);
+                }
+            });
+        foreach (var r in graphList)
             {
                 if (r.graph == null)
                     continue; // error while querying repo.
