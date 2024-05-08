@@ -38,7 +38,7 @@ namespace OpenTap.Package
                     if (pkg2.Name == pkg1.Name)
                     {
                         if (!pkg2.Version.IsSatisfiedBy(pkg1.Version) && !pkg1.Version.IsSatisfiedBy(pkg2.Version))
-                            return new FailedImageResolution(image, new []{pkg1, pkg2}, Iterations);
+                            return new FailedImageResolution(image, new []{pkg1, pkg2}, Iterations, FailedImageResolution.ConflictType.MutuallyExclusive);
 
                         if (!pkg1.Version.IsSatisfiedBy(pkg2.Version))
                         {
@@ -82,7 +82,7 @@ namespace OpenTap.Package
                                     !dep.Version.IsSatisfiedBy(pkg2.Version))
                                 {
                                     // this dependency is unresolvable
-                                    return new FailedImageResolution(image,new[]{pkg2, dep}, Iterations);
+                                    return new FailedImageResolution(image,new[]{pkg2, dep}, Iterations, FailedImageResolution.ConflictType.MutuallyExclusive);
                                 }
 
                                 // this dependency is more specific than the existing.
@@ -177,7 +177,7 @@ namespace OpenTap.Package
                     // this is an uncommon trivial corner case.
                     return new ImageResolution(Array.Empty<PackageSpecifier>(), Iterations);
                 
-                return new FailedImageResolution(image,ResolveProblems, Iterations); // no possible solutions,
+                return new FailedImageResolution(image,ResolveProblems, Iterations, FailedImageResolution.ConflictType.Generic); // no possible solutions,
             }
 
             if (k == 1)
@@ -277,25 +277,41 @@ namespace OpenTap.Package
             }
             
             // this probably never happens as we already returned null, when K was 0.
-            return new FailedImageResolution(image, Array.Empty<PackageSpecifier>(), Iterations);
+            return new FailedImageResolution(image, Array.Empty<PackageSpecifier>(), Iterations, FailedImageResolution.ConflictType.Generic);
         }
     }
 
     class FailedImageResolution : ImageResolution
     {
+        public enum ConflictType
+        {
+            MutuallyExclusive,
+            Generic,
+        }
+
         internal readonly IReadOnlyList<PackageSpecifier> resolveProblems;
         readonly ImageSpecifier image;
-        public FailedImageResolution(ImageSpecifier img, IReadOnlyList<PackageSpecifier> resolveProblems, long iterations) : base(Array.Empty<PackageSpecifier>(), iterations)
+        private readonly ConflictType Conflict;
+        public FailedImageResolution(ImageSpecifier img, IReadOnlyList<PackageSpecifier> resolveProblems, long iterations, ConflictType conflict) : base(Array.Empty<PackageSpecifier>(), iterations)
         {
             image = img;
             this.resolveProblems = resolveProblems;
+            Conflict = conflict;
         }
 
         public override bool Success => false;
 
+        private static string specifierString(PackageSpecifier x) => $"{x.Name}: {x.Version}";
         public override string ToString()
         {
-            return $"Unable to resolve image '{image}': " + string.Join(", ", resolveProblems.Select(x => $"{x.Name}: {x.Version}")) + " was not found";
+            return $"Unable to resolve image '{image}':\n" + Conflict switch
+            {
+                ConflictType.MutuallyExclusive =>
+                    $"{specifierString(resolveProblems[0])} and {specifierString(resolveProblems[1])} are mutually exclusive.",
+                ConflictType.Generic => string.Join(", ", resolveProblems.Select(specifierString)) +
+                                        " could not be satisfied.",
+                _ => throw new ArgumentOutOfRangeException()
+            };
         }
     }
 }

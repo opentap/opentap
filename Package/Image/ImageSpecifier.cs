@@ -220,26 +220,13 @@ namespace OpenTap.Package
     }
 
     /// <summary>
-    /// Exception thrown when ImageSpecifier.Resolve fails. The exception contains a dependency graph specified Dot notation.
+    /// Exception thrown when ImageSpecifier.Resolve fails.
     /// </summary>
     public class ImageResolveException : AggregateException
     {
-        internal readonly ImageSpecifier Image;
-        internal ImmutableArray<PackageDef> InstalledPackages = ImmutableArray<PackageDef>.Empty;
-
-        internal ImageResolveException(string dotGraph, string message, List<Exception> dependencyIssues) : base(message, dependencyIssues)
-        {
-            DotGraph = dotGraph;
-        }
-        internal ImageResolveException(ImageResolution result) : base(result.ToString())
-        {
-            Result = result;
-        }
-        
-        internal ImageResolveException(ImageResolution result, string message) : base(message)
-        {
-            Result = result;
-        }
+        internal ImageSpecifier Image { get; }
+        internal ImmutableArray<PackageDef> InstalledPackages { get; }
+        internal ImageResolution Result { get; }
         
         internal ImageResolveException(ImageResolution result, string message, ImageSpecifier image,
             ImmutableArray<PackageDef> installedPackages) : base(message)
@@ -249,11 +236,11 @@ namespace OpenTap.Package
             InstalledPackages = installedPackages;
         }
 
-        internal ImageResolution Result;
 
         /// <summary>
         /// Dependency graph specified in Dot notation
         /// </summary>
+        [Obsolete("This will always be null.")]
         public string DotGraph { get; private set; }
     }
 }
