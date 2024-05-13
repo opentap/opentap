@@ -136,7 +136,8 @@ namespace OpenTap.Package
                         // newVersions[0] will always be exact.
                         new VersionSpecifier(newVersions[0], VersionMatchBehavior.Exact));
                     retry = true;
-                }else if (newVersions.Length == 1)
+                }
+                else if (newVersions.Length == 1)
                 {
                     if (pkg.Version.PreRelease != newVersions[0].PreRelease ||
                         pkg.Version.BuildMetadata != newVersions[0].BuildMetadata)
@@ -176,8 +177,8 @@ namespace OpenTap.Package
                     // special case when no packages are specified.
                     // this is an uncommon trivial corner case.
                     return new ImageResolution(Array.Empty<PackageSpecifier>(), Iterations);
-                
-                return new FailedImageResolution(image,ResolveProblems, Iterations, FailedImageResolution.ConflictType.Generic); // no possible solutions,
+
+                return DetermineResolveError(image, graph, ResolveProblems);  // no solutions
             }
 
             if (k == 1)
@@ -279,6 +280,45 @@ namespace OpenTap.Package
             // this probably never happens as we already returned null, when K was 0.
             return new FailedImageResolution(image, Array.Empty<PackageSpecifier>(), Iterations, FailedImageResolution.ConflictType.Generic);
         }
+
+        private FailedImageResolution DetermineResolveError(ImageSpecifier image, PackageDependencyGraph graph,
+            List<PackageSpecifier> ResolveProblems)
+        {
+            // Provide a different error message depending on the actual conflict
+            // 1. The specified package does not exist
+            // 2. The requested version could not be satisfied
+            // 3. The requested package has a level 1 dependency conflict with the requested image
+            var allSpecs = graph.PackageSpecifiers().ToArray();
+            FailedImageResolution.ConflictType errorType = FailedImageResolution.ConflictType.Generic;
+            if (ResolveProblems.All(rp => false == allSpecs.Any(s => s.Name == rp.Name)))
+            {
+                errorType = FailedImageResolution.ConflictType.DoesNotExist;
+            }
+            else if (ResolveProblems.Count == 1 && ResolveProblems[0].Version.TryAsExactSemanticVersion(out var _))
+            {
+                var version = graph.PackagesSatisfying(ResolveProblems[0]).ToArray();
+                if (version.Length == 0)
+                {
+                    errorType = FailedImageResolution.ConflictType.NoPackagesSatisfying;
+                }
+                else
+                {
+                    var deps = graph.GetDependencies(ResolveProblems[0].Name, version[0]).ToArray();
+                    foreach (var d in deps)
+                    {
+                        if (image.Packages.FirstOrDefault(p => p.Name == d.Name && !d.Version.IsSatisfiedBy(p.Version))
+                            is { } conflict)
+                        {
+                            errorType = FailedImageResolution.ConflictType.MutuallyExclusive;
+                            ResolveProblems.Add(conflict);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return new FailedImageResolution(image, ResolveProblems, Iterations, errorType);
+        }
     }
 
     class FailedImageResolution : ImageResolution
@@ -286,12 +326,14 @@ namespace OpenTap.Package
         public enum ConflictType
         {
             MutuallyExclusive,
+            DoesNotExist,
+            NoPackagesSatisfying,
             Generic,
         }
 
         internal readonly IReadOnlyList<PackageSpecifier> resolveProblems;
         readonly ImageSpecifier image;
-        private readonly ConflictType Conflict;
+        internal readonly ConflictType Conflict;
         public FailedImageResolution(ImageSpecifier img, IReadOnlyList<PackageSpecifier> resolveProblems, long iterations, ConflictType conflict) : base(Array.Empty<PackageSpecifier>(), iterations)
         {
             image = img;
@@ -301,15 +343,16 @@ namespace OpenTap.Package
 
         public override bool Success => false;
 
-        private static string specifierString(PackageSpecifier x) => $"{x.Name}: {x.Version}";
+        private static string specifierString(PackageSpecifier x) => x.Version == VersionSpecifier.AnyRelease ? x.Name :  $"{x.Name}: {x.Version}";
         public override string ToString()
         {
             return $"Unable to resolve image '{image}':\n" + Conflict switch
             {
                 ConflictType.MutuallyExclusive =>
                     $"{specifierString(resolveProblems[0])} and {specifierString(resolveProblems[1])} are mutually exclusive.",
-                ConflictType.Generic => string.Join(", ", resolveProblems.Select(specifierString)) +
-                                        " could not be satisfied.",
+                ConflictType.NoPackagesSatisfying => $"No packages exist satisfying " + string.Join(", ", resolveProblems.Select(specifierString)),
+                ConflictType.DoesNotExist => "The following requested packages do not exist: " + string.Join(", ", resolveProblems.Select(specifierString)),
+                ConflictType.Generic => string.Join(", ", resolveProblems.Select(specifierString)) + " could not be satisfied.",
                 _ => throw new ArgumentOutOfRangeException()
             };
         }

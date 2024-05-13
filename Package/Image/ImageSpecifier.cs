@@ -125,25 +125,7 @@ namespace OpenTap.Package
             var image = resolver.ResolveImage(this, cache.Graph);
             if (image.Success == false)
             {
-                var unsatisfiedDependencies = InstalledPackages.Where(x => false == x.Dependencies.All(dep =>
-                    InstalledPackages.Any(x2 =>
-                        x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())))).ToArray();
-                if (unsatisfiedDependencies.Any())
-                {
-                    var unsatisfiedString = string.Join(" and ", unsatisfiedDependencies.Select(x =>
-                    {
-                        var missingDeps = x.Dependencies.Where(dep => !InstalledPackages.Any(x2 =>
-                            x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())));
-                        string missingMsg = string.Join(" and ", missingDeps.Select(x2 => $"{x2.Name}:{x2.Version}"));
-                        return $"{x.Name} missing {missingMsg}";
-                    }));
-                    throw new ImageResolveException(image,
-                        $"Unable to resolve the packages: {this}. This is probably due to: {unsatisfiedString}.",
-                        this,
-                        InstalledPackages
-                       );
-                }
-                throw new ImageResolveException(image, image.ToString(), this, InstalledPackages);
+                throw new ImageResolveException(image, this, InstalledPackages);
             }
             
             log.Debug(sw, "Resolved image: {0}", this);
@@ -217,30 +199,5 @@ namespace OpenTap.Package
         /// <summary> Turns an image into a readable string.</summary>
         /// <returns></returns>
         public override string ToString() => string.Join(", ", Packages.Select(x => $"{x.Name}:{x.Version}"));
-    }
-
-    /// <summary>
-    /// Exception thrown when ImageSpecifier.Resolve fails.
-    /// </summary>
-    public class ImageResolveException : AggregateException
-    {
-        internal ImageSpecifier Image { get; }
-        internal ImmutableArray<PackageDef> InstalledPackages { get; }
-        internal ImageResolution Result { get; }
-        
-        internal ImageResolveException(ImageResolution result, string message, ImageSpecifier image,
-            ImmutableArray<PackageDef> installedPackages) : base(message)
-        {
-            Result = result;
-            Image = image;
-            InstalledPackages = installedPackages;
-        }
-
-
-        /// <summary>
-        /// Dependency graph specified in Dot notation
-        /// </summary>
-        [Obsolete("This will always be null.")]
-        public string DotGraph { get; private set; }
     }
 }
