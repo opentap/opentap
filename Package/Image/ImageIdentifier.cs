@@ -301,8 +301,7 @@ namespace OpenTap.Package
             Directory.CreateDirectory(Path.GetDirectoryName(filename));
             if (package.PackageSource is IFilePackageDefSource fileSource)
             {
-                if (string.Equals(Path.GetPathRoot(fileSource.PackageFilePath), Path.GetPathRoot(PackageCacheHelper.PackageCacheDirectory), StringComparison.InvariantCultureIgnoreCase) && string.IsNullOrEmpty(fileSource.PackageFilePath) == false)
-                    File.Copy(fileSource.PackageFilePath, filename);
+                File.Copy(fileSource.PackageFilePath, filename);
             }
             else if (package.PackageSource is IRepositoryPackageDefSource repoSource)
             {
