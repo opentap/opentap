@@ -790,6 +790,9 @@ jobs:
           path: .
       - run: mv OpenTAP.*.Windows.TapPackage Installer/Assets/OpenTAP.TapPackage
       - run: echo "${{ secrets.SIGN_SERVER_CERT }}" > $GITHUB_WORKSPACE/sign.cer
+      - name: Replace Gitversion
+        working-directory: Installer/Assets
+        run: sed -i 's/$(GitVersion)/${{ needs.GetVersion.outputs.LongVersion }}/' opentap.installer.xml
       - run: tap installer create "opentap.installer.xml" -v --target-os win
         working-directory: Installer/Assets
         env:
@@ -848,6 +851,9 @@ jobs:
           path: .
       - run: mv OpenTAP.*.Linux.*.TapPackage Installer/Assets/OpenTAP.TapPackage
         name: Rename package
+      - name: Replace Gitversion
+        working-directory: Installer/Assets
+        run: sed -i 's/$(GitVersion)/${{ needs.GetVersion.outputs.LongVersion }}/' opentap.installer.linux.xml
       - run: tap installer create "opentap.installer.linux.xml" -v --target-os linux
         working-directory: Installer/Assets
         name: Build installer
@@ -945,6 +951,21 @@ jobs:
           path: .
       - name: Package
         run: nuget push OpenTAP.*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json
+
+  Publish-Templates:
+    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    environment: nuget.org
+    runs-on: windows-2022
+    needs:
+      - Package-Templates
+    steps:
+      - name: Download Template package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-templates
+          path: .
+      - name: Package
+        run: nuget push OpenTAP.Templates*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json
 
   Publish-TapPackages:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')

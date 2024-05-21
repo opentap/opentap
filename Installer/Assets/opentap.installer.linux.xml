@@ -19,4 +19,12 @@
     <PackageSpecifier Name="OpenTAP.TapPackage" />
   </OpenTap>
   
+  <Options>
+    <Option Name="sdk"   Default="true"  Group="Additional Installations" Description="SDK" Tooltip="Install NuGet templates and SDK examples."/>
+  </Options>
+
+  <Install Option="sdk">
+    <PackageSpecifier Name="SDK" Version="$(GitVersion)" />
+  </Install>
+
 </Installer>
