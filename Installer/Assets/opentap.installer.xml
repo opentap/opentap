@@ -20,11 +20,11 @@
   </OpenTap>
 
   <Options>
-    <Option Name="sdk"   Default="true"  Group="Additional Installations" Description="SDK" Tooltip="Install NuGet templates and SDK examples."/>
+    <Option Name="sdk" Default="false" Group="Additional Packages" Description="SDK" Tooltip="Install NuGet templates and SDK examples."/>
   </Options>
 
   <Install Option="sdk">
-    <PackageSpecifier Name="SDK" Version="$(GitVersion)" />
+    <PackageSpecifier Name="SDK.TapPackage" />
   </Install>
   
 </Installer>
