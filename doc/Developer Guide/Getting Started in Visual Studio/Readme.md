@@ -1,37 +1,37 @@
 # Getting Started
 
-When creating an OpenTAP plugin you are essentially creating a `dll` that implements specific OpenTAP plugin types, such as the test step or DUT types. The `dll` can enforce one or more plugin types and it can be packaged and versioned, thus [creating an OpenTAP package](../Plugin%20Packaging%20and%20Versioning/Readme.md) with the `.TapPackage` file extension that you can share with the community using the package manager.
+An OpenTAP **plugin** refers to a type which satisfies an interface recognized by OpenTAP. The majority of plugins are C# classes. In this case, more concrelety, you can think of a plugin as a C# class which inherits from a base class from OpenTAP, or implements an OpenTAP interface. A plugin is distributed as a compiled `.dll` file in a **TapPackage**. A TapPackage is a collection of one or more plugin DLLs, their dependencies, and additional metadata, such as a description and versioning information. 
+TapPackages can be shared on the [Package Repository](https://packages.opentap.io). For in-depth information on packaging, see [Plugin Packaging and Versioning](../Plugin%20Packaging%20and%20Versioning/Readme.md). A TapPackage is usually based on a C# solution. This document is details how to create a new solution which automates the process of creating and versioning an OpenTAP plugin package.
 
-To make it easier to develop plugins we created two options you can choose from when creating a project and plugin templates:
+Besides C#, it is also possible to develop plugins in Python by using the Python plugin. Python development will not be covered here. See the [Python Documentation](https://doc.opentap.io/OpenTap.Python/) for more information.
 
-- Using the OpenTAP NuGet Package - This is the recommended way to get OpenTAP if you are developing plugin projects. The NuGet package is available on [nuget.org](https://www.nuget.org/packages/OpenTAP/).
-- Using the OpenTAP SDK Package - This provides templates for many types of common OpenTAP plugins and can be used via:
-  - The **OpenTAP Visual Studio Integration** - This allows you to use Visual Studio to create your plugins. You need Visual Studio 2022 or newer. If you are using the KS8400A PathWave Test Automation Developer's System, this is already included. Otherwise, it can be downloaded from the the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=OpenTAP.opentapsdkce).
-  - The **Command Line** - This allows you to create project code templates from the command line. You can learn how in [The OpenTAP SDK Templates](#opentap-sdk-templates) section.
+To get started, we recommend installing the [OpenTAP NuGet Templates](https://www.nuget.org/packages/OpenTap.Templates/). 
+They can be installed by using the dotnet CLI: `dotnet new install OpenTap.Templates::9.23.2`, or if your IDE supports it, you can search for online templates and look for `OpenTap.Templates`.
 
-## NuGet Package
+## Using the NuGet Package
 
-The OpenTAP NuGet Package has several helpful features for plugin development. You can start a new project or you can turn an existing project into a plugin. Any C# project (\*.csproj) can be turned into a plugin project by adding a reference to the OpenTAP NuGet package. 
+With the templates installed, you can create a new OpenTAP project through the `New Solution` option in your IDE, or you can use the dotnet CLI: 
+```bash
+dotnet new sln --name MySolution
+dotnet new opentap --name MyFirstPlugin
+donet sln add MyFirstPlugin
+```
 
-### Create a Project
+To convert an existing project to an OpenTAP plugin, add a reference to the [OpenTAP NuGet package](https://www.nuget.org/packages/OpenTAP/). You can do this by using the dotnet CLI: `dotnet add package OpenTAP --version 9.23.2`, or by searching for "OpenTAP" in the NuGet package manager in your IDE.
+> NOTE: On Windows, only .NET Framework and netstandard2.0 is supported. If you are using .NET 6 or later, OpenTAP may not be able to correctly load your plugin.
 
-You need a C# project to hold your plugin classes. This can be an existing project, or you can start a new one. To start a new one we recommend choosing "Class Library (.NET Standard)" in the Visual Studio "Create a new project" wizard.
+## NuGet Features
 
-### Reference OpenTAP
+The OpenTAP NuGet package provides the following build-time features:
 
-Since the OpenTAP NuGet package is available on [nuget.org](https://www.nuget.org/packages/OpenTAP/) Visual Studio lists it in the "Browse" tab of the NuGet package manager. You can get to that by right clicking your project in the Solution Explorer and selecting "Manage NuGet Packages...". In the NuGet package manager, search for OpenTAP, and click install.
+### Installation
 
-### NuGet Features
+When your project references the NuGet package, OpenTAP will automatically be installed in your project's output directory (e.g. bin/Debug/). The installation will have the same version as your NuGet reference. By using a unique installation for each plugin, it is easy to manage different plugins which may depend on different versions of OpenTAP. The version of OpenTAP is recorded in the \*.csproj file, which should be managed by version control (e.g. git), so all developers use the same version. This also automates the process of installing OpenTAP on a new machine, such as a Continuous Integration environment.
 
-The OpenTAP NuGet package has a couple of additional built-in MSBuild features. These are discussed below.
+### Package Creation
 
-#### Installation
-
-When your project references the NuGet package, OpenTAP will automatically be installed in your project's output directory (e.g. bin/Debug/). The installation will be the version of OpenTAP specified in your project file (e.g. using the VS NuGet package manager as described above). This feature makes it easier to manage several plugins that may target different versions of OpenTAP. The version of OpenTAP is recorded in the \*.csproj file, which should be managed by version control (e.g. git), so all developers use the same version.
-
-#### Package Creation
-
-The NuGet package also adds build features to help packaging your plugins as a \*.TapPackage for distribution through OpenTAP's package management system (e.g. by publishing it on [packages.opentap.io](http://packages.opentap.io)). To take advantage of these features, your project needs a [package definition file](../Plugin%20Packaging%20and%20Versioning/Readme.md) (normally named package.xml). You can use the command line `tap sdk new packagexml` to generate a skeleton file. As soon as a file named package.xml is in your project, a TapPackage will be generated when it is built in Release mode. You can customize this behavior using these MSBuild properties in your csproj file:
+The NuGet package provides the option to automate packaging your plugins as a \*.TapPackage as part of the build process. To take advantage of this feature, your project needs a [package definition file](../Plugin%20Packaging%20and%20Versioning/Readme.md). If you created you project with the NuGet Template, a package definition file called `package.xml` was already created for you. 
+If you did not use the NuGet template, you can use the OpenTAP CLI Action `tap sdk new packagexml` to generate a skeleton file. If your project contains a file named package.xml, a TapPackage will be generated when it is built in Release mode. You can customize this behavior using these MSBuild properties in your csproj file:
 
 ```xml
 <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
@@ -39,13 +39,15 @@ The NuGet package also adds build features to help packaging your plugins as a \
 <InstallCreatedOpenTapPackage>true</InstallCreatedOpenTapPackage>
 ```
 
-#### Reference Other OpenTAP Packages
+### Reference Other OpenTAP Packages
 
-When using the OpenTAP NuGet package, you can reference other TapPackages you need directly. TapPackages referenced like this will be installed into your projects output directory (usually ./bin/Debug/) along with OpenTAP itself.
+When using the OpenTAP NuGet package, you can reference other TapPackages similar to how NuGet packages are referenced. Referenced packages are installed into your project's output directory (usually ./bin/Debug/) along with OpenTAP.
 
-You can specify an OpenTAP package that your project should reference. You do this by adding the following to your csproj file:
+Reference a package by specifying it in your .csproj file:
 ```xml
 <ItemGroup>
+  <!-- NuGet reference to OpenTAP -->
+  <PackageReference Include="OpenTAP" Version="9.23.2" />
   <!-- OpenTAP package sources -->
   <OpenTapPackageRepository Include="packages.opentap.io"/>
   <OpenTapPackageRepository Include="$HOME/Downloads;$HOME/Documents"/>
@@ -54,7 +56,9 @@ You can specify an OpenTAP package that your project should reference. You do th
   <OpenTapPackageReference Include="DMM API" Version="2.1.2" UnpackOnly="false" IncludeAssemblies="pattern1;pattern2" ExcludeAssemblies="pattern3;pattern4" />
 </ItemGroup>
 ```
-This is similar to the way you add a NuGet package using `<PackageReference/>`. The `<OpenTapPackageRepository/>` element
+> Notice the similarity between `<PackageReference .../>` (a NuGet reference), and `<OpenTapPackageReference ../>`.
+
+The `<OpenTapPackageRepository/>` element
 is similar to the concept of [NuGet Sources](https://docs.microsoft.com/en-us/nuget/reference/cli-reference/cli-ref-sources). It specifies from where
 OpenTAP packages should be resolved. The element can be specified multiple times, or the repository sources can be separated by a semicolon (`;`). All instances of this element will be joined during compilation. Http repositories and directory names are both valid sources. `packages.opentap.io` is always included by default, and cannot be excluded. It is included here only as an example.
 
@@ -149,7 +153,8 @@ SDK Examples contains the following projects:
 
 ## Offline Development
 
-In order to develop OpenTAP plugins using the NuGet package in an offline environment, there are some manual steps:
+It is possible to develop plugins in an offline development. If you compile your project once, all online resources will be cached
+locally so subsequent builds will not require internet access. If you cannot bring your development machine online even once, you can perform the following steps:
 
 1. Install Dotnet 6 SDK
 2. Create a directory for local NuGet packages. Let's call it `\path\to\nuget\source`
