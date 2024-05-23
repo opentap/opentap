@@ -62,11 +62,17 @@ namespace OpenTap.Package
                 {
                     var innermost = GetInnermostException(ex);
                     if (innermost is TaskCanceledException or OperationCanceledException)
-                        throw new Exception($"Timeout while querying '{repo.Url}': {innermost.Message}", innermost);
-                    
-                    if (innermost is PackageQueryException)
-                        throw new Exception($"Error querying '{repo.Url}': {innermost.Message}", innermost);
-                    throw new Exception($"Repository is unreachable: {innermost.Message}", innermost);
+                    {
+                        log.Warning($"Timeout while querying '{repo.Url}': {innermost.Message}", innermost);
+                    } 
+                    else if (innermost is PackageQueryException)
+                    {
+                        log.Warning($"Error querying '{repo.Url}': {innermost.Message}", innermost);
+                    }
+                    else
+                    {
+                        log.Warning($"Repository is unreachable: {innermost.Message}", innermost);
+                    }
                 });
             foreach (var r in graphList)
             {
