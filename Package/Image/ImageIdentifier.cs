@@ -211,13 +211,18 @@ namespace OpenTap.Package
                 var package = packagesInOrder[i];
                 // If the package is a file, download it directory instead of caching it
                 if (package.PackageSource is IFilePackageDefSource fd)
+                {
                     paths.Add(fd.PackageFilePath);
-                else if (CachedLocation(package) is string cachedLocation)
-                    log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
+                }
                 else
-                    Download(package, downloadProgress, cancellationToken);
+                {
+                    if (CachedLocation(package) is string cachedLocation)
+                        log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
+                    else
+                        Download(package, downloadProgress, cancellationToken); 
+                    paths.Add(CachedLocation(package)); 
+                }
 
-                paths.Add(CachedLocation(package));
                 downloaded = i + 1;
                 downloadProgress(Percent(downloaded, cnt), $"Downloaded {package.Name}");
             }
