@@ -244,7 +244,7 @@ jobs:
             bin/Release/*
 
   Build-MacOS:
-    runs-on: macos-11
+    runs-on: macos-14
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -391,7 +391,7 @@ jobs:
       - run: bin/Release/tap run tests/regression.TapPlan --verbose --color
 
   TestMacPlan:
-    runs-on: macos-11
+    runs-on: macos-14
     needs: 
       - Build-MacOS
       - Package-Templates
@@ -775,6 +775,7 @@ jobs:
     needs:
       - GetVersion
       - Package-Win
+      - Package-SDK
     container:
       image: ${{ needs.GetVersion.outputs.SmartInstallerVersion }}      
       credentials:
@@ -790,6 +791,14 @@ jobs:
           path: .
       - run: mv OpenTAP.*.Windows.TapPackage Installer/Assets/OpenTAP.TapPackage
       - run: echo "${{ secrets.SIGN_SERVER_CERT }}" > $GITHUB_WORKSPACE/sign.cer
+      - name: Download SDK package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-sdk
+          path: Installer/Assets
+      - run: mv SDK*TapPackage SDK.TapPackage
+        name: Rename SDK
+        working-directory: Installer/Assets
       - run: tap installer create "opentap.installer.xml" -v --target-os win
         working-directory: Installer/Assets
         env:
@@ -833,6 +842,7 @@ jobs:
     needs:
       - GetVersion
       - Package-Cross
+      - Package-SDK
     container:
       image: ${{ needs.GetVersion.outputs.SmartInstallerVersion }}      
       credentials:
@@ -848,6 +858,14 @@ jobs:
           path: .
       - run: mv OpenTAP.*.Linux.*.TapPackage Installer/Assets/OpenTAP.TapPackage
         name: Rename package
+      - name: Download SDK package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-sdk
+          path: Installer/Assets
+      - run: mv SDK*TapPackage SDK.TapPackage
+        name: Rename SDK
+        working-directory: Installer/Assets
       - run: tap installer create "opentap.installer.linux.xml" -v --target-os linux
         working-directory: Installer/Assets
         name: Build installer
@@ -945,6 +963,21 @@ jobs:
           path: .
       - name: Package
         run: nuget push OpenTAP.*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json
+
+  Publish-Templates:
+    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    environment: nuget.org
+    runs-on: windows-2022
+    needs:
+      - Package-Templates
+    steps:
+      - name: Download Template package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-templates
+          path: .
+      - name: Package
+        run: nuget push OpenTAP.Templates*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json
 
   Publish-TapPackages:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
