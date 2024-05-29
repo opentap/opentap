@@ -14,7 +14,7 @@ With the templates installed, you can create a new OpenTAP project through the `
 ```bash
 dotnet new sln --name MySolution
 dotnet new opentap --name MyFirstPlugin
-donet sln add MyFirstPlugin
+dotnet sln add MyFirstPlugin
 ```
 
 To convert an existing project to an OpenTAP plugin, add a reference to the [OpenTAP NuGet package](https://www.nuget.org/packages/OpenTAP/). You can do this by using the dotnet CLI: `dotnet add package OpenTAP --version 9.23.2`, or by searching for "OpenTAP" in the NuGet package manager in your IDE.
