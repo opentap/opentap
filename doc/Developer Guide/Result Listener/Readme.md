@@ -7,7 +7,7 @@ OpenTAP comes with a number of predefined result listeners, summarized in the fo
 | **Action**     | **Notifier**  |Runs a program or plays a sound based on the verdict of a test plan start and end.   |
 | **Database**   | **PostgreSQL**  | Stores results into a PostgreSQL database.  |
 |    **Database**            | **SqLite**   | Stores results into an SqLite database.  |
-| **Text**       | **CSV**   | Stores results into a CSV file. Supported delimiters are semicolon (to avoid conflicts with commas in VISA addresses), comma and tab.|
+| **Text**       | **CSV**   | Stores results into a CSV file. Supported delimiters are semicolon, comma and tab.|
 |  **Text**              | **Log**   | Stores log messages (NOT results) into a log file. One file is created for each test plan run. |
 
 OpenTAP also supports custom results listeners.
