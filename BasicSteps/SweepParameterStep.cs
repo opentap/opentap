@@ -251,21 +251,25 @@ namespace OpenTap.Plugins.BasicSteps
                 var AdditionalParams = new ResultParameters();
 
 
-                foreach (var set in sets)
+                string getValueString(object value)
                 {
-                    var mem = rowType.GetMember(set.Name);
-                    var value = mem.GetValue(Value);
-
                     string valueString;
                     if (value == null)
                         valueString = "";
                     else if (false == StringConvertProvider.TryGetString(value, out valueString,
                         CultureInfo.InvariantCulture))
                         valueString = value.ToString();
+                    return valueString;
+                }
+                
+                foreach (var set in sets)
+                {
+                    var mem = rowType.GetMember(set.Name);
+                    var value = mem.GetValue(Value);
 
                     var disp = mem.GetDisplayAttribute();
                     AdditionalParams.Add(new ResultParameter(disp.Group.FirstOrDefault() ?? "", disp.Name,
-                        valueString));
+                        value as IConvertible ?? getValueString(value)));
 
                     try
                     {
@@ -273,7 +277,7 @@ namespace OpenTap.Plugins.BasicSteps
                     }
                     catch (TargetInvocationException ex)
                     {
-                        throw new ArgumentException($"Unable to set '{set.GetDisplayAttribute()}' to '{valueString}' on row {i}: {ex.InnerException.Message}", ex.InnerException);
+                        throw new ArgumentException($"Unable to set '{set.GetDisplayAttribute()}' to '{getValueString(value)}' on row {i}: {ex.InnerException.Message}", ex.InnerException);
                     }
                 }
 

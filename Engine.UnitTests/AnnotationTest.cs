@@ -1087,6 +1087,43 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
+        public void ParameterizeSweepTest()
+        {
+            var plan = new TestPlan();
+            var sweepStep = new SweepParameterStep();
+            var delayStep = new DelayStep();
+            var logStep = new LogStep();
+            sweepStep.ChildTestSteps.Add(delayStep);
+            sweepStep.ChildTestSteps.Add(logStep);
+            plan.ChildTestSteps.Add(sweepStep);
+
+            void parameterize(ITestStep step, string memberName)
+            {
+                var member = AnnotationCollection.Annotate(step).GetMember(memberName);
+                var menu = member.Get<MenuAnnotation>();
+                var menuItems = menu.MenuItems;
+                var icons = menuItems.ToLookup(item => item.Get<IIconAnnotation>()?.IconName ?? "");
+                var parameterizeIcon = icons[IconNames.Parameterize].First();
+                parameterizeIcon.Get<IMethodAnnotation>().Invoke(); 
+            }
+            parameterize(delayStep, nameof(delayStep.DelaySecs));
+            parameterize(logStep, nameof(logStep.LogMessage));
+
+            sweepStep.SweepValues.Add(new SweepRow()); 
+            
+            var rl = new PlanRunCollectorListener(); 
+            var run = plan.Execute(new[] { rl });
+
+            var delayRun = rl.StepRuns[0];
+            var delayParam = delayRun.Parameters.First(p => p.Group == "Parameters" && p.Name == "Time Delay").Value;
+            var logMessageParam =
+                delayRun.Parameters.First(p => p.Group == "Parameters" && p.Name == "Log Message").Value;
+
+            Assert.IsTrue(delayParam is double);
+            Assert.IsTrue(logMessageParam is string);
+        }
+
+        [Test]
         public void TestMergedInputVerdict([Values(true, false)]bool availableProxy)
         {
             var dialog = new DialogStep();
