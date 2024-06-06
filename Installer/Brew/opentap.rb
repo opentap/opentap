@@ -18,7 +18,7 @@ class Opentap < Formula
       --configuration Release
       /p:AssemblyVersion=#{version}
       /p:FileVersion=#{version}
-      /p:InformationalVersion=#{version} # TODO: Should be 9.24.2.0
+      /p:InformationalVersion=#{version}
       /p:Version=#{version}
     ]
 
@@ -61,6 +61,9 @@ class Opentap < Formula
         "F9085086CC8323A9BFF7786309C4D3BF97949A3A"
       end
     end
+
+    # Make the tap script executable - Used when opentap wants to run isolated
+    chmod 0755, prefix/"tap"
 
     # Create a script to "dotnet tap.dll"
     (bin/"tap").write_env_script dotnet, prefix/"tap.dll", DOTNET_ROOT: "${DOTNET_ROOT:-#{dotnet.opt_libexec}}"
