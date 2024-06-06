@@ -8,6 +8,8 @@ class Opentap < Formula
 
   depends_on "dotnet"
 
+  uses_from_macos "unzip" => :build
+
   def install
     full_version = "$(Version)"
     os = OS.mac? ? "MacOS" : "Linux"
