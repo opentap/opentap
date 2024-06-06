@@ -1,5 +1,5 @@
 class Opentap < Formula
-  desc "This is the code for the base OpenTAP package. See https://opentap.io"
+  desc "Fast and easy development and execution of automated tests"
   homepage "https://opentap.io"
   url "https://github.com/opentap/opentap.git",
     tag:      "$(Tag)",
