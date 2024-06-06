@@ -42,7 +42,7 @@ class Opentap < Formula
 
     # Extract the TapPackage
     mkdir_p buildpath/"output"
-    system "tar", "xvf", package_output_path, "-C", buildpath/"output"
+    system "unzip", package_output_path, "-d", buildpath/"output"
 
     # Install the output of the TapPackage
     prefix.install Dir[buildpath/"output/*"]
