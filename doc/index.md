@@ -74,6 +74,6 @@ plugin's gitlab CI file](https://gitlab.com/OpenTAP/Plugins/demonstration/-/blob
 
 
 ### Where to go next
-Are you already an OpenTAP user, or want to try it out? Have a look at the [User Guide](User%20Guide/Introduction/).
+Are you already an OpenTAP user, or want to try it out? Have a look at the [User Guide](User%20Guide/Introduction/Readme.md).
 
-Are you a developer and want to create plugins for OpenTAP? Have a look at the [Developer Guide](Developer%20Guide/Introduction/).
+Are you a developer and want to create plugins for OpenTAP? Have a look at the [Developer Guide](Developer%20Guide/Introduction/Readme.md).
