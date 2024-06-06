@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="989.6402"
+   height="30.085304"
+   version="1.1"
+   id="svg56"
+   sodipodi:docname="sequential.svg"
+   inkscape:version="1.2.2 (732a01da63, 2022-12-09)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs60" />
+  <sodipodi:namedview
+     id="namedview58"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="1.1008333"
+     inkscape:cx="566.8433"
+     inkscape:cy="291.14307"
+     inkscape:window-width="2400"
+     inkscape:window-height="1421"
+     inkscape:window-x="-9"
+     inkscape:window-y="-9"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg56" />
+  <rect
+     x="77.255585"
+     y="155.67197"
+     width="82.569351"
+     height="30"
+     fill="#4caf50"
+     id="rect32"
+     style="stroke-width:1.01593" />
+  <text
+     x="119.25558"
+     y="175.67197"
+     fill="#ffffff"
+     font-size="14px"
+     font-weight="bold"
+     text-anchor="middle"
+     id="text34">Measure 1</text>
+  <rect
+     x="161.25558"
+     y="155.67197"
+     width="106.97819"
+     height="30"
+     fill="#4caf50"
+     id="rect36"
+     style="stroke-width:1.15639" />
+  <text
+     x="203.25558"
+     y="175.67197"
+     fill="#ffffff"
+     font-size="14px"
+     font-weight="bold"
+     text-anchor="middle"
+     id="text38">Measure 2</text>
+  <rect
+     x="268.8761"
+     y="155.67197"
+     width="96.379616"
+     height="30"
+     fill="#4caf50"
+     id="rect40"
+     style="stroke-width:1.09761" />
+  <text
+     x="310.8761"
+     y="175.67197"
+     fill="#ffffff"
+     font-size="14px"
+     font-weight="bold"
+     text-anchor="middle"
+     id="text42">Measure 3</text>
+  <rect
+     x="161.25558"
+     y="185.67197"
+     width="217.15152"
+     height="30"
+     fill="#ff9800"
+     id="rect44"
+     style="stroke-width:1.64754" />
+  <text
+     x="201.25558"
+     y="205.67197"
+     fill="#ffffff"
+     font-size="14px"
+     font-weight="bold"
+     text-anchor="middle"
+     id="text46">Process 1</text>
+  <rect
+     x="267.59927"
+     y="215.64926"
+     width="213.9894"
+     height="30"
+     fill="#ff9800"
+     id="rect48"
+     style="stroke-width:1.6355" />
+  <text
+     x="307.59927"
+     y="235.64926"
+     fill="#ffffff"
+     font-size="14px"
+     font-weight="bold"
+     text-anchor="middle"
+     id="text50">Process 2</text>
+  <rect
+     x="363.12991"
+     y="245.62654"
+     width="214.4436"
+     height="30"
+     fill="#ff9800"
+     id="rect52"
+     style="stroke-width:1.63724" />
+  <text
+     x="403.12988"
+     y="265.62653"
+     fill="#ffffff"
+     font-size="14px"
+     font-weight="bold"
+     text-anchor="middle"
+     id="text54">Process 3</text>
+  <rect
+     x="79.898643"
+     y="0.085296631"
+     width="80.642334"
+     height="30"
+     fill="#4caf50"
+     id="rect32-0"
+     style="stroke-width:1.00401" />
+  <text
+     x="120.54098"
+     y="20.082367"
+     fill="#ffffff"
+     font-size="14px"
+     font-weight="bold"
+     text-anchor="middle"
+     id="text34-5">Measure 1</text>
+  <rect
+     x="0"
+     y="0"
+     width="80"
+     height="30"
+     fill="#4caf50"
+     id="rect32-0-5"
+     style="fill:#000000;fill-opacity:1" />
+  <text
+     x="39.999996"
+     y="19.354736"
+     fill="#ffffff"
+     font-size="14px"
+     font-weight="bold"
+     text-anchor="middle"
+     id="text34-5-3">Thread1:</text>
+  <g
+     id="g426"
+     transform="translate(67.717356,163.62049)">
+    <rect
+       x="289.94702"
+       y="-163.53519"
+       width="106.97819"
+       height="30"
+       fill="#4caf50"
+       id="rect36-7"
+       style="stroke-width:1.15639" />
+    <text
+       x="329.94702"
+       y="-143.53519"
+       fill="#ffffff"
+       font-size="14px"
+       font-weight="bold"
+       text-anchor="middle"
+       id="text38-7">Measure 2</text>
+  </g>
+  <g
+     id="g434"
+     transform="translate(280.7378,163.62049)">
+    <rect
+       x="397.56754"
+       y="-163.53519"
+       width="96.379616"
+       height="30"
+       fill="#4caf50"
+       id="rect40-4"
+       style="stroke-width:1.09761" />
+    <text
+       x="437.56754"
+       y="-143.53519"
+       fill="#ffffff"
+       font-size="14px"
+       font-weight="bold"
+       text-anchor="middle"
+       id="text42-2">Measure 3</text>
+  </g>
+  <g
+     id="g422"
+     transform="translate(110.41229,152.24276)">
+    <rect
+       x="50.1287"
+       y="-152.15746"
+       width="196.27554"
+       height="30"
+       fill="#ff9800"
+       id="rect44-2"
+       style="stroke-width:1.56635" />
+    <text
+       x="90.1287"
+       y="-132.15746"
+       fill="#ffffff"
+       font-size="14px"
+       font-weight="bold"
+       text-anchor="middle"
+       id="text46-2">Process 1</text>
+  </g>
+  <g
+     id="g430"
+     transform="translate(67.717356,103.64321)">
+    <rect
+       x="396.29071"
+       y="-103.55791"
+       width="213.9894"
+       height="30"
+       fill="#ff9800"
+       id="rect48-6"
+       style="stroke-width:1.6355" />
+    <text
+       x="436.29071"
+       y="-83.557915"
+       fill="#ffffff"
+       font-size="14px"
+       font-weight="bold"
+       text-anchor="middle"
+       id="text50-4">Process 2</text>
+  </g>
+  <rect
+     x="775.19659"
+     y="0.085296631"
+     width="214.4436"
+     height="30"
+     fill="#ff9800"
+     id="rect52-7"
+     style="stroke-width:1.63724" />
+  <text
+     x="815.19653"
+     y="20.16098"
+     fill="#ffffff"
+     font-size="14px"
+     font-weight="bold"
+     text-anchor="middle"
+     id="text54-5">Process 3</text>
+  <rect
+     x="-3.2116928"
+     y="155.44574"
+     width="80"
+     height="30"
+     fill="#4caf50"
+     id="rect32-0-5-4"
+     style="fill:#000000;fill-opacity:1" />
+  <text
+     x="33.757545"
+     y="174.80048"
+     fill="#ffffff"
+     font-size="14px"
+     font-weight="bold"
+     text-anchor="middle"
+     id="text34-5-3-6">Thread1:</text>
+  <rect
+     x="-3.2116928"
+     y="185.31444"
+     width="80"
+     height="30"
+     fill="#4caf50"
+     id="rect32-0-5-4-6"
+     style="fill:#000000;fill-opacity:1" />
+  <text
+     x="33.757545"
+     y="204.99034"
+     fill="#ffffff"
+     font-size="14px"
+     font-weight="bold"
+     text-anchor="middle"
+     id="text34-5-3-6-5">Thread2:</text>
+  <rect
+     x="-3.2116928"
+     y="215.18314"
+     width="80"
+     height="30"
+     fill="#4caf50"
+     id="rect32-0-5-4-6-6"
+     style="fill:#000000;fill-opacity:1" />
+  <text
+     x="33.757545"
+     y="234.85904"
+     fill="#ffffff"
+     font-size="14px"
+     font-weight="bold"
+     text-anchor="middle"
+     id="text34-5-3-6-5-7">Thread3:</text>
+  <rect
+     x="-3.2116928"
+     y="245.05185"
+     width="80"
+     height="30"
+     fill="#4caf50"
+     id="rect32-0-5-4-6-6-8"
+     style="fill:#000000;fill-opacity:1" />
+  <text
+     x="33.757545"
+     y="264.40659"
+     fill="#ffffff"
+     font-size="14px"
+     font-weight="bold"
+     text-anchor="middle"
+     id="text34-5-3-6-5-7-3">Thread4:</text>
+</svg>
