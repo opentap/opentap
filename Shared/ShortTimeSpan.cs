@@ -12,7 +12,13 @@ namespace OpenTap
     /// </summary>
     struct ShortTimeSpan
     {
+        //public int? Seconds;
+        //public int Minutes;
+        
         public enum UnitKind{
+            Days,
+            Hours,
+            Minutes,
             Seconds,
             Milliseconds,
             Microseconds,
@@ -56,6 +62,30 @@ namespace OpenTap
             }
             
             return new ShortTimeSpan { unit = unit, Value = Math.Round(s, 3) };
+        }
+
+        /// <summary>
+        /// For formating of timespans longer than 1 minute like "1 d 1 h 14m" instead of "90840 s"
+        /// </summary>
+        /// <param name="timeSpan"></param>
+        /// <returns></returns>
+        public static string LongTimeSpanFormat(TimeSpan timeSpan)
+        {
+            string result = "";
+
+            if (timeSpan.Days > 0)
+                result += $"{timeSpan.Days} d ";
+
+            if (timeSpan.Hours > 0)
+                result += $"{timeSpan.Hours} h ";
+
+            if (timeSpan.Minutes > 0)
+                result += $"{timeSpan.Minutes} m ";
+
+            if (timeSpan.Seconds > 0)
+                result += $"{timeSpan.Seconds} s ";
+
+            return result.Trim();
         }
 
         public static ShortTimeSpan FromString(string str)

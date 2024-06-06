@@ -114,11 +114,24 @@ namespace OpenTap.Engine.UnitTests
             var s = new[] { "10 ms", "1 ms", "100 us", "10 μs", "1 μs", "1 ns", "0 s" };
 
             for (int i = 0; i < v.Length; i++)
-            {
+            {   
                 var s1 = ShortTimeSpan.FromSeconds(v[i]);
                 var s2 = ShortTimeSpan.FromString(s[i]);
                 StringAssert.AreEqualIgnoringCase(s1.ToString(), s2.ToString());
 
+            }
+        }
+
+        [Test]
+        public void LongTimeSpanTest()
+        {
+            var seconds = new TimeSpan[] { new TimeSpan(0,0, 86400), new TimeSpan(0, 0, 84600) , new TimeSpan(0, 0, 2031720) };
+            var expectedTimeSpan = new[] { "1 d", "23 h 30 m", "23 d 12 h 22 m" };
+
+            for (int i = 0; i < seconds.Length; i++)
+            {
+                var actualTimeSpan = ShortTimeSpan.LongTimeSpanFormat(seconds[i]);
+                StringAssert.AreEqualIgnoringCase(actualTimeSpan, expectedTimeSpan[i]);
             }
         }
 

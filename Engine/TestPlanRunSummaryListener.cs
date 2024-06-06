@@ -245,11 +245,11 @@ namespace OpenTap
             
             if (!hasOtherVerdict)
             {
-                summaryLog.Info(formatSummary($" Test plan completed successfully in {ShortTimeSpan.FromSeconds(planRun.Duration.TotalSeconds).ToString(),6} "));
+                summaryLog.Info(formatSummary($" Test plan completed successfully in {ShortTimeSpan.LongTimeSpanFormat(planRun.Duration)} "));
             }
             else
             {
-                summaryLog.Info(formatSummary(string.Format(" Test plan completed with verdict {1} in {0,6} ", ShortTimeSpan.FromSeconds(planRun.Duration.TotalSeconds).ToString(), planRun.Verdict)));
+                summaryLog.Info(formatSummary(string.Format(" Test plan completed with verdict {1} in {0,6} ", ShortTimeSpan.LongTimeSpanFormat(planRun.Duration), planRun.Verdict)));
             }
         }
 
