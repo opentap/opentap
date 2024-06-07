@@ -134,9 +134,49 @@ public override void Run()
 
 
 
-## TAP Threads
+## OpenTAP Threads
 
+OpenTAP Threads are analogous to .NET Threads, but have some key differences that makes them easier to use in a OpenTAP Plugin.
 
+- Thread Pools: When somebody requests to execute a function, it either takes a thread from the pool and uses that or starts a new thread. When the function is complete the thread is added back into the pool. Compared to .NET Thread Pools, they are much quicker to start.
+- They are heirarchical: When the thread is activated, thread-local storage is used to keep track of which thread started it. That means that various kinds of data can be shared between heirarchies of threads. The class ThreadHeirarchyLocal is a way to share data between threads. When a OpenTAP thread is aborted, the child threads also gets the signal to abort. This is also used for Sessions.
+
+To start a TapThread, simply call `TapThread.Start()`.
+
+```c#
+TapThread.Start(() =>
+{
+    // Do something time consuming
+    TapThread.Sleep(100);
+    // thread finishes now. (Thread is donated back to the pool)
+});
+```
+
+Since the thread is taken from a pool of live threads, they will normally start almost instantly.
+
+If you want some result from your thread thread, we strongly recommend to use the TaskCompletionSource object. Note, there are many ways this can be done, but TaskCompletionSource is a very flexible way to do it.
+
+```c#
+// this is called a promise in many programming languages.
+var promise = new TaskCompletionSource<double>();
+TapThread.Start(() =>
+{
+    // do something time consuming.
+    try
+    {
+       TapThread.Sleep(100);
+       promise.SetResult(9000.0);
+    }
+    catch (Exception e)
+    {
+       promise.SetException(e);
+    }
+});
+
+// wait for the result and possibly throw an exception on failure.
+double resultValue = promise.Task.Result;
+
+```
 
 
 ## .NET Threads and Tasks
