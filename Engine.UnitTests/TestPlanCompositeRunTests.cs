@@ -127,16 +127,16 @@ namespace OpenTap.Engine.UnitTests
         {
             var seconds = new TimeSpan[] 
             { 
-                new TimeSpan(0,0, 86400), 
-                new TimeSpan(0, 0, 84600) , 
-                new TimeSpan(0, 0, 2031720), 
-                new TimeSpan(0,0, 86700), 
-                new TimeSpan(0,0, 18003),
-                new TimeSpan(0,0, 260470),
-                new TimeSpan(0,0, 86399999),
-                new TimeSpan(0,0, 86459),
-                new TimeSpan(0,0, 1),
-                new TimeSpan(0,0, 0)
+                new TimeSpan(1, 0, 0, 0), 
+                new TimeSpan(0, 23, 30, 0) , 
+                new TimeSpan(23, 12, 22, 0), 
+                new TimeSpan(1, 0, 5, 0), 
+                new TimeSpan(0, 5, 0, 3),
+                new TimeSpan(3, 0, 21, 10),
+                new TimeSpan(999, 23 ,59, 59),
+                new TimeSpan(1, 0,0, 59),
+                new TimeSpan(0, 0,0, 59),
+                new TimeSpan(0,0, 0,0)
             };
             var expectedTimeSpan = new[] 
             { 
