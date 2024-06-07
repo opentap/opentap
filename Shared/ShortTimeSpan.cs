@@ -12,9 +12,7 @@ namespace OpenTap
     /// </summary>
     struct ShortTimeSpan
     {
-        //public int? Seconds;
-        //public int Minutes;
-        
+       
         public enum UnitKind{
             Days,
             Hours,
@@ -72,7 +70,8 @@ namespace OpenTap
         public static string LongTimeSpanFormat(TimeSpan timeSpan)
         {
             string result = "";
-
+            if (timeSpan.TotalSeconds == 0)
+                return "0 s";
             if (timeSpan.Days > 0)
                 result += $"{timeSpan.Days} d ";
 
@@ -84,6 +83,7 @@ namespace OpenTap
 
             if (timeSpan.Seconds > 0)
                 result += $"{timeSpan.Seconds} s ";
+            
 
             return result.Trim();
         }

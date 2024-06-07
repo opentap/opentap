@@ -125,9 +125,33 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void LongTimeSpanTest()
         {
-            var seconds = new TimeSpan[] { new TimeSpan(0,0, 86400), new TimeSpan(0, 0, 84600) , new TimeSpan(0, 0, 2031720) };
-            var expectedTimeSpan = new[] { "1 d", "23 h 30 m", "23 d 12 h 22 m" };
-
+            var seconds = new TimeSpan[] 
+            { 
+                new TimeSpan(0,0, 86400), 
+                new TimeSpan(0, 0, 84600) , 
+                new TimeSpan(0, 0, 2031720), 
+                new TimeSpan(0,0, 86700), 
+                new TimeSpan(0,0, 18003),
+                new TimeSpan(0,0, 260470),
+                new TimeSpan(0,0, 86399999),
+                new TimeSpan(0,0, 86459),
+                new TimeSpan(0,0, 1),
+                new TimeSpan(0,0, 0)
+            };
+            var expectedTimeSpan = new[] 
+            { 
+                "1 d", 
+                "23 h 30 m", 
+                "23 d 12 h 22 m", 
+                "1 d 5 m", 
+                "5 h 3 s" , 
+                "3 d 21 m 10 s", 
+                "999 d 23 h 59 m 59 s", 
+                "1 d 59 s",
+                "1 s",
+                "0 s"
+            };
+ 
             for (int i = 0; i < seconds.Length; i++)
             {
                 var actualTimeSpan = ShortTimeSpan.LongTimeSpanFormat(seconds[i]);
