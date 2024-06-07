@@ -94,32 +94,39 @@ In the below screenshot you can see how parallel steps with locks are evaluated.
 
 ## Deferred Processing
 
-Deferred results processing makes it possible to do post-processing of results while the test plan execution continues. This is a limited kind of parallelism that is useful when the performance is bound by data acquisition and data processing sequentially and you have spare computational resources. The effects are greatest when the amount of processing time is considerably greater than the measurement time, but for shorter processing times it can be useful too.
+Deferred results processing enables post-processing of results while the test plan execution continues. This approach is a form of limited parallelism, beneficial when performance is constrained by sequential data acquisition and processing, and there are spare computational resources available. Deferred processing is most effective when processing time significantly exceeds measurement time, but it can also be useful for shorter processing tasks.
 
-The following illustrates the order of operations in traditional sequential processing:
+### Sequential Processing
 
-![](Sequential.svg)
+In traditional sequential processing, the order of operations is as follows:
 
-This diagram illustrates the order of operations when defered processing is used:
+![Sequential Processing](Sequential.svg)
 
-![](parallel.svg)
+### Deferred Processing
 
+When deferred processing is used, operations are handled in parallel, as shown in the diagram below:
 
-In KS8400 a visualization of the parallelism has been added so that you can get a bit of insight into the speed improvements. In the below picture you can see three Measurement + Process steps which has a blocking measurement part and a non-blocking processing part. Notice the bars in the Flow column. The visualization shows the blocking part of the executing in blue and the non-blocking part in dark gray.
+![Parallel Processing](parallel.svg)
 
-![Deferred parallelism](DeferredParallelism.png)
+### Visualization in KS8400
 
-To add deferred processing inside a test step Run method, use the Results.Defer method as shown in the example below:
+In KS8400, you can visualize the parallelism to gain insights into the performance improvements. The image below shows three Measurement + Process steps with a blocking measurement part and a non-blocking processing part. The Flow column's bars indicate the blocking part of the execution in blue and the non-blocking part in dark gray.
 
-```cs
-// ... This goes inside a Test Step implementation ...
+![Deferred Parallelism](DeferredParallelism.png)
+
+### Implementing Deferred Processing
+
+To incorporate deferred processing within a test step's `Run` method, use the `Results.Defer` method. The example below demonstrates this:
+
+```csharp
+// This goes inside a Test Step implementation
 public override void Run()
 {
-    // execute the blocking part of the test step
+    // Execute the blocking part of the test step
     double[] data = instrument.DoMeasurement();
 
     Results.Defer(() => {
-      // Inside this anonymous function the non-blocking part of the execution will be executed.
+      // The non-blocking part of the execution is handled inside this anonymous function
       var processedData = ProcessData(data);
       Results.Publish(processedData);
       var limitsPassed = CheckLimits(processedData);
@@ -131,56 +138,131 @@ public override void Run()
 }
 ```
 
+In this example:
+1. **Blocking Measurement**: The test step performs a measurement that blocks further execution.
+2. **Deferred Processing**: The `Results.Defer` method queues the non-blocking processing operations to be executed concurrently.
+3. **Processing**: Inside the deferred anonymous function, data is processed, results are published, and limits are checked.
+4. **Verdict Upgrading**: Based on the processed data, the test verdict is upgraded to `Pass` or `Fail`.
+
+By using deferred processing, you can optimize test execution, reducing the overall test plan duration and improving resource utilization.
 
 
+## TapThreads
 
-## OpenTAP Threads
+TapThreads function similarly to .NET Threads but include additional features tailored for OpenTAP plugins, enhancing their efficiency and manageability within the OpenTAP environment.
 
-OpenTAP Threads are analogous to .NET Threads, but have some key differences that makes them easier to use in a OpenTAP Plugin.
+- **Thread Pools**: When a function is requested for execution, a thread is either retrieved from the pool or a new one is started. Once the function completes, the thread is returned to the pool. Unlike .NET Thread Pools, TapThreads are more proactive in starting new threads and are optimized for IO-bound applications, ensuring minimal latency and high performance in handling asynchronous tasks.
 
-- Thread Pools: When somebody requests to execute a function, it either takes a thread from the pool and uses that or starts a new thread. When the function is complete the thread is added back into the pool. Compared to .NET Thread Pools, they are much quicker to start.
-- They are heirarchical: When the thread is activated, thread-local storage is used to keep track of which thread started it. That means that various kinds of data can be shared between heirarchies of threads. The class ThreadHeirarchyLocal is a way to share data between threads. When a OpenTAP thread is aborted, the child threads also gets the signal to abort. This is also used for Sessions.
+- **Hierarchical Structure**: TapThreads utilize thread-local storage to track the initiating thread, enabling data sharing across thread hierarchies. The `ThreadHierarchyLocal` class facilitates this data sharing. If an OpenTAP thread is aborted, its child threads also receive the abort signal. This mechanism is crucial for managing Sessions and maintaining data integrity across different layers of the thread hierarchy.
 
-To start a TapThread, simply call `TapThread.Start()`.
+### Starting a TapThread
 
-```c#
+To start a TapThread, use `TapThread.Start()`, which provides an easy-to-use interface for running tasks asynchronously.
+
+```csharp
 TapThread.Start(() =>
 {
-    // Do something time consuming
+    // Perform a time-consuming task
     TapThread.Sleep(100);
-    // thread finishes now. (Thread is donated back to the pool)
+    // Thread finishes and is returned to the pool
 });
 ```
 
-Since the thread is taken from a pool of live threads, they will normally start almost instantly.
+Threads from the pool start almost instantly due to the pre-allocation and management of live threads, ensuring efficient task execution.
 
-If you want some result from your thread thread, we strongly recommend to use the TaskCompletionSource object. Note, there are many ways this can be done, but TaskCompletionSource is a very flexible way to do it.
+### Obtaining Results
 
-```c#
-// this is called a promise in many programming languages.
+To obtain results from your thread, use the `TaskCompletionSource` object. This approach provides a robust and flexible way to handle asynchronous operations and their outcomes.
+
+```csharp
 var promise = new TaskCompletionSource<double>();
 TapThread.Start(() =>
 {
-    // do something time consuming.
     try
     {
-       TapThread.Sleep(100);
-       promise.SetResult(9000.0);
+        TapThread.Sleep(100); // Throws an exception if the thread is aborted.
+        promise.SetResult(9000.0);
     }
     catch (Exception e)
     {
-       promise.SetException(e);
+        promise.SetException(e);
     }
 });
 
-// wait for the result and possibly throw an exception on failure.
 double resultValue = promise.Task.Result;
-
 ```
 
+Using `TaskCompletionSource` ensures that your asynchronous code can handle both successful completion and exceptions in a structured manner.
+
+Note, you can also use other synchronization mechanisms for getting the result, but this method is very robust and performant.
+
+### Sleeping
+
+You can make the current thread sleep with `TapThread.Sleep(TimeSpan duration)` or `TapThread.Sleep(int milliseconds)`. This pauses the thread for at least the specified time but may take a few extra milliseconds to wake up, making it unsuitable for highly precise waits.
+
+```csharp
+TapThread.Sleep(100); // Sleep for 100 milliseconds
+```
+
+If the thread is aborted while sleeping, an `OperationCancelledException` will be thrown. To ensure the thread sleeps for the specified duration regardless of abort signals, use `System.Threading.Thread.Sleep()`:
+
+```csharp
+System.Threading.Thread.Sleep(100); // Uninterruptible sleep
+```
+
+### Aborting
+
+TapThreads can be aborted using the `TapThread.Abort()` method. This event propagates to all child threads, which also receive the abort notification. This is a 'soft' abort, meaning the threads must cooperate to be aborted. To detect if a thread has been aborted, you have several options:
+
+1. **Throw an Exception**: Use `TapThread.ThrowIfAborted()` to throw an exception if the current TapThread has been aborted.
+   ```csharp 
+   TapThread.ThrowIfAborted();
+   ```
+2. **Check Abort Status**: Check if the thread is aborted via `TapThread.Current.AbortToken.IsCancellationRequested`.
+   ```csharp
+   if (TapThread.Current.AbortToken.IsCancellationRequested)
+   {
+       // Handle abort
+   }
+   ```
+3. **Use AbortToken**: Use the `TapThread.Current.AbortToken` with calls that support it. Various .NET APIs accept a `CancellationToken` to enable canceling long-running operations.
+   ```csharp
+   var token = TapThread.Current.AbortToken;
+   // Example with Task.Delay
+   await Task.Delay(1000, token);
+   ```
+4. **Register an Event**: Register an event to occur when the thread is aborted:
+   ```csharp
+   using (TapThread.Current.AbortToken.Register(() =>
+   {
+       Log.Info("The thread was aborted!");
+   }))
+   {
+       // Do something that takes time.
+   }
+   ```
+
+These options provide flexibility in managing thread termination and ensuring resources are cleaned up properly.
+
+### Creating New Thread Contexts
+
+In rare cases, you might need to run code in a context that cannot be aborted or can be aborted separately. For this, use `TapThread.WithNewContext`. It runs inside the same physical thread but creates a new temporary context where some code can be executed. You can also control which parent thread the new context has.
+
+```csharp
+var firstThread = TapThread.Current;
+TapThread.WithNewContext(() =>
+{
+    var secondThread = TapThread.Current;
+    // firstThread != secondThread
+}, 
+// Specify the parent thread. Null means the root thread of the application.
+null);
+```
+
+Creating new thread contexts allows for isolated execution environments within the same physical thread, providing greater control over task execution and abortion behavior.
 
 ## .NET Threads and Tasks
 
-Generally speaking, we don't recommend using the default .NET Threads and Tasks. Threads are expensive to start and tasks have surprising behaviors that make them unsuitable for many use cases.
+Generally, using the default .NET Threads and Tasks is not recommended. Threads are expensive to start, and tasks can exhibit unexpected behaviors that make them unsuitable for many use cases.
 
-For OpenTAP plugins, We recommend using the other techniques for parallelism unless strictly necessary. 
+For OpenTAP plugins, it is recommended to use other parallelism techniques unless .NET Threads or Tasks are strictly necessary.
