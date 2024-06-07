@@ -135,7 +135,7 @@ namespace OpenTap.Engine.UnitTests
                 new TimeSpan(3, 0, 21, 10),
                 new TimeSpan(999, 23 ,59, 59),
                 new TimeSpan(1, 0,0, 59),
-                new TimeSpan(0, 0,0, 59),
+                new TimeSpan(0, 0,0, 1),
                 new TimeSpan(0,0, 0,0)
             };
             var expectedTimeSpan = new[] 
