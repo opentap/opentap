@@ -158,7 +158,7 @@
      font-size="14px"
      font-weight="bold"
      text-anchor="middle"
-     id="text34-5-3">Thread1:</text>
+     id="text34-5-3">Thread 1:</text>
   <g
      id="g426"
      transform="translate(70.929049,8.1747514)">
@@ -270,7 +270,7 @@
      font-size="14px"
      font-weight="bold"
      text-anchor="middle"
-     id="text34-5-3-6">Thread1:</text>
+     id="text34-5-3-6">Thread 1:</text>
   <rect
      x="0"
      y="29.8687"
@@ -286,7 +286,7 @@
      font-size="14px"
      font-weight="bold"
      text-anchor="middle"
-     id="text34-5-3-6-5">Thread2:</text>
+     id="text34-5-3-6-5">Thread 2:</text>
   <rect
      x="0"
      y="59.737404"
@@ -302,7 +302,7 @@
      font-size="14px"
      font-weight="bold"
      text-anchor="middle"
-     id="text34-5-3-6-5-7">Thread3:</text>
+     id="text34-5-3-6-5-7">Thread 3:</text>
   <rect
      x="0"
      y="89.606102"
@@ -318,5 +318,5 @@
      font-size="14px"
      font-weight="bold"
      text-anchor="middle"
-     id="text34-5-3-6-5-7-3">Thread4:</text>
+     id="text34-5-3-6-5-7-3">Thread 4:</text>
 </svg>

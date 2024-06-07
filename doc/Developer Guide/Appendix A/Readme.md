@@ -62,7 +62,7 @@ One example is the session log. It can be configured in the **Engine** pane in t
 
 Threading and parallelism are essential tools for enhancing the performance of test plan execution. By default, a test plan executes in a single thread, but it can branch off into multiple parallel threads as it progresses. Utilizing logging or Result Listeners can cause certain actions to execute in separate threads.
 
-However, parallelism comes with some limitations due to the inherent complexity of managing multiple threads.
+However, parallelism comes with some limitations due to the inherent complexity of managing multiple threads. 
 
 In OpenTAP and C#, parallelism can be implemented in several ways:
 
@@ -104,17 +104,43 @@ This diagram illustrates the order of operations when defered processing is used
 
 ![](parallel.svg)
 
-// add screenshot from ks8400
 
-// add code
+In KS8400 a visualization of the parallelism has been added so that you can get a bit of insight into the speed improvements. In the below picture you can see three Measurement + Process steps which has a blocking measurement part and a non-blocking processing part. Notice the bars in the Flow column. The visualization shows the blocking part of the executing in blue and the non-blocking part in dark gray.
+
+![Deferred parallelism](DeferredParallelism.png)
+
+To add deferred processing inside a test step Run method, use the Results.Defer method as shown in the example below:
+
+```cs
+// ... This goes inside a Test Step implementation ...
+public override void Run()
+{
+    // execute the blocking part of the test step
+    double[] data = instrument.DoMeasurement();
+
+    Results.Defer(() => {
+      // Inside this anonymous function the non-blocking part of the execution will be executed.
+      var processedData = ProcessData(data);
+      Results.Publish(processedData);
+      var limitsPassed = CheckLimits(processedData);
+      if(limitsPassed)
+        UpgradeVerdict(Verdict.Pass);
+      else
+        UpgradeVerdict(Verdict.Fail);
+    });
+}
+```
+
+
+
 
 ## TAP Threads
 
-// add code
+
 
 
 ## .NET Threads and Tasks
 
-Generally speaking, we dont recommend using the default .NET Threads and Tasks. Threads are expensive to start and tasks have surprising behaviors that make them unsuitable for many use cases.
+Generally speaking, we don't recommend using the default .NET Threads and Tasks. Threads are expensive to start and tasks have surprising behaviors that make them unsuitable for many use cases.
 
 For OpenTAP plugins, We recommend using the other techniques for parallelism unless strictly necessary. 
