@@ -59,7 +59,7 @@ Table of Contents
 - [Attributes](Attributes/Readme.md)
 	- [Attributes Used by OpenTAP](Attributes/Readme.md#attributes-used-by-opentap)
 	- [Attribute Details](Attributes/Readme.md#attribute-details)
-- [Appendix A: Macro Strings](Appendix A/Readme.md)
+- [Appendix: Macro Strings](Appendix/Readme.md)
 
 
 <div style="page-break-after: always;"></div>
