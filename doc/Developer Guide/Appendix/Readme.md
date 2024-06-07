@@ -100,7 +100,7 @@ Deferred results processing enables post-processing of results while the test pl
 
 In traditional sequential processing, the order of operations is as follows:
 
-![Sequential Processing](Sequential.svg)
+![Sequential Processing](sequential.svg)
 
 ### Deferred Processing
 
