@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+    <mime-type type="application/x-tappackage">
+        <comment>OpenTAP Plugin Package</comment>
+        <sub-class-of type="application/zip"/>
+        <icon name="application-x-tappackage"/>
+        <glob-deleteall/>
+        <glob pattern="*.TapPackage"/>
+    </mime-type>
+</mime-info>

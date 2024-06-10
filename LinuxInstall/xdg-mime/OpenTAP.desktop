@@ -1,0 +1,27 @@
+[Desktop Entry]
+Type=Application
+TryExec=/opt/opentap/tap
+# Exec="bash -c '/opt/opentap/tap package list -i; echo Press any key to exit.; read'"
+Exec=/opt/opentap/tap package list -i -v
+Terminal=true
+Categories=Utility;
+Name=OpenTAP
+GenericName=OpenTAP
+Comment=A fast, scalable, and extendable test sequencer
+StartupNotify=true
+StartupWMClass=OpenTAP
+Icon=x-opentap
+MimeType=pplication/tappackage
+# Actions=Install;Editor;
+
+# [Desktop Action Editor]
+# X-TryExec=/opt/opentap/tap
+# Exec="/opt/opentap/tap tui %f"
+# Name=OpenTAP TUI
+# X-MimeType=application/tapplan;
+#
+# [Desktop Action Install]
+# X-TryExec=/opt/opentap/tap
+# Exec="/opt/opentap/tap package install %f"
+# Name=OpenTAP Install
+# X-MimeType=application/tappackage;
