@@ -279,22 +279,37 @@ namespace OpenTap.Package
                     }
                 }
 
-                if (!Directory.Exists(url))
+                bool tryGetHttpRepo(string url, out IPackageRepository repo)
                 {
+                    repo = null;
                     try
                     {
-                        var repo2 = new HttpPackageRepository(url);
-                        if (repo2.Version != null)
-                            return repo2;
+                        var httpRepository = new HttpPackageRepository(url);
+                        if (httpRepository.Version != null)
+                        {
+                            repo = httpRepository;
+                            return true;
+                        }
                     }
                     catch
                     {
-                        // probably not an http repo
+                        // Probably not a http repository. Just ignore it.
                     }
+                    return false;
                 }
 
-                if (AuthenticationSettings.Current.BaseAddress != null)
-                    return DetermineRepositoryType(new Uri(new Uri(AuthenticationSettings.Current.BaseAddress), url).AbsoluteUri);
+                if (!Directory.Exists(url) && tryGetHttpRepo(url, out repo))
+                {
+                    return repo;
+                }
+
+                if (AuthenticationSettings.Current.BaseAddress != null) 
+                {
+                    // Determine if the absolute path is a package repository by trying to connect to it.
+                    var abs = new Uri(new Uri(AuthenticationSettings.Current.BaseAddress), url).AbsoluteUri;
+                    if (tryGetHttpRepo(abs, out repo))
+                        return repo;
+                }
                     
                 // This is a relative URI, and it's scheme cannot be determined. The best we can do is guess.
                 // If the path contains any invalid path chars, it cannot be a file repository
