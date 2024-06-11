@@ -859,7 +859,10 @@ namespace OpenTap
                 if(run.Verdict == Verdict.Error && throwOnBreak)
                     run.ThrowDueToBreakConditions();
             }
-
+            if (run.SuggestedNextStep == childStep.Id)
+            {
+                RunChildStep(step, childStep, throwOnBreak, currentPlanRun, currentStepRun, attachedParameters);
+            }
             return run;
         }
 
