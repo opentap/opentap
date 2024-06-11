@@ -148,8 +148,8 @@ namespace OpenTap.Engine.UnitTests
                 "3 d 21 m 10 s", 
                 "999 d 23 h 59 m 59 s", 
                 "1 d 59 s",
-                "1 s",
-                "0 s"
+                "1.00 s",
+                "0.00 s"
             };
  
             for (int i = 0; i < seconds.Length; i++)

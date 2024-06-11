@@ -121,12 +121,16 @@ namespace OpenTap
             int indentcnt = stepRunIndent(stepRuns, run);
             string indent = new String(' ', indentcnt * 2);
             string inverseIndent = new String(' ', maxIndent * 2 - indentcnt * 2);
-            
+            if(run.Duration.TotalSeconds < 1)
+            {
+
+            }
             var (timeString, unit) = ShortTimeSpan.FromSeconds(run.Duration.TotalSeconds).ToStringParts();
             string v = run.Verdict == Verdict.NotSet ? "" : run.Verdict.ToString();
             var name = run.TestStepName;
             // this prints something like this: '12:42:16.302  Summary       Delay                                             106 ms'
-            summaryLog.Info($"{indent} {name,-43} {inverseIndent}{timeString,5:0} {unit,-4}{v,-7}");
+            //summaryLog.Info($"{indent} {name,-43} {inverseIndent}{timeString,5:0} {unit,-4}{v,-7}");
+            summaryLog.Info($"{indent} {name,-43} {inverseIndent}{ShortTimeSpan.LongTimeSpanFormat(run.Duration)}{v,-7}");
 
             int idx2 = 0;
             foreach (TestStepRunData run2 in lookup[run.Id])

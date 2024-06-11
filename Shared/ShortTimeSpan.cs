@@ -70,20 +70,29 @@ namespace OpenTap
         public static string LongTimeSpanFormat(TimeSpan timeSpan)
         {
             string result = "";
-            if (timeSpan.TotalSeconds < 1)
-                return "0 s";
-            if (timeSpan.Days > 0)
-                result += $"{timeSpan.Days} d ";
+            if (timeSpan.TotalMinutes < 1)
+            {
+                return FromSeconds(timeSpan.TotalSeconds).ToString();
 
+            }
+            if (timeSpan.Days > 0)
+            {
+                result += $"{timeSpan.Days} d ";
+            }
             if (timeSpan.Hours > 0)
+            {
                 result += $"{timeSpan.Hours} h ";
+            }
 
             if (timeSpan.Minutes > 0)
+            {
                 result += $"{timeSpan.Minutes} m ";
+            }
 
             if (timeSpan.Seconds > 0)
+            {
                 result += $"{timeSpan.Seconds} s ";
-            
+            }
 
             return result.Trim();
         }
