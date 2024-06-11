@@ -136,7 +136,9 @@ namespace OpenTap.Engine.UnitTests
                 new TimeSpan(999, 23 ,59, 59),
                 new TimeSpan(1, 0,0, 59),
                 new TimeSpan(0, 0,0, 1),
-                new TimeSpan(0,0, 0,0)
+                new TimeSpan(0,0, 0,0),
+                new TimeSpan(0,0, 1,59),
+                new TimeSpan(0,0,0,59)
             };
             var expectedTimeSpan = new[] 
             { 
@@ -149,7 +151,9 @@ namespace OpenTap.Engine.UnitTests
                 "999 d 23 h 59 m 59 s", 
                 "1 d 59 s",
                 "1.00 s",
-                "0.00 s"
+                "0.00 s",
+                "1 m 59 s",
+                "59.0 s"
             };
  
             for (int i = 0; i < seconds.Length; i++)
