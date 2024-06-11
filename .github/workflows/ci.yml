@@ -146,6 +146,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
         working-directory: doc
+      # This is needed because the router wants to serve index.html as the default page
+      - name: Rename Index
+        run: mv Readme.md index.md
+        working-directory: doc
       - name: Build with VitePress
         run: npm run docs:build
         working-directory: doc

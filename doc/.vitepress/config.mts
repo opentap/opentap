@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: " ",
+  title: "OpenTAP",
   description: "OpenTAP Documentation",
   markdown: {
     lineNumbers: true
@@ -22,6 +22,7 @@ export default defineConfig({
       next: false
     },
     logo: '/opentap.svg',
+    siteTitle: false,
 
     nav: [
       { text: 'Homepage', link: 'https://opentap.io' }
@@ -30,7 +31,7 @@ export default defineConfig({
     sidebar: [
       {
         text: "Getting Started",
-        link: "README.md"
+        link: "/"
       },
       {
         text: 'User Guide',

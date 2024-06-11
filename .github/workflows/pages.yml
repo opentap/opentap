@@ -99,8 +99,12 @@ jobs:
       - name: Install
         run: npm install
         working-directory: doc
+      # This is needed because the router wants to serve index.html as the default page
+      - name: Rename Index
+        run: mv Readme.md index.md
+        working-directory: doc
       - name: Build
-        run: npm run build
+        run: npm run docs:build
         working-directory: doc
       - name: Copy API
         run: cp -r API public/api
