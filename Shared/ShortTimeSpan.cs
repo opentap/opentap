@@ -14,9 +14,6 @@ namespace OpenTap
     {
        
         public enum UnitKind{
-            Days,
-            Hours,
-            Minutes,
             Seconds,
             Milliseconds,
             Microseconds,
