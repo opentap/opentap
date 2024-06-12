@@ -15,7 +15,7 @@ itself ships with a few essential components:
 This keeps the core engine fast, lean, and enables easy deployment in container solutions such as Docker.
 The CLI help of a clean OpenTAP installation looks something like this:
 
-```
+```bash
 > tap
 
 OpenTAP Command Line Interface (9.9.0)
@@ -45,7 +45,7 @@ Every CLI action, whether built-in or user-provided, shares three CLI options:
 | Option            | Description                                                                                                                                   |
 |-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
 | `-h`, `--help`    | Output help text for the given command                                                                                                        |
-| `-v`, `--verbose` | Send all debug-level log messages to standard output. The additional output shown here is always available in the [session logs](../Introduction/#session-logs) |
+| `-v`, `--verbose` | Send all debug-level log messages to standard output. The additional output shown here is always available in the [session logs](../Introduction/Readme.md#session-logs) |
 | `-c`, `--color`   | Color standard output messages according to their severity                                                                                    |
 
 ## Using the Package Manager
@@ -59,7 +59,7 @@ The package manager has several subcommands, which you can see by running `tap p
 
 Sample output:
 
-```
+```bash
 > tap package
 
 OpenTAP Command Line Interface (9.9.0)
@@ -201,7 +201,7 @@ This only works when run from the OpenTAP installation directory.
 
 The `run` commands executes a test plan.
 
-```
+```bash
 > tap run -h
 
 Usage: run [-h] [-v] [-c] [--settings <arg>] [--search <arg>] [--metadata <arg>] [--non-interactive] [-e <arg>] [-t <arg>] [--list-external-parameters] [--results <arg>] <Test Plan>
