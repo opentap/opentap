@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System.Globalization;
 using System;
+using System.Xml.Linq;
 
 namespace OpenTap
 {
@@ -12,6 +13,7 @@ namespace OpenTap
     /// </summary>
     struct ShortTimeSpan
     {
+       
         public enum UnitKind{
             Seconds,
             Milliseconds,
@@ -56,6 +58,49 @@ namespace OpenTap
             }
             
             return new ShortTimeSpan { unit = unit, Value = Math.Round(s, 3) };
+        }
+
+        /// <summary>
+        /// For formating of timespans longer than 1 minute like "1 d 1 h 14m" instead of "90840 s"
+        /// </summary>
+        /// <param name="timeSpan"></param>
+        /// <returns></returns>
+        public static string LongTimeSpanFormat(TimeSpan timeSpan)
+        {
+            string result = "";
+            if (timeSpan.TotalMinutes < 1)
+            {   
+                var (timeString, unit) = FromSeconds(timeSpan.TotalSeconds).ToStringParts();
+
+                return FormatTimeStringParts(timeString, unit);
+            }
+            if (timeSpan.Days > 0)
+            {
+                result += $"{timeSpan.Days} d ";
+
+            } 
+            if (timeSpan.Hours > 0)
+            {
+                result += $"{timeSpan.Hours} h ";
+            }
+
+            if (timeSpan.Minutes > 0)
+            {
+                result += $"{timeSpan.Minutes} m ";
+            }
+
+            if (timeSpan.Seconds > 0)
+            {
+                result += $"{timeSpan.Seconds} s ";
+            }
+
+            return result.Trim();
+        }
+
+        private static string FormatTimeStringParts(string timeString, string unit)
+        {
+            var formattedString = $"{timeString,5:0} {unit,-4}";
+            return formattedString;
         }
 
         public static ShortTimeSpan FromString(string str)
