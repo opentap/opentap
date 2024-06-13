@@ -158,8 +158,8 @@ namespace OpenTap.Engine.UnitTests
  
             for (int i = 0; i < seconds.Length; i++)
             {
-                var actualTimeSpan = ShortTimeSpan.LongTimeSpanFormat(seconds[i]);
-                StringAssert.AreEqualIgnoringCase(actualTimeSpan, expectedTimeSpan[i]);
+                var actualTimeSpan = ShortTimeSpan.LongTimeSpanFormat(seconds[i]).Trim();
+                StringAssert.AreEqualIgnoringCase(expectedTimeSpan[i], actualTimeSpan);
             }
         }
 

@@ -125,7 +125,7 @@ namespace OpenTap
             string v = run.Verdict == Verdict.NotSet ? "" : run.Verdict.ToString();
             var name = run.TestStepName;
             // this prints something like this: '12:42:16.302  Summary       Delay                                             106 ms'
-            summaryLog.Info($"{indent} {name,-43} {inverseIndent}{ShortTimeSpan.LongTimeSpanFormat(run.Duration)}{v,-7}");
+            summaryLog.Info($"{indent} {name,-43} {inverseIndent}{ShortTimeSpan.LongTimeSpanFormat(run.Duration)} {v,-7}");
 
             int idx2 = 0;
             foreach (TestStepRunData run2 in lookup[run.Id])

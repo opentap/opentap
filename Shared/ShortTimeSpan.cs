@@ -4,6 +4,7 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System.Globalization;
 using System;
+using System.Xml.Linq;
 
 namespace OpenTap
 {
@@ -68,14 +69,16 @@ namespace OpenTap
         {
             string result = "";
             if (timeSpan.TotalMinutes < 1)
-            {
-                return FromSeconds(timeSpan.TotalSeconds).ToString();
+            {   
+                var (timeString, unit) = FromSeconds(timeSpan.TotalSeconds).ToStringParts();
 
+                return FormatTimeStringParts(timeString, unit);
             }
             if (timeSpan.Days > 0)
             {
                 result += $"{timeSpan.Days} d ";
-            }
+
+            } 
             if (timeSpan.Hours > 0)
             {
                 result += $"{timeSpan.Hours} h ";
@@ -92,6 +95,12 @@ namespace OpenTap
             }
 
             return result.Trim();
+        }
+
+        private static string FormatTimeStringParts(string timeString, string unit)
+        {
+            var formattedString = $"{timeString,5:0} {unit,-4}";
+            return formattedString;
         }
 
         public static ShortTimeSpan FromString(string str)
