@@ -22,10 +22,6 @@
     "tap (profile)": {
       "commandName": "Project",
       "commandLineArgs": "profile --test OpenTap.UnitTests.ScopeParametersTest.TestIsParameterized"
-    },
-    "Tap Editor": {
-      "commandName": "Executable",
-      "executablePath": "C:\\Users\\olivhans\\source\\repos\\opentap\\opentap\\bin\\Debug\\Editor.exe"
     }
   }
 }

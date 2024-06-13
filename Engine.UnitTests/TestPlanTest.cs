@@ -638,32 +638,25 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(Verdict.NotSet, run.Verdict);
         }
         /// <summary>
-        /// Tests that a parallel step where the SuggestedNextStep is set to the current ID will repeat the step. 
+        /// Tests that if the SuggestedNextStep is set to the current ID, thn the testStep will be repeated. 
         /// </summary>
         [Test]
-        public void ParallelSuggestedNextStepTest()
+        public void SuggestedNextStepTest()
         {
-            TestTraceListener trace = new TestTraceListener();
-            Log.AddListener(trace);
             var plan = new TestPlan();
-            var parallelStep = new ParallelStep();
-            var delayStep = new ParallelStepSuggestedNextStep();
-            delayStep.RepeatCount = 10;
-            parallelStep.ChildTestSteps.Add(delayStep);
-            plan.ChildTestSteps.Add(parallelStep);
-            plan.PrintTestPlanRunSummary = true;
+            var nextStepRepeater = new SuggestedNextStepRepeater();
+            nextStepRepeater.RepeatCount = 10;
+            plan.ChildTestSteps.Add(nextStepRepeater);
             PlanRunCollectorListener planRunListener = new PlanRunCollectorListener();
-        
-            var planRun = plan.Execute(ResultSettings.Current.Concat(new IResultListener[] { planRunListener }));
-            
-            Log.Flush();
-            Log.RemoveListener(trace);
-            var summaryLines = trace.allLog.ToString().Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Where(l => l.Contains(": Summary ")).ToArray();
-            Assert.AreEqual(14, summaryLines.Count(), "Did not find the expected number of summary lines in the log.");
+            ResultSettings.Current.Add(planRunListener);
 
+            var planRun = plan.Execute();
+            
+            var stepRuns = planRunListener.StepRuns;
+            Assert.AreEqual(nextStepRepeater.RepeatCount, stepRuns.Count, "Did not find the expected number of summary lines in the log.");
         }
 
-        public class ParallelStepSuggestedNextStep : TestStep
+        public class SuggestedNextStepRepeater : TestStep
         {
             public int RepeatCount { get; set; }
             public int Repeats { get; set; } 
