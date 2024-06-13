@@ -69,7 +69,7 @@ Let's break this down.
    - Resources - A selectable resource type, e.g Instrument, DUT, ... This will be restricted by the selected subtype of resource, e.g ScpiInstrument is a specialization of Instrument and hence only ScpiInstrument types will be available in the dropdown. 
    - Lists - A editable list of objects. Often shown as a data grid or spreadsheet.
    - TimeSpan - A span of time. e.g 1 hour. This is shown as a text box.
-   - Enabled<T> - An enable setting encapsulating another type. This is shown as a checkbox followed by something else.
+   - Enabled`<T>` - An enable setting encapsulating another type. This is shown as a checkbox followed by something else.
  - `TxFrequency`: The name of the property. By default this is what will be presented to the user.
  - `{get;set;}`: Specifies that this is a C# property. 'set' can be omitted to make it read-only.
  - `= 1e9`: Specifies the default value of this property. 
