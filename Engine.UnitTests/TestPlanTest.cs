@@ -653,7 +653,7 @@ namespace OpenTap.Engine.UnitTests
             var planRun = plan.Execute();
             
             var stepRuns = planRunListener.StepRuns;
-            Assert.AreEqual(nextStepRepeater.RepeatCount, stepRuns.Count, "Did not find the expected number of summary lines in the log.");
+            Assert.AreEqual(nextStepRepeater.RepeatCount, stepRuns.Count);
         }
 
         public class SuggestedNextStepRepeater : TestStep
