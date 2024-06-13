@@ -627,7 +627,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void RepeatChildStepsFailure()
         {
-
+            
             var plan = new TestPlan();
             var repeat = new RepeatRunChildSteps { Repeats = 10 };
             var repeat2 = new RepeatRunChildSteps { Repeats = 10 };
@@ -643,17 +643,24 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void SuggestedNextStepTest()
         {
-            var plan = new TestPlan();
-            var nextStepRepeater = new SuggestedNextStepRepeater();
-            nextStepRepeater.RepeatCount = 10;
-            plan.ChildTestSteps.Add(nextStepRepeater);
-            PlanRunCollectorListener planRunListener = new PlanRunCollectorListener();
-            ResultSettings.Current.Add(planRunListener);
+            using (Session.Create(SessionOptions.OverlayComponentSettings))
+            { 
+                var plan = new TestPlan();
+                var parallelStep = new ParallelStep();
+                var nextStepRepeater = new SuggestedNextStepRepeater();
+                nextStepRepeater.RepeatCount = 10;
+                parallelStep.ChildTestSteps.Add(nextStepRepeater);
+                plan.ChildTestSteps.Add(parallelStep);
+                PlanRunCollectorListener planRunListener = new PlanRunCollectorListener();
+                ResultSettings.Current.Add(planRunListener);
 
-            var planRun = plan.Execute();
-            
-            var stepRuns = planRunListener.StepRuns;
-            Assert.AreEqual(nextStepRepeater.RepeatCount, stepRuns.Count);
+                var planRun = plan.Execute();
+                
+                var stepRuns = planRunListener.StepRuns;
+
+                //We compare repeatcount + 1 as the parallelStep is also counted in StepsRun.
+                Assert.AreEqual(nextStepRepeater.RepeatCount + 1, stepRuns.Count);            
+            }
         }
 
         public class SuggestedNextStepRepeater : TestStep
@@ -663,7 +670,7 @@ namespace OpenTap.Engine.UnitTests
 
             public override void Run()
             {
-                if(Repeats < RepeatCount - 1)
+                if(Repeats < RepeatCount -1)
                 {
                     this.StepRun.SuggestedNextStep = this.Id;
                     Repeats++;
