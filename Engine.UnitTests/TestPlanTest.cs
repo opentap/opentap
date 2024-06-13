@@ -155,7 +155,6 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(summaryLines[4].Contains("1 artifacts registered"));
             Assert.IsTrue(summaryLines[5].Contains(testFileName));
             Assert.IsTrue(summaryLines[5].EndsWith("[1.5 kB]"));
-            
         }
         
         [Test]
@@ -638,8 +637,46 @@ namespace OpenTap.Engine.UnitTests
             var run = plan.Execute(new IResultListener[] { new SlowResultListener() });
             Assert.AreEqual(Verdict.NotSet, run.Verdict);
         }
+        /// <summary>
+        /// Tests that a parallel step where the SuggestedNextStep is set to the current ID will repeat the step. 
+        /// </summary>
+        [Test]
+        public void ParallelSuggestedNextStepTest()
+        {
+            TestTraceListener trace = new TestTraceListener();
+            Log.AddListener(trace);
+            var plan = new TestPlan();
+            var parallelStep = new ParallelStep();
+            var delayStep = new ParallelStepSuggestedNextStep();
+            delayStep.RepeatCount = 10;
+            parallelStep.ChildTestSteps.Add(delayStep);
+            plan.ChildTestSteps.Add(parallelStep);
+            plan.PrintTestPlanRunSummary = true;
+            PlanRunCollectorListener planRunListener = new PlanRunCollectorListener();
+        
+            var planRun = plan.Execute(ResultSettings.Current.Concat(new IResultListener[] { planRunListener }));
+            
+            Log.Flush();
+            Log.RemoveListener(trace);
+            var summaryLines = trace.allLog.ToString().Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).Where(l => l.Contains(": Summary ")).ToArray();
+            Assert.AreEqual(14, summaryLines.Count(), "Did not find the expected number of summary lines in the log.");
 
+        }
 
+        public class ParallelStepSuggestedNextStep : TestStep
+        {
+            public int RepeatCount { get; set; }
+            public int Repeats { get; set; } 
+
+            public override void Run()
+            {
+                if(Repeats < RepeatCount - 1)
+                {
+                    this.StepRun.SuggestedNextStep = this.Id;
+                    Repeats++;
+                }
+            }
+        }
 
         public class VerifyTestStep : TestStep
         {
