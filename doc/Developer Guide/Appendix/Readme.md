@@ -89,7 +89,7 @@ In order to control this, you can use the Lock step, which locks a named local o
 
 In the below screenshot you can see how parallel steps with locks are evaluated. Notice that the total time was 3x the delay because none of the steps were executed in parallel.
 
-![alt text](3lockedDelays.png)
+![Locked Delays](3lockedDelays.png)
 
 
 ## Deferred Processing
@@ -259,7 +259,7 @@ TapThread.WithNewContext(() =>
 null);
 ```
 
-Creating new thread contexts allows for isolated execution environments within the same physical thread, providing greater control over task execution and abortion behavior.
+Creating new thread contexts allows for isolated execution environments within the same physical thread, providing greater control over task execution and abort behavior.
 
 ## .NET Threads and Tasks
 
