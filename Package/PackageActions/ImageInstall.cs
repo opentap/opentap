@@ -14,7 +14,9 @@ namespace OpenTap.Package
         /// <summary>
         /// Path to Image file containing XML or JSON formatted Image specification, or just the string itself, e.g "REST-API,TUI:beta".
         /// </summary>
-        [UnnamedCommandLineArgument("image", Required = true, Description = "A string describing the image such as 'OpenTAP:9.24,TUI:beta,CSV', or the path to a file containing an XML or JSON formatted image specification.")]
+        [UnnamedCommandLineArgument("image", Required = true, Description = "The image to install. Supported formats:\n" +
+                "A string describing the image. Example: 'OpenTAP:9.24,TUI:beta,CSV'\n" + 
+                "A path to a file containing an XML or JSON formatted image specification.")]
         public string ImagePath { get; set; }
 
         /// <summary>
