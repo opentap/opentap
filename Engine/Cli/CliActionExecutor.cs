@@ -12,6 +12,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Xml.Linq;
+using System.Text;
 
 namespace OpenTap.Cli
 {
@@ -236,16 +237,19 @@ namespace OpenTap.Cli
             {
                 if (cmd.IsBrowsable)
                 {
-                    int relativePadding = descriptionStart - (level * LevelPadding); // Calculate amount of characters to pad right before description start to ensure description alignments.
-                    string str = ($"{"".PadRight(level * LevelPadding)}{cmd.Name.PadRight(relativePadding)}");
+                    // Calculate amount of characters to pad right before description start to ensure description alignments.
+                    int relativePadding = level * LevelPadding; 
+
+                    var sb = new StringBuilder();
+                    sb.Append("".PadRight(relativePadding));
+                    sb.Append(cmd.Name.PadRight(descriptionStart - relativePadding));
+
                     if (cmd.Type?.IsBrowsable() ?? false)
                     {
-                        log.Info($"{str}{cmd.Type.GetDisplayAttribute().Description}");
+                        sb.Append(cmd.Type.GetDisplayAttribute().Description);
                     }
-                    else
-                    {
-                        log.Info("{0}", str);
-                    }
+
+                    log.Info(sb.ToString());
 
                     if (cmd.IsGroup)
                     {
