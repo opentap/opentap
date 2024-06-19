@@ -8,33 +8,33 @@ using System.Threading;
 
 namespace OpenTap.Package
 {
-    [Display("install", Group: "image")]
+    [Display("install", Description: "Install the specified image, overwriting the existing installation.", Group: "image")]
     internal class ImageInstallAction : IsolatedPackageAction
     {
         /// <summary>
         /// Path to Image file containing XML or JSON formatted Image specification, or just the string itself, e.g "REST-API,TUI:beta".
         /// </summary>
-        [UnnamedCommandLineArgument("image")]
+        [UnnamedCommandLineArgument("image", Required = true)]
         public string ImagePath { get; set; }
 
         /// <summary>
         /// Option to merge with target installation. Default is false, which means overwrite installation
         /// </summary>
-        [CommandLineArgument("merge")]
+        [CommandLineArgument("merge", Description = "Merge the requested image with the existing installation instead of overwriting it.")]
         public bool Merge { get; set; }
-        
+
         /// <summary> Never prompt for user input. </summary>
         [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
         public bool NonInteractive { get; set; } = false;
-        
+
         /// <summary> Which operative system to resolve packages for. </summary>
-        [CommandLineArgument("os", Description = "Specify which operative system to resolve packages for.")]
+        [CommandLineArgument("os", Description = "The operating system to resolve packages for.")]
         public string Os { get; set; }
 
         /// <summary> Which CPU architecture to resolve packages for. </summary>
-        [CommandLineArgument("architecture", Description = "Specify which architecture to resolve packages for.")]
+        [CommandLineArgument("architecture", Description = "The architecture to resolve packages for.")]
         public CpuArchitecture Architecture { get; set; } = CpuArchitecture.Unspecified;
-        
+
         /// <summary> Resolve and print a summary of the changes that would be applied, but don't apply them. </summary>
         [CommandLineArgument("dry-run", Description = "Only print the result, don't install the packages.")]
         public bool DryRun { get; set; }
@@ -54,14 +54,14 @@ namespace OpenTap.Package
 
             if (string.IsNullOrEmpty(ImagePath))
                 throw new ArgumentException("'image' not specified.", nameof(ImagePath));
-            
+
             var imageString = ImagePath;
             if (File.Exists(imageString))
                 imageString = File.ReadAllText(imageString);
             var imageSpecifier = ImageSpecifier.FromString(imageString);
 
             // image specifies any repositories?
-            if(imageSpecifier.Repositories?.Any() != true)
+            if (imageSpecifier.Repositories?.Any() != true)
             {
                 if (Repositories?.Any() == true)
                     imageSpecifier.Repositories = Repositories.ToList();
@@ -79,7 +79,7 @@ namespace OpenTap.Package
 
             if (!string.IsNullOrWhiteSpace(Os))
                 imageSpecifier.OS = Os;
-            if (Architecture!= CpuArchitecture.Unspecified)
+            if (Architecture != CpuArchitecture.Unspecified)
                 imageSpecifier.Architecture = Architecture;
 
 
@@ -104,7 +104,7 @@ namespace OpenTap.Package
                     // or if the package cache has been cleared by the user, and an image install is attempted
                     // without the original source repository of some package.
                     imageSpecifier.AdditionalPackages.AddRange(new Installation(Target).GetPackages());
-                    
+
                     image = imageSpecifier.Resolve(TapThread.Current.AbortToken);
                 }
 
@@ -127,7 +127,7 @@ namespace OpenTap.Package
                         throw new OperationCanceledException("Image installation was canceled.");
                     }
                 }
-                
+
                 log.Debug("Image hash: {0}", image.Id);
                 if (DryRun)
                 {
@@ -151,7 +151,7 @@ namespace OpenTap.Package
             }
 
         }
-        
+
         enum WipeInstallationResponse
         {
             No,
