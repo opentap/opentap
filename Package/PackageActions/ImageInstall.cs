@@ -8,7 +8,6 @@ using System.Threading;
 
 namespace OpenTap.Package
 {
-    [Browsable(false)]
     [Display("install", Group: "image")]
     internal class ImageInstallAction : IsolatedPackageAction
     {
@@ -36,7 +35,7 @@ namespace OpenTap.Package
         [CommandLineArgument("architecture", Description = "Specify which architecture to resolve packages for.")]
         public CpuArchitecture Architecture { get; set; } = CpuArchitecture.Unspecified;
         
-        /// <summary> dry-run - resolve, but don't install the packages. </summary>
+        /// <summary> Resolve and print a summary of the changes that would be applied, but don't apply them. </summary>
         [CommandLineArgument("dry-run", Description = "Only print the result, don't install the packages.")]
         public bool DryRun { get; set; }
 
