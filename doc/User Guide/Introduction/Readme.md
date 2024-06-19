@@ -1,7 +1,7 @@
 # Overview
 This section introduces essential OpenTAP terminology, concepts, and tools. It is intended to provide users with an
  understanding of OpenTAP and its ecosystem to get started. For a more technical description, see the [Developer
- Guide](../../Developer%20Guide/Introduction). For a reference of CLI options, see the [documentation](../CLI%20Usage) on CLI usage.
+ Guide](../../Developer%20Guide/Introduction/Readme.md). For a reference of CLI options, see the [documentation](../CLI%20Usage/Readme.md) on CLI usage.
 
 OpenTAP consists of multiple tools, including:
 -	OpenTAP - core engine
@@ -14,8 +14,8 @@ two tools will be given in the following chapters.
 ## Test Plans
 
 A *test plan* is a sequence of test steps and their associated data. They are stored as XML files, and use the
-".TapPlan" file extension. Test plans are created with an [editor](../Editors). They can be executed either in an
-editor, or by using the `tap run` [CLI action](../CLI%20Usage/#running-test-plans). A test step can be a child step, a parent step, or both.
+".TapPlan" file extension. Test plans are created with an [editor](../Editors/Readme.md). They can be executed either in an
+editor, or by using the `tap run` [CLI action](../CLI%20Usage/Readme.md#running-test-plans). A test step can be a child step, a parent step, or both.
 Therefore, a test plan is a recursive structure of test steps. This hierarchy is illustrated in the figure below.
 
 ![](./TestPlan.svg)
@@ -112,7 +112,7 @@ Under Test) are essential for OpenTAP. In the classical case, a DUT is a device 
 an instrument is anything that makes measurements. To integrate resources into test plans, whether to control them or
 read their measurements, they must be connected to test steps that know how to communicate with them. In other words, a
 resource driver is required. Creation of such a driver is described in the [Developer
-Guide](../../Developer%20Guide/Introduction/).
+Guide](../../Developer%20Guide/Introduction/Readme.md).
 
 OpenTAP is quite flexible regarding resources. Typically, they would be local, physical equipment. But they can easily
 be more abstract, such as a virtual resource, or even a remote resource. Depending on your use case, all of the
@@ -144,7 +144,7 @@ plugin be configured to use either a local database, or publish to a remote data
 There is no limit to the number of active result listeners, and you can have multiple result listeners of the same type.
 For example, you could create two different *Text Log* listeners collecting Debug and Information log messages,
 respectively. There are more result listeners available in the package repository, and developers can [make new result
-listener plugins](../../Developer%20Guide/Result%20Listener/#custom-result-listeners) to suit their needs, such as
+listener plugins](../../Developer%20Guide/Result%20Listener/Readme.md#custom-result-listeners) to suit their needs, such as
 integrating with a different database technology, or uploading test results to a website.
 
 Result listeners are tied to an OpenTAP installation, and not a test plan. Result listener settings are stored
@@ -168,7 +168,7 @@ provide a new test step, or a new result listener. Plugins come in packages. A p
 plugins. Plugins vary widely in the functionality they provide.
 
 Some examples are:
- - [GUI editors](../Editors/#developer’s-system-community-edition) for creating and running test plans
+ - [GUI editors](../Editors/Readme.md#developer’s-system-community-edition) for creating and running test plans
  - SDK plugins to aid in developing and debugging plugins
  - Tools for analyzing test plans in real time to discover performance bottlenecks (Timing Analyzer)
  - REST interface to OpenTAP to allow you to control it remotely (REST-API)
@@ -176,7 +176,7 @@ Some examples are:
 Installing, uninstalling, upgrading, downgrading, and dependencies are all managed by the OpenTAP package manager. A
 package declares its own dependencies and OS / CPU compatibility, and the package manager resolves those dependencies
 with the packages in your current installation, if possible. Usage of the package manager is described in detail in [the
-next section](../CLI%20Usage/#using-the-package-manager).
+next section](../CLI%20Usage/Readme.md#using-the-package-manager).
 
 The below figure shows the relation between plugins and OpenTAP. OpenTAP is at the center, and plugins, providing a
 variety of functionality, can be added and removed painlessly. 

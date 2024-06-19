@@ -436,7 +436,7 @@ This is useful in situations where one test step depends on a result from anothe
 
 There are two ways to use outputs: 
 - Connecting the output to any fitting setting of a different step.
-- Using the Input<T> class to require an input from another test step.
+- Using the Input`<T>` class to require an input from another test step.
 
 In both cases, the output setting needs to be marked with the `[Output]` attribute.
 

@@ -114,11 +114,52 @@ namespace OpenTap.Engine.UnitTests
             var s = new[] { "10 ms", "1 ms", "100 us", "10 μs", "1 μs", "1 ns", "0 s" };
 
             for (int i = 0; i < v.Length; i++)
-            {
+            {   
                 var s1 = ShortTimeSpan.FromSeconds(v[i]);
                 var s2 = ShortTimeSpan.FromString(s[i]);
                 StringAssert.AreEqualIgnoringCase(s1.ToString(), s2.ToString());
 
+            }
+        }
+
+        [Test]
+        public void LongTimeSpanTest()
+        {
+            var seconds = new TimeSpan[] 
+            { 
+                new TimeSpan(1, 0, 0, 0), 
+                new TimeSpan(0, 23, 30, 0) , 
+                new TimeSpan(23, 12, 22, 0), 
+                new TimeSpan(1, 0, 5, 0), 
+                new TimeSpan(0, 5, 0, 3),
+                new TimeSpan(3, 0, 21, 10),
+                new TimeSpan(999, 23 ,59, 59),
+                new TimeSpan(1, 0,0, 59),
+                new TimeSpan(0, 0,0, 1),
+                new TimeSpan(0,0, 0,0),
+                new TimeSpan(0,0, 1,59),
+                new TimeSpan(0,0,0,59)
+            };
+            var expectedTimeSpan = new[] 
+            { 
+                "1 d", 
+                "23 h 30 m", 
+                "23 d 12 h 22 m", 
+                "1 d 5 m", 
+                "5 h 3 s" , 
+                "3 d 21 m 10 s", 
+                "999 d 23 h 59 m 59 s", 
+                "1 d 59 s",
+                "1.00 s",
+                "0.00 s",
+                "1 m 59 s",
+                "59.0 s"
+            };
+ 
+            for (int i = 0; i < seconds.Length; i++)
+            {
+                var actualTimeSpan = ShortTimeSpan.LongTimeSpanFormat(seconds[i]).Trim();
+                StringAssert.AreEqualIgnoringCase(expectedTimeSpan[i], actualTimeSpan);
             }
         }
 
