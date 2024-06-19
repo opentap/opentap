@@ -70,6 +70,11 @@ namespace OpenTap.Cli
         public bool Required { get; set; }
 
         /// <summary>
+        /// Human readable description of the argument.
+        /// </summary>
+        public string Description { get; set; }
+
+        /// <summary>
         /// Constructor.
         /// </summary>
         /// <param name="name"></param>
