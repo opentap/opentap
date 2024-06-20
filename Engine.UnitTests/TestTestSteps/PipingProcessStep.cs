@@ -19,8 +19,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
             [Submit] public string Answer { get; set; }
         }
 
-        [CommandLineArgument("answers", ShortName = "a",
-            Description = "The answers that the caller is intending to give.")]
+        [CommandLineArgument("answers", ShortName = "a", Description = "The answers that the caller is intending to give.")]
         public string[] ExpectedAnswers { get; set; }
 
         private static TraceSource log = Log.CreateSource(nameof(UserInputTestAction));
