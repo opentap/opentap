@@ -285,10 +285,14 @@ namespace OpenTap.Cli
                 }
                 string tapCommand = OperatingSystem.Current == OperatingSystem.Windows ? "tap.exe" : "tap";
 
-                if (args.Length != 0)
+                var helpOptions = new string[] { "--help", "-help", "-h" };
+                bool isHelp = args.Length == 0 || args.Any(a => helpOptions.Contains(a.ToLower()));
+
+                if (!isHelp)
                 {
                     log.Error($"\"{tapCommand} {string.Join(" ", args)}\" is not a recognized command.");
                 }
+
                 log.Info("OpenTAP Command Line Interface ({0})", getVersion());
                 log.Info($"Usage: \"{tapCommand} <command> [<subcommand(s)>] [<args>]\"\n");
 
@@ -308,7 +312,7 @@ namespace OpenTap.Cli
 
                 log.Info($"\nRun \"{tapCommand} <command> [<subcommand(s)>] -h\" to get additional help for a specific command.\n");
 
-                if (args.Length == 0 || args.Any(s => s.ToLower() == "--help" || s.ToLower() == "-h"))
+                if (isHelp)
                     return (int)ExitCodes.Success;
                 else
                     return (int)ExitCodes.ArgumentParseError;
@@ -316,11 +320,14 @@ namespace OpenTap.Cli
 
             if (SelectedAction != TypeData.FromType(typeof(RunCliAction)) && UserInput.Interface == null) // RunCliAction has --non-interactive flag and custom platform interaction handling.          
                 CliUserInputInterface.Load();
-            
+
             ICliAction packageAction = null;
-            try{
+            try
+            {
                 packageAction = (ICliAction)SelectedAction.CreateInstance();
-            }catch(TargetInvocationException e1) when (e1.InnerException is System.ComponentModel.LicenseException e){
+            }
+            catch (TargetInvocationException e1) when (e1.InnerException is System.ComponentModel.LicenseException e)
+            {
                 log.Error("Unable to load CLI Action '{0}'", SelectedAction.GetDisplayAttribute().GetFullName());
                 log.Info("{0}", e.Message);
                 return (int)ExitCodes.UnknownCliAction;
