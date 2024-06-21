@@ -22,6 +22,7 @@ We recommend that you [download the Developer's System](https://www.keysight.com
 > Note: Dotnet installed using [Snap](https://docs.microsoft.com/en-us/dotnet/core/install/linux-snap) is NOT supported.
 The Snap permissions for dotnet does not permit it to read *hidden* files (files or directories starting with a '.') which breaks core functionality of OpenTAP.
 
+#### Ubuntu 20.04
 For Ubuntu 20.04 and up, we provide an installer similar to the windows installer.
 
 1. Download the [installer](https://packages.opentap.io/4.0/Objects/www/OpenTAP?os=Linux&format=full).
@@ -41,6 +42,43 @@ sudo ./opentap.linux --quiet
 
 The installer is likely to work on other Linux distributions, but additional dependencies
 may be required on these platforms, such as dotnet 6 runtime.
+
+#### Other Linux distributions
+For other Linux distributions, OpenTAP can be installed using the terminal:
+
+1. Install dotnet: [Instructions](https://learn.microsoft.com/da-dk/dotnet/core/install/linux?WT.mc_id=dotnet-35129-website).
+    - For Ubuntu: `sudo apt install -y dotnet-sdk-8.0`
+2. Download the latest OpenTAP release: `curl -Lo opentap.zip 'https://packages.opentap.io/4.0/Objects/Packages/OpenTAP?os=Linux&architecture=<architecture>'`
+    - Remember to change the architecture if needed (`x64`, `arm64`, `arm`).
+3. Create a directory for OpenTAP: `sudo mkdir /opt/opentap && sudo chown $USER:$USER /opt/opentap`
+4. Extract the OpenTAP release: `unzip ./opentap.zip -d /opt/opentap`
+    - If you don't have unzip installed, you can install it with `sudo apt install unzip`.
+5. Make tap executable: `chmod +x /opt/opentap/tap`
+6. Create a symbolic link to tap: `sudo ln -s /opt/opentap/tap /usr/local/bin/tap`
+
+##### An example using Ubuntu 24.04
+This example shows how to install OpenTAP on ARM64 Ubuntu 24.04 running on a Raspberry PI 5. The steps are similar for other distributions.
+
+```bash
+# Install dotnet and unzip
+sudo apt install -y dotnet-sdk-8.0 unzip
+
+# Download the latest OpenTAP release
+curl -Lo opentap.zip 'https://packages.opentap.io/4.0/Objects/Packages/OpenTAP?os=Linux&architecture=arm64'
+
+# Create a directory for OpenTAP
+sudo mkdir /opt/opentap
+sudo chown $USER:$USER /opt/opentap
+
+# Extract the OpenTAP release
+unzip ./opentap.zip -d /opt/opentap
+
+# Make tap executable
+chmod +x /opt/opentap/tap
+
+# Create a symbolic link to tap
+sudo ln -s /opt/opentap/tap /usr/local/bin/tap
+```
 
 ### MacOS
 There is no installer available on Mac. Instead, OpenTAP must be installed using the terminal:
