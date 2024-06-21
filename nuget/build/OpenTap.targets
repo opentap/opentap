@@ -129,4 +129,24 @@
       <ReferencePathWithRefAssemblies Include="@(_OpenTapPackagesReferences-> '$(OutDir)%(Identity)')"/>
     </ItemGroup>
   </Target>
+
+  <UsingTask TaskName="Keysight.OpenTap.Sdk.MSBuild.SetVersionPropertiesFromGit" AssemblyFile="$(MSBuildThisFileDirectory)\Keysight.OpenTap.Sdk.MSBuild.dll"/>
+  <Target Name="GenerateGitVersionInfo"
+    Condition="'$(UseGitVersionAssemblyInfo)' != 'false'"
+    DependsOnTargets="InstallOpenTapPackages" BeforeTargets="ResolveReferences;CoreCompile;ResolveAssemblyReferences"
+    >
+    <SetVersionPropertiesFromGit TapDir="$(OutDir)" >
+      <Output TaskParameter="Version" ItemName="_TaskVersion" />
+      <Output TaskParameter="AssemblyVersion" ItemName="_TaskAssemblyVersion" />
+      <Output TaskParameter="InformationalVersion" ItemName="_TaskInformationalVersion" />
+      <Output TaskParameter="FileVersion" ItemName="_TaskFileVersion" />
+    </SetVersionPropertiesFromGit>
+    <PropertyGroup Condition="'@(_TaskVersion)' != ''">
+      <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+      <Version>@(_TaskVersion)</Version>
+      <AssemblyVersion>@(_TaskAssemblyVersion)</AssemblyVersion>
+      <InformationalVersion>@(_TaskInformationalVersion)</InformationalVersion>
+      <FileVersion>@(_TaskFileVersion)</FileVersion> 
+    </PropertyGroup>
+  </Target>
 </Project>
