@@ -109,8 +109,10 @@
               SourcePath="dotnet_library_license.txt"/>
         <File Path="Dependencies/DotNet.Glob.3.0.1.0/LICENSE.txt"
               SourcePath="Dotnet.Glob.License.txt"/>
-        <File Path="Dependencies/Newtonsoft.Json.12.0.0.0/LICENSE.txt"
+        <File Path="Dependencies/Newtonsoft.Json.13.0.0.0/LICENSE.txt"
               SourcePath="newtonsoft_mit_license.txt"/>
+        <!-- Manually added Newtonsoft dll since it is not being picked up automatically -->
+        <File Path="Dependencies/Newtonsoft.Json.13.0.0.0/Newtonsoft.Json.dll" SourcePath="Newtonsoft.Json.dll"/>
     </Files>
     <PackageActionExtensions Condition="$(Platform) != Windows">
       <!-- An exit code of '1' means we failed to set the permission.
