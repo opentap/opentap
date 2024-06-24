@@ -110,7 +110,7 @@ namespace OpenTap.Package
         static string Target = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
 
         /// <summary> Verify a specific package. </summary>
-        [UnnamedCommandLineArgument("package", Required = false)]
+        [UnnamedCommandLineArgument("package", Required = false, Description = "The package to verify the hash for.")]
         public string Package { get; set; }
 
         int exitCode;

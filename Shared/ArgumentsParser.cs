@@ -206,6 +206,7 @@ namespace OpenTap.Cli
     internal class ArgumentCollection : Dictionary<string, Argument>
     {
         public string[] UnnamedArguments { get; set; }
+        public List<IMemberData> UnnamedArgumentData { get; set; }
 
         public List<string> UnknownsOptions { get; set; }
         public List<Argument> MissingArguments { get; set; }
@@ -288,58 +289,91 @@ namespace OpenTap.Cli
         }
 
         /// <summary>
+        /// This is a simple abstraction over unnamed and named arguments to simplify output formatting.
+        /// </summary>
+        /// <returns></returns>
+        class OptionWrapper
+        {
+            public UnnamedCommandLineArgument Positional { get; }
+            public Argument Argument { get; }
+
+            public OptionWrapper(Argument argument)
+            {
+                Argument = argument;
+            }
+
+            public OptionWrapper(UnnamedCommandLineArgument positional)
+            {
+                Positional = positional;
+            }
+
+            public string Description()
+            {
+                return Positional != null ? Positional.Description : Argument.Description;
+            }
+
+            public override string ToString()
+            {
+                if (Positional != null)
+                {
+                    return "  " + (Positional.Required ? $"<{Positional.Name}>" : $"[{Positional.Name}]");
+                }
+                else
+                {
+                    var result = "  ";
+                    if (Argument.ShortName != default(char))
+                    {
+                        result += $"-{Argument.ShortName}, ";
+                    }
+                    result += $"--{Argument.LongName}";
+                    return result;
+                }
+            }
+        }
+
+        /// <summary>
         /// Converts the ArgumentCollection to a help-string.
         /// </summary>
         /// <returns></returns>
         public override string ToString()
         {
             StringBuilder output = new StringBuilder();
+            var wrappers = new List<OptionWrapper>();
+
+            if (UnnamedArgumentData?.Any() == true)
+            {
+                foreach (var u in UnnamedArgumentData)
+                {
+                    if (u.GetAttribute<UnnamedCommandLineArgument>() is { } a)
+                    {
+                        wrappers.Add(new OptionWrapper(a));
+                    }
+                }
+            }
+            wrappers.AddRange(this.Values.Where(v => v.IsVisible).Select(k => new OptionWrapper(k)));
 
             // Compute the options' width
-            int width = 0;
-            List<string> optList = new List<string>();
-            foreach (var option in this)
+            int width = wrappers.Select(w => w.ToString().Length).Max() + 3;
+
+            foreach (var wrapper in wrappers)
             {
-                var opt = option.Value;
-
-                if (opt.IsVisible == false)
-                    continue;
-
-                var arg = "--" + opt.LongName;
-                if (opt.ShortName != default(char))
+                var arg = wrapper.ToString();
+                var description = wrapper.Description();
+                if (!string.IsNullOrEmpty(description))
                 {
-                    arg = String.Format("-{0}, {1}", opt.ShortName, arg);
-                }
-                arg = "  " + arg;
-
-                optList.Add(arg);
-
-                if (arg.Length > width)
-                    width = arg.Length;
-            }
-
-            width += 3;
-
-            // Do the actual formatting (option + description)
-            int i = 0;
-            foreach (var option in this)
-            {
-                var opt = option.Value;
-
-                if (opt.IsVisible == false)
-                    continue;
-
-                var arg =  optList[i++];
-
-                if (!string.IsNullOrEmpty(opt.Description))
-                    foreach (var descSplit in opt.Description.Split('\n'))
+                    output.Append(arg);
+                    // Offst by the arument length in the first iteration
+                    var offset = arg.Length;
+                    foreach (var descSplit in description.Split('\n'))
                     {
-                        arg = arg + new String(' ', width - arg.Length) + descSplit;
-                        output.AppendLine(arg);
-                        arg = "";
+                        output.AppendLine(descSplit.PadLeft(descSplit.Length + width - offset));
+                        offset = 0;
                     }
+                }
                 else
+                {
                     output.AppendLine(arg);
+                }
             }
             return output.ToString();
         }

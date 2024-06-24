@@ -60,7 +60,7 @@ namespace OpenTap.Sdk.New
             set => base.output = value;
         }
 
-        [UnnamedCommandLineArgument("name", Required = true)]
+        [UnnamedCommandLineArgument("name", Required = true, Description = "The name of the project.")]
         public string Name { get; set; }
 
         private static bool IsAncestor(DirectoryInfo root, DirectoryInfo dest)

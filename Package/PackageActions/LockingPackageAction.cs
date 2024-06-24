@@ -57,7 +57,7 @@ namespace OpenTap.Package
 
         internal static string GetLocalInstallationDir()
         {
-            return Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            return Installation.Current.Directory;
         }
 
         internal static string GuessHostOS()

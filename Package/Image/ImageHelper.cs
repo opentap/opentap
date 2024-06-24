@@ -30,9 +30,9 @@ namespace OpenTap.Package
         {
             return xmlData.Trim().Substring(0, 1).IndexOfAny(new[] { '<' }) == 0;
         }
-        static ImageSpecifier ParseCommaSeparated(this string xmlData)
+        static ImageSpecifier ParseCommaSeparated(this string imageString)
         {
-            var pkgStrings = xmlData.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            var pkgStrings = imageString.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             
             var list = new List<PackageSpecifier>();
             foreach (var pkg in pkgStrings)
