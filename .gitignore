@@ -10,6 +10,9 @@ TestResults/
 nuget/build/payload
 node_modules/
 /public/
+doc/.vitepress/dist/
+doc/.vitepress/cache/
+.DS_Store
 
 # Temp files from git merges:
 *.orig

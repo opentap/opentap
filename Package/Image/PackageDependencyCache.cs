@@ -2,7 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection.Metadata.Ecma335;
+using System.Reflection;
+using System.Threading.Tasks;
 
 namespace OpenTap.Package
 {
@@ -13,7 +14,7 @@ namespace OpenTap.Package
         readonly PackageDependencyGraph graph = new PackageDependencyGraph();
         public PackageDependencyGraph Graph => graph;
         public List<string> Repositories { get; }
-        static readonly  TraceSource log = Log.CreateSource("Package Query");
+        static readonly TraceSource log = Log.CreateSource("Package Query");
 
         public PackageDependencyCache(string os, CpuArchitecture deploymentInstallationArchitecture, IEnumerable<string> repositories = null)
         {
@@ -43,20 +44,37 @@ namespace OpenTap.Package
             new Dictionary<PackageDependencyGraph, IPackageRepository>();
         public void LoadFromRepositories()
         {
-            
+            Exception GetInnermostException(Exception ex)
+            {
+                return ex switch
+                {
+                    AggregateException aex when aex.InnerExceptions.Count == 1 => GetInnermostException(
+                        aex.InnerException),
+                    TargetInvocationException tex => GetInnermostException(tex.InnerException),
+                    _ => ex
+                };
+            }
+
             var repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToArray();
             graphs.Clear();
-            foreach (var r in repositories.AsParallel().Select(repo =>
-                     {
-                         try
-                         {
-                             return (graph: GetGraph(repo), repo: repo);
-                         }
-                         catch (Exception)
-                         {
-                             return (graph: null, repo: repo);
-                         }
-                     }))
+            var graphList = repositories.AsParallel().TrySelect(repo => (graph: GetGraph(repo), repo: repo),
+                (ex, repo) =>
+                {
+                    var innermost = GetInnermostException(ex);
+                    if (innermost is TaskCanceledException or OperationCanceledException)
+                    {
+                        log.Warning($"Timeout while querying '{repo.Url}': {innermost.Message}", innermost);
+                    } 
+                    else if (innermost is PackageQueryException)
+                    {
+                        log.Warning($"Error querying '{repo.Url}': {innermost.Message}", innermost);
+                    }
+                    else
+                    {
+                        log.Warning($"Repository is unreachable: {innermost.Message}", innermost);
+                    }
+                });
+            foreach (var r in graphList)
             {
                 if (r.graph == null)
                     continue; // error while querying repo.
@@ -80,7 +98,7 @@ namespace OpenTap.Package
             
                 if (repo is HttpPackageRepository http)
                 {
-                  return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, "");  
+                    return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, "");
                 } 
                 
                 if (repo is FilePackageRepository fpkg)

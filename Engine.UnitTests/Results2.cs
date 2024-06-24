@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -86,6 +89,73 @@ namespace OpenTap.UnitTests
                     }
                 }
             }
+        }
+        
+        [TestCase(10, 10)]
+        [TestCase(50, 50)]
+        [TestCase(100, 100)]
+        public void TestSetParameterRaceCondition(int threadCount, int paramsPerThread)
+        {
+            var step = new DelayStep();
+            var run = new TestStepRun(step, Guid.NewGuid(), Array.Empty<ResultParameter>());
+            var threads = new Task[threadCount];
+            var evt = new ManualResetEventSlim(false);
+            
+            for (int i = 0; i < threadCount; i++)
+            {
+                int i2 = i;
+                threads[i2] = TapThread.StartAwaitable(() =>
+                {
+                    evt.Wait();
+                    int start = i2 * paramsPerThread;
+                    foreach (var i1 in Enumerable.Range(start, paramsPerThread))
+                    {
+                        run.Parameters[i1.ToString()] = i1;
+                    }
+                });
+            }
+            
+            // Ensure all the threads are started and waiting on the event
+            TapThread.Sleep(1000); 
+            evt.Set();
+            Task.WaitAll(threads);
+            
+            for (int i = 0; i < threadCount * paramsPerThread; i++)
+            {
+                var param = run.Parameters[i.ToString()];
+                Assert.AreEqual(param, i);
+            }
+        }
+
+        class ParameterAssigningResultListener : ResultListener
+        {
+            public List<string> Assignments = new List<string>();
+            public override void OnTestStepRunStart(TestStepRun stepRun)
+            {
+                base.OnTestStepRunStart(stepRun);
+                foreach (var assignment in Assignments)
+                {
+                    stepRun.Parameters[assignment] = assignment;
+                }
+            }
+        }
+
+        [Test]
+        public void TestRacyResultListeners()
+        {
+            using var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            var collector = new PlanRunCollectorListener();
+            var a1 = new ParameterAssigningResultListener() { Assignments = { "Param1", "Param2", "Param3" } };
+            var a2 = new ParameterAssigningResultListener() { Assignments = { "Param4", "Param5", "Param6" } };
+            ResultSettings.Current.Add(a1);
+            ResultSettings.Current.Add(a2);
+            ResultSettings.Current.Add(collector);
+
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new DelayStep());
+            plan.Execute();
+
+            Assert.AreEqual(collector.StepRunStartEvents[0].Verdict, Verdict.NotSet);
         }
     }
 }

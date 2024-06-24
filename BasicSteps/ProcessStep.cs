@@ -110,7 +110,6 @@ namespace OpenTap.Plugins.BasicSteps
         [EnabledIf(nameof(WaitForEnd), true, HideIfDisabled = true)]
         public int ExitCode { get; private set; }
         
-        ManualResetEvent outputWaitHandle, errorWaitHandle;
         StringBuilder output;
 
 
@@ -153,7 +152,7 @@ namespace OpenTap.Plugins.BasicSteps
                     // Set RunElevated = false so ProcessHelper doesn't infinitely loop
                     RunElevated = false;
                     var processRunner = new SubProcessHost { ForwardLogs = AddToLog, LogHeader = LogHeader};
-                    var verdict = processRunner.Run(this, true, CancellationToken.None);
+                    var verdict = processRunner.Run(this, true, TapThread.Current.AbortToken);
                     UpgradeVerdict(verdict);
                     return;
                 }
@@ -217,8 +216,6 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 output = new StringBuilder();
                 
-                using (outputWaitHandle = new ManualResetEvent(false))
-                using (errorWaitHandle = new ManualResetEvent(false))
                 using(process)
                 using(abortRegistration)
                 {
@@ -230,10 +227,29 @@ namespace OpenTap.Plugins.BasicSteps
 
                     process.BeginOutputReadLine();
                     process.BeginErrorReadLine();
+
+                    var elapsed = Stopwatch.StartNew();
+                    // Wait for the process to exit, allowing for cancellation every 100 ms
+                    while (elapsed.Elapsed.TotalSeconds < timeout && process.WaitForExit(100) == false)
+                        TapThread.ThrowIfAborted();
                     
-                    if (process.WaitForExit(timeout) &&
-                        outputWaitHandle.WaitOne(timeout) &&
-                        errorWaitHandle.WaitOne(timeout))
+                    // Ensure that all asynchronous processing is completed by calling process.WaitForExit()
+                    // Only the overload with no parameters has this guarantee. See remarks at
+                    // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.process.waitforexit?view=netframework-4.8
+                    var done = new ManualResetEventSlim(false);
+                    TapThread.Start(() =>
+                    {
+                        // Wrap it in a thread because this can block indefinitely due to a bug in dotnet. See:
+                        // https://github.com/dotnet/runtime/issues/74677
+                        // https://github.com/dotnet/runtime/issues/28583
+                        process.WaitForExit();
+                        done.Set();
+                    });
+                    
+                    while (elapsed.Elapsed.TotalSeconds < timeout && done.WaitHandle.WaitOne(100) == false)
+                        TapThread.ThrowIfAborted();
+                    
+                    if (elapsed.Elapsed.TotalSeconds < timeout)
                     {
                         var resultData = output.ToString();
 
@@ -273,7 +289,6 @@ namespace OpenTap.Plugins.BasicSteps
                     {
                         process.Start();
                         process.WaitForExit();
-                        abortRegistration.Dispose();
                     }
                 });
             }
@@ -283,11 +298,7 @@ namespace OpenTap.Plugins.BasicSteps
         {
             try
             {
-                if (e.Data == null)
-                {
-                    outputWaitHandle.Set();
-                }
-                else
+                if (e.Data != null)
                 {
                     if(AddToLog)
                         Log.Info("{0}{1}", prepend, e.Data);
@@ -305,11 +316,7 @@ namespace OpenTap.Plugins.BasicSteps
         {
             try
             {
-                if (e.Data == null)
-                {
-                    errorWaitHandle.Set();
-                }
-                else
+                if (e.Data != null)
                 {
                     if(AddToLog)
                         Log.Error("{0}{1}", prepend, e.Data);

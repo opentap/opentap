@@ -253,11 +253,19 @@ namespace OpenTap
         {
             if (from.DescendsTo(to))
                 return true;
-            if (to is TypeData td1 && from is TypeData td2)
+            if (to is TypeData to2 && from is TypeData from2)
             {
-                if (td1.IsNumeric || td1.IsString || td1.Type == typeof(bool))
+                if (from2.Type.IsEnum)
                 {
-                    switch (td2.TypeCode)
+                    // if from is an enum, it has TypeCode Int, but we dont allow assigning an enum to a int input.
+                    if (to2.IsString)
+                        return true;
+                    
+                    return false;
+                }
+                if (to2.IsNumeric || to2.IsString || to2.Type == typeof(bool))
+                {
+                    switch (from2.TypeCode)
                     {
                         case TypeCode.Double:
                         case TypeCode.Single:
@@ -270,9 +278,10 @@ namespace OpenTap
                         case TypeCode.Byte:
                         case TypeCode.SByte:
                         case TypeCode.Decimal:
-                        case TypeCode.String:
                         case TypeCode.Boolean:
                             return true;
+                        case TypeCode.String:
+                            return to2.IsString;
                         default: return false;
                     }
                 }

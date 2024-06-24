@@ -3,7 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
@@ -39,7 +38,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Represents an unnamed command line argument which specifies the package.xml file that defines the package that should be generated.
         /// </summary>
-        [UnnamedCommandLineArgument("PackageXmlFile", Required = true)]
+        [UnnamedCommandLineArgument("Package Xml File", Required = true, Description = "The path to the package xml file to create a package from.")]
         public string PackageXmlFile { get; set; }
 
         

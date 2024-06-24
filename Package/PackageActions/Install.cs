@@ -7,7 +7,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
@@ -52,7 +51,7 @@ namespace OpenTap.Package
         /// <summary>
         /// This is used when specifying the install action through the CLI. If you need to specify multiple packages with different version numbers, use <see cref="PackageReferences"/>
         /// </summary>
-        [UnnamedCommandLineArgument("package(s)", Required = true)]
+        [UnnamedCommandLineArgument("package(s)", Required = true, Description = "One or more packages to install. A package can refer to a .TapPackage file, or a name to be resolved from the specified repositories.")]
         public string[] Packages { get; set; }
 
         [CommandLineArgument("check-only", Description = "Checks if the selected package(s) can be installed, but does not install or download them.")]

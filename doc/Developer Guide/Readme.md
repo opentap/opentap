@@ -2,9 +2,9 @@ Table of Contents
 =================
 
 - [Introduction](Introduction/Readme.md)
-	- [Audience](Introduction#audience)
-	- [Prerequisites](Introduction#prerequisites)
-	- [Suggested Resources](Introduction#suggested-resources)
+	- [Audience](Introduction/Readme.md#audience)
+	- [Prerequisites](Introduction/Readme.md#prerequisites)
+	- [Suggested Resources](Introduction/Readme.md#suggested-resources)
 - [What Is OpenTAP](What is OpenTAP/Readme.md)
 	- [OpenTAP Architecture](What is TAP#tap-architecture)
 	- [OpenTAP](What is OpenTAP#opentap)
@@ -57,9 +57,9 @@ Table of Contents
 	- [Command Line Use](Plugin Packaging and Versioning#command-line-use)
 	- [Versioning](Plugin Packaging and Versioning#versioning)
 - [Attributes](Attributes/Readme.md)
-	- [Attributes Used by OpenTAP](Attributes#attributes-used-by-opentap)
-	- [Attribute Details](Attributes#attribute-details)
-- [Appendix A: Macro Strings](Appendix A/Readme.md)
+	- [Attributes Used by OpenTAP](Attributes/Readme.md#attributes-used-by-opentap)
+	- [Attribute Details](Attributes/Readme.md#attribute-details)
+- [Appendix: Macro Strings](Appendix/Readme.md)
 
 
 <div style="page-break-after: always;"></div>

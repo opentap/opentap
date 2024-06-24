@@ -244,29 +244,29 @@ namespace OpenTap.Cli
 
         private static void printOptions(string passName, ArgumentCollection options, List<IMemberData> unnamed)
         {
-            Console.WriteLine("Usage: {2} {0} {1}",
-                string.Join(" ", options.Values.Where(x => x.IsVisible).Select(x =>
+            var namedArguments = string.Join(" ", options.Values.Where(x => x.IsVisible)
+                .Select(x =>
                 {
-                    var str = x.ShortName != '\0' ? string.Format("-{0}", x.ShortName) : "--" + x.LongName;
-
+                    var str = x.ShortName != 0 ? $"-{x.ShortName}" : "--" + x.LongName;
                     if (x.NeedsArgument)
                         str += " <arg>";
 
                     return '[' + str + ']';
-                })),
-                string.Join(" ", unnamed.Select(x =>
-                {
-                    var attr = x.GetAttribute<UnnamedCommandLineArgument>();
-                    var str = attr.Name;
+                }));
+            var unnamedArguments = string.Join(" ", unnamed.Select(x =>
+            {
+                var attr = x.GetAttribute<UnnamedCommandLineArgument>();
+                var str = attr.Name;
 
-                    if (attr.Required == false)
-                        str = "[<" + str + ">]";
-                    else
-                        str = "<" + str + ">";
+                if (attr.Required == false)
+                    str = "[<" + str + ">]";
+                else
+                    str = "<" + str + ">";
 
-                    return str;
-                })), passName);
-
+                return str;
+            }));
+            Console.WriteLine($"Usage: {passName} {namedArguments} {unnamedArguments}"); 
+            options.UnnamedArgumentData = unnamed;
             Console.Write(options);
         }
 
