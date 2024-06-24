@@ -47,14 +47,19 @@ may be required on these platforms, such as dotnet 6 runtime.
 For other Linux distributions, OpenTAP can be installed using the terminal:
 
 1. Install dotnet: [Instructions](https://learn.microsoft.com/da-dk/dotnet/core/install/linux?WT.mc_id=dotnet-35129-website).
-    - For Ubuntu: `sudo apt install -y dotnet-sdk-8.0`
-2. Download the latest OpenTAP release: `curl -Lo opentap.zip 'https://packages.opentap.io/4.0/Objects/Packages/OpenTAP?os=Linux&architecture=<architecture>'`
+    - For Ubuntu: `sudo apt install -y dotnet-sdk-8.0`.
+2. Download the latest OpenTAP release: `curl -Lo opentap.zip 'https://packages.opentap.io/4.0/Objects/Packages/OpenTAP?os=Linux&architecture=<architecture>'`.
     - Remember to change the architecture if needed (`x64`, `arm64`, `arm`).
-3. Create a directory for OpenTAP: `sudo mkdir /opt/opentap && sudo chown $USER:$USER /opt/opentap`
-4. Extract the OpenTAP release: `unzip ./opentap.zip -d /opt/opentap`
+3. Create a directory for OpenTAP: `mkdir -p /home/$USER/.local/share/opentap`.
+4. Extract the OpenTAP release: `unzip ./opentap.zip -d /home/$USER/.local/share/opentap`.
     - If you don't have unzip installed, you can install it with `sudo apt install unzip`.
-5. Make tap executable: `chmod +x /opt/opentap/tap`
-6. Create a symbolic link to tap: `sudo ln -s /opt/opentap/tap /usr/local/bin/tap`
+5. Make tap executable: `chmod +x /home/$USER/.local/share/opentap/tap`.
+6. Add installation dir to PATH by adding the following line to your terminal read config file:
+    - For bash: `echo 'export PATH=/home/$USER/.local/share/opentap/:$PATH' >> ~/.bashrc`.
+    - For zsh: `echo 'export PATH=/home/$USER/.local/share/opentap/:$PATH' >> ~/.zshrc`.
+7. Reload the terminal:
+    - For bash: `source ~/.bashrc` or  `exec bash`.
+    - For zsh: `source ~/.zshrc` or `exec zsh`.
 
 ##### An example using Ubuntu 24.04
 This example shows how to install OpenTAP on ARM64 Ubuntu 24.04 running on a Raspberry PI 5. The steps are similar for other distributions.
@@ -67,17 +72,19 @@ sudo apt install -y dotnet-sdk-8.0 unzip
 curl -Lo opentap.zip 'https://packages.opentap.io/4.0/Objects/Packages/OpenTAP?os=Linux&architecture=arm64'
 
 # Create a directory for OpenTAP
-sudo mkdir /opt/opentap
-sudo chown $USER:$USER /opt/opentap
+mkdir -p /home/$USER/.local/share/opentap
 
 # Extract the OpenTAP release
-unzip ./opentap.zip -d /opt/opentap
+unzip ./opentap.zip -d /home/$USER/.local/share/opentap
 
 # Make tap executable
-chmod +x /opt/opentap/tap
+chmod +x /home/$USER/.local/share/opentap/tap
 
-# Create a symbolic link to tap
-sudo ln -s /opt/opentap/tap /usr/local/bin/tap
+# Add installation dir to PATH
+echo 'export PATH=/home/$USER/.local/share/opentap/:$PATH' >> ~/.bashrc
+
+# Reload the terminal
+source ~/.bashrc
 ```
 
 ### MacOS
