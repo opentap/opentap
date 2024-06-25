@@ -58,7 +58,7 @@
         {
           "condition": "(TUIRegex)",
           "rename": {
-            "TUI.LaunchSettings.json": "LaunchSettings.json",
+            "TUI.LaunchSettings.json": "launchSettings.json",
             "TUI.Launch.json": "launch.json"
           }
         },
@@ -69,7 +69,7 @@
         {
           "condition": "(EditorRegex)",
           "rename": {
-            "Editor.LaunchSettings.json": "LaunchSettings.json",
+            "Editor.LaunchSettings.json": "launchSettings.json",
             "Editor.Launch.json": "launch.json"
           }
         },

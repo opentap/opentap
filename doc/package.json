@@ -1,15 +1,10 @@
 {
-  "name": "doc",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "build": "vuepress build",
-    "dev": "vuepress dev"
+  "devDependencies": {
+    "vitepress": "^1.2.3"
   },
-  "author": "",
-  "license": "ISC",
-  "dependencies": {
-    "vuepress": "^1.2.0"
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview"
   }
 }

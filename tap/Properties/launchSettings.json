@@ -1,12 +1,5 @@
 {
   "profiles": {
-    "tap (Install Editor CE)": {
-      "commandName": "Project",
-      "commandLineArgs": "package install \"Editor CE\" --no-dependencies",
-      "environmentVariables": {
-        "OPENTAP_COLOR": "1"
-      }
-    },
     "tap (list)": {
       "commandName": "Project",
       "commandLineArgs": "package list -v"

@@ -14,7 +14,7 @@ using System.Threading;
 namespace OpenTap.Cli
 {
     /// <summary>
-    /// Serves as an entrypoint for tap.exe. Runs Keysight.Tap.Package.Cli.Program.Main
+    /// Serves as an entrypoint for tap.exe. Runs OpenTap.Cli.CliActionExecutor.Execute
     /// possibly in "isolated" mode to allow self-updating depending on command line args
     /// </summary>
     internal class TapEntry

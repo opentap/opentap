@@ -85,7 +85,7 @@ namespace OpenTap.Cli
         /// <summary>
         /// Location of test plan to be executed.
         /// </summary>
-        [UnnamedCommandLineArgument("Test Plan", Required = true)]
+        [UnnamedCommandLineArgument("Test Plan", Required = true, Description = "The test plan to run.")]
         public string TestPlanPath { get; set; } = "";
 
         /// <summary>

@@ -5,7 +5,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Xml;
 
 #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
@@ -79,7 +78,7 @@ namespace OpenTap.Package
         [CommandLineArgument("offline", Description = "Don't check http repositories.", ShortName = "o")]
         public bool Offline { get; set; }
 
-        [UnnamedCommandLineArgument("package", Required = true)]
+        [UnnamedCommandLineArgument("package", Required = true, Description = "The name of the package to show information for. Can be a .TapPackage file, or a package name to be resolved from the specified repositories.")]
         public string Name { get; set; }
 
         [CommandLineArgument("version", Description = CommandLineArgumentVersionDescription)]

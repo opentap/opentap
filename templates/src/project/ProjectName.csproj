@@ -35,11 +35,11 @@
     <PackageReference Include="OpenTAP" Version="$(GitVersion)" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(DebugWith)' == 'TUI'">
+  <ItemGroup Condition="'$(DebugWith)' == 'TUI' AND '$(Configuration)' == 'Debug'">
     <OpenTapPackageReference Include="TUI" version="1"/>
   </ItemGroup>
 
-  <ItemGroup Condition="'$(DebugWith)' == 'Editor'">
+  <ItemGroup Condition="'$(DebugWith)' == 'Editor' AND '$(Configuration)' == 'Debug'">
     <OpenTapPackageReference Include="Editor" version="9"/>
   </ItemGroup>
 
