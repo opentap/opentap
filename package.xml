@@ -14,6 +14,7 @@
         <Debug Condition="$(Debug) != true">false</Debug>
     </Variables>
     <SourceUrl>https://github.com/opentap/opentap</SourceUrl>
+    <SourceLicense>MPL-2.0</SourceLicense>
     <Owner>OpenTAP</Owner>
     <!-- Common files  -->
     <Files Condition="$(Debug) == false">
