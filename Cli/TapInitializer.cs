@@ -23,7 +23,7 @@ namespace OpenTap
                     AllEvents.AddRange(events);
             }
             public void Flush(){
-
+                Log.Flush();
             }
             public static readonly InitTraceListener Instance = new InitTraceListener();  
         }
