@@ -22,6 +22,6 @@ namespace OpenTap
             
         }
 
-        internal static readonly ParameterCollection Empty = new ParameterCollection(Array.Empty<IParameter>());
+        internal new static readonly ParameterCollection Empty = new ParameterCollection(Array.Empty<IParameter>());
     }
 }

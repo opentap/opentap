@@ -11,9 +11,6 @@
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
     <ProjectReference Include="..\Engine.UnitTests\Tap.Engine.UnitTests.csproj" />
     <ProjectReference Include="..\Package\Tap.Package.csproj" />    
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="2.10.0" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />    
-    <PackageReference Include="System.CodeDom" Version="4.5.0" />
     <ProjectReference Include="..\sdk\OpenTap.Sdk.MSBuild\OpenTap.Sdk.MSBuild.csproj" />
   </ItemGroup>
 
@@ -105,15 +102,9 @@
     <None Update="Packages\DependencyTest.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="UnitTesting.snk">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Update="Packages/SetAsmInfoTest.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Remove="opentap-packages.json.gz" />
-  </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Keysight\Tap\" />
   </ItemGroup>
 </Project>
