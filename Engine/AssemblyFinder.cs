@@ -96,12 +96,7 @@ namespace OpenTap
                             foreach (var subDir in dir.Info.EnumerateDirectories())
                             {
                                 if (StrEq(subDir.Name, "obj"))
-                                    continue; // skip obj subfolder
-                                if (subDir.GetFiles("OpenTap.dll").Any())
-                                {
-                                    log.Warning("Found OpenTap installation in subdirectory: '{0}'", subDir.Name);
-                                    continue; // skip subdirectory if it appears to be an opentap installation                                    
-                                }
+                                    continue; // skip obj subfolder                        
                                 var ignorePluginsInSubDir = dir.IgnorePlugins || StrEq(subDir.Name, "Dependencies");
                                 if (IncludeDependencies)
                                     ignorePluginsInSubDir = false;

@@ -87,6 +87,11 @@ namespace OpenTap.Package
             {
                 ImageIdentifier image;
                 var sw = Stopwatch.StartNew();
+
+                if (NestedTapInstallation() == true)
+                {
+                    throw new Exception("Unable to perform installation as the current directory is inside another OpenTap installation. Nested installations can cause unexpected behavior and are not supported.");
+                }
                 if (Merge)
                 {
                     var deploymentInstallation = new Installation(Target);

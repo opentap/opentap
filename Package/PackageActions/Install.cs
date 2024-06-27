@@ -109,7 +109,13 @@ namespace OpenTap.Package
         {
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
+            if (NestedTapInstallation() == true)
+            {
+                throw new Exception("Unable to perform installation as the current directory is inside another OpenTap installation. Nested installations can cause unexpected behavior and are not supported.");
+            }
+
             var targetInstallation = new Installation(Target);
+
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
             Repository = ExtractRepositoryTokens(Repository, true);
