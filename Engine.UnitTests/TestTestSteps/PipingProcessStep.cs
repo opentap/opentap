@@ -7,7 +7,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
-using OpenTap;
 
 namespace OpenTap.Engine.UnitTests.TestTestSteps
 {
@@ -19,8 +18,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
             [Submit] public string Answer { get; set; }
         }
 
-        [CommandLineArgument("answers", ShortName = "a",
-            Description = "The answers that the caller is intending to give.")]
+        [CommandLineArgument("answers", ShortName = "a", Description = "The answers that the caller is intending to give.")]
         public string[] ExpectedAnswers { get; set; }
 
         private static TraceSource log = Log.CreateSource(nameof(UserInputTestAction));

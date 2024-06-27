@@ -36,7 +36,7 @@ namespace OpenTap.Package
         [CommandLineArgument("architecture", Description = CommandLineArgumentArchitectureDescription)]
         public CpuArchitecture Architecture { get; set; }
 
-        [UnnamedCommandLineArgument("package(s)", Required = true)]
+        [UnnamedCommandLineArgument("package(s)", Required = true, Description = "One or more packages to download.")]
         public string[] Packages { get; set; }
         
         /// <summary>

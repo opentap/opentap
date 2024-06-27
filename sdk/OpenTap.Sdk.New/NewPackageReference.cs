@@ -11,7 +11,7 @@ namespace OpenTap.Sdk.New
     [Display("package-reference", "Add an OpenTAP Package to a C# Project (.csproj).", Groups: new[] { "sdk", "new" })]
     public class NewPackageReference : ICliAction
     {
-        [UnnamedCommandLineArgument("package-name")]
+        [UnnamedCommandLineArgument("Package Name", Description = "The name of the package to reference.")]
         public string PackageName { get; set; }
         [CommandLineArgument("version", Description = "Version of the package (newest version if not set).")]
         public string Version { get; set; }

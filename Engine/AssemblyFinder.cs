@@ -96,7 +96,7 @@ namespace OpenTap
                             foreach (var subDir in dir.Info.EnumerateDirectories())
                             {
                                 if (StrEq(subDir.Name, "obj"))
-                                    continue; // skip obj subfolder
+                                    continue; // skip obj subfolder                        
                                 var ignorePluginsInSubDir = dir.IgnorePlugins || StrEq(subDir.Name, "Dependencies");
                                 if (IncludeDependencies)
                                     ignorePluginsInSubDir = false;

@@ -2,10 +2,8 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
-using OpenTap;
 using OpenTap.Cli;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Reflection;
@@ -18,7 +16,7 @@ namespace OpenTap.Sdk.New
     [Display("dut", "C# template for a DUT plugin.", Groups: new[] { "sdk", "new" })]
     public class GenerateDut : GenerateType
     {
-        [UnnamedCommandLineArgument("name", Required = true)]
+        [UnnamedCommandLineArgument("name", Required = true, Description = "The name of the new DUT.")]
         public string Name { get; set; }
 
         public override int Execute(CancellationToken cancellationToken)
@@ -42,7 +40,7 @@ namespace OpenTap.Sdk.New
     [Display("instrument", "C# template for a Instrument plugin.", Groups: new[] { "sdk", "new" })]
     public class GenerateInstrument : GenerateType
     {
-        [UnnamedCommandLineArgument("name", Required = true)]
+        [UnnamedCommandLineArgument("name", Required = true, Description = "The name of the new Instrument.")]
         public string Name { get; set; }
 
         public override int Execute(CancellationToken cancellationToken)
@@ -65,7 +63,7 @@ namespace OpenTap.Sdk.New
     [Display("resultlistener", "C# template for a ResultListener plugin.", Groups: new[] { "sdk", "new" })]
     public class GenerateResultListener : GenerateType
     {
-        [UnnamedCommandLineArgument("name", Required = true)]
+        [UnnamedCommandLineArgument("name", Required = true, Description = "The name of the new ResultListener.")]
         public string Name { get; set; }
 
         public override int Execute(CancellationToken cancellationToken)
@@ -88,7 +86,7 @@ namespace OpenTap.Sdk.New
     [Display("settings", "C# template for a ComponentSetting plugin.", Groups: new[] { "sdk", "new" })]
     public class GenerateSetting : GenerateType
     {
-        [UnnamedCommandLineArgument("name", Required = true)]
+        [UnnamedCommandLineArgument("name", Required = true, Description = "The name of the new ComponentSetting.")]
         public string Name { get; set; }
 
         public override int Execute(CancellationToken cancellationToken)
@@ -111,7 +109,7 @@ namespace OpenTap.Sdk.New
     [Display("teststep", "C# template for a TestStep plugin.", Groups: new[] { "sdk", "new" })]
     public class GenerateTestStep : GenerateType
     {
-        [UnnamedCommandLineArgument("name", Required = true)]
+        [UnnamedCommandLineArgument("name", Required = true, Description = "The name of the new TestStep.")]
         public string Name { get; set; }
 
         public override int Execute(CancellationToken cancellationToken)
@@ -138,7 +136,7 @@ namespace OpenTap.Sdk.New
     [Browsable(false)]
     public class GenerateTestPlan : GenerateType
     {
-        [UnnamedCommandLineArgument("name", Required = true)]
+        [UnnamedCommandLineArgument("name", Required = true, Description = "The name of the new TapPlan.")]
         public string Name { get; set; }
 
         public override int Execute(CancellationToken cancellationToken)
@@ -175,7 +173,7 @@ namespace OpenTap.Sdk.New
     [Display("cliaction", "C# template for a CliAction plugin.", Groups: new[] { "sdk", "new" })]
     public class GenerateCliAction : GenerateType
     {
-        [UnnamedCommandLineArgument("name", Required = true)]
+        [UnnamedCommandLineArgument("name", Required = true, Description = "The name of the new CliAction.")]
         public string Name { get; set; }
 
         public override int Execute(CancellationToken cancellationToken)
@@ -198,7 +196,7 @@ namespace OpenTap.Sdk.New
     [Display("packagexml", "Package Definition file (package.xml).", Groups: new[] { "sdk", "new" })]
     public class GeneratePackageXml : GenerateType
     {
-        [UnnamedCommandLineArgument("package name", Required = true)]
+        [UnnamedCommandLineArgument("package name", Required = true, Description = "The name of the new package.xml")]
         public string Name { get; set; }
 
         public override int Execute(CancellationToken cancellationToken)

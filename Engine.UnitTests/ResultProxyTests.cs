@@ -6,10 +6,8 @@ using System;
 using NUnit.Framework;
 using System.Xml.Serialization;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using OpenTap.EngineUnitTestUtils;
-using OpenTap;
 
 namespace OpenTap.Engine.UnitTests
 {

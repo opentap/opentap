@@ -1,9 +1,7 @@
 ﻿using OpenTap.Cli;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
 
 #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
@@ -13,9 +11,6 @@ namespace OpenTap.Package
     [Display("list", Group: "package", Description: "List locally installed packages and browse the online package repository.")]
     public class PackageListAction : LockingPackageAction
     {
-        [CommandLineArgument("token", Description = CommandLineArgumentTokenDescription)]
-        public string[] Tokens { get; set; }
-        
         [CommandLineArgument("repository", Description = CommandLineArgumentRepositoryDescription, ShortName = "r")]
         public string[] Repository { get; set; }
 
@@ -28,7 +23,7 @@ namespace OpenTap.Package
         [CommandLineArgument("installed", Description = "Show only installed packages.", ShortName = "i")]
         public bool Installed { get; set; }
 
-        [UnnamedCommandLineArgument("package")]
+        [UnnamedCommandLineArgument("package", Description = "The name of the package to list versions for. If omitted, all packages will be listed.")]
         public string Name { get; set; }
 
         [CommandLineArgument("version", Description = CommandLineArgumentVersionDescription)]

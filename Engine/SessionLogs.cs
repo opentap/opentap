@@ -265,7 +265,7 @@ namespace OpenTap
                         recentLock = new Mutex(false, mutexName);
                         break;
                     }
-                    catch (UnauthorizedAccessException e)
+                    catch (Exception e)
                     {
                         ex = e;
                         Thread.Sleep(10);

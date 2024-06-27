@@ -3,8 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Threading;
 using OpenTap.Package.PackageInstallHelpers;
 
@@ -19,7 +17,7 @@ namespace OpenTap.Package
         public bool IgnoreMissing { get; set; }
 
 
-        [UnnamedCommandLineArgument("package(s)", Required = true)]
+        [UnnamedCommandLineArgument("package(s)", Required = true, Description = "One or more packages to uninstall.")]
         public string[] Packages { get; set; }
         
         /// <summary>

@@ -29,7 +29,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Represents an unnamed command line argument which specifies for which git ref a version should be calculated.
         /// </summary>
-        [UnnamedCommandLineArgument("ref", Required = false)]
+        [UnnamedCommandLineArgument("ref", Required = false, Description = "An optional sha ref to a specific commit. If not specified, the current HEAD is used.")]
         public string Sha { get; set; }
 
         /// <summary>
