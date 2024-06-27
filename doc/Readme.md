@@ -83,7 +83,7 @@ chmod +x /home/$USER/.local/share/opentap/tap
 # Add installation dir to PATH
 echo 'export PATH=/home/$USER/.local/share/opentap/:$PATH' >> ~/.bashrc
 
-# Reload the terminal
+# Reload your bash config
 source ~/.bashrc
 ```
 
