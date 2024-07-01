@@ -38,7 +38,7 @@ namespace OpenTap.Package
                     if (pkg2.Name == pkg1.Name)
                     {
                         if (!pkg2.Version.IsSatisfiedBy(pkg1.Version) && !pkg1.Version.IsSatisfiedBy(pkg2.Version))
-                            return new FailedImageResolution(image, new []{pkg1, pkg2}, Iterations, FailedImageResolution.ConflictType.MutuallyExclusive);
+                            return new FailedImageResolution(image, new ResolutionProblem(new[] { pkg1, pkg2 }), Iterations, FailedImageResolution.ConflictType.MutuallyExclusive);
 
                         if (!pkg1.Version.IsSatisfiedBy(pkg2.Version))
                         {
@@ -82,7 +82,7 @@ namespace OpenTap.Package
                                     !dep.Version.IsSatisfiedBy(pkg2.Version))
                                 {
                                     // this dependency is unresolvable
-                                    return new FailedImageResolution(image,new[]{pkg2, dep}, Iterations, FailedImageResolution.ConflictType.MutuallyExclusive);
+                                    return new FailedImageResolution(image, new ResolutionProblem(new[] { pkg2, dep }), Iterations, FailedImageResolution.ConflictType.MutuallyExclusive);
                                 }
 
                                 // this dependency is more specific than the existing.
@@ -278,12 +278,13 @@ namespace OpenTap.Package
             }
             
             // this probably never happens as we already returned null, when K was 0.
-            return new FailedImageResolution(image, Array.Empty<PackageSpecifier>(), Iterations, FailedImageResolution.ConflictType.Generic);
+            return new FailedImageResolution(image, new ResolutionProblem(Array.Empty<PackageSpecifier>()), Iterations, FailedImageResolution.ConflictType.Generic);
         }
 
         private FailedImageResolution DetermineResolveError(ImageSpecifier image, PackageDependencyGraph graph,
             List<PackageSpecifier> ResolveProblems)
         {
+            var problem = new ResolutionProblem(ResolveProblems);
             // Provide a different error message depending on the actual conflict
             // 1. The specified package does not exist
             // 2. The requested version could not be satisfied
@@ -294,7 +295,7 @@ namespace OpenTap.Package
             {
                 errorType = FailedImageResolution.ConflictType.DoesNotExist;
             }
-            else if (ResolveProblems.Count == 1 && ResolveProblems[0].Version.TryAsExactSemanticVersion(out var _))
+            else if (ResolveProblems.Count == 1)
             {
                 var version = graph.PackagesSatisfying(ResolveProblems[0]).ToArray();
                 if (version.Length == 0)
@@ -307,34 +308,76 @@ namespace OpenTap.Package
                     foreach (var d in deps)
                     {
                         if (image.Packages.FirstOrDefault(p => p.Name == d.Name && !d.Version.IsSatisfiedBy(p.Version))
-                            is { } conflict)
+                            is { } requested)
                         {
-                            errorType = FailedImageResolution.ConflictType.MutuallyExclusive;
-                            ResolveProblems.Add(conflict);
+                            errorType = FailedImageResolution.ConflictType.Incompatible;
+                            problem = new IncompatbileResolutionProblem(requested, d, ResolveProblems[0]);
                             break;
                         }
                     }
                 }
             }
 
-            return new FailedImageResolution(image, ResolveProblems, Iterations, errorType);
+            return new FailedImageResolution(image, problem, Iterations, errorType);
         }
+    }
+
+    class ResolutionProblem
+    {
+        public static string SpecifierString(PackageSpecifier x) => x.Version == VersionSpecifier.AnyRelease ? x.Name :  $"{x.Name}: {x.Version}";
+        public string GetCommaSeparatedString() => string.Join(", ", Packages.Select(SpecifierString));
+        public PackageSpecifier[] Packages;
+
+        public ResolutionProblem(IEnumerable<PackageSpecifier> packages)
+        {
+            Packages = packages.ToArray();
+        }
+
+        public PackageSpecifier this[int index] => Packages[index];
+
+        public int Count => Packages.Length;
+    }
+
+    class IncompatbileResolutionProblem : ResolutionProblem
+    {
+        public IncompatbileResolutionProblem(PackageSpecifier requested, PackageSpecifier required, PackageSpecifier depender) : base(new[] { requested, required, depender })
+        {
+            Requested = requested;
+            Required = required;
+            Depender = depender;
+        }
+
+        public PackageSpecifier Requested { get; }
+        public PackageSpecifier Required { get; }
+        public PackageSpecifier Depender { get; }
+
+        public override string ToString() => $"'{Requested.Name}:{Requested.Version}' was explicitly requested, but '{Depender.Name}:{Depender.Version}' requires '{Required.Name}:{Required.Version}'";
+    }
+
+    class MutuallyExclusiveResolutionProblem : ResolutionProblem
+    {
+        public MutuallyExclusiveResolutionProblem(PackageSpecifier left, PackageSpecifier right) : base(new []{ left, right })
+        {
+        }
+
+        public override string ToString() => $"{SpecifierString(this[0])} and {SpecifierString(this[1])} are mutually exclusive.";
     }
 
     class FailedImageResolution : ImageResolution
     {
         public enum ConflictType
         {
+            Incompatible,
             MutuallyExclusive,
             DoesNotExist,
             NoPackagesSatisfying,
             Generic,
         }
 
-        internal readonly IReadOnlyList<PackageSpecifier> resolveProblems;
+        internal readonly ResolutionProblem resolveProblems;
         readonly ImageSpecifier image;
         internal readonly ConflictType Conflict;
-        public FailedImageResolution(ImageSpecifier img, IReadOnlyList<PackageSpecifier> resolveProblems, long iterations, ConflictType conflict) : base(Array.Empty<PackageSpecifier>(), iterations)
+        public FailedImageResolution(ImageSpecifier img, ResolutionProblem resolveProblems, long iterations, ConflictType conflict) : base(Array.Empty<PackageSpecifier>(), iterations)
         {
             image = img;
             this.resolveProblems = resolveProblems;
@@ -343,16 +386,15 @@ namespace OpenTap.Package
 
         public override bool Success => false;
 
-        private static string specifierString(PackageSpecifier x) => x.Version == VersionSpecifier.AnyRelease ? x.Name :  $"{x.Name}: {x.Version}";
         public override string ToString()
         {
             return $"Unable to resolve image '{image}':\n" + Conflict switch
             {
-                ConflictType.MutuallyExclusive =>
-                    $"{specifierString(resolveProblems[0])} and {specifierString(resolveProblems[1])} are mutually exclusive.",
-                ConflictType.NoPackagesSatisfying => $"No packages exist satisfying " + string.Join(", ", resolveProblems.Select(specifierString)),
-                ConflictType.DoesNotExist => "The following requested packages do not exist: " + string.Join(", ", resolveProblems.Select(specifierString)),
-                ConflictType.Generic => string.Join(", ", resolveProblems.Select(specifierString)) + " could not be satisfied.",
+                ConflictType.Incompatible => resolveProblems.ToString(),
+                ConflictType.MutuallyExclusive => resolveProblems.ToString(),
+                ConflictType.NoPackagesSatisfying => $"No packages exist satisfying " + resolveProblems.GetCommaSeparatedString(),
+                ConflictType.DoesNotExist => "The following requested packages do not exist: " + resolveProblems.GetCommaSeparatedString(),
+                ConflictType.Generic => resolveProblems.GetCommaSeparatedString() + " could not be satisfied.",
                 _ => throw new ArgumentOutOfRangeException()
             };
         }
