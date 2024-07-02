@@ -42,8 +42,4 @@
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
     <ProjectReference Include="..\Package\Tap.Package.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Shared\" />
-  </ItemGroup>
 </Project>
