@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Linq;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests.TestTestSteps;
-using OpenTap.Plugins.BasicSteps;
 using OpenTap.UnitTests;
 
 namespace OpenTap.Engine.UnitTests

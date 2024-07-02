@@ -10,7 +10,6 @@ using System.Linq;
 using System.Collections.Generic;
 using System;
 using System.IO;
-using System.Globalization;
 using Tap.Shared;
 
 namespace OpenTap.Package

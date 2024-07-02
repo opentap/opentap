@@ -8,7 +8,6 @@ using System.Linq;
 using System.Threading;
 using System.Collections.Generic;
 using OpenTap.Engine.UnitTests;
-using OpenTap;
 
 namespace OpenTap.EngineUnitTestUtils
 {

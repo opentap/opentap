@@ -1,10 +1,7 @@
 using System;
-using System.Buffers.Text;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading;
 
 namespace OpenTap

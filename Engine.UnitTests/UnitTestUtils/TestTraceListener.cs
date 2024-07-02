@@ -9,7 +9,6 @@ using System.Text;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using System.Linq;
-using OpenTap;
 
 namespace OpenTap.EngineUnitTestUtils
 {

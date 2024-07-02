@@ -1,6 +1,4 @@
-﻿using OpenTap.Package;
-using System;
-using System.Runtime.CompilerServices;
+﻿using System;
 using System.Xml.Linq;
 
 namespace OpenTap.Package

@@ -1,7 +1,5 @@
 using System;
-using System.ComponentModel;
 using System.Runtime.InteropServices;
-using OpenTap;
 
 /// <summary>
 ///  This class uses and resolves libdl, which dependning on the OS comes in a libdl.so or libdl.so.2 flavor.

@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Xml;
 using NUnit.Framework;
 
 namespace OpenTap.Package.UnitTests

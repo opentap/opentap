@@ -10,17 +10,12 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Net.Sockets;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-using System.Xml.Linq;
-using System.Xml.Serialization;
 using OpenTap.Repository.Client;
 using OpenTap.Authentication;
-using Tap.Shared;
 
 namespace OpenTap.Package
 {

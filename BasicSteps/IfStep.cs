@@ -3,10 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.ComponentModel;
-using OpenTap;  // Use Platform infrastructure/core components (log,TestStep definition, etc)
 
 namespace OpenTap.Plugins.BasicSteps
 {
