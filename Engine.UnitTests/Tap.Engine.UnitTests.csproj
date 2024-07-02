@@ -9,6 +9,8 @@
   <ItemGroup>
     <None Remove="LegacyPlatformSettings.xml" />
     <None Remove="LegacyResultSettings.xml" />
+    <Compile Include="..\Shared\SudoHelper.cs" Link="Shared\SudoHelper.cs" />
+    <Compile Include="..\Shared\ZipUtils.cs" Link="Shared\ZipUtils.cs" />
     <None Update="TestTestPlans\*.TapPlan">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -39,5 +41,9 @@
     <ProjectReference Include="..\BasicSteps\Tap.Plugins.BasicSteps.csproj" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
     <ProjectReference Include="..\Package\Tap.Package.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Shared\" />
   </ItemGroup>
 </Project>
