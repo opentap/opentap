@@ -392,8 +392,8 @@ namespace OpenTap.Package
             {
                 ConflictType.Incompatible => resolveProblems.ToString(),
                 ConflictType.MutuallyExclusive => resolveProblems.ToString(),
-                ConflictType.NoPackagesSatisfying => $"No packages exist satisfying " + resolveProblems.GetCommaSeparatedString(),
-                ConflictType.DoesNotExist => "The following requested packages do not exist: " + resolveProblems.GetCommaSeparatedString(),
+                ConflictType.NoPackagesSatisfying => $"No packages exist satisfying: " + resolveProblems.GetCommaSeparatedString(),
+                ConflictType.DoesNotExist => "The following required packages could not be found: " + resolveProblems.GetCommaSeparatedString(),
                 ConflictType.Generic => resolveProblems.GetCommaSeparatedString() + " could not be satisfied.",
                 _ => throw new ArgumentOutOfRangeException()
             };

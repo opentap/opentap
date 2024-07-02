@@ -420,7 +420,7 @@ namespace OpenTap.Package
             {
                 if (Packages != null && Packages.Length > 0)
                 {
-                    Log.Error("Could not resolve {0}{1}",
+                    Log.Error("Could not install {0}{1}",
                         string.Join(", ", Packages.Select(x => $"{x}")),
                         string.IsNullOrWhiteSpace(Version) ? "" : $" v{Version}");
 
@@ -466,6 +466,9 @@ namespace OpenTap.Package
                         Log.Info("   {0}.", str);
                     }
                 }
+
+                if (ex.Result is FailedImageResolution f)
+                    log.Error(f.ToString());
 
                 Log.Debug("{0}", ex.Message);
                 return (int)ExitCodes.PackageResolutionError;
