@@ -618,6 +618,7 @@ namespace OpenTap
             return typeName;
         }
 
+        private static HashSet<string> warnOnceLookup = new HashSet<string>();
         private TypeData PluginFromTypeDefRecursive(TypeDefinitionHandle handle)
         {
             if (TypesInCurrentAsm.TryGetValue(handle, out var result))
@@ -654,6 +655,35 @@ namespace OpenTap
                         (CurrentAsm.PluginTypes == null || !CurrentAsm.PluginTypes.Any(t => t.Name == existingPlugin.Name)))
                     {
                         CurrentAsm.AddPluginType(existingPlugin);
+                    }
+                }
+                else
+                {
+                    // DescendsTo will try to load the plugin. Manually walk the basetypes instead.
+                    var basetypes = new Queue<TypeData>();
+                    basetypes.Enqueue(existingPlugin);
+                    bool isPlugin = false;
+                    while (basetypes.Any())
+                    {
+                        var t = basetypes.Dequeue();
+                        if (PluginMarkerType.Equals(t))
+                        {
+                            isPlugin = true;
+                            break;
+                        }
+                        foreach (var bt in t.BaseTypes)
+                        {
+                            basetypes.Enqueue(bt);
+                        }
+                    }
+                    if (isPlugin && existingPlugin.IsBrowsable)
+
+                    {
+                        var key = $"{typeName}-{existingPlugin.Assembly.Name}-{CurrentAsm.Name}";
+                        if (warnOnceLookup.Add(key)) 
+                        {
+                            log.Warning($"Plugin with duplicate type name {typeName} defined in '{existingPlugin.Assembly.Name}' and '{CurrentAsm.Name}");
+                        }
                     }
                 }
                 return existingPlugin;
