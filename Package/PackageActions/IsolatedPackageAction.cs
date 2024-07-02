@@ -78,27 +78,20 @@ namespace OpenTap.Package
             return base.Execute(cancellationToken);
         }
 
-        internal bool NestedTapInstallation()
+        internal static bool TryFindParentInstallation(string targetDirectory, out string parent)
         {
-            string parentDirectory = Directory.GetParent(Target).FullName;
-            string filePath = Path.Combine(parentDirectory, "OpenTap.dll");
-            bool fileExists = File.Exists(filePath);
-
-            if (!fileExists)
+            var dir = new DirectoryInfo(targetDirectory).Parent;
+            while (dir != null)
             {
-                DirectoryInfo parentDir = Directory.GetParent(parentDirectory);
-                while (parentDir != null)
+                if (dir.EnumerateFiles("OpenTap.dll").Any())
                 {
-                    filePath = Path.Combine(parentDir.FullName, "OpenTap.dll");
-                    if (File.Exists(filePath))
-                    {
-                        fileExists = true;
-                        break;
-                    }
-                    parentDir = parentDir.Parent;
+                    parent = dir.FullName;
+                    return true;
                 }
+                dir = dir.Parent;
             }
-            return fileExists;
+            parent = null;
+            return false;
         }
 
 

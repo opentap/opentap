@@ -88,9 +88,10 @@ namespace OpenTap.Package
                 ImageIdentifier image;
                 var sw = Stopwatch.StartNew();
 
-                if (NestedTapInstallation() == true)
+                if (TryFindParentInstallation(Target, out var parent))
                 {
-                    throw new Exception("Unable to perform installation as the current directory is inside another OpenTap installation. Nested installations can cause unexpected behavior and are not supported.");
+                    log.Error($"OpenTAP installation detected in directory '{parent}'. Nested installations are not supported.");
+                    return 1;
                 }
                 if (Merge)
                 {
