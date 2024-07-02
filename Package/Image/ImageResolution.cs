@@ -14,6 +14,7 @@ namespace OpenTap.Package
 
         public virtual bool Success => true;
 
-        public override string ToString() => string.Format("[ImageResolution: {0}", string.Join(", ", Packages.Select(x => $"{x.Name} {x.Version}")));
+        public override string ToString() =>
+            $"[ImageResolution: {string.Join(", ", Packages.Select(x => $"{x.Name} {x.Version}"))}";
     }
 }
