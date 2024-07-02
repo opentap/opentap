@@ -108,7 +108,16 @@ namespace OpenTap.Package
         {
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
+
+
+            if (TryFindParentInstallation(Target, out var parent))
+            {
+                log.Error($"OpenTAP installation detected in directory '{parent}'. Nested installations are not supported.");
+                return 1;
+            }
+
             var targetInstallation = new Installation(Target);
+
 
             if (NoCache) PackageManagerSettings.Current.UseLocalPackageCache = false;
             Repository = ExtractRepositoryTokens(Repository, true);
