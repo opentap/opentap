@@ -1,12 +1,10 @@
 ﻿using NUnit.Framework;
 using OpenTap.Package;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
 using OpenTap.Cli;
-using OpenTap.Diagnostic;
 
 namespace OpenTap.Image.Tests
 {

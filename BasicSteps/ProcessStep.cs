@@ -4,7 +4,6 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;

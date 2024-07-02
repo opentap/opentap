@@ -7,8 +7,6 @@ using System.ComponentModel;
 using NUnit.Framework;
 using System.IO;
 using System.Linq;
-using System.Diagnostics;
-using OpenTap;
 
 namespace OpenTap.Engine.UnitTests
 {

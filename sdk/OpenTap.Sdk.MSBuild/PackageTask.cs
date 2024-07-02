@@ -7,7 +7,6 @@ using Microsoft.Build.Framework;
 using Microsoft.Build.Utilities;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Text.RegularExpressions;
 
 namespace Keysight.OpenTap.Sdk.MSBuild

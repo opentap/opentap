@@ -4,19 +4,9 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using NUnit.Framework;
-using OpenTap.Package;
-using System.Collections.Concurrent;
 using System.IO;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using OpenTap;
 using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
-using System.Windows;
-using System.Threading;
-using System.Diagnostics;
-using System.Net;
 using OpenTap.Authentication;
 
 namespace OpenTap.Package.UnitTests

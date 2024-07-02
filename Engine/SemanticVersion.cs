@@ -3,13 +3,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Linq;
 using System.Diagnostics;
-using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.Collections.Generic;
 
 namespace OpenTap
 {

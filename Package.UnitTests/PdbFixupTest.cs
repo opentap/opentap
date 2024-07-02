@@ -3,7 +3,6 @@ using System.IO;
 using System.IO.Compression;
 using System.Threading;
 using Mono.Cecil;
-using Mono.Cecil.Cil;
 using NUnit.Framework;
 
 namespace OpenTap.Package.UnitTests

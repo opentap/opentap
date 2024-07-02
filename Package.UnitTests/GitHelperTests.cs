@@ -4,7 +4,6 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using NUnit.Framework;
-using OpenTap.Package;
 using LibGit2Sharp;
 using System.IO;
 using System.Diagnostics;

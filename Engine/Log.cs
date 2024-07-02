@@ -5,7 +5,6 @@
 using System;
 using System.Diagnostics;
 using System.Reflection;
-using System.Threading;
 using System.IO;
 using OpenTap.Diagnostic;
 using System.Collections.Generic;

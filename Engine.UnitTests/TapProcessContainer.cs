@@ -6,7 +6,6 @@ using System;
 using System.Linq;
 using System.Diagnostics;
 using System.Threading.Tasks;
-using System.Threading;
 using System.Text;
 using System.IO;
 namespace OpenTap.Engine.UnitTests

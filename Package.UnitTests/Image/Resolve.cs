@@ -1,12 +1,9 @@
 ﻿using NUnit.Framework;
 using NUnit.Framework.Internal;
-using OpenTap.Diagnostic;
-using OpenTap.Image;
 using OpenTap.Package;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace OpenTap.Image.Tests

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
-using OpenTap.Plugins;
 namespace OpenTap.Engine.UnitTests
 {
     [Display("Artifacts Zip")]
