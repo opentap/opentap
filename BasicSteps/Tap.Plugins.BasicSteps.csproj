@@ -3,6 +3,16 @@
     <AssemblyName>OpenTap.Plugins.BasicSteps</AssemblyName>
     <RootNamespace>OpenTap.Plugins.BasicSteps</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\Shared\AssemblyInfo.cs" Link="Shared\AssemblyInfo.cs" />
+    <Compile Include="..\Shared\ExecutorInterop.cs" Link="Shared\ExecutorInterop.cs" />
+    <Compile Include="..\Shared\OperatingSystem.cs" Link="Shared\OperatingSystem.cs" />
+    <Compile Include="..\Shared\PipeReader.cs" Link="Shared\PipeReader.cs" />
+    <Compile Include="..\Shared\ProcessCliAction.cs" Link="Shared\ProcessCliAction.cs" />
+    <Compile Include="..\Shared\ReflectionHelper.cs" Link="Shared\ReflectionHelper.cs" />
+    <Compile Include="..\Shared\SubProcessHost.cs" Link="Shared\SubProcessHost.cs" />
+    <Compile Include="..\Shared\SudoHelper.cs" Link="Shared\SudoHelper.cs" />
+  </ItemGroup>
 
   <!-- Comment this out for now, until we can get to adding all the missing XML comments
   <PropertyGroup Condition="'$(IsDebug)'!='true'">
@@ -21,6 +31,4 @@
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
   </ItemGroup>
-
-  <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />
 </Project>

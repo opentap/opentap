@@ -8,6 +8,20 @@
 
   <ItemGroup>
     <None Remove="PackageSchema.xsd" />
+    <Compile Include="..\Shared\ArgumentsParser.cs" Link="Shared\ArgumentsParser.cs" />
+    <Compile Include="..\Shared\AssemblyInfo.cs" Link="Shared\AssemblyInfo.cs" />
+    <Compile Include="..\Shared\ExecutorInterop.cs" Link="Shared\ExecutorInterop.cs" />
+    <Compile Include="..\Shared\FileSystemHelper.cs" Link="Shared\FileSystemHelper.cs" />
+    <Compile Include="..\Shared\ICliActionExtensions.cs" Link="Shared\ICliActionExtensions.cs" />
+    <Compile Include="..\Shared\MurMurHash3.cs" Link="Shared\MurMurHash3.cs" />
+    <Compile Include="..\Shared\OperatingSystem.cs" Link="Shared\OperatingSystem.cs" />
+    <Compile Include="..\Shared\PathUtils.cs" Link="Shared\PathUtils.cs" />
+    <Compile Include="..\Shared\PipeReader.cs" Link="Shared\PipeReader.cs" />
+    <Compile Include="..\Shared\ProcessCliAction.cs" Link="Shared\ProcessCliAction.cs" />
+    <Compile Include="..\Shared\ReflectionHelper.cs" Link="Shared\ReflectionHelper.cs" />
+    <Compile Include="..\Shared\SubProcessHost.cs" Link="Shared\SubProcessHost.cs" />
+    <Compile Include="..\Shared\SudoHelper.cs" Link="Shared\SudoHelper.cs" />
+    <Compile Include="..\Shared\ZipUtils.cs" Link="Shared\ZipUtils.cs" />
     <None Update="libgit2-b7bad55.source">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -40,10 +54,9 @@
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
     <PackageReference Include="System.Text.Json" Version="4.7.2" />
-    <PackageReference Include="OpenTAP.Repository.Client" Version="4.17.0-beta.9"/>
+    <PackageReference Include="OpenTAP.Repository.Client" Version="4.17.0-beta.9" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
   </ItemGroup>
-  <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />
 </Project>
