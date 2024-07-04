@@ -357,7 +357,8 @@ namespace OpenTap.Package
 
         public override string Description()
         {
-            return "The following required packages do not exist: " + string.Join(", ", this.Packages.Select(p => p.Name));
+            return "The following required packages do not exist: " + string.Join(", ", this.Packages.Select(p => p.Name)) + "\n" +
+                "Please verify your configured repositories, or check if a prerelease exists.";
         }
     }
 
