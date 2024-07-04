@@ -114,9 +114,6 @@
     <None Remove="opentap-packages.json.gz" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\Shared\DuplicateTestStep.cs" Link="Shared\DuplicateTestStep.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <Folder Include="Keysight\Tap\" />
   </ItemGroup>
 </Project>
