@@ -12,13 +12,21 @@ namespace OpenTap.Package
             SemanticVersion semanticVersion = new SemanticVersion(other.Major ?? 0, other.Minor ?? 0, other.Patch ?? 0, other.PreRelease, other.BuildMetadata);
             if (other.Patch == null || other.Minor == null)
             {
-                var spec2 = new VersionSpecifier(other.Major.HasValue ? spec.Major : 0,
-                    other.Minor.HasValue ? spec.Minor : 0
-                    
-                    , other.Patch.HasValue ? spec.Patch : (spec.Patch.HasValue ? (int?)0 : null), spec.PreRelease, spec.BuildMetadata,
-                    // Add AnyPrerelease to 'Compatible' match.
-                    // otherwise e.g ^9.18.0 is not satisfied by ^9.18.1-rc.
-                    spec.MatchBehavior == VersionMatchBehavior.Compatible ? (spec.MatchBehavior | VersionMatchBehavior.AnyPrerelease) : spec.MatchBehavior);
+                var specMajor = other.Major.HasValue ? spec.Major : null;
+                var specMinor = other.Minor.HasValue ? spec.Minor : null;
+                var specPatch = other.Patch.HasValue ? spec.Patch : null;
+                
+                // This is probably not needed, but a required invariant for version specifiers.
+                if (specMajor == null) specMinor = null;
+                if (specMinor == null) specPatch = null;
+                // Add AnyPrerelease to 'Compatible' match.
+                // otherwise e.g ^9.18.0 is not satisfied by ^9.18.1-rc.
+                var versionMatchBehavior = spec.MatchBehavior == VersionMatchBehavior.Compatible
+                    ? (spec.MatchBehavior | VersionMatchBehavior.AnyPrerelease)
+                    : spec.MatchBehavior;
+
+                var spec2 = new VersionSpecifier(specMajor, specMinor, specPatch, spec.PreRelease, spec.BuildMetadata,
+                    versionMatchBehavior);
                 return spec2.IsCompatible(semanticVersion);
             }
             var ok = spec.IsCompatible(semanticVersion);
