@@ -485,7 +485,9 @@ namespace OpenTap.Package
             Log.Info("Installing to {0}", Path.GetFullPath(Target));
 
             // Uninstall old packages before
-            UninstallExisting(targetInstallation, installer.PackagePaths, cancellationToken);
+            var status = UninstallExisting(targetInstallation, installer.PackagePaths, cancellationToken);
+            if (status != (int)ExitCodes.Success)
+                return status;
 
             var toInstall = ReorderPackages(installer.PackagePaths);
             installer.PackagePaths.Clear();
@@ -517,14 +519,14 @@ namespace OpenTap.Package
             }
         }
 
-        private void UninstallExisting(Installation installation, List<string> packagePaths, CancellationToken cancellationToken)
+        private int UninstallExisting(Installation installation, List<string> packagePaths, CancellationToken cancellationToken)
         {
             var installed = installation.GetPackages();
 
             var packages = packagePaths.Select(PackageDef.FromPackage).Select(x => x.Name).ToHashSet();
             var existingPackages = installed.Where(kvp => packages.Contains(kvp.Name)).Select(x => (x.PackageSource as XmlPackageDefSource)?.PackageDefFilePath).ToList();
 
-            if (existingPackages.Count == 0) return;
+            if (existingPackages.Count == 0) return (int)ExitCodes.Success;
 
             var newInstaller = new Installer(Target, cancellationToken);
 
@@ -533,7 +535,7 @@ namespace OpenTap.Package
             newInstaller.DoSleep = false;
 
             newInstaller.PackagePaths.AddRange(existingPackages);
-            newInstaller.UninstallThread();
+            return newInstaller.UninstallThread();
         }
 
         /// <summary>
