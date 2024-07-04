@@ -3,15 +3,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 
-using OpenTap.Package;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Threading;
 
 namespace OpenTap.Cli
 {
@@ -244,29 +240,29 @@ namespace OpenTap.Cli
 
         private static void printOptions(string passName, ArgumentCollection options, List<IMemberData> unnamed)
         {
-            Console.WriteLine("Usage: {2} {0} {1}",
-                string.Join(" ", options.Values.Where(x => x.IsVisible).Select(x =>
+            var namedArguments = string.Join(" ", options.Values.Where(x => x.IsVisible)
+                .Select(x =>
                 {
-                    var str = x.ShortName != '\0' ? string.Format("-{0}", x.ShortName) : "--" + x.LongName;
-
+                    var str = x.ShortName != 0 ? $"-{x.ShortName}" : "--" + x.LongName;
                     if (x.NeedsArgument)
                         str += " <arg>";
 
                     return '[' + str + ']';
-                })),
-                string.Join(" ", unnamed.Select(x =>
-                {
-                    var attr = x.GetAttribute<UnnamedCommandLineArgument>();
-                    var str = attr.Name;
+                }));
+            var unnamedArguments = string.Join(" ", unnamed.Select(x =>
+            {
+                var attr = x.GetAttribute<UnnamedCommandLineArgument>();
+                var str = attr.Name;
 
-                    if (attr.Required == false)
-                        str = "[<" + str + ">]";
-                    else
-                        str = "<" + str + ">";
+                if (attr.Required == false)
+                    str = "[<" + str + ">]";
+                else
+                    str = "<" + str + ">";
 
-                    return str;
-                })), passName);
-
+                return str;
+            }));
+            Console.WriteLine($"Usage: {passName} {namedArguments} {unnamedArguments}"); 
+            options.UnnamedArgumentData = unnamed;
             Console.Write(options);
         }
 

@@ -10,8 +10,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Xml;
 
 namespace OpenTap.Package.UnitTests
@@ -553,7 +551,7 @@ namespace OpenTap.Package.UnitTests
                 int exitCode;
                 string output = RunPackageCli("install Dummy2", out exitCode);
                 Assert.AreNotEqual(0, exitCode, "Unexpected exit code");
-                StringAssert.Contains("Could not resolve Dummy2", output);
+                StringAssert.Contains("Could not install Dummy2", output);
             }
             finally
             {

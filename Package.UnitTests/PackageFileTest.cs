@@ -5,7 +5,6 @@
 using NUnit.Framework;
 using System.IO;
 using System.Text;
-using OpenTap.Package;
 using static OpenTap.Package.FileHashPackageAction;
 using System;
 using System.Security.Cryptography;

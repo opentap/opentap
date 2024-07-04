@@ -9,6 +9,19 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>  
     <DocumentationFile>$(OutputPath)\OpenTap.xml</DocumentationFile>    
   </PropertyGroup>
+  
+  <ItemGroup>
+    <Compile Include="..\Shared\AnsiColorCodeFix.cs" Link="Shared\AnsiColorCodeFix.cs" />
+    <Compile Include="..\Shared\ArgumentsParser.cs" Link="Shared\ArgumentsParser.cs" />
+    <Compile Include="..\Shared\AssemblyInfo.cs" Link="Shared\AssemblyInfo.cs" />
+    <Compile Include="..\Shared\ExecutorInterop.cs" Link="Shared\ExecutorInterop.cs" />
+    <Compile Include="..\Shared\FileSystemHelper.cs" Link="Shared\FileSystemHelper.cs" />
+    <Compile Include="..\Shared\ICliActionExtensions.cs" Link="Shared\ICliActionExtensions.cs" />
+    <Compile Include="..\Shared\MurMurHash3.cs" Link="Shared\MurMurHash3.cs" />
+    <Compile Include="..\Shared\OperatingSystem.cs" Link="Shared\OperatingSystem.cs" />
+    <Compile Include="..\Shared\PathUtils.cs" Link="Shared\PathUtils.cs" />
+    <Compile Include="..\Shared\ReflectionHelper.cs" Link="Shared\ReflectionHelper.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.5.0" />
@@ -18,7 +31,8 @@
     <PackageReference Include="System.Security.Principal.Windows" Version="5.0.0" />
     <PackageReference Include="System.Threading.Tasks.Extensions" Version="4.5.4" />
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
-    <PackageReference Include="System.Text.Json" Version="4.7.0" />
+    <PackageReference Include="System.Text.Json" Version="4.7.2" />
+    <PackageReference Include="System.Text.Encodings.Web" Version="4.7.2" />
     <PackageReference Include="Microsoft.CodeAnalysis" Version="2.10">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
@@ -50,7 +64,5 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-
-  <Import Project="..\Shared\Tap.Shared.projitems" Label="Shared" />
 
 </Project>

@@ -5,8 +5,6 @@
 using System.Linq;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
-using OpenTap;
-using System.Threading;
 
 namespace OpenTap.Engine.UnitTests
 {

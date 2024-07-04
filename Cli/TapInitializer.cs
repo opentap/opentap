@@ -2,13 +2,9 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
-using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading;
 using OpenTap.Diagnostic;
 
 namespace OpenTap
@@ -23,7 +19,7 @@ namespace OpenTap
                     AllEvents.AddRange(events);
             }
             public void Flush(){
-
+                Log.Flush();
             }
             public static readonly InitTraceListener Instance = new InitTraceListener();  
         }

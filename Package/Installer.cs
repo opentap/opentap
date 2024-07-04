@@ -127,10 +127,12 @@ namespace OpenTap.Package
             installation.AnnouncePackageChange();
         }
 
-        internal void UninstallThread()
+        internal int UninstallThread()
         {
-            RunCommand(PrepareUninstall, false, false);
-            RunCommand(Uninstall, false, true);
+            var status = RunCommand(PrepareUninstall, false, false);
+            if (status == (int)ExitCodes.Success)
+                status = RunCommand(Uninstall, false, true);
+            return status;
         }
 
         internal const string Uninstall = "uninstall";

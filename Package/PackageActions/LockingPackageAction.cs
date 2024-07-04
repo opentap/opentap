@@ -4,13 +4,10 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.IO;
-using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
-using OpenTap.Package.PackageInstallHelpers;
 
 namespace OpenTap.Package
 {
@@ -19,9 +16,6 @@ namespace OpenTap.Package
     /// </summary>
     public abstract class LockingPackageAction : PackageAction
     {
-        internal const string CommandLineArgumentTokenDescription =
-            "Specify one or more user tokens to use for repository authentication.\n" +
-            "Has no effect without manually specifying repositories with '--repository'.";
         internal const string CommandLineArgumentRepositoryDescription =
             "Override the package repository.\n" +
             "The default is https://packages.opentap.io.\n" +
@@ -60,7 +54,7 @@ namespace OpenTap.Package
 
         internal static string GetLocalInstallationDir()
         {
-            return Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            return Installation.Current.Directory;
         }
 
         internal static string GuessHostOS()

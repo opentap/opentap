@@ -9,7 +9,6 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Newtonsoft.Json.Linq;
 using OpenTap.Authentication;
 
 namespace OpenTap.Package
@@ -293,7 +292,13 @@ namespace OpenTap.Package
                     }
                 }
 
-                if (AuthenticationSettings.Current.BaseAddress != null)
+                // If the url starts with a slash, and we are not on windows, it could be an absolute path
+                if (OperatingSystem.Current != OperatingSystem.Windows && url.StartsWith("/") && Directory.Exists(url))
+                {
+                    return new FilePackageRepository(url);
+                }
+
+                if (!string.IsNullOrWhiteSpace(AuthenticationSettings.Current.BaseAddress))
                     return DetermineRepositoryType(new Uri(new Uri(AuthenticationSettings.Current.BaseAddress), url).AbsoluteUri);
                     
                 // This is a relative URI, and it's scheme cannot be determined. The best we can do is guess.

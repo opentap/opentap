@@ -3,7 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -12,7 +11,6 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
-using OpenTap.Package.PackageInstallHelpers;
 using Tap.Shared;
 
 namespace OpenTap.Package
@@ -384,6 +382,7 @@ namespace OpenTap.Package
                 // Try finding a OpenTAP package
                 var latest = allPackages
                     .Where(p => package?.Name == p?.Name)
+                    .Where(p => string.IsNullOrWhiteSpace(p?.Version?.PreRelease)) // Only suggest upgrading to released versions
                     .Where(p => p.Dependencies.All(dep => IsCompatible(dep, openTapIdentifier))).FirstOrDefault(p => p.Version != null && p.Version.CompareTo(package.Version) > 0);
 
                 if (latest != null)

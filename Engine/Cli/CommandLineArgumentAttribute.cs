@@ -2,7 +2,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
-using OpenTap.Cli;
 using System;
 
 namespace OpenTap.Cli
@@ -68,6 +67,11 @@ namespace OpenTap.Cli
         /// Indicates whether this argument is required or optional. If it's a string[] and required then this indicates that it needs at least one value.
         /// </summary>
         public bool Required { get; set; }
+
+        /// <summary>
+        /// Human readable description of the argument.
+        /// </summary>
+        public string Description { get; set; }
 
         /// <summary>
         /// Constructor.

@@ -31,7 +31,11 @@ namespace OpenTap.Plugins.BasicSteps
                 {
                     try
                     {
-                        RunChildStep(step);
+                        var run = RunChildStep(step);
+                        while(run.SuggestedNextStep == step.Id)
+                        {
+                            run = RunChildStep(step);
+                        }
                     }
                     catch
                     {

@@ -36,8 +36,19 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
+      ks8500_repo_token_is_set: ${{ steps.check_KS8500_REPO_TOKEN.outputs.is_set }}
       sign_is_set: ${{ steps.check_sign.outputs.is_set }}
     steps:
+      - id: check_KS8500_REPO_TOKEN
+        name: Check whether KS8500_REPO_TOKEN is set
+        run: |
+          if [ -z "${{ secrets.KS8500_REPO_TOKEN }}" ]; then
+            echo "Not set"
+            echo "is_set=false" >> $GITHUB_OUTPUT
+          else
+            echo "Set"
+            echo "is_set=true" >> $GITHUB_OUTPUT
+          fi
       - id: check_GITLAB_REGISTRY_TOKEN
         name: Check whether GITLAB_REGISTRY_TOKEN is set
         run: |
@@ -68,24 +79,25 @@ jobs:
   ##############
   Build-DevGuide:
     needs: CheckSecrets
-    if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
+    if: needs.CheckSecrets.outputs.ks8500_repo_token_is_set == 'true'
     runs-on: ubuntu-latest
-    container:
-      image: registry.gitlab.com/opentap/buildrunners/documentationgeneration:latest
-      credentials:
-        username: github
-        password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
     steps:
+      - name: Setup OpenTAP
+        uses: opentap/setup-opentap@main
+        with:
+          version: 9.23.0
+          packages: 'DocumentationGeneration:1.0.2'
+          additional-repository: 'https://test-automation.pw.keysight.com/api/packages'
+          additional-repository-token: '${{ secrets.KS8500_REPO_TOKEN }}'
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - run: tap generate-pdf "doc/Developer Guide/Readme.md" --toc --skip-first-file --out "sdk/Examples/OpenTAP Developer Guide.pdf" --frontpage "doc/Developer Guide/Frontpage.html" --frontpage-file "doc/Developer Guide/Frontpage.png"
       - name: Upload binaries
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: doc-devguide
           retention-days: 5
-          path: |
-            sdk/Examples/OpenTAP Developer Guide.pdf
+          path: sdk/Examples/OpenTAP Developer Guide.pdf
 
   Build-ApiDoc:
     needs: CheckSecrets
@@ -137,22 +149,21 @@ jobs:
         with:
           name: doc-api-html
           path: API
-      - name: Pages Cache
-        uses: actions/cache@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-      - uses: actions/setup-node@v4
-        name: Setup NPM
-        with:
-          node-version: 14
-      - name: Install
-        run: npm install
+          node-version: 20
+          cache: npm
+          cache-dependency-path: "doc/package-lock.json"
+      - name: Install dependencies
+        run: npm ci
         working-directory: doc
-      - name: Build
-        run: npm run build
+      # This is needed because the router wants to serve index.html as the default page
+      - name: Rename Index
+        run: mv Readme.md index.md
+        working-directory: doc
+      - name: Build with VitePress
+        run: npm run docs:build
         working-directory: doc
       - name: Copy API
         run: cp -r API public/api
@@ -164,6 +175,12 @@ jobs:
           deploy_key: ${{ secrets.PAGES_DEPLOY_TOKEN }}
           publish_branch: main
           external_repository: opentap/opentap.github.io
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages
+          retention-days: 5
+          path: public
 
   Build-Linux:
     runs-on: ubuntu-latest
@@ -603,7 +620,7 @@ jobs:
           name: win-x64-bin
           path: bin/Release/
       - name: Download Developer Guide
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: doc-devguide
           path: sdk/Examples/

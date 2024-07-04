@@ -9,9 +9,7 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using OpenTap.Cli;
 
 namespace OpenTap.Package
@@ -77,6 +75,23 @@ namespace OpenTap.Package
 
             return base.Execute(cancellationToken);
         }
+
+        internal static bool TryFindParentInstallation(string targetDirectory, out string parent)
+        {
+            var dir = new DirectoryInfo(targetDirectory).Parent;
+            while (dir != null)
+            {
+                if (dir.EnumerateFiles("OpenTap.dll").Any())
+                {
+                    parent = dir.FullName;
+                    return true;
+                }
+                dir = dir.Parent;
+            }
+            parent = null;
+            return false;
+        }
+
 
         private static string GetChangeFile(string target) => Path.Combine(target, "Packages", ".changeId");
         internal static long GetChangeId(string target)

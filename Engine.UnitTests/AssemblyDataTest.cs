@@ -50,10 +50,10 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(Version.Parse("3.0.1.0"), globAsm.Version);
             
             var newtonsoftAsm = s.Assemblies.FirstOrDefault(a => a.Name.Contains("Newtonsoft.Json"));
-            Assert.AreEqual(SemanticVersion.Parse("12.0.3"), SemanticVersion.Parse(newtonsoftAsm.SemanticVersion.ToString(3)));
+            Assert.AreEqual(SemanticVersion.Parse("13.0.3"), SemanticVersion.Parse(newtonsoftAsm.SemanticVersion.ToString(3)));
             // The newtonsoft package is actually version 12.0.0.3, but the assembly version is 12.0.0.0 for some reason.
             // This was changed in 9.18.2 due to a regression, but it has been so for a long long time.  
-            Assert.AreEqual(Version.Parse("12.0.0.0"), newtonsoftAsm.Version);
+            Assert.AreEqual(Version.Parse("13.0.0.0"), newtonsoftAsm.Version);
         }
 
         [Test]

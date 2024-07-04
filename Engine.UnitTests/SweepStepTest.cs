@@ -4,14 +4,11 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using OpenTap.Plugins.BasicSteps;
 using NUnit.Framework;
-using OpenTap;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.IO;
-using System.Text.RegularExpressions;
 
 namespace OpenTap.Engine.UnitTests
 {

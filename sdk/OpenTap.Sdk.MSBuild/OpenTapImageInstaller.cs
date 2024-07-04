@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using System.Xml.Linq;
 using Microsoft.Build.Framework;
 using OpenTap;
 using OpenTap.Diagnostic;

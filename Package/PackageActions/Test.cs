@@ -1,8 +1,6 @@
 ﻿using OpenTap.Cli;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading;
 
 #pragma warning disable 1591 // TODO: Add XML Comments in this file, then remove this
@@ -12,7 +10,7 @@ namespace OpenTap.Package
     [Display("test", Group: "package", Description: "Run tests on one or more packages.")]
     public class PackageTestAction : PackageAction
     {
-        [UnnamedCommandLineArgument("package(s)", Required = true)]
+        [UnnamedCommandLineArgument("package(s)", Required = true, Description = "One or more packages to run tests for.")]
         public string[] Packages { get; set; }
 
         [CommandLineArgument("ignore-missing", Description = "Ignore packages in <package(s)> that are not currently installed.", ShortName = "i")]

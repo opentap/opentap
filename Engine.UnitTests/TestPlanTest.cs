@@ -155,7 +155,6 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(summaryLines[4].Contains("1 artifacts registered"));
             Assert.IsTrue(summaryLines[5].Contains(testFileName));
             Assert.IsTrue(summaryLines[5].EndsWith("[1.5 kB]"));
-            
         }
         
         [Test]
@@ -628,7 +627,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void RepeatChildStepsFailure()
         {
-
+            
             var plan = new TestPlan();
             var repeat = new RepeatRunChildSteps { Repeats = 10 };
             var repeat2 = new RepeatRunChildSteps { Repeats = 10 };
@@ -638,8 +637,46 @@ namespace OpenTap.Engine.UnitTests
             var run = plan.Execute(new IResultListener[] { new SlowResultListener() });
             Assert.AreEqual(Verdict.NotSet, run.Verdict);
         }
+        /// <summary>
+        /// Tests that if the SuggestedNextStep is set to the current ID, thn the testStep will be repeated. 
+        /// </summary>
+        [Test]
+        public void SuggestedNextStepTest()
+        {
+            using (Session.Create(SessionOptions.OverlayComponentSettings))
+            { 
+                var plan = new TestPlan();
+                var parallelStep = new ParallelStep();
+                var nextStepRepeater = new SuggestedNextStepRepeater();
+                nextStepRepeater.RepeatCount = 10;
+                parallelStep.ChildTestSteps.Add(nextStepRepeater);
+                plan.ChildTestSteps.Add(parallelStep);
+                PlanRunCollectorListener planRunListener = new PlanRunCollectorListener();
+                ResultSettings.Current.Add(planRunListener);
 
+                var planRun = plan.Execute();
+                
+                var stepRuns = planRunListener.StepRuns;
 
+                //We compare repeatcount + 1 as the parallelStep is also counted in StepsRun.
+                Assert.AreEqual(nextStepRepeater.RepeatCount + 1, stepRuns.Count);            
+            }
+        }
+
+        public class SuggestedNextStepRepeater : TestStep
+        {
+            public int RepeatCount { get; set; }
+            public int Repeats { get; set; } 
+
+            public override void Run()
+            {
+                if(Repeats < RepeatCount -1)
+                {
+                    this.StepRun.SuggestedNextStep = this.Id;
+                    Repeats++;
+                }
+            }
+        }
 
         public class VerifyTestStep : TestStep
         {

@@ -2,7 +2,6 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
-using OpenTap;
 using OpenTap.Cli;
 using System;
 using System.IO;
@@ -10,7 +9,6 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
-using System.CodeDom.Compiler;
 
 namespace OpenTap.Sdk.New
 {

@@ -15,7 +15,6 @@ using System.CodeDom.Compiler;
 using System.Reflection;
 using OpenTap.EngineUnitTestUtils;
 using System.Threading.Tasks;
-using OpenTap.Package;
 using OpenTap;
 
 namespace OpenTap.Engine.UnitTests

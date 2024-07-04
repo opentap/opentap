@@ -4,7 +4,6 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using OpenTap.Package.PackageInstallHelpers;
 
 namespace OpenTap.Package.UnitTests
 {

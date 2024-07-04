@@ -265,7 +265,7 @@ namespace OpenTap
                         recentLock = new Mutex(false, mutexName);
                         break;
                     }
-                    catch (UnauthorizedAccessException e)
+                    catch (Exception e)
                     {
                         ex = e;
                         Thread.Sleep(10);
@@ -459,9 +459,16 @@ namespace OpenTap
                 recentSystemLogs.AddRecent(Path.GetFullPath(path));
             }
 
+            MakeLatest(path);
+            RemoveOldLogFiles();
+        }
+
+        static void MakeLatest(string path)
+        {
+            // Create a hardlink to a file called 'Latest.txt' next to the file specified by 'path'
             try
             {
-                string latestPath = Path.Combine(dir, "Latest.txt");
+                var latestPath = Path.Combine(Path.GetDirectoryName(path), "Latest.txt");
                 if (File.Exists(latestPath))
                     File.Delete(latestPath);
                 CreateHardLink(path, latestPath);
@@ -470,8 +477,6 @@ namespace OpenTap
             {
                 // Ignore in case of race conditions.
             }
-            
-            RemoveOldLogFiles();
         }
 
         static int sessionLogCount = 0;
@@ -487,6 +492,7 @@ namespace OpenTap
                 
                 log.Info("Switching log to file {0}", nextFile);
                 recentSystemLogs.AddRecent(Path.GetFullPath(nextFile));
+                MakeLatest(nextFile);
                 RemoveOldLogFiles();
             }
             

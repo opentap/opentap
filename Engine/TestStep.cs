@@ -859,7 +859,6 @@ namespace OpenTap
                 if(run.Verdict == Verdict.Error && throwOnBreak)
                     run.ThrowDueToBreakConditions();
             }
-
             return run;
         }
 
