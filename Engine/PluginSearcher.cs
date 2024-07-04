@@ -671,13 +671,15 @@ namespace OpenTap
                             isPlugin = true;
                             break;
                         }
-                        foreach (var bt in t.BaseTypes)
+                        if (t.BaseTypes != null)
                         {
-                            basetypes.Enqueue(bt);
+                            foreach (var bt in t.BaseTypes)
+                            {
+                                basetypes.Enqueue(bt);
+                            }
                         }
                     }
                     if (isPlugin && existingPlugin.IsBrowsable)
-
                     {
                         var key = $"{typeName}-{existingPlugin.Assembly.Name}-{CurrentAsm.Name}";
                         if (warnOnceLookup.Add(key)) 
