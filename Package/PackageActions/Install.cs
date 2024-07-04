@@ -438,37 +438,40 @@ namespace OpenTap.Package
                     Log.Error("Could not resolve one or more packages.");
                 }
 
-                if (ex.Image != null)
-                {
-                    Log.Info("Image configuration:");
-                    foreach (var req in ex.Image.Packages)
-                    {
-                        Log.Info($"  {req.Name}: {req.Version}");
-                    }
-                }
-
                 var unsatisfiedDependencies = ex.InstalledPackages.Where(x => false == x.Dependencies.All(dep =>
                     ex.InstalledPackages.Any(x2 =>
                         x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())))).ToArray();
                 if (unsatisfiedDependencies.Any())
                 {
-                    Log.Warning("This might be because of the following broken packages:");
+                    Log.Warning("This might be because of the following conflicts:");
 
-                    var unsatisfiedStrings = unsatisfiedDependencies.Select(x =>
+                    var missingDeps = unsatisfiedDependencies.SelectMany(x => x.Dependencies.Where(dep =>
+                            !ex.InstalledPackages.Any(x2 =>
+                                x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier()))))
+                        .ToArray();
+
+                    foreach (var grouping in missingDeps.GroupBy(d => d.Name))
                     {
-                        var missingDeps = x.Dependencies.Where(dep => !ex.InstalledPackages.Any(x2 =>
-                            x2.Name == dep.Name && dep.Version.IsSatisfiedBy(x2.Version.AsExactSpecifier())));
-                        string missingMsg = string.Join(" and ", missingDeps.Select(x2 => $"{x2.Name}:{x2.Version}"));
-                        return $"{x.Name} missing {missingMsg}";
-                    });
-                    foreach (var str in unsatisfiedStrings)
-                    {
-                        Log.Info("   {0}.", str);
+                        var versions = grouping.ToArray();
+                        var highest = versions.FindMax(dep => dep.Version);
+                        var dependers =
+                            unsatisfiedDependencies.Where(dep => dep.Dependencies.Any(d => d.Name == grouping.Key));
+                        
+                        // Omit the warnings for packages that would have been satisfied by the specified version
+                        if (Packages[0] == grouping.Key && !string.IsNullOrWhiteSpace(Version) && VersionSpecifier.TryParse(Version, out var filter))
+                        {
+                            dependers = dependers.Where(dep =>
+                                false == dep.Dependencies.First(d => d.Name == grouping.Key).Version
+                                    .IsSatisfiedBy(filter));
+                        }
+                        var dependString = string.Join(", ", dependers.Select(d => d.Name));
+                        Log.Info($"{grouping.Key} version {highest.Version} required by {dependString}");
                     }
                 }
 
-                if (ex.Result is FailedImageResolution f)
-                    log.Error(f.ToString());
+                // If the problem is not generic, then there are additional details about the resolution problem.
+                if (ex.Result is FailedImageResolution f && f.resolveProblems is not GenericResolutionProblem)
+                    log.Info(f.resolveProblems.Description());
 
                 Log.Debug("{0}", ex.Message);
                 return (int)ExitCodes.PackageResolutionError;
