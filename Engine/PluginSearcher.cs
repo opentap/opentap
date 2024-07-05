@@ -684,7 +684,7 @@ namespace OpenTap
                         var key = $"{typeName}-{existingPlugin.Assembly.Name}-{CurrentAsm.Name}";
                         if (warnOnceLookup.Add(key)) 
                         {
-                            log.Warning($"Plugin with duplicate type name {typeName} defined in '{existingPlugin.Assembly.Name}' and '{CurrentAsm.Name}");
+                            log.Warning($"Plugin with duplicate type name {typeName} defined in '{existingPlugin.Assembly.Name}' and '{CurrentAsm.Name}'");
                         }
                     }
                 }
