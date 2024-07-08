@@ -27,12 +27,21 @@ namespace OpenTap
         Process Process { get; set; }
 
         ProcessStartInfo start;
+        
+        // tasks for processing child log output.
+        Task redirectErrorTask;
+        Task redirectOutputTask;
 
         public int WaitForExit()
         {
             if (Process != null)
             {
                 Process.WaitForExit();
+                
+                // Wait for the log messages to be written to the log before exiting.
+                redirectErrorTask?.Wait();
+                redirectOutputTask?.Wait();
+                
                 return Process.ExitCode;
             }
             else
@@ -113,6 +122,7 @@ namespace OpenTap
             }
         }
 
+        
         public void Start()
         {
             string pipeName;
@@ -122,11 +132,12 @@ namespace OpenTap
             Process = Process.Start(start);
             Process.EnableRaisingEvents = true;
 
-            Task t1 = RedirectOutput(Process.StandardOutput, Console.Write);
-            Task t2 = RedirectOutput(Process.StandardError, Console.Error.Write);
+            // Setup processing the sub process output streams.
+            redirectOutputTask = RedirectOutputAsync(Process.StandardOutput, Console.Write);
+            redirectErrorTask = RedirectOutputAsync(Process.StandardError, Console.Error.Write);
         }
 
-        async Task RedirectOutput(StreamReader reader, Action<string> callback)
+        async Task RedirectOutputAsync(StreamReader reader, Action<string> callback)
         {
             char[] buffer = new char[256];
             int count;
