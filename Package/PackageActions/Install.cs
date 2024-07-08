@@ -398,6 +398,7 @@ namespace OpenTap.Package
                         var ex = new Exception(
                             $"Failed installing system-wide packages. Try running the command as administrator.");
                         RaiseError(ex);
+                        throw ex;
                     }
 
                     var pct = ((double)systemwidePackages.Length / (systemwidePackages.Length + packagesToInstall.Count)) * 100;
@@ -484,6 +485,10 @@ namespace OpenTap.Package
                 RaiseError(e);
                 return (int)ExitCodes.NetworkError;
             }
+
+            // This happens in cases where only system-wide packages were requested.
+            if (installer.PackagePaths.Count == 0)
+                return 0;
 
             Log.Info("Installing to {0}", Path.GetFullPath(Target));
 

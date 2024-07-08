@@ -73,8 +73,7 @@ namespace OpenTap.Package
                         Stopwatch timer = Stopwatch.StartNew();
                         PackageDef pkg = PluginInstaller.InstallPluginPackage(TapDir, fileName, UnpackOnly);
 
-                        log.Info(timer, "Installed " + pkg.Name + " version " + pkg.Version);
-
+                        log.Info(timer, $"Installed {pkg.Name} version {pkg.Version}");
 
                         if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
                         {
