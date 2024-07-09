@@ -103,6 +103,11 @@ namespace OpenTap
         /// <returns></returns>
         static PropertyInfo getGetCurrentMethodForContainer(Type T)
         {
+            return getGetCurrentMethodsForContainer(T).FirstOrDefault();
+        }
+        
+        static IEnumerable<PropertyInfo> getGetCurrentMethodsForContainer(Type T)
+        {
             if (T == null)
                 throw new ArgumentNullException("T");
             foreach (Type key in typeHandlers.Keys)
@@ -113,10 +118,9 @@ namespace OpenTap
                     Type compSetType = typeHandlers[key];
                     PropertyInfo prop = compSetType.GetProperty("Current", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
                     if (prop != null)
-                        return prop;
+                        yield return prop;
                 }
             }
-            return null;
         }
         
         /// <summary>
@@ -129,6 +133,14 @@ namespace OpenTap
             var m = getGetCurrentMethodForContainer(T);
             if (m == null) return null;
             return (IList)m.GetValue(null, null);
+        }
+
+        internal static IEnumerable<IList> GetContainers(Type T)
+        {
+            foreach (var m in getGetCurrentMethodsForContainer(T))
+            {
+                yield return (IList)m.GetValue(null, null);
+            }
         }
 
         /// <summary>
