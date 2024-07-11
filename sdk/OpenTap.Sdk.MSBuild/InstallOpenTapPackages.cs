@@ -108,7 +108,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// <returns></returns>
         public override bool Execute()
         {
-            if (!PackagesToInstall.Any()) return true;
+            if (PackagesToInstall == null || PackagesToInstall.Length == 0) 
+                return true; 
 
             using (OpenTapContext.Create(TapDir))
                 return InstallPackages();
