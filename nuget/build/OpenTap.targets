@@ -133,7 +133,6 @@
       Repositories="@(OpenTapPackageRepository)"
       SourceFile="$(MSBuildProjectFullPath)"
       PlatformTarget="$(PlatformTarget)"/>
-    <Touch Files="@(InstallMarkerFiles)" AlwaysCreate="true"/>
   </Target>
 
   <UsingTask TaskName="Keysight.OpenTap.Sdk.MSBuild.AddAssemblyReferencesFromPackage" AssemblyFile="$(MSBuildThisFileDirectory)\Keysight.OpenTap.Sdk.MSBuild.dll"/>
