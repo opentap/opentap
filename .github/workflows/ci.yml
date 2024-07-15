@@ -212,7 +212,7 @@ jobs:
     runs-on: windows-2022
     strategy:
       matrix:
-        Architecture: [x86, x64]
+        Architecture: [x86, x64, arm64]
     needs: GetVersion
     steps:
       - name: Checkout
@@ -445,7 +445,7 @@ jobs:
     runs-on: windows-2022
     strategy:
       matrix:
-        Architecture: [x86, x64]
+        Architecture: [x86, x64, arm64]
     needs:
       - CheckSecrets
       - Build-Win
@@ -469,6 +469,11 @@ jobs:
         with:
           name: win-x86-bin
           path: bin/Release-x86/
+      - name: Download arm64 binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: win-arm64-bin
+          path: bin/Release-arm64/
       - name: Download API Reference
         uses: actions/download-artifact@v4
         with:
@@ -714,6 +719,11 @@ jobs:
         with:
           name: win-x64-package
           path: .
+      - name: Download arm64 package
+        uses: actions/download-artifact@v4
+        with:
+          name: win-arm64-package
+          path: .
       - name: Download Linux arm package
         uses: actions/download-artifact@v4
         with:
@@ -743,6 +753,7 @@ jobs:
           # Expand-Archive will only extract .zip extensions    
           Move-Item OpenTAP.*.x86.Windows.TapPackage OpenTAP.x86.zip 
           Move-Item OpenTAP.*.x64.Windows.TapPackage OpenTAP.x64.zip
+          Move-Item OpenTAP.*.arm64.Windows.TapPackage OpenTAP.arm64.zip
           Move-Item OpenTAP.*.Linux.x64.TapPackage OpenTAP.Linux.x64.zip
           Move-Item OpenTAP.*.Linux.arm64.TapPackage OpenTAP.Linux.arm64.zip
           Move-Item OpenTAP.*.MacOS.x64.TapPackage OpenTAP.MacOS.x64.zip
@@ -769,6 +780,7 @@ jobs:
 
           Expand-Archive OpenTAP.x64.zip win-x64 -Verbose
           Expand-Archive OpenTAP.x86.zip win-x86 -Verbose
+          Expand-Archive OpenTAP.arm64.zip win-arm64 -Verbose
           Expand-Archive OpenTAP.Linux.x64.zip linux-x64 -Verbose
           Expand-Archive OpenTAP.Linux.arm64.zip linux-arm64 -Verbose
           Expand-Archive OpenTAP.MacOS.x64.zip macos-x64 -Verbose
@@ -1014,6 +1026,11 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: win-x64-package
+          path: ./publish/
+      - name: Download Windows-arm64 package
+        uses: actions/download-artifact@v4
+        with:
+          name: win-arm64-package
           path: ./publish/
       - name: Download MacOS-x64 package
         uses: actions/download-artifact@v4
