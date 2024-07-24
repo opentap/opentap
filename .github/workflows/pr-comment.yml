@@ -22,7 +22,7 @@ jobs:
           # This action needs the entire history of the repository to calculate the version
           fetch-depth: 0
       - name: Run comment action
-        uses: docker://ghcr.io/asgeriversen/pr-version-comment:v1
+        uses: docker://ghcr.io/asgeriversen/pr-version-comment@update-octokit
         env:
           token: ${{ secrets.GITHUB_TOKEN }}
           body: This change is part of OpenTAP version `{version}` or later.
