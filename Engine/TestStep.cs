@@ -325,8 +325,15 @@ namespace OpenTap
                         IList list = ComponentSettingsList.GetContainer(propType);
                         if (list != null)
                         {
-                            object value = list.Cast<object>()
-                                .FirstOrDefault(o => o != null && o.GetType().DescendsTo(propType));
+                            var availableValues = list.Cast<object>().Where(o => o != null && o.GetType().DescendsTo(propType));
+                            if (prop.HasAttribute<TypeFilterAttribute>())
+                            {
+                                var filters = prop.GetAttributes<TypeFilterAttribute>().Select(x2 => x2.RequiredType).ToArray();
+                                availableValues = availableValues.Where(o => filters.All(x2 => o.GetType().DescendsTo(x2)));
+                            }
+
+
+                            object value = availableValues.FirstOrDefault();
 
                             try
                             {

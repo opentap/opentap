@@ -2153,9 +2153,13 @@ namespace OpenTap
             {
                 get
                 {
-                    var x = ComponentSettingsList.GetContainer(baseType);
+                    var container = ComponentSettingsList.GetContainer(baseType);
                     var cv = a.Get<IObjectValueAnnotation>()?.Value as IResource;
-                    var result = x.Cast<object>().Where(y => y.GetType().DescendsTo(baseType)).ToList();
+                    var result = container.Cast<object>().Where(resource =>
+                    {
+                        var resourceType = resource.GetType(); 
+                        return typeFilters.All(filter => resourceType.DescendsTo(filter)) && resourceType.DescendsTo(baseType);
+                    }).ToList();
                     // if the selected value is not in the list show it anyway.
                     if (cv != null && result.Contains(cv) == false)
                         result.Add(cv);
@@ -2183,13 +2187,19 @@ namespace OpenTap
                 } 
             }
 
-            public ResourceAnnotation(AnnotationCollection a, Type lowerstType)
+            public ResourceAnnotation(AnnotationCollection a, Type lowerstType, Type[] typeFilters)
             {
                 baseType = lowerstType;
                 this.a = a;
+                this.typeFilters = typeFilters;
             }
 
             static readonly string[] errorResponse = {"The selected value has been deleted."};
+            
+            /// <summary>
+            /// Type filters comes from TypeFilterAttribute. This adds an additional list of interfaces that the type must implement.
+            /// </summary>
+            readonly Type[] typeFilters;
             public IEnumerable<string> Errors
             {
                 get
@@ -2270,10 +2280,9 @@ namespace OpenTap
             public string Value => string.Join(", ", Selected.Cast<IResource>().Select(s => s?.Name ?? ""));
 
             AnnotationCollection annotation;
-            Type baseType;
-            public MultiResourceSelector(AnnotationCollection annotation, Type baseType)
+            
+            public MultiResourceSelector(AnnotationCollection annotation)
             {
-                this.baseType = baseType;
                 this.annotation = annotation;
             }
 
@@ -2892,8 +2901,10 @@ namespace OpenTap
                             annotation.Add(new GenericSequenceAnnotation(annotation));
                             if (!rd_only && innerType.DescendsTo(typeof(IResource)))
                             {
-                                annotation.Add(new ResourceAnnotation(annotation, innerType.Type));
-                                annotation.Add(new MultiResourceSelector(annotation, innerType.Type));
+                                // extract type filters from TypeFilterAttribute
+                                var filterTypes = mem?.Member?.GetAttributes<TypeFilterAttribute>()?.Select(filter => filter.RequiredType).ToArray() ?? Array.Empty<Type>();
+                                annotation.Add(new ResourceAnnotation(annotation, innerType.Type, filterTypes));
+                                annotation.Add(new MultiResourceSelector(annotation));
                             }
                             else if (!rd_only && innerType.DescendsTo(typeof(ITestStep)))
                             {
@@ -2926,7 +2937,12 @@ namespace OpenTap
                     }
 
                     if (csharpType.IsValueType == false && type.DescendsTo(typeof(IResource)))
-                        annotation.Add(new ResourceAnnotation(annotation, type));
+                    {
+                        // extract type filters from TypeFilterAttribute
+                        var filterTypes = mem?.Member?.GetAttributes<TypeFilterAttribute>()?.Select(filter => filter.RequiredType).ToArray() ?? Array.Empty<Type>();
+                        
+                        annotation.Add(new ResourceAnnotation(annotation, type, filterTypes));
+                    }
                     else if (csharpType.IsValueType == false && type.DescendsTo(typeof(ITestStep)) && mem?.Member.DeclaringType?.DescendsTo(typeof(ITestStepParent)) == true)
                         annotation.Add(new TestStepSelectAnnotation(annotation));
                 }
