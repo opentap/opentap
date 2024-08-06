@@ -319,7 +319,13 @@ namespace OpenTap
                 PluginsChanged?.Invoke(s, new PluginsChangedEventArgs());
             };
             Load();
-            
+
+        }
+
+        /// <summary> Ensures that the plugin manager is initialized. </summary>
+        public static void Initialize()
+        {
+            // Forces the static constuctore to be called. Intentionally left empty.
         }
 
         /// <summary>
