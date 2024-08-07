@@ -53,14 +53,18 @@ namespace OpenTap.Sdk.New
         {
             var vsCodeDir = ".vscode";
 
+            if (!string.IsNullOrWhiteSpace(output))
+            {
+                // TryGetNamespace assumes output to end with a slash if it is a directory, and in this case it always is
+                if (!(output.EndsWith("/") || output.EndsWith("\\")))
+                    output = output + '/'; 
+                vsCodeDir = Path.Combine(output, vsCodeDir);
+                WorkingDirectory = output;
+            }
+
             // create .vscode folder
             if (Directory.Exists(vsCodeDir) == false)
                 Directory.CreateDirectory(vsCodeDir);
-
-            // .tasks
-            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("OpenTap.Sdk.New.Resources.tasksTemplate.txt"))
-            using (var reader = new StreamReader(stream))
-                WriteFile(output ?? Path.Combine(vsCodeDir, "tasks.json"), reader.ReadToEnd());
 
             // .launch
             using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("OpenTap.Sdk.New.Resources.launchTemplate.txt"))
@@ -76,9 +80,15 @@ namespace OpenTap.Sdk.New
                 else
                     log.Info("Please change <tap plan> in the '.vscode/launch.json' file.");
 
-                if (WriteFile(output ?? Path.Combine(vsCodeDir, "launch.json"), content))
+                if (WriteFile(Path.Combine(vsCodeDir, "launch.json"), content))
                     log.Info($"Please note: The vscode integration assumes OutputPath is in '{WorkingDirectory}/bin/Debug>'.");
             }
+
+            // .tasks
+            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("OpenTap.Sdk.New.Resources.tasksTemplate.txt"))
+            using (var reader = new StreamReader(stream))
+                WriteFile(Path.Combine(vsCodeDir, "tasks.json"), reader.ReadToEnd());
+
 
             return (int)ExitCodes.Success;
         }
