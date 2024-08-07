@@ -108,7 +108,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// <returns></returns>
         public override bool Execute()
         {
-            if (!PackagesToInstall.Any()) return true;
+            if (PackagesToInstall == null || PackagesToInstall.Length == 0) 
+                return true; 
 
             using (OpenTapContext.Create(TapDir))
                 return InstallPackages();
@@ -201,6 +202,36 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 }
             }
             return true;
+        } 
+        
+        private void UpdateMarkerFiles()
+        {
+            // This is to avoid the following scenario:
+            // 1. Install foo version 1.0.0, creating a marker file
+            // 2. Install foo version 1.0.1, creating a marker file
+            // 3. Downgrade foo to version 1.0.0. If marker file exists, this will be skipped
+            foreach (var pkg in PackagesToInstall)
+            {
+                var name = pkg.ItemSpec; 
+                var path = Path.Combine(TapDir, "Packages", name);
+                if (!Directory.Exists(path))
+                    Directory.CreateDirectory(path);
+                var markerFiles = Directory.GetFiles(path, ".v*.marker");
+                foreach (var f in markerFiles)
+                {
+                    try
+                    {
+                        File.Delete(f);
+                    }
+                    catch
+                    {
+                        // ignore. Not a big deal
+                    }
+                }
+                var version = pkg.GetMetadata("Version") ?? "";
+                var fs = File.Create(Path.Combine(path, $".v{version}.marker"));
+                fs.Close();
+            }
         }
         
         /// <summary>
@@ -229,7 +260,10 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
                 try
                 {
-                    return imageInstaller.InstallImage(PackagesToInstall, repos);
+                    var success = imageInstaller.InstallImage(PackagesToInstall, repos); 
+                    if (success)
+                        UpdateMarkerFiles(); 
+                    return success;
                 }
                 catch (Exception ex)
                 {
