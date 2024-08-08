@@ -880,7 +880,7 @@ namespace OpenTap
 
             try
             {
-                ScpiCommandInternal(query, false);
+                if (query != "") ScpiCommandInternal(query, false);
                 switch (Type.GetTypeCode(typeof(T)))
                 {
                     case TypeCode.Byte:
