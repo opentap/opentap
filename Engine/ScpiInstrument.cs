@@ -670,7 +670,7 @@ namespace OpenTap
                     LockRetry(() => DoLock());
                     try
                     {
-                        LockRetry(() => WriteString(query));
+                        if (query != "") LockRetry(() => WriteString(query));
                         LockRetry(() => result = ReadStringOrBlock());
                     }
                     finally
@@ -680,11 +680,11 @@ namespace OpenTap
                 }
                 else
                 {
-                    LockRetry(() => WriteString(query));
+                    if (query != "") LockRetry(() => WriteString(query));
                     LockRetry(() => result = ReadStringOrBlock());
                 }
 
-                if (!isSilent && VerboseLoggingEnabled)
+                if (!isSilent && VerboseLoggingEnabled && query != "")
                     Log.Debug(timer, "SCPI >> {0}", query);
 
             }
@@ -880,7 +880,7 @@ namespace OpenTap
 
             try
             {
-                ScpiCommandInternal(query, false);
+                if (query != "") ScpiCommandInternal(query, false);
                 switch (Type.GetTypeCode(typeof(T)))
                 {
                     case TypeCode.Byte:
