@@ -13,6 +13,55 @@ namespace OpenTap.Engine.UnitTests
     [TestFixture]
     public class ConnectionTest
     {
+        public class VirtualPortInstrument : Instrument
+        {
+            public class VirtualPort : Port
+            {   
+                public VirtualPort(IResource device, int index) : base(device, "P" + index)
+                {
+                    Index = index;
+                }
+                public readonly int Index;
+                public override bool Equals(object obj) => obj is VirtualPort vp && vp.Index == Index && vp.Device == Device;
+                public override int GetHashCode() =>  (Device?.GetHashCode() ?? 0) + 13 * Index;
+            }
+            
+            public int NPorts { get; set; } = 1;
+            
+            public IEnumerable<Port> Ports 
+            {
+                get
+                {
+                    for (int i = 0; i < NPorts; i++)
+                        yield return new VirtualPort(this, i);
+                }
+            }    
+        }
+        
+        /// <summary>
+        /// This test show how virtual ports can be used (ports that represents the same without having reference equality).
+        /// </summary>
+        [Test]
+        public void VirtualPortTest()
+        {
+            var instr = new VirtualPortInstrument()
+            {
+                NPorts = 2
+            };
+
+            var c1 = new RfConnection
+            {
+                Port1 = instr.Ports.First(),
+                Port2 = instr.Ports.Last()
+            };
+
+            var p1 = instr.Ports.First();
+            var p2 = instr.Ports.Last();
+            
+            Assert.AreNotEqual(p1,p2);
+            Assert.AreEqual(c1.GetOtherPort(p1), p2);
+            Assert.AreEqual(c1.GetOtherPort(p2), p1);
+        }
 
         [Test]
         public void CableLossInterpolationTest()
