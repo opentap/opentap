@@ -2561,5 +2561,37 @@ namespace OpenTap.UnitTests
             dsv.Value = "0001-01-01";
             Assert.AreEqual(0, GetErrors().Count());
         }
+
+        public class EmbedObject
+        {
+            public Verdict C { get; set; }
+        }
+
+        public class EmbedeeObject : ValidatingObject
+        {
+            [EmbedProperties]
+            public EmbedObject Embed { get; set; } = new EmbedObject();
+        }
+
+        /// <summary>
+        /// There used to be an error for embedded properties when looking for errors.
+        /// </summary>
+        [Test]
+        public void TestEmbedPlusMultiSelectError()
+        {
+            var aobj = new EmbedeeObject();
+            var bobj = new EmbedeeObject();
+            var selection = new object[]
+            {
+                aobj, bobj
+            };
+
+            var a = AnnotationCollection.Annotate(selection);
+            foreach (var member in a.Get<IMembersAnnotation>().Members)
+            {
+                var errs = member.Get<IErrorAnnotation>()?.Errors.ToArray();
+                Assert.AreEqual(0, errs.Length);
+            }
+        }
     }
 }
