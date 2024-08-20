@@ -165,6 +165,88 @@ namespace OpenTap.Engine.UnitTests
             var instrument2 = (TestRevolverSwitchInstrument) new TapSerializer().DeserializeFromString(xml);
             Assert.AreEqual(instrument.SwitchPositions[0].Alias, instrument2.SwitchPositions[0].Alias);
             Assert.AreEqual(instrument.A.Alias, instrument2.A.Alias);
-        }        
+        }
+
+        public class VirtualViaInstrument : Instrument
+        {
+            public class VirtualVia : ViaPoint
+            {
+                readonly VirtualViaInstrument instrument;
+                public VirtualVia(VirtualViaInstrument instrument, string name)
+                {
+                    this.instrument = instrument;
+                    this.Device = instrument;
+                    this.Name = name;
+                }
+
+                public override bool IsActive
+                {
+                    get => instrument.activeVia == Name;
+                    set
+                    {
+                        if(value)
+                            instrument.activeVia = Name;
+                        else
+                            if(IsActive)
+                                instrument.activeVia = null;
+                    }
+                }
+
+                public void Activate()
+                {
+                    
+                }
+            }
+            public VirtualVia via1 { get; }
+            public VirtualVia via2 { get; }
+            string activeVia;
+            public VirtualViaInstrument()
+            {
+                via1 = new VirtualVia(this, "A");
+                via2 = new VirtualVia(this, "B");
+            }
+        }
+
+        [Test]
+        public void TestVirtualVias()
+        {
+            using var _ = Session.Create();
+            var instr = new VirtualViaInstrument();
+            instr.via1.IsActive = true;
+            
+            var instr2 = new VirtualPortInstrument{NPorts = 2};
+            InstrumentSettings.Current.Add(instr);
+            InstrumentSettings.Current.Add(instr2);
+
+            var con1 = new RfConnection
+            {
+                Port1 = instr2.Ports.First(),
+                Port2 = instr2.Ports.Last(),
+                Via = new List<ViaPoint>(){instr.via1}
+            };
+            
+            var con2 = new RfConnection
+            {
+                Port1 = instr2.Ports.First(),
+                Port2 = instr2.Ports.Last(),
+                Via = new List<ViaPoint>(){instr.via2}
+            };
+
+            ConnectionSettings.Current.Add(con1);
+            ConnectionSettings.Current.Add(con2);
+            
+            Assert.IsFalse(con2.IsActive);
+            Assert.IsTrue(con1.IsActive);
+
+            instr.via2.IsActive = true;
+
+            Assert.IsFalse(con1.IsActive);
+            Assert.IsTrue(con2.IsActive);
+
+            instr.via2.IsActive = false;
+
+            Assert.IsFalse(con1.IsActive);
+            Assert.IsFalse(con2.IsActive);
+        }
     }
 }
