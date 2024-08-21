@@ -17,7 +17,10 @@ env:
 
 jobs:
   GetVersion:
-    runs-on: ubuntu-20.04
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     outputs:
       ShortVersion: ${{ steps.gitversion.outputs.ShortVersion }}
       LongVersion: ${{ steps.gitversion.outputs.LongVersion }}
@@ -33,7 +36,10 @@ jobs:
         run: echo "VER=$SMARTINSTALLER_IMAGE" >> $GITHUB_OUTPUT
 
   CheckSecrets:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     outputs:
       gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
       ks8500_repo_token_is_set: ${{ steps.check_KS8500_REPO_TOKEN.outputs.is_set }}
@@ -80,15 +86,11 @@ jobs:
   Build-DevGuide:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.ks8500_repo_token_is_set == 'true'
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/documentationgeneration:1.0.2-beta.39
     steps:
-      - name: Setup OpenTAP
-        uses: opentap/setup-opentap@main
-        with:
-          version: 9.23.0
-          packages: 'DocumentationGeneration:1.0.2'
-          additional-repository: 'https://test-automation.pw.keysight.com/api/packages'
-          additional-repository-token: '${{ secrets.KS8500_REPO_TOKEN }}'
       - name: Checkout
         uses: actions/checkout@v4
       - run: tap generate-pdf "doc/Developer Guide/Readme.md" --toc --skip-first-file --out "sdk/Examples/OpenTAP Developer Guide.pdf" --frontpage "doc/Developer Guide/Frontpage.html" --frontpage-file "doc/Developer Guide/Frontpage.png"
@@ -102,7 +104,9 @@ jobs:
   Build-ApiDoc:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
     container:
       image: registry.gitlab.com/opentap/buildrunners/doxygen:alpine
       credentials:
@@ -136,7 +140,10 @@ jobs:
           path: API
 
   Build-Pages:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-ApiDoc
     steps:
@@ -183,7 +190,10 @@ jobs:
           path: public
 
   Build-Linux:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -209,7 +219,7 @@ jobs:
             bin/Release/publish/*
 
   Build-Win:
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     strategy:
       matrix:
         Architecture: [x86, x64]
@@ -290,7 +300,7 @@ jobs:
   ### TESTS ###
   ##############
   TestEngine: 
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     needs: Build-Win
     strategy:
       matrix:
@@ -314,7 +324,7 @@ jobs:
           dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=300000 RunConfiguration.TreatNoTestsAsError=true
 
   TestPackage:
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     needs: Build-Win
     steps:
       - name: Checkout
@@ -337,7 +347,7 @@ jobs:
           dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=600000 RunConfiguration.TreatNoTestsAsError=true
 
   TestWindowsPlan:
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     needs: 
       - Build-Win
       - Package-Templates
@@ -375,7 +385,10 @@ jobs:
             NewProj*/**
 
   TestLinuxPlan:
-    runs-on: ubuntu-20.04
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs: 
     - Build-Linux
     - Package-Templates
@@ -442,7 +455,7 @@ jobs:
   ###############
   Package-Win:
     if: needs.CheckSecrets.outputs.sign_is_set == 'true'
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     strategy:
       matrix:
         Architecture: [x86, x64]
@@ -511,7 +524,10 @@ jobs:
             OpenTAP.*.Windows.TapPackage
 
   Package-Cross:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Linux
       - Build-MacOS
@@ -574,7 +590,7 @@ jobs:
             OpenTAP.*.TapPackage
 
   Package-Templates:
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     needs:
       - GetVersion
     steps:
@@ -582,10 +598,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '6.0.x'
       - name: Update Version
         run: |
           Set-Content .\templates\Templates.csproj (Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
@@ -599,7 +611,7 @@ jobs:
           path: ./bin/Release/OpenTAP.Templates.*.nupkg
 
   Package-SDK:
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     needs:
       - Build-Win
       - Build-DevGuide
@@ -666,7 +678,10 @@ jobs:
             SDK.*.TapPackage
 
   Package-Diff:
-    runs-on: ubuntu-20.04
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Package-Cross
     steps:
@@ -685,7 +700,7 @@ jobs:
         run: tap package diff OpenTAP.TapPackage -o diff
 
   Package-NuGet:
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     needs:
       - Build-Win
       - Package-Win
@@ -788,7 +803,9 @@ jobs:
 
   
   Build-Installer-Windows:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
     needs:
       - GetVersion
       - Package-Win
@@ -832,7 +849,10 @@ jobs:
   Publish-Installer-Windows:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     environment: packages.opentap.io 
-    runs-on: ubuntu-latest 
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Installer-Windows 
       - GetVersion
@@ -855,7 +875,9 @@ jobs:
 
 
   Build-Installer-Linux:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
     needs:
       - GetVersion
       - Package-Cross
@@ -896,7 +918,10 @@ jobs:
   Publish-Installer-Linux:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     environment: packages.opentap.io 
-    runs-on: ubuntu-latest 
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Installer-Linux
       - GetVersion
@@ -918,7 +943,10 @@ jobs:
 
   Docker-Linux:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-20.04
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     environment: sign
     strategy:
       matrix:
@@ -969,7 +997,7 @@ jobs:
   Publish-NuGet:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     needs:
       - Package-NuGet
     steps:
@@ -984,7 +1012,7 @@ jobs:
   Publish-Templates:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     needs:
       - Package-Templates
     steps:
@@ -994,12 +1022,15 @@ jobs:
           name: package-templates
           path: .
       - name: Package
-        run: nuget push OpenTAP.Templates*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json
+        run: dotnet nuget push OpenTAP.Templates*.nupkg -k ${{ secrets.NUGET_KEY }} -s https://api.nuget.org/v3/index.json # --skip-duplicate --no-symbols
 
   Publish-TapPackages:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: packages.opentap.io
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Package-Win
       - Package-Cross
