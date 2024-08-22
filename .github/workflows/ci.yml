@@ -108,7 +108,7 @@ jobs:
        group: OpenTAP-SpokeVPC
        labels:  [Linux, X64]
     container:
-      image: registry.gitlab.com/opentap/buildrunners/doxygen:alpine
+      image: ghcr.io/opentap/oci-images/build-doxygen:latest
       credentials:
         username: github
         password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
