@@ -810,10 +810,12 @@ jobs:
       - Package-Win
       - Package-SDK
     container:
-      image: ${{ needs.GetVersion.outputs.SmartInstallerVersion }}      
+      image: ${{ needs.GetVersion.outputs.SmartInstallerVersion }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    env:
+      TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS_INTERNAL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -945,7 +947,7 @@ jobs:
     runs-on:
        group: OpenTAP-SpokeVPC
        labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    container: ghcr.io/opentap/oci-images/build-docker:latest
     environment: sign
     strategy:
       matrix:
