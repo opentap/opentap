@@ -814,8 +814,6 @@ jobs:
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
-    env:
-      TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS_INTERNAL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -837,7 +835,7 @@ jobs:
       - run: tap installer create "opentap.installer.xml" -v --target-os win
         working-directory: Installer/Assets
         env:
-          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
+          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS_INTERNAL }}
           TAP_SIGN_AUTH: ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
       - run: mv Installer/Assets/setup.exe OpenTAP.${{needs.GetVersion.outputs.LongVersion}}.exe
