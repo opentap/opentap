@@ -15,6 +15,10 @@ env:
   DOTNET_CONSOLE_ANSI_COLOR: true
   SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller:2.1.0-rc
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   GetVersion:
     runs-on:
