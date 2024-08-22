@@ -331,6 +331,17 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void OpenAdditionalResource()
+        {
+            var instr = new DummyInstrument();
+            var plan = new TestPlan();
+            plan.Open(Array.Empty<IResultListener>(), new IResource[]{instr});
+            Assert.IsTrue(instr.IsConnected);
+            plan.Close();
+            Assert.IsFalse(instr.IsConnected);
+        }
+
+        [Test]
         public void TestPlanLogErrorTest()
         {
             TestTraceListener trace = new TestTraceListener();
