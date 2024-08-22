@@ -15,10 +15,6 @@ env:
   DOTNET_CONSOLE_ANSI_COLOR: true
   SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller:2.1.0-rc
 
-defaults:
-  run:
-    shell: bash
-
 jobs:
   GetVersion:
     runs-on:
@@ -380,8 +376,10 @@ jobs:
         with:
           name: package-templates
           path: sdk-template
+      # - name: Clean template engine dir
+      #   run: rm 
       - name: Install Templates
-        run: dotnet new --install ./sdk-template/*.nupkg
+        run: dotnet new install ./sdk-template/*.nupkg
       - name: Test
         working-directory: bin/Release
         run: ./tap.exe run ../../tests/regression.TapPlan --verbose --color
@@ -692,6 +690,9 @@ jobs:
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Package-Cross
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: opentap/setup-opentap@v1.0
         with:
