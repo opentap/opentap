@@ -680,15 +680,9 @@ jobs:
             SDK.*.TapPackage
 
   Package-Diff:
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    runs-on: ubuntu-20.04
     needs:
       - Package-Cross
-    defaults:
-      run:
-        shell: bash
     steps:
       - uses: opentap/setup-opentap@v1.0
         with:
