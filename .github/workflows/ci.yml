@@ -89,7 +89,7 @@ jobs:
     runs-on:
        group: OpenTAP-SpokeVPC
        labels:  [Linux, X64]
-    container: ghcr.io/opentap/documentationgeneration:1.0.2-beta.39
+    container: ghcr.io/opentap/documentationgeneration:1.0.2-beta.46
     steps:
       - name: Checkout
         uses: actions/checkout@v4
