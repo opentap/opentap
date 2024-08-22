@@ -304,7 +304,7 @@ jobs:
   ### TESTS ###
   ##############
   TestEngine: 
-    runs-on: [self-hosted, windows]
+    runs-on: windows-2022
     needs: Build-Win
     strategy:
       matrix:
@@ -328,7 +328,7 @@ jobs:
           dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=300000 RunConfiguration.TreatNoTestsAsError=true
 
   TestPackage:
-    runs-on: [self-hosted, windows]
+    runs-on: windows-2022
     needs: Build-Win
     steps:
       - name: Checkout
@@ -351,7 +351,7 @@ jobs:
           dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=600000 RunConfiguration.TreatNoTestsAsError=true
 
   TestWindowsPlan:
-    runs-on: [self-hosted, windows]
+    runs-on: windows-2022
     needs: 
       - Build-Win
       - Package-Templates
@@ -376,8 +376,6 @@ jobs:
         with:
           name: package-templates
           path: sdk-template
-      # - name: Clean template engine dir
-      #   run: rm 
       - name: Install Templates
         run: dotnet new install ./sdk-template/*.nupkg
       - name: Test
@@ -391,9 +389,7 @@ jobs:
             NewProj*/**
 
   TestLinuxPlan:
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: ubuntu-20.04
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs: 
     - Build-Linux
@@ -704,7 +700,7 @@ jobs:
           name: Linux-x64-package
           path: .
       - name: Rename Package
-        run: mv OpenTAP.*.TapPackage OpenTAP.TapPackage
+        run: mv OpenTAP.*.Linux.x64.TapPackage OpenTAP.TapPackage
       - name: Diff Package
         run: tap package diff OpenTAP.TapPackage -o diff
 
