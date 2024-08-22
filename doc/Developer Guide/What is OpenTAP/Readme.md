@@ -15,7 +15,7 @@ Steps frequently depend on DUT and Instrument plugins. The development of differ
 ## Architecture
 The illustration below shows how OpenTAP is central to the architecture, and how plugins (all the surrounding items) integrate with it.
 
-![](./TAParchitecture.png)
+![](./TAParchitecture.png#width=600)
 
 ## OpenTAP Assembly
 
@@ -67,7 +67,7 @@ To use OpenTAP to its full potential, developers must understand the control flo
 
 The following test plan uses test steps, DUTs and instruments defined in the **Demonstration** plugin:
 
-![](./TestPlanControlFlow_1.png)
+![](./TestPlanControlFlow_1.png#width=800)
 
 The test plan has three test steps, in succession. In this test plan, none of the steps have child steps. A more complex example, with child steps, is presented later in this section. The test plan relies on the resources DUT, Instr. and Log to be available and configured appropriately. The following figure illustrates what happens when this test plan is run:
 
@@ -79,7 +79,7 @@ After the test step run is completed for each test step, **PostPlanRun** is exec
 
 The test plan below illustrates how child test steps are handled:
 
-![](./TestPlanControlFlow_img7.png)
+![](./TestPlanControlFlow_img7.png#width=500)
 
 The methods in the test steps execute in the following order:
 
@@ -96,7 +96,7 @@ Editable OpenTAP step settings can be marked as *External*. The value of such se
 
 You may want to avoid the time required to open resources at each test plan start. To do so, open the resources by using the **Connection** button:
 
-![](./ManualResourceConnection_img1.png)
+![](./ManualResourceConnection_img1.png#width=500)
 
 Resources opened manually remain open between test plan runs. This eliminates the time required to open and close them for each test plan run. 
 
@@ -108,7 +108,7 @@ Test step hierarchies can be built, and attributes set, to allow certain steps t
 
 The following figure illustrates four different approaches where both sequential and parallel execution is used. The upper part of the illustration is the flow; the lower part is the test plan execution showing the corresponding TX and RX test steps. 
 
-![](./MultiDut_img1.png)
+![](./MultiDut_img1.png#width=800)
 
 -	Flow Option 1 is a simple sequential test plan execution where TX (transmit) and RX (receive) test steps are repeated once for each DUT. In a production environment, this is a simple way to reduce the test/calibration time, because it lets the operator switch in a DUT while the other DUT is being tested. 
 

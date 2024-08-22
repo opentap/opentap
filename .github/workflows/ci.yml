@@ -89,8 +89,15 @@ jobs:
     runs-on:
        group: OpenTAP-SpokeVPC
        labels:  [Linux, X64]
-    container: ghcr.io/opentap/documentationgeneration:1.0.2-beta.46
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
+      - name: Setup OpenTAP
+        uses: opentap/setup-opentap@main
+        with:
+          version: 9.23.0
+          packages: 'DocumentationGeneration:1.0.2'
+          additional-repository: 'https://test-automation.pw.keysight.com/api/packages'
+          additional-repository-token: '${{ secrets.KS8500_REPO_TOKEN }}'
       - name: Checkout
         uses: actions/checkout@v4
       - run: tap generate-pdf "doc/Developer Guide/Readme.md" --toc --skip-first-file --out "sdk/Examples/OpenTAP Developer Guide.pdf" --frontpage "doc/Developer Guide/Frontpage.html" --frontpage-file "doc/Developer Guide/Frontpage.png"
