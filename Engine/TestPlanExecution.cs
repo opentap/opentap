@@ -749,6 +749,15 @@ namespace OpenTap
         {
             Open(listeners, Array.Empty<IResource>());
         }
+        
+        /// <summary>
+        /// Opens all resources referenced in this TestPlan (Instruments/DUTs/ResultListeners). 
+        /// This can be called before <see cref="TestPlan.Execute()"/> to manually control the opening/closing of the resources.
+        /// </summary>
+        public void Open(IEnumerable<IResource> resources)
+        {
+            Open(ResultSettings.Current, resources);
+        }
 
         /// <summary>
         /// Opens all resources referenced in this TestPlan (Instruments/DUTs/ResultListeners). 
@@ -760,13 +769,6 @@ namespace OpenTap
                 throw new ArgumentNullException(nameof(listeners));
             if (PrintTestPlanRunSummary)
                 listeners = listeners.Concat(new IResultListener[] { summaryListener });
-
-            if (currentExecutionState != null)
-            {
-                var allSteps = Utils.FlattenHeirarchy(Steps.Where(x => x.Enabled), step => step.GetEnabledChildSteps()).ToList();
-                OpenInternal(currentExecutionState, false, allSteps, additionalResources);
-                return;
-            }
                 
             if (IsRunning)
                 throw new InvalidOperationException("This TestPlan is already running.");
@@ -776,8 +778,11 @@ namespace OpenTap
                 var allSteps = Utils.FlattenHeirarchy(Steps.Where(x => x.Enabled), step => step.GetEnabledChildSteps()).ToList();
 
                 Stopwatch timer = Stopwatch.StartNew();
-                currentExecutionState = new TestPlanRun(this, listeners.ToList(), DateTime.Now, Stopwatch.GetTimestamp(), true);
-                currentExecutionState.Start();
+                if (currentExecutionState == null)
+                {
+                    currentExecutionState = new TestPlanRun(this, listeners.ToList(), DateTime.Now, Stopwatch.GetTimestamp(), true);
+                    currentExecutionState.Start();
+                }
                 OpenInternal(currentExecutionState, false, allSteps, additionalResources);
                 
                 try

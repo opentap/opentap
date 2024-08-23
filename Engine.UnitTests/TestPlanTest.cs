@@ -335,7 +335,8 @@ namespace OpenTap.Engine.UnitTests
         {
             var instr = new DummyInstrument();
             var plan = new TestPlan();
-            plan.Open(Array.Empty<IResultListener>(), new IResource[]{instr});
+            plan.Open();
+            plan.Open(new IResource[]{instr});
             Assert.IsTrue(instr.IsConnected);
             plan.Close();
             Assert.IsFalse(instr.IsConnected);
