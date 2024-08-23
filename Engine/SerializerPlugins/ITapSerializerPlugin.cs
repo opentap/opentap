@@ -32,7 +32,8 @@ namespace OpenTap
         bool Serialize(XElement node, object obj, ITypeData expectedType);
 
         /// <summary>
-        /// Priority of the serializer. Defines the order in which the serializers are used. Default is 0.  
+        /// Priority of the serializer. Defines the order in which the serializers are used.
+        /// Higher order serializers are used first. Default is 0.  
         /// </summary>
         double Order { get; }
     }
