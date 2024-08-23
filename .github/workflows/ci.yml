@@ -871,7 +871,8 @@ jobs:
                -H 'Metadata-OS: "Windows"' \
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
                --form 'file=@"'$(pwd)'/OpenTAP.exe"'
-
+      - name: Upload Installer to Archive
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP.exe" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/OpenTAP.exe"
 
   Build-Installer-Linux:
     runs-on:
@@ -938,7 +939,8 @@ jobs:
                -H 'Metadata-OS: "Linux"' \
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
                --form 'file=@"'$(pwd)'/OpenTAP"'
-
+      - name: Upload Installer to Archive
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/OpenTAP"
 
   Docker-Linux:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
