@@ -49,14 +49,19 @@ namespace OpenTap
         
         /// <summary> Some instruments does not support reading the status byte. This is detected during Open. </summary>
         bool readStbSupported = true;
+        
+        /// <summary> since sending scpi commands/queries (and reading) is not thread safe, but steps using SCPI can run in multiple threads
+        /// We lock IO with this commandLock.</summary>
+        readonly object commandLock = new object();
 
         IScpiIO IScpiInstrument.IO { get { return scpiIO; } }
 
-        static TraceSource staticLog = OpenTap.Log.CreateSource("SCPI");
+        static readonly TraceSource staticLog = OpenTap.Log.CreateSource("SCPI");
 
         static int visa_resource = Visa.VI_NULL;
         static bool visa_tried_load = false;
         static bool visa_failed = false;
+        
 
         private void RaiseError(ScpiIOResult error)
         {
@@ -479,7 +484,8 @@ namespace OpenTap
         /// </summary>
         protected virtual void DoClear()
         {
-            RaiseError(scpiIO.DeviceClear());
+            lock(commandLock)
+                RaiseError(scpiIO.DeviceClear());
         }
 
         /// <summary>
@@ -489,7 +495,8 @@ namespace OpenTap
         protected virtual short DoReadSTB()
         {
             byte status = 0;
-            RaiseError(scpiIO.ReadSTB(ref status));
+            lock(commandLock)
+                RaiseError(scpiIO.ReadSTB(ref status));
             return status;
         }
 
@@ -655,62 +662,66 @@ namespace OpenTap
         public virtual string ScpiQuery(string query, bool isSilent = false)
         {
             if (query == null)
-                throw new ArgumentNullException("query");
+                throw new ArgumentNullException(nameof(query));
             if (!IsConnected)
                 throw new IOException("Not connected.");
-            OnActivity();
-            string result = String.Empty;
 
-            try
+            lock (commandLock)
             {
-                Stopwatch timer = Stopwatch.StartNew();
+                OnActivity();
+                string result = String.Empty;
 
-                if (FinegrainedLock && !Lock)
+                try
                 {
-                    LockRetry(() => DoLock());
-                    try
+                    Stopwatch timer = Stopwatch.StartNew();
+
+                    if (FinegrainedLock && !Lock)
+                    {
+                        LockRetry(() => DoLock());
+                        try
+                        {
+                            LockRetry(() => WriteString(query));
+                            LockRetry(() => result = ReadStringOrBlock());
+                        }
+                        finally
+                        {
+                            DoUnlock();
+                        }
+                    }
+                    else
                     {
                         LockRetry(() => WriteString(query));
                         LockRetry(() => result = ReadStringOrBlock());
                     }
-                    finally
+
+                    if (!isSilent && VerboseLoggingEnabled)
+                        Log.Debug(timer, "SCPI >> {0}", query);
+
+                }
+                catch (VISAException ex)
+                {
+                    if (ex.ErrorCode == Visa.VI_ERROR_CONN_LOST)
                     {
-                        DoUnlock();
+                        Log.Error("Connection lost");
+                        IsConnected = false;
+                        throw new IOException("Connection lost");
                     }
-                }
-                else
-                {
-                    LockRetry(() => WriteString(query));
-                    LockRetry(() => result = ReadStringOrBlock());
+                    if (ex.ErrorCode == Visa.VI_ERROR_TMO)
+                    {
+                        Log.Error("Not responding (query '{0}' timed out)", query);
+                        throw new TimeoutException("Not responding");
+                    }
+
+                    Log.Error("SCPI query failed ({0})", query);
+                    Log.Error(ex);
+                    return null;
                 }
 
+                IsConnected = true;
                 if (!isSilent && VerboseLoggingEnabled)
-                    Log.Debug(timer, "SCPI >> {0}", query);
-
+                    Log.Debug("SCPI << {0}", result);
+                return result;
             }
-            catch (VISAException ex)
-            {
-                if (ex.ErrorCode == Visa.VI_ERROR_CONN_LOST)
-                {
-                    Log.Error("Connection lost");
-                    IsConnected = false;
-                    throw new IOException("Connection lost");
-                }
-                if (ex.ErrorCode == Visa.VI_ERROR_TMO)
-                {
-                    Log.Error("Not responding (query '{0}' timed out)", query);
-                    throw new TimeoutException("Not responding");
-                }
-                
-                Log.Error("SCPI query failed ({0})", query);
-                Log.Error(ex);
-                return null;
-            }
-
-            IsConnected = true;
-            if (!isSilent && VerboseLoggingEnabled)
-                Log.Debug("SCPI << {0}", result);
-            return result;
         }
 
         /// <summary>
@@ -873,29 +884,31 @@ namespace OpenTap
         public virtual T[] ScpiQueryBlock<T>(string query) where T : struct
         {
             if (query == null)
-                throw new ArgumentNullException("query");
+                throw new ArgumentNullException(nameof(query));
 
-            if (FinegrainedLock && !Lock)
-                LockRetry(() => DoLock());
-
-            try
+            lock (commandLock)
             {
-                ScpiCommandInternal(query, false);
-                switch (Type.GetTypeCode(typeof(T)))
-                {
-                    case TypeCode.Byte:
-                    case TypeCode.SByte:
-                    case TypeCode.Int16:
-                    case TypeCode.UInt16:
-                    case TypeCode.Int32:
-                    case TypeCode.UInt32:
-                    case TypeCode.Single:
-                    case TypeCode.Double:
-                        return ReadIEEEBlock<T>();
+                if (FinegrainedLock && !Lock)
+                    LockRetry(() => DoLock());
 
-                    // Do binary conversion for 64 bit integers
-                    case TypeCode.Int64:
-                    case TypeCode.UInt64:
+                try
+                {
+                    ScpiCommandInternal(query, false);
+                    switch (Type.GetTypeCode(typeof(T)))
+                    {
+                        case TypeCode.Byte:
+                        case TypeCode.SByte:
+                        case TypeCode.Int16:
+                        case TypeCode.UInt16:
+                        case TypeCode.Int32:
+                        case TypeCode.UInt32:
+                        case TypeCode.Single:
+                        case TypeCode.Double:
+                            return ReadIEEEBlock<T>();
+
+                        // Do binary conversion for 64 bit integers
+                        case TypeCode.Int64:
+                        case TypeCode.UInt64:
                         {
                             // TODO: This looks unnecessary
                             // Figure out if any special handling is required for 64 bit reads at all
@@ -908,14 +921,15 @@ namespace OpenTap
                             Buffer.BlockCopy(result, 0, arr, 0, arr.Length * 8);
                             return arr;
                         }
-                    default:
-                        throw new Exception("Unsupported IEEE488.2 block type: " + typeof(T).Name);
+                        default:
+                            throw new Exception("Unsupported IEEE488.2 block type: " + typeof(T).Name);
+                    }
                 }
-            }
-            finally
-            {
-                if (FinegrainedLock && !Lock)
-                    DoUnlock();
+                finally
+                {
+                    if (FinegrainedLock && !Lock)
+                        DoUnlock();
+                }
             }
         }
 
@@ -943,45 +957,47 @@ namespace OpenTap
         {
             if (command == null)
                 throw new ArgumentNullException(nameof(command));
+            
             ScpiCommandInternal(command, QueryErrorAfterCommand);
         }
         
         void ScpiCommandInternal(string command, bool checkErrors)
         {
-
             if (!IsConnected)
                 throw new IOException("Not connected.");
 
-            OnActivity();
-            //TapThread.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
-            try
+            lock (commandLock)
             {
-                Stopwatch timer = Stopwatch.StartNew();
-                LockRetry(() => WriteString(command));
-                timer.Stop();
-                if(VerboseLoggingEnabled)
-                    Log.Debug(timer, "SCPI >> {0}", command);
+                OnActivity();
+                try
+                {
+                    Stopwatch timer = Stopwatch.StartNew();
+                    LockRetry(() => WriteString(command));
+                    timer.Stop();
+                    if (VerboseLoggingEnabled)
+                        Log.Debug(timer, "SCPI >> {0}", command);
 
-                if (checkErrors)
-                {
-                    WaitForOperationComplete();
-                    queryErrors(noAllocation: true);
+                    if (checkErrors)
+                    {
+                        WaitForOperationComplete();
+                        queryErrors(noAllocation: true);
+                    }
                 }
-            }
-            catch (VISAException ex)
-            {
-                if (ex.ErrorCode == Visa.VI_ERROR_CONN_LOST)
+                catch (VISAException ex)
                 {
-                    Log.Error("Connection lost");
-                    IsConnected = false;
-                    throw new IOException("Connection lost");
+                    if (ex.ErrorCode == Visa.VI_ERROR_CONN_LOST)
+                    {
+                        Log.Error("Connection lost");
+                        IsConnected = false;
+                        throw new IOException("Connection lost");
+                    }
+                    if (ex.ErrorCode == Visa.VI_ERROR_TMO)
+                    {
+                        Log.Error("Not responding (command '{0}' timed out)", command);
+                        throw new IOException("Not responding");
+                    }
+                    Log.Error(ex);
                 }
-                if (ex.ErrorCode == Visa.VI_ERROR_TMO)
-                {
-                    Log.Error("Not responding (command '{0}' timed out)", command);
-                    throw new IOException("Not responding");
-                }
-                Log.Error(ex);
             }
         }
 
@@ -991,42 +1007,46 @@ namespace OpenTap
         public virtual void ScpiIEEEBlockCommand(string command, byte[] data)
         {
             if (command == null)
-                throw new ArgumentNullException("command");
+                throw new ArgumentNullException(nameof(command));
+
             if (command.Contains("?"))
-            {
                 throw new ArgumentException("command is a query: " + command);
-            }
+            
             if (!IsConnected)
                 throw new IOException("Not connected.");
-            OnActivity();
-            //TapThread.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
-            try
+
+            lock (commandLock)
             {
-                Stopwatch timer = Stopwatch.StartNew();
-                LockRetry(() => WriteIEEEBlock(command, data));
-                timer.Stop();
-                if (VerboseLoggingEnabled)
-                    Log.Debug(timer, "SCPI >> {0}", command);
-                if (QueryErrorAfterCommand)
+                OnActivity();
+
+                try
                 {
-                    WaitForOperationComplete();
-                    queryErrors(noAllocation: true);
+                    Stopwatch timer = Stopwatch.StartNew();
+                    LockRetry(() => WriteIEEEBlock(command, data));
+                    timer.Stop();
+                    if (VerboseLoggingEnabled)
+                        Log.Debug(timer, "SCPI >> {0}", command);
+                    if (QueryErrorAfterCommand)
+                    {
+                        WaitForOperationComplete();
+                        queryErrors(noAllocation: true);
+                    }
                 }
-            }
-            catch (VISAException ex)
-            {
-                if (ex.ErrorCode == Visa.VI_ERROR_CONN_LOST)
+                catch (VISAException ex)
                 {
-                    Log.Error("Connection lost");
-                    IsConnected = false;
-                    throw new IOException("Connection lost");
+                    if (ex.ErrorCode == Visa.VI_ERROR_CONN_LOST)
+                    {
+                        Log.Error("Connection lost");
+                        IsConnected = false;
+                        throw new IOException("Connection lost");
+                    }
+                    if (ex.ErrorCode == Visa.VI_ERROR_TMO)
+                    {
+                        Log.Error("Not responding (command '{0}' timed out)", command);
+                        throw new IOException("Not responding");
+                    }
+                    Log.Error(ex);
                 }
-                if (ex.ErrorCode == Visa.VI_ERROR_TMO)
-                {
-                    Log.Error("Not responding (command '{0}' timed out)", command);
-                    throw new IOException("Not responding");
-                }
-                Log.Error(ex);
             }
         }
 
@@ -1036,65 +1056,75 @@ namespace OpenTap
         public virtual void ScpiIEEEBlockCommand(string command, Stream data, long maxSize = 0)
         {
             if (command == null)
-                throw new ArgumentNullException("command");
+                throw new ArgumentNullException(nameof(command));
             if (data == null)
-                throw new ArgumentNullException("data");
+                throw new ArgumentNullException(nameof(data));
             if (command.Contains("?"))
-            {
                 throw new ArgumentException("command is a query: " + command);
-            }
             if (!IsConnected)
                 throw new IOException("Not connected.");
-            OnActivity();
-            //TapThread.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
-            try
+
+            lock (commandLock)
             {
-
-                //send SCPI ASCII header
-                long sendLength = data.Length - data.Position; //available data to send
-                if (!((sendLength > 0) && (maxSize > 0)))
-                {
-                    Log.Debug("SCPI Write Command Not Sent:  available length={0} max={1}", sendLength, maxSize);
-                }
-                else
+                OnActivity();
+                //TapThread.Sleep(); // Just giving the TestPlan a chance to abort if it has been requested to do so
+                try
                 {
 
-                    Stopwatch timer = Stopwatch.StartNew();
-
-                    if (TerminationCharacterEnabled == false)
+                    //send SCPI ASCII header
+                    long sendLength = data.Length - data.Position; //available data to send
+                    if (!((sendLength > 0) && (maxSize > 0)))
                     {
-                        SendEndEnabled = false;
+                        Log.Debug("SCPI Write Command Not Sent:  available length={0} max={1}", sendLength, maxSize);
                     }
+                    else
+                    {
 
-                    if (sendLength > maxSize)
-                    {
-                        Log.Debug("SCPI Write Command truncated to maximum:  available length={0} max={1}",
-                            sendLength, maxSize);
-                        sendLength = maxSize; //limit data to send to max
-                    }
-                    var sendLengthStr = string.Format("{0}", sendLength);
-                    var commandBlk = string.Format("{0}#{1}{2}", command, sendLengthStr.Length, sendLengthStr);
-                    byte[] commandB = Encoding.ASCII.GetBytes(commandBlk);
-                    int retSentCnt = LockRetry(() => Write(commandB, commandB.Length));
-                    if (retSentCnt != commandB.Length)
-                    {
-                        Log.Error("SCPI transmission incomplete, IO.Write return={0}, expect={1}", retSentCnt,
-                            commandB.Length);
-                        throw new IOException("SCPI block transmission incomplete");
-                    }
+                        Stopwatch timer = Stopwatch.StartNew();
 
-                    //send binary data
-                    int bufferSize = 0x10000;
-                    byte[] buffer = new byte[bufferSize];
-                    int readSize = 0;
-                    int sendingSize = 0;
-                    while (0 != (readSize = data.Read(buffer, 0, bufferSize)))
-                    {
-                        sendingSize = sendingSize + readSize;
-                        if (sendingSize >= sendLength)
+                        if (TerminationCharacterEnabled == false)
                         {
-                            //send last segment before exceeding limit
-                            readSize = readSize - (int)(sendingSize - sendLength); //remove overshoot
+                            SendEndEnabled = false;
+                        }
+
+                        if (sendLength > maxSize)
+                        {
+                            Log.Debug("SCPI Write Command truncated to maximum:  available length={0} max={1}",
+                                sendLength, maxSize);
+                            sendLength = maxSize; //limit data to send to max
+                        }
+                        var sendLengthStr = string.Format("{0}", sendLength);
+                        var commandBlk = string.Format("{0}#{1}{2}", command, sendLengthStr.Length, sendLengthStr);
+                        byte[] commandB = Encoding.ASCII.GetBytes(commandBlk);
+                        int retSentCnt = LockRetry(() => Write(commandB, commandB.Length));
+                        if (retSentCnt != commandB.Length)
+                        {
+                            Log.Error("SCPI transmission incomplete, IO.Write return={0}, expect={1}", retSentCnt,
+                                commandB.Length);
+                            throw new IOException("SCPI block transmission incomplete");
+                        }
+
+                        //send binary data
+                        int bufferSize = 0x10000;
+                        byte[] buffer = new byte[bufferSize];
+                        int readSize = 0;
+                        int sendingSize = 0;
+                        while (0 != (readSize = data.Read(buffer, 0, bufferSize)))
+                        {
+                            sendingSize = sendingSize + readSize;
+                            if (sendingSize >= sendLength)
+                            {
+                                //send last segment before exceeding limit
+                                readSize = readSize - (int)(sendingSize - sendLength); //remove overshoot
+                                retSentCnt = LockRetry(() => Write(buffer, readSize));
+                                if (retSentCnt != readSize)
+                                {
+                                    Log.Error("SCPI transmission incomplete, IO.Write return={0}, expect={1}", retSentCnt,
+                                        readSize);
+                                    throw new IOException("SCPI block transmission incomplete");
+                                }
+                                break;
+                            }
                             retSentCnt = LockRetry(() => Write(buffer, readSize));
                             if (retSentCnt != readSize)
                             {
@@ -1102,56 +1132,48 @@ namespace OpenTap
                                     readSize);
                                 throw new IOException("SCPI block transmission incomplete");
                             }
-                            break;
                         }
-                        retSentCnt = LockRetry(() => Write(buffer, readSize));
-                        if (retSentCnt != readSize)
+                        if (TerminationCharacterEnabled == false)
                         {
-                            Log.Error("SCPI transmission incomplete, IO.Write return={0}, expect={1}", retSentCnt,
-                                readSize);
-                            throw new IOException("SCPI block transmission incomplete");
+                            SendEndEnabled = true;
+                        }
+                        LockRetry(() => Write(Encoding.ASCII.GetBytes("\n"), 1));
+
+                        timer.Stop();
+                        if (VerboseLoggingEnabled)
+                            Log.Debug(timer, String.Format("SCPI >> {0}", command));
+                        if (QueryErrorAfterCommand)
+                        {
+                            WaitForOperationComplete();
+                            queryErrors(noAllocation: true);
                         }
                     }
+                }
+                catch (VISAException ex)
+                {
+                    if (ex.ErrorCode == Visa.VI_ERROR_CONN_LOST)
+                    {
+                        Log.Error("Connection lost");
+                        IsConnected = false;
+                        throw new IOException("Connection lost");
+                    }
+                    if (ex.ErrorCode == Visa.VI_ERROR_TMO)
+                    {
+                        Log.Error("Not responding (command '{0}' timed out)", command);
+                        throw new IOException("Not responding");
+                    }
+                    if (ex.Message.StartsWith("SCPI block transmission incomplete"))
+                    {
+                        throw;
+                    }
+                    Log.Error(ex);
+                }
+                finally
+                {
                     if (TerminationCharacterEnabled == false)
                     {
                         SendEndEnabled = true;
                     }
-                    LockRetry(() => Write(Encoding.ASCII.GetBytes("\n"), 1));
-
-                    timer.Stop();
-                    if (VerboseLoggingEnabled)
-                        Log.Debug(timer, String.Format("SCPI >> {0}", command));
-                    if (QueryErrorAfterCommand)
-                    {
-                        WaitForOperationComplete();
-                        queryErrors(noAllocation: true);
-                    }
-                }
-            }
-            catch (VISAException ex)
-            {
-                if (ex.ErrorCode == Visa.VI_ERROR_CONN_LOST)
-                {
-                    Log.Error("Connection lost");
-                    IsConnected = false;
-                    throw new IOException("Connection lost");
-                }
-                if (ex.ErrorCode == Visa.VI_ERROR_TMO)
-                {
-                    Log.Error("Not responding (command '{0}' timed out)", command);
-                    throw new IOException("Not responding");
-                }
-                if (ex.Message.StartsWith("SCPI block transmission incomplete"))
-                {
-                    throw;
-                }
-                Log.Error(ex);
-            }
-            finally
-            {
-                if (TerminationCharacterEnabled == false)
-                {
-                    SendEndEnabled = true;
                 }
             }
         }
@@ -1223,10 +1245,14 @@ namespace OpenTap
         /// <returns></returns>
         public List<ScpiError> QueryErrors(bool suppressLogMessages = false, int maxErrors = 1000)
         {
-            var errors = queryErrors(suppressLogMessages, maxErrors);
-            if (errors is List<ScpiError> lst)
-                return lst;
-            return errors.ToList();
+            lock (commandLock)
+            {
+                var errors = queryErrors(suppressLogMessages, maxErrors);
+                if (errors is List<ScpiError> lst)
+                    return lst;
+
+                return errors.ToList();
+            }
         }
 
         /// <summary>
