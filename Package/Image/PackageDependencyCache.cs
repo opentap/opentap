@@ -27,15 +27,19 @@ namespace OpenTap.Package
 
         private void UpdatePrerelease(string name, string version)
         {
-            foreach (var graph in graphs)
-            {
-                if (repos[graph] is HttpPackageRepository http)
+            var graphs2 = graphs
+                .Where(g => repos[g] is HttpPackageRepository)
+                .AsParallel()
+                .Select(graph =>
                 {
-                    var graph2 =
-                        PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, version, name);
+                    var graph2 = PackageDependencyQuery.QueryGraph(repos[graph].Url, os, deploymentInstallationArchitecture,
+                        version, name);
                     graph.Absorb(graph2);
-                    Graph.Absorb(graph2);
-                }
+                    return graph2;
+                });
+            foreach (var g in graphs2)
+            {
+                Graph.Absorb(g);
             }
         }
 
