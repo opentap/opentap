@@ -286,7 +286,7 @@ namespace OpenTap.Package
                                 rm = new FilePackageRepository(System.IO.Path.GetDirectoryName(fileSource.PackageFilePath));
                                 break;
                             default:
-                                throw new Exception($"Unable to determine repositoy type for package source {pkg.PackageSource.GetType()}.");
+                                throw new Exception($"Unable to determine repository type for package source {pkg.PackageSource.GetType()}.");
                         }
                         if (rm is IPackageDownloadProgress r)
                         {
