@@ -70,6 +70,7 @@ jobs:
         run: |
           if [ -z "${{ secrets.SIGN_SERVER_CERT }}" -o \
                -z "${{ secrets.TAP_SIGN_ADDRESS }}" -o \
+               -z "${{ secrets.TAP_SIGN_ADDRESS_INTERNAL }}" -o \
                -z "${{ secrets.TAP_SIGN_AUTH }}"    -o \
                -z "${{ secrets.S3_KEY_ID }}"        -o \
                -z "${{ secrets.S3_SECRET }}" ]; then
@@ -511,7 +512,7 @@ jobs:
       - name: Create Package
         working-directory: bin/Release-${{ matrix.Architecture }}
         env: 
-          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
+          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS_INTERNAL }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
           Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}          
