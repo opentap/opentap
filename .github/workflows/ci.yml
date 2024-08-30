@@ -70,6 +70,7 @@ jobs:
         run: |
           if [ -z "${{ secrets.SIGN_SERVER_CERT }}" -o \
                -z "${{ secrets.TAP_SIGN_ADDRESS }}" -o \
+               -z "${{ secrets.TAP_SIGN_ADDRESS_INTERNAL }}" -o \
                -z "${{ secrets.TAP_SIGN_AUTH }}"    -o \
                -z "${{ secrets.S3_KEY_ID }}"        -o \
                -z "${{ secrets.S3_SECRET }}" ]; then
@@ -511,7 +512,7 @@ jobs:
       - name: Create Package
         working-directory: bin/Release-${{ matrix.Architecture }}
         env: 
-          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
+          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS_INTERNAL }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
           Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}          
@@ -868,7 +869,7 @@ jobs:
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
                --form 'file=@"'$(pwd)'/OpenTAP.exe"'
       - name: Upload Installer to Archive
-        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP.exe" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/WindowsX32/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}".exe"
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP.exe" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/WindowsX32/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}.exe"
 
   Build-Installer-Linux:
     runs-on:
@@ -936,7 +937,7 @@ jobs:
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
                --form 'file=@"'$(pwd)'/OpenTAP"'
       - name: Upload Installer to Archive
-        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/LinuxX64/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}""
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/LinuxX64/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}"
 
   Docker-Linux:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
