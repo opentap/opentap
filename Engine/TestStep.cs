@@ -120,7 +120,6 @@ namespace OpenTap
         [Browsable(false)]
         [AnnotationIgnore]
         [SettingsIgnore]
-        [DefaultValue(new object[]{})]
         public TestStepList ChildTestSteps
         {
             get => childTestSteps; 
