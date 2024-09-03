@@ -307,6 +307,60 @@ namespace OpenTap.Engine.UnitTests
                 tapTraceListener.ErrorMessage.Count(x =>
                     x.Contains("Unable to read StepWithLicenseException. A valid license cannot be granted")));
         }
+        
+        [AllowAnyChild]
+        public class TestSerializerChildSteps : TestStep
+        {
+            public TestSerializerChildSteps()
+            {
+                ChildTestSteps.Add(new DelayStep());
+                ChildTestSteps.Add(new DelayStep());
+                ChildTestSteps.Add(new DelayStep());
+                ChildTestSteps.Add(new DelayStep());
+            }
+            public override void Run()
+            {
+            }
+        }
+
+        [Test]
+        public void TestDeserializeStep()
+        {
+            { // round one
+                var s = new TestSerializerChildSteps();
+                s.ChildTestSteps.Clear();
+                var xml = new TapSerializer().SerializeToString(s);
+                var s2 = new TapSerializer().DeserializeFromString(xml) as TestSerializerChildSteps;
+                
+                Assert.AreEqual(s.ChildTestSteps.Count, s2.ChildTestSteps.Count);
+            }
+            { // round two
+                var chld = new TestSerializerChildSteps();
+                var plan = new TestPlan()
+                {
+                    ChildTestSteps = { chld }
+                };
+
+                var expected = chld.ChildTestSteps.Count;
+
+                Assert.AreEqual(expected, plan.ChildTestSteps[0].ChildTestSteps.Count);
+                Reload();
+                Assert.AreEqual(expected, plan.ChildTestSteps[0].ChildTestSteps.Count);
+                while (plan.ChildTestSteps[0].ChildTestSteps.Count > 0)
+                {
+                    expected = plan.ChildTestSteps[0].ChildTestSteps.Count - 1;
+                    plan.ChildTestSteps[0].ChildTestSteps.RemoveAt(0);
+                    Reload();
+                    Assert.AreEqual(expected, plan.ChildTestSteps[0].ChildTestSteps.Count);
+                }
+
+                void Reload()
+                {
+                    var planXml = new TapSerializer().SerializeToString(plan);
+                    plan = new TapSerializer().DeserializeFromString(planXml) as TestPlan;
+                }
+            }
+        }
 
         public class DynamicDependencySerializerPlugin : TapSerializerPlugin, ITapSerializerPluginDependencyMarker
         {
