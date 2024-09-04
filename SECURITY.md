@@ -14,4 +14,4 @@ Please do not report security vulnerabilities through public GitHub issues, disc
 
 Instead, please send an email to security@opentap.io.
 
-Please include as much of the information listed below as you can to help us better understand and resolve the issue
+Please include as much information as you can to help us better understand and resolve the issue.
