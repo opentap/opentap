@@ -110,3 +110,20 @@ $git2dll = Get-ChildItem -File -Recurse *git2-*.dll.x64 | Resolve-Path -Relative
 CopyPreserveRelativePath $git2dll $runtimeDir
 
 Pop-Location
+
+# Copy win-arm64 specific files
+# TODO: This relies on arm64 emulation mode. In a future release we should ship native arm64 binaries
+Push-Location win-arm64
+$runtimeDir = "../nuget/build/runtimes/win-arm64"
+$packageXml = Get-ChildItem -File -Recurse package.xml | Resolve-Path -Relative | Select-Object -First 1
+CopyPreserveRelativePath $packageXml $runtimeDir
+
+CopyPreserveRelativePath ./tap.exe  $runtimeDir
+# .net462 revert:
+#CopyPreserveRelativePath ./tap.dll $runtimeDir
+#CopyPreserveRelativePath ./tap.runtimeconfig.json $runtimeDir
+
+$git2dll = Get-ChildItem -File -Recurse *git2-*.dll.x64  | Resolve-Path -Relative | Select-Object -First 1
+CopyPreserveRelativePath $git2dll $runtimeDir
+
+Pop-Location
