@@ -64,6 +64,13 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void EmptyRfConnectionCableLoss()
+        {
+            var loss = new RfConnection().GetInterpolatedCableLoss(0.0);
+            Assert.AreEqual(0.0, loss);
+        }
+
+        [Test]
         public void CableLossInterpolationTest()
         {
             // check linear (first order) interpolation:
@@ -97,6 +104,10 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(2, loss);
             loss = con.GetInterpolatedCableLoss(200);
             Assert.AreEqual(4, loss);
+            loss = con.GetInterpolatedCableLoss(250);
+            Assert.AreEqual(4.5, loss);
+            loss = con.GetInterpolatedCableLoss(275);
+            Assert.AreEqual(4.75, loss);
             loss = con.GetInterpolatedCableLoss(300);
             Assert.AreEqual(5, loss);
         }

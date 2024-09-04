@@ -89,6 +89,13 @@ namespace OpenTap
         /// <returns></returns>
         public double GetInterpolatedCableLoss(double frequency)
         {
+            // If there are no cable loss points configured assume no loss.
+            if (CableLoss.Count == 0) return 0.0;
+            
+            // If there is only one point there is nothing to interpolate
+            if (CableLoss.Count == 1) return CableLoss[0].Loss;
+            
+            // Calculate loss using linear interpolation or nearest neighbour when outside the bounds. 
             CableLoss = CableLoss.OrderBy(loss => loss.Frequency).ToList();
             CableLossPoint below = CableLoss.LastOrDefault(loss => loss.Frequency < frequency || (Math.Abs(loss.Frequency - frequency) < double.Epsilon)); //Check for below, or if value exists.
             CableLossPoint above = CableLoss.FirstOrDefault(loss => loss.Frequency > frequency);
@@ -102,7 +109,9 @@ namespace OpenTap
                 return below.Loss;
             else if (above != null)
                 return above.Loss;
-            throw new System.Exception("No cable loss values specified.");
+            
+            // this should never happen.
+            throw new InvalidOperationException("");
         }
     }
 }
