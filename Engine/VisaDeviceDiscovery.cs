@@ -14,6 +14,18 @@ namespace OpenTap
     /// </summary>
     class VisaDeviceDiscovery : IDeviceDiscovery
     {
+
+        static bool IsVisaDiscoveryDisabled()
+        {
+            var env = Environment.GetEnvironmentVariable("OPENTAP_NO_VISA_DISCOVERY");
+            if (env == null) 
+                return false;
+
+            return string.Equals(env, "True",StringComparison.OrdinalIgnoreCase) || string.Equals(env, "1");
+        }
+        
+        static readonly bool isDisabled = IsVisaDiscoveryDisabled();
+        
         private static string[] GetDeviceAddresses()
         {
             var rm = GetResourceManager();
@@ -107,6 +119,7 @@ namespace OpenTap
         static TraceSource log = Log.CreateSource(nameof(VisaDeviceDiscovery));
         public string[] DetectDeviceAddresses(DeviceAddressAttribute AddressType)
         {
+            if (isDisabled) return Array.Empty<string>();
             using (var wait = new ManualResetEvent(false))
             {
                 bool doUpdate = detectAddressQueue.QueueSize == 0;
@@ -132,6 +145,8 @@ namespace OpenTap
         /// <returns> </returns>
         public bool CanDetect(DeviceAddressAttribute DeviceAddress)
         {
+            if (isDisabled) return false;
+            
             return (DeviceAddress is VisaAddressAttribute);
         }
 
