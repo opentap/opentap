@@ -189,6 +189,39 @@ namespace OpenTap.Package
             }
         }
 
+        public void WriteToJson(Utf8JsonWriter jsonWriter, string arrayName)
+        {
+            if(arrayName != null)   
+                jsonWriter.WriteStartArray(arrayName);
+            else
+                jsonWriter.WriteStartArray();
+            
+            foreach (var pck in PackageSpecifiers())
+            {
+                jsonWriter.WriteStartObject();
+                jsonWriter.WriteString("name", pck.Name);
+                jsonWriter.WriteString("version", pck.Version.ToString());
+                if (pck.Dependencies.Count > 0)
+                {
+                    jsonWriter.WriteStartArray("dependencies");
+                    foreach (var dep in pck.Dependencies)
+                    {
+                        jsonWriter.WriteStartObject();
+                        jsonWriter.WriteString("name", dep.Name);
+                        jsonWriter.WriteString("version", pck.Version.ToString());
+                        jsonWriter.WriteEndObject();
+                    }
+
+                    jsonWriter.WriteEndArray();
+                }
+                
+                jsonWriter.WriteEndObject();
+            }
+            
+            jsonWriter.WriteEndArray();
+        }
+
+
         public bool EnsurePreReleasesCached(PackageSpecifier packageSpecifier)
         {
             if (!string.IsNullOrWhiteSpace(packageSpecifier.Version.PreRelease) || packageSpecifier.Version.MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
