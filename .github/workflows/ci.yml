@@ -17,7 +17,10 @@ env:
 
 jobs:
   GetVersion:
-    runs-on: ubuntu-20.04
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     outputs:
       ShortVersion: ${{ steps.gitversion.outputs.ShortVersion }}
       LongVersion: ${{ steps.gitversion.outputs.LongVersion }}
@@ -33,7 +36,10 @@ jobs:
         run: echo "VER=$SMARTINSTALLER_IMAGE" >> $GITHUB_OUTPUT
 
   CheckSecrets:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     outputs:
       gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
       ks8500_repo_token_is_set: ${{ steps.check_KS8500_REPO_TOKEN.outputs.is_set }}
@@ -64,6 +70,7 @@ jobs:
         run: |
           if [ -z "${{ secrets.SIGN_SERVER_CERT }}" -o \
                -z "${{ secrets.TAP_SIGN_ADDRESS }}" -o \
+               -z "${{ secrets.TAP_SIGN_ADDRESS_INTERNAL }}" -o \
                -z "${{ secrets.TAP_SIGN_AUTH }}"    -o \
                -z "${{ secrets.S3_KEY_ID }}"        -o \
                -z "${{ secrets.S3_SECRET }}" ]; then
@@ -80,7 +87,10 @@ jobs:
   Build-DevGuide:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.ks8500_repo_token_is_set == 'true'
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Setup OpenTAP
         uses: opentap/setup-opentap@main
@@ -102,12 +112,11 @@ jobs:
   Build-ApiDoc:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
     container:
-      image: registry.gitlab.com/opentap/buildrunners/doxygen:alpine
-      credentials:
-        username: github
-        password: ${{ secrets.GITLAB_REGISTRY_TOKEN}}
+      image: ghcr.io/opentap/oci-images/build-doxygen:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -136,7 +145,10 @@ jobs:
           path: API
 
   Build-Pages:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-ApiDoc
     steps:
@@ -183,7 +195,10 @@ jobs:
           path: public
 
   Build-Linux:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -209,7 +224,7 @@ jobs:
             bin/Release/publish/*
 
   Build-Win:
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     strategy:
       matrix:
         Architecture: [x86, x64]
@@ -363,7 +378,7 @@ jobs:
           name: package-templates
           path: sdk-template
       - name: Install Templates
-        run: dotnet new --install ./sdk-template/*.nupkg
+        run: dotnet new install ./sdk-template/*.nupkg
       - name: Test
         working-directory: bin/Release
         run: ./tap.exe run ../../tests/regression.TapPlan --verbose --color
@@ -376,6 +391,7 @@ jobs:
 
   TestLinuxPlan:
     runs-on: ubuntu-20.04
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs: 
     - Build-Linux
     - Package-Templates
@@ -442,7 +458,7 @@ jobs:
   ###############
   Package-Win:
     if: needs.CheckSecrets.outputs.sign_is_set == 'true'
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     strategy:
       matrix:
         Architecture: [x86, x64]
@@ -496,7 +512,7 @@ jobs:
       - name: Create Package
         working-directory: bin/Release-${{ matrix.Architecture }}
         env: 
-          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
+          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS_INTERNAL }}
           TAP_SIGN_AUTH:  ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
           Sign: ${{github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')}}          
@@ -511,19 +527,22 @@ jobs:
             OpenTAP.*.Windows.TapPackage
 
   Package-Cross:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Linux
-      - Build-MacOS
+      # - Build-MacOS
       - Build-ApiDoc
       - GetVersion
     strategy:
       matrix:
         include:
-          - os: MacOS
-            arch: x64
-          - os: MacOS
-            arch: arm64
+          # - os: MacOS
+          #   arch: x64
+          # - os: MacOS
+          #   arch: arm64
           - os: Linux
             arch: x64
           - os: Linux
@@ -574,7 +593,7 @@ jobs:
             OpenTAP.*.TapPackage
 
   Package-Templates:
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     needs:
       - GetVersion
     steps:
@@ -582,10 +601,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '6.0.x'
       - name: Update Version
         run: |
           Set-Content .\templates\Templates.csproj (Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
@@ -599,7 +614,7 @@ jobs:
           path: ./bin/Release/OpenTAP.Templates.*.nupkg
 
   Package-SDK:
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     needs:
       - Build-Win
       - Build-DevGuide
@@ -680,12 +695,12 @@ jobs:
           name: Linux-x64-package
           path: .
       - name: Rename Package
-        run: mv OpenTAP.*.TapPackage OpenTAP.TapPackage
+        run: mv OpenTAP.*.Linux.x64.TapPackage OpenTAP.TapPackage
       - name: Diff Package
         run: tap package diff OpenTAP.TapPackage -o diff
 
   Package-NuGet:
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     needs:
       - Build-Win
       - Package-Win
@@ -724,16 +739,16 @@ jobs:
         with:
           name: Linux-x64-package
           path: .
-      - name: Download MacOS x64 package
-        uses: actions/download-artifact@v4
-        with:
-          name: MacOS-x64-package
-          path: .
-      - name: Download MacOS arm64 package
-        uses: actions/download-artifact@v4
-        with:
-          name: MacOS-arm64-package
-          path: .
+      # - name: Download MacOS x64 package
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: MacOS-x64-package
+      #     path: .
+      # - name: Download MacOS arm64 package
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: MacOS-arm64-package
+      #     path: .
       - name: Package
         run: |
           #cp bin\Release\runtimes\win-x64\native\git2-b7bad55.dll bin\Release
@@ -745,8 +760,6 @@ jobs:
           Move-Item OpenTAP.*.x64.Windows.TapPackage OpenTAP.x64.zip
           Move-Item OpenTAP.*.Linux.x64.TapPackage OpenTAP.Linux.x64.zip
           Move-Item OpenTAP.*.Linux.arm64.TapPackage OpenTAP.Linux.arm64.zip
-          Move-Item OpenTAP.*.MacOS.x64.TapPackage OpenTAP.MacOS.x64.zip
-          Move-Item OpenTAP.*.MacOS.arm64.TapPackage OpenTAP.MacOS.arm64.zip
 
           Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
           Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
@@ -771,8 +784,6 @@ jobs:
           Expand-Archive OpenTAP.x86.zip win-x86 -Verbose
           Expand-Archive OpenTAP.Linux.x64.zip linux-x64 -Verbose
           Expand-Archive OpenTAP.Linux.arm64.zip linux-arm64 -Verbose
-          Expand-Archive OpenTAP.MacOS.x64.zip macos-x64 -Verbose
-          Expand-Archive OpenTAP.MacOS.arm64.zip macos-arm64 -Verbose
 
           ./nuget/NugetPackager.ps1
           cd ./nuget    
@@ -788,13 +799,15 @@ jobs:
 
   
   Build-Installer-Windows:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
     needs:
       - GetVersion
       - Package-Win
       - Package-SDK
     container:
-      image: ${{ needs.GetVersion.outputs.SmartInstallerVersion }}      
+      image: ${{ needs.GetVersion.outputs.SmartInstallerVersion }}
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
@@ -819,7 +832,7 @@ jobs:
       - run: tap installer create "opentap.installer.xml" -v --target-os win
         working-directory: Installer/Assets
         env:
-          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS }}
+          TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS_INTERNAL }}
           TAP_SIGN_AUTH: ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
       - run: mv Installer/Assets/setup.exe OpenTAP.${{needs.GetVersion.outputs.LongVersion}}.exe
@@ -832,7 +845,10 @@ jobs:
   Publish-Installer-Windows:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     environment: packages.opentap.io 
-    runs-on: ubuntu-latest 
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Installer-Windows 
       - GetVersion
@@ -852,10 +868,13 @@ jobs:
                -H 'Metadata-OS: "Windows"' \
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
                --form 'file=@"'$(pwd)'/OpenTAP.exe"'
-
+      - name: Upload Installer to Archive
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP.exe" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/WindowsX32/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}.exe"
 
   Build-Installer-Linux:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
     needs:
       - GetVersion
       - Package-Cross
@@ -896,7 +915,10 @@ jobs:
   Publish-Installer-Linux:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     environment: packages.opentap.io 
-    runs-on: ubuntu-latest 
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Installer-Linux
       - GetVersion
@@ -914,11 +936,15 @@ jobs:
                -H 'Metadata-OS: "Linux"' \
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
                --form 'file=@"'$(pwd)'/OpenTAP"'
-
+      - name: Upload Installer to Archive
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/LinuxX64/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}"
 
   Docker-Linux:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-20.04
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-docker:latest
     environment: sign
     strategy:
       matrix:
@@ -969,7 +995,7 @@ jobs:
   Publish-NuGet:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     needs:
       - Package-NuGet
     steps:
@@ -984,7 +1010,7 @@ jobs:
   Publish-Templates:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
-    runs-on: windows-2022
+    runs-on: [self-hosted, windows]
     needs:
       - Package-Templates
     steps:
@@ -994,12 +1020,15 @@ jobs:
           name: package-templates
           path: .
       - name: Package
-        run: nuget push OpenTAP.Templates*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json
+        run: dotnet nuget push OpenTAP.Templates*.nupkg -k ${{ secrets.NUGET_KEY }} -s https://api.nuget.org/v3/index.json # --skip-duplicate --no-symbols
 
   Publish-TapPackages:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: packages.opentap.io
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Package-Win
       - Package-Cross
@@ -1015,16 +1044,16 @@ jobs:
         with:
           name: win-x64-package
           path: ./publish/
-      - name: Download MacOS-x64 package
-        uses: actions/download-artifact@v4
-        with:
-          name: MacOS-x64-package
-          path: ./publish/
-      - name: Download MacOS-arm64 package
-        uses: actions/download-artifact@v4
-        with:
-          name: MacOS-arm64-package
-          path: ./publish/
+      # - name: Download MacOS-x64 package
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: MacOS-x64-package
+      #     path: ./publish/
+      # - name: Download MacOS-arm64 package
+      #   uses: actions/download-artifact@v4
+      #   with:
+      #     name: MacOS-arm64-package
+      #     path: ./publish/
       - name: Download Linux-x64 package
         uses: actions/download-artifact@v4
         with:

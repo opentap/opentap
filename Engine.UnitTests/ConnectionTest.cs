@@ -13,6 +13,62 @@ namespace OpenTap.Engine.UnitTests
     [TestFixture]
     public class ConnectionTest
     {
+        public class VirtualPortInstrument : Instrument
+        {
+            public class VirtualPort : Port
+            {   
+                public VirtualPort(IResource device, int index) : base(device, "P" + index)
+                {
+                    Index = index;
+                }
+                public readonly int Index;
+                public override bool Equals(object obj) => obj is VirtualPort vp && vp.Index == Index && vp.Device == Device;
+                public override int GetHashCode() =>  (Device?.GetHashCode() ?? 0) + 13 * Index;
+            }
+            
+            public int NPorts { get; set; } = 1;
+            
+            public IEnumerable<Port> Ports 
+            {
+                get
+                {
+                    for (int i = 0; i < NPorts; i++)
+                        yield return new VirtualPort(this, i);
+                }
+            }    
+        }
+        
+        /// <summary>
+        /// This test show how virtual ports can be used (ports that represents the same without having reference equality).
+        /// </summary>
+        [Test]
+        public void VirtualPortTest()
+        {
+            var instr = new VirtualPortInstrument()
+            {
+                NPorts = 2
+            };
+
+            var c1 = new RfConnection
+            {
+                Port1 = instr.Ports.First(),
+                Port2 = instr.Ports.Last()
+            };
+
+            var p1 = instr.Ports.First();
+            var p2 = instr.Ports.Last();
+            
+            Assert.AreNotEqual(p1,p2);
+            Assert.AreEqual(c1.GetOtherPort(p1), p2);
+            Assert.AreEqual(c1.GetOtherPort(p2), p1);
+        }
+
+        [Test]
+        public void EmptyRfConnectionCableLoss()
+        {
+            var loss = new RfConnection().GetInterpolatedCableLoss(0.0);
+            Assert.AreEqual(0.0, loss);
+        }
 
         [Test]
         public void CableLossInterpolationTest()
@@ -48,6 +104,10 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(2, loss);
             loss = con.GetInterpolatedCableLoss(200);
             Assert.AreEqual(4, loss);
+            loss = con.GetInterpolatedCableLoss(250);
+            Assert.AreEqual(4.5, loss);
+            loss = con.GetInterpolatedCableLoss(275);
+            Assert.AreEqual(4.75, loss);
             loss = con.GetInterpolatedCableLoss(300);
             Assert.AreEqual(5, loss);
         }
@@ -116,6 +176,88 @@ namespace OpenTap.Engine.UnitTests
             var instrument2 = (TestRevolverSwitchInstrument) new TapSerializer().DeserializeFromString(xml);
             Assert.AreEqual(instrument.SwitchPositions[0].Alias, instrument2.SwitchPositions[0].Alias);
             Assert.AreEqual(instrument.A.Alias, instrument2.A.Alias);
-        }        
+        }
+
+        public class VirtualViaInstrument : Instrument
+        {
+            public class VirtualVia : ViaPoint
+            {
+                readonly VirtualViaInstrument instrument;
+                public VirtualVia(VirtualViaInstrument instrument, string name)
+                {
+                    this.instrument = instrument;
+                    this.Device = instrument;
+                    this.Name = name;
+                }
+
+                public override bool IsActive
+                {
+                    get => instrument.activeVia == Name;
+                    set
+                    {
+                        if(value)
+                            instrument.activeVia = Name;
+                        else
+                            if(IsActive)
+                                instrument.activeVia = null;
+                    }
+                }
+
+                public void Activate()
+                {
+                    
+                }
+            }
+            public VirtualVia via1 { get; }
+            public VirtualVia via2 { get; }
+            string activeVia;
+            public VirtualViaInstrument()
+            {
+                via1 = new VirtualVia(this, "A");
+                via2 = new VirtualVia(this, "B");
+            }
+        }
+
+        [Test]
+        public void TestVirtualVias()
+        {
+            using var _ = Session.Create();
+            var instr = new VirtualViaInstrument();
+            instr.via1.IsActive = true;
+            
+            var instr2 = new VirtualPortInstrument{NPorts = 2};
+            InstrumentSettings.Current.Add(instr);
+            InstrumentSettings.Current.Add(instr2);
+
+            var con1 = new RfConnection
+            {
+                Port1 = instr2.Ports.First(),
+                Port2 = instr2.Ports.Last(),
+                Via = new List<ViaPoint>(){instr.via1}
+            };
+            
+            var con2 = new RfConnection
+            {
+                Port1 = instr2.Ports.First(),
+                Port2 = instr2.Ports.Last(),
+                Via = new List<ViaPoint>(){instr.via2}
+            };
+
+            ConnectionSettings.Current.Add(con1);
+            ConnectionSettings.Current.Add(con2);
+            
+            Assert.IsFalse(con2.IsActive);
+            Assert.IsTrue(con1.IsActive);
+
+            instr.via2.IsActive = true;
+
+            Assert.IsFalse(con1.IsActive);
+            Assert.IsTrue(con2.IsActive);
+
+            instr.via2.IsActive = false;
+
+            Assert.IsFalse(con1.IsActive);
+            Assert.IsFalse(con2.IsActive);
+        }
     }
 }
