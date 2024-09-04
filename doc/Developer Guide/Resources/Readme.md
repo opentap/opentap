@@ -67,6 +67,11 @@ The example below shows how the VisaAddress property for a SCPI instrument is au
 
 ![](./Scpi.png)
 
+In some cases, VISA device discovery can cause issues. 
+This mostly occurs with VISA vendors who does not support it. 
+In that case, the behavior can be disabled by setting the 
+environment variable OPENTAP_NO_VISA_DISCOVERY to "true".
+
 ### Raw IO
 In rare cases, it may be necessary to resort to raw I/O reads and writes. This should generally be avoided because an incomplete read might interfere with the results of future queries. However, in situations such as streaming indeterminate-length data from the instrument, the use of raw I/O may become necessary. 
 A low-level API for this is available. The raw IO is located inside an explicit interface implementation, to access it do the following:
