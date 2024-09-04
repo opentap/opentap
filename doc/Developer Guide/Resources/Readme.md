@@ -68,7 +68,7 @@ The example below shows how the VisaAddress property for a SCPI instrument is au
 ![](./Scpi.png)
 
 In some cases, VISA device discovery can cause issues. 
-This mostly occurs with VISA vendors who does not support it. 
+This mostly occurs with VISA vendors who do not support it. 
 In that case, the behavior can be disabled by setting the 
 environment variable OPENTAP_NO_VISA_DISCOVERY to "true".
 
