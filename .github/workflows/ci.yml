@@ -1083,7 +1083,10 @@ jobs:
           ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
       - name: Debug
         run: ls -la ./publish
-      - name: Install PackagePublish
-        run: tap package install -f PackagePublish --version beta
-      - name: Publish
-        run: tap package publish -r http://packages.opentap.io -k ${{ secrets.REPO_PASS }} ./publish/*.TapPackage
+      - name: Setup OpenTAP
+        uses: opentap/setup-opentap@main
+        with:
+          version: 9.23.0
+          packages: 'Repository Client:1.0'
+      - name: Publish Packages
+        run: tap repo upload --repository https://packages.opentap.io --token ${{ secrets.PUBLIC_REPO_TOKEN }} /publish/*.TapPackage
