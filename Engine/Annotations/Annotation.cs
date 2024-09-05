@@ -2153,9 +2153,10 @@ namespace OpenTap
             {
                 get
                 {
-                    var x = ComponentSettingsList.GetContainer(baseType);
+                    var x = ComponentSettingsList.GetContainers(baseType).Select(x => x.Cast<object>())
+                        .SelectMany(x => x);
                     var cv = a.Get<IObjectValueAnnotation>()?.Value as IResource;
-                    var result = x.Cast<object>().Where(y => y.GetType().DescendsTo(baseType)).ToList();
+                    var result = x.Where(y => y.GetType().DescendsTo(baseType)).ToList();
                     // if the selected value is not in the list show it anyway.
                     if (cv != null && result.Contains(cv) == false)
                         result.Add(cv);

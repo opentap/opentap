@@ -107,10 +107,12 @@ namespace OpenTap
     class PosixFileLock : IFileLock
     {
         int fileDescriptor;
+        string fileName;
         private readonly ManualResetEvent _waitHandle;
 
         public PosixFileLock(string file)
         {
+            this.fileName = file;
             // Open 'file' in read/write + append mode. If the file does not exist it will be created with the
             // most permissive access settings possible
             fileDescriptor =
@@ -147,6 +149,14 @@ namespace OpenTap
 
             PosixNative.close(fileDescriptor);
             fileDescriptor = -1;
+            try 
+            {
+                File.Delete(this.fileName);
+            }
+            catch
+            {
+                // suppress
+            }
         }
 
         public bool WaitOne()

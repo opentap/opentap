@@ -91,10 +91,11 @@ namespace OpenTap
         /// </summary>
         public Port GetOtherPort(Port p)
         {
-            if (p == port1)
+            if (Equals(p, port1))
                 return port2;
-            if (p == port2)
-                return Port1;
+            if (Equals(p, port2))
+                return port1;
+            
             throw new ArgumentException("Argument must be either Port1 or Port2");
         }
 

@@ -2167,6 +2167,53 @@ namespace OpenTap.UnitTests
             }
         }
 
+        public class DutAndInstrumentResource : Resource, IDut, IInstrument
+        { 
+        }
+        
+        public class DutAndInstrumentUser : TestStep
+        {
+            public IDut DUT { get; set; }
+            public IInstrument Instrument { get; set; }
+            public DutAndInstrumentResource Both { get; set; }
+            public override void Run()
+            {
+            }
+        }
+        [Test]
+        public void AvailableResourcesTest()
+        {
+            using var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            DutSettings.Current.Clear();
+            InstrumentSettings.Current.Clear();
+            
+            var ins = new DutAndInstrumentResource() { Name = "The Instrument" };
+            var dut = new DutAndInstrumentResource() { Name = "The DUT" };
+            
+            InstrumentSettings.Current.Add(ins);
+            DutSettings.Current.Add(dut);
+
+            var step = new DutAndInstrumentUser();
+            var a = AnnotationCollection.Annotate(step);
+
+            DutAndInstrumentResource[] getAvailable(string name) =>
+                a.GetMember(name).Get<IAvailableValuesAnnotation>().AvailableValues.Cast<DutAndInstrumentResource>().ToArray();
+
+            var availableInstruments = getAvailable(nameof(step.Instrument));
+            var availableDuts = getAvailable(nameof(step.DUT));
+            var availableBoth = getAvailable(nameof(step.Both)); 
+            
+            Assert.AreEqual(1, availableInstruments.Length);
+            CollectionAssert.Contains(availableInstruments, ins);
+            
+            Assert.AreEqual(1, availableDuts.Length);
+            CollectionAssert.Contains(availableDuts, dut);
+            
+            Assert.AreEqual(2, availableBoth.Length);
+            CollectionAssert.Contains(availableBoth, ins);
+            CollectionAssert.Contains(availableBoth, dut);
+        }
+
         [Test]
         public void AvailableValuesUpdateTest()
         {

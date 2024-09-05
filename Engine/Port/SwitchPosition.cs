@@ -40,7 +40,7 @@ namespace OpenTap
         /// Should be set by the Device implementation.
         /// </summary>
         [XmlIgnore]
-        public bool IsActive { get; set; }
+        public virtual bool IsActive { get; set; }
 
         /// <summary>
         /// The device (usually an <see cref="Instrument"/>) on which this switch position exists.
