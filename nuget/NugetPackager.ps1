@@ -52,32 +52,32 @@ Get-ChildItem -File -Recurse libgit2-* | Resolve-Path -Relative | ForEach-Object
 Pop-Location
 
 # Copy macos x64 specific files
-# Push-Location macos-x64
+Push-Location macos-x64
 
-# $runtimeDir = "../nuget/build/runtimes/macos-x64"
-# $packageXml = Get-ChildItem -File -Recurse package.xml | Resolve-Path -Relative | Select-Object -First 1
-# CopyPreserveRelativePath $packageXml $runtimeDir
+$runtimeDir = "../nuget/build/runtimes/macos-x64"
+$packageXml = Get-ChildItem -File -Recurse package.xml | Resolve-Path -Relative | Select-Object -First 1
+CopyPreserveRelativePath $packageXml $runtimeDir
 
-# CopyPreserveRelativePath ./tap $runtimeDir
-# CopyPreserveRelativePath ./tap.dll $runtimeDir
-# CopyPreserveRelativePath ./tap.runtimeconfig.json $runtimeDir
-# Get-ChildItem -File -Recurse libgit2-* | Resolve-Path -Relative | ForEach-Object { CopyPreserveRelativePath $_ $runtimeDir }
+CopyPreserveRelativePath ./tap $runtimeDir
+CopyPreserveRelativePath ./tap.dll $runtimeDir
+CopyPreserveRelativePath ./tap.runtimeconfig.json $runtimeDir
+Get-ChildItem -File -Recurse libgit2-* | Resolve-Path -Relative | ForEach-Object { CopyPreserveRelativePath $_ $runtimeDir }
 
-# Pop-Location
+Pop-Location
 
-# # Copy macos arm64 specific files
-# Push-Location macos-arm64
+# Copy macos arm64 specific files
+Push-Location macos-arm64
 
-# $runtimeDir = "../nuget/build/runtimes/macos-arm64"
-# $packageXml = Get-ChildItem -File -Recurse package.xml | Resolve-Path -Relative | Select-Object -First 1
-# CopyPreserveRelativePath $packageXml $runtimeDir
+$runtimeDir = "../nuget/build/runtimes/macos-arm64"
+$packageXml = Get-ChildItem -File -Recurse package.xml | Resolve-Path -Relative | Select-Object -First 1
+CopyPreserveRelativePath $packageXml $runtimeDir
 
-# CopyPreserveRelativePath ./tap $runtimeDir
-# CopyPreserveRelativePath ./tap.dll $runtimeDir
-# CopyPreserveRelativePath ./tap.runtimeconfig.json $runtimeDir
-# Get-ChildItem -File -Recurse libgit2-* | Resolve-Path -Relative | ForEach-Object { CopyPreserveRelativePath $_ $runtimeDir }
+CopyPreserveRelativePath ./tap $runtimeDir
+CopyPreserveRelativePath ./tap.dll $runtimeDir
+CopyPreserveRelativePath ./tap.runtimeconfig.json $runtimeDir
+Get-ChildItem -File -Recurse libgit2-* | Resolve-Path -Relative | ForEach-Object { CopyPreserveRelativePath $_ $runtimeDir }
 
-# Pop-Location
+Pop-Location
 
 # Copy win-x86 specific files
 Push-Location win-x86
