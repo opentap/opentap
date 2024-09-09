@@ -17,7 +17,7 @@ namespace OpenTap.Package
     /// <summary>
     /// Calculates the version number of a commit in a git repository
     /// </summary>
-    internal class GitVersionCalulator : IDisposable
+    public class GitVersionCalulator : IDisposable
     {
         private static readonly TraceSource log = Log.CreateSource("GitVersion");
         private const string configFileName = ".gitversion";
@@ -142,7 +142,8 @@ namespace OpenTap.Package
                 return;
             }
             
-            var requiredFile = Path.Combine(PathUtils.OpenTapDir, libgit2name);
+            var libgitDir = Path.GetDirectoryName(typeof(LibGit2Sharp.Repository).Assembly.Location);
+            var requiredFile = Path.Combine(libgitDir, libgit2name);
             if (File.Exists(requiredFile))
                 return;
 

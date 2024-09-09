@@ -4,6 +4,7 @@
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
     <CreateOpenTapPackage>false</CreateOpenTapPackage>
     <InstallCreatedOpenTapPackage>true</InstallCreatedOpenTapPackage>
+    <UseGitVersionAssemblyInfo>false</UseGitVersionAssemblyInfo>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <CreateOpenTapPackage>true</CreateOpenTapPackage>
