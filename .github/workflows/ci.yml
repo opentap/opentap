@@ -1089,4 +1089,4 @@ jobs:
           version: 9.25.1
           packages: 'Repository Client:1.0.3-beta.2'
       - name: Publish Packages
-        run: tap repo upload --repository https://packages.opentap.io --token ${{ secrets.PUBLIC_REPO_TOKEN }} /publish/*.TapPackage
+        run: tap repo upload --repository https://packages.opentap.io --token ${{ secrets.REPO_PASS }} /publish/*.TapPackage
