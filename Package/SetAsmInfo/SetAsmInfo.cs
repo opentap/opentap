@@ -369,6 +369,9 @@ namespace OpenTap.Package.SetAsmInfo
                 asm.Name.Version = version;
                 anyWritten = true;
             }
+            
+            // the list of references before adding the versions.
+            var preReferences = asm.MainModule.AssemblyReferences.Select(asm => asm.Name).ToHashSet();
 
             // Set the file version
             if (fileVersion != null)
@@ -419,6 +422,15 @@ namespace OpenTap.Package.SetAsmInfo
 
                 anyWritten = true;
             }
+
+            // Adding any of these attributes should not result in new assembly references.
+            // if that happened, it was likely a reference to
+            // ...Private.Corelib or netstandard2.0, so we should remove these.
+            foreach (var newReference in asm.MainModule.AssemblyReferences.Where(asm => preReferences.Contains(asm.Name) == false).ToArray())
+            {
+                asm.MainModule.AssemblyReferences.Remove(newReference);
+            }
+            
             if (anyWritten)
                 asm.Write(filename, new WriterParameters { WriteSymbols = writePdb });
             asm.Dispose();
