@@ -35,8 +35,8 @@
   </ImportGroup>
 
   <Target Name="VerifyRuntime" BeforeTargets="Build">
-    <Error Condition=" '$(OpenTapRuntimeDir)' == '' "
-           Text="$(PlatformTarget) builds are not supported on $(OS)."/>
+    <Error Condition="!Exists($(OpenTapRuntimeDir))"
+           Text="$(PayloadDir) builds are not supported."/>
   </Target>
 
   <!-- Common payload files -->
@@ -45,7 +45,7 @@
   </ItemGroup>
 
   <!-- Payload for runtime -->
-  <ItemGroup Condition=" '$(OpenTapRuntimeDir)' != '' ">
+  <ItemGroup Condition="Exists($(OpenTapRuntimeDir))">
     <PackagePayloadFiles Include="$(OpenTapRuntimeDir)\**\*"/>
   </ItemGroup>
 
