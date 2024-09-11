@@ -206,6 +206,14 @@ namespace OpenTap.Engine.UnitTests
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
         }
+
+        [Test]
+        public void AssignOutputDialogWithPlan()
+        {
+            var plan = new TestPlan();
+            var selectedOutputItem = AssignOutputDialog.SelectedOutputItem.Create(plan, TypeData.GetTypeData(plan).GetMembers().First());
+            Assert.DoesNotThrow(() => selectedOutputItem.ToString());
+        }
     }
 
     [AllowAnyChild]
