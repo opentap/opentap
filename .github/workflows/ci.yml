@@ -539,10 +539,10 @@ jobs:
     strategy:
       matrix:
         include:
-          # - os: MacOS
-          #   arch: x64
-          # - os: MacOS
-          #   arch: arm64
+          - os: MacOS
+            arch: x64
+          - os: MacOS
+            arch: arm64
           - os: Linux
             arch: x64
           - os: Linux
@@ -739,16 +739,16 @@ jobs:
         with:
           name: Linux-x64-package
           path: .
-      # - name: Download MacOS x64 package
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: MacOS-x64-package
-      #     path: .
-      # - name: Download MacOS arm64 package
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: MacOS-arm64-package
-      #     path: .
+      - name: Download MacOS x64 package
+        uses: actions/download-artifact@v4
+        with:
+          name: MacOS-x64-package
+          path: .
+      - name: Download MacOS arm64 package
+        uses: actions/download-artifact@v4
+        with:
+          name: MacOS-arm64-package
+          path: .
       - name: Package
         run: |
           #cp bin\Release\runtimes\win-x64\native\git2-b7bad55.dll bin\Release
@@ -760,6 +760,8 @@ jobs:
           Move-Item OpenTAP.*.x64.Windows.TapPackage OpenTAP.x64.zip
           Move-Item OpenTAP.*.Linux.x64.TapPackage OpenTAP.Linux.x64.zip
           Move-Item OpenTAP.*.Linux.arm64.TapPackage OpenTAP.Linux.arm64.zip
+          Move-Item OpenTAP.*.MacOS.x64.TapPackage OpenTAP.MacOS.x64.zip
+          Move-Item OpenTAP.*.MacOS.arm64.TapPackage OpenTAP.MacOS.arm64.zip
 
           Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
           Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
@@ -784,6 +786,8 @@ jobs:
           Expand-Archive OpenTAP.x86.zip win-x86 -Verbose
           Expand-Archive OpenTAP.Linux.x64.zip linux-x64 -Verbose
           Expand-Archive OpenTAP.Linux.arm64.zip linux-arm64 -Verbose
+          Expand-Archive OpenTAP.MacOS.x64.zip macos-x64 -Verbose
+          Expand-Archive OpenTAP.MacOS.arm64.zip macos-arm64 -Verbose
 
           ./nuget/NugetPackager.ps1
           cd ./nuget    
@@ -1044,16 +1048,16 @@ jobs:
         with:
           name: win-x64-package
           path: ./publish/
-      # - name: Download MacOS-x64 package
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: MacOS-x64-package
-      #     path: ./publish/
-      # - name: Download MacOS-arm64 package
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: MacOS-arm64-package
-      #     path: ./publish/
+      - name: Download MacOS-x64 package
+        uses: actions/download-artifact@v4
+        with:
+          name: MacOS-x64-package
+          path: ./publish/
+      - name: Download MacOS-arm64 package
+        uses: actions/download-artifact@v4
+        with:
+          name: MacOS-arm64-package
+          path: ./publish/
       - name: Download Linux-x64 package
         uses: actions/download-artifact@v4
         with:
@@ -1083,7 +1087,10 @@ jobs:
           ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
       - name: Debug
         run: ls -la ./publish
-      - name: Install PackagePublish
-        run: tap package install -f PackagePublish --version beta
-      - name: Publish
-        run: tap package publish -r http://packages.opentap.io -k ${{ secrets.REPO_PASS }} ./publish/*.TapPackage
+      - name: Setup OpenTAP
+        uses: opentap/setup-opentap@main
+        with:
+          version: 9.23.0
+          packages: 'Repository Client:1.0'
+      - name: Publish Packages
+        run: tap repo upload --repository https://packages.opentap.io --token ${{ secrets.PUBLIC_REPO_TOKEN }} ./publish/*.TapPackage
