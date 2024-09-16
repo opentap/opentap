@@ -42,6 +42,12 @@ namespace OpenTap
                             {
                                 step.PrePlanRun();
                             }
+                            catch (ExpectedException e)
+                            {
+                                e.Handle(step.Name);
+                                step.Verdict = e.Verdict;
+                                throw e;
+                            }
                             finally
                             {
                                 planRun.ResourceManager.EndStep(step, TestPlanExecutionStage.PrePlanRun);
@@ -58,6 +64,10 @@ namespace OpenTap
                     {
                         return false;
                     }
+                }
+                catch (ExpectedException e)
+                {
+                    throw e;
                 }
                 catch (Exception ex)
                 {
@@ -165,6 +175,10 @@ namespace OpenTap
                 {
                     return failState.StartFail;
                 }
+            }
+            catch (ExpectedException e)
+            {
+                throw e;
             }
             catch (Exception e)
             {
@@ -278,6 +292,12 @@ namespace OpenTap
                                     {
                                         step.PostPlanRun();
                                     }
+                                    catch (ExpectedException e)
+                                    {
+                                        e.Handle(step.Name);
+                                        step.Verdict = e.Verdict;
+                                        throw e;
+                                    }
                                     finally
                                     {
                                         run.ResourceManager.EndStep(step, TestPlanExecutionStage.PostPlanRun);
@@ -290,6 +310,10 @@ namespace OpenTap
                                 }
                                 Log.Debug(postTimer, "{0} PostPlanRun completed.", stepPath);
                             }
+                        }
+                        catch (ExpectedException e)
+                        {
+                            throw e;
                         }
                         catch (Exception ex)
                         {
@@ -655,6 +679,10 @@ namespace OpenTap
                 runWentOk = failState.ExecFail; //important if test plan is aborted and runWentOk is never returned.
                 runWentOk = execTestPlan(execStage, steps);
             }
+            catch (ExpectedException e)
+            {
+                execStage.UpgradeVerdict(e.Verdict);
+            }
             catch (Exception e)
             {
                 if (e is OperationCanceledException && execStage.MainThread.AbortToken.IsCancellationRequested)
@@ -693,6 +721,11 @@ namespace OpenTap
                 try
                 {
                     finishTestPlanRun(execStage, preRun_Run_PostRunTimer, runWentOk, planRunLog, logStream);
+                }
+
+                catch (ExpectedException e)
+                {
+                    execStage.UpgradeVerdict(e.Verdict);
                 }
                 catch (Exception ex)
                 {
