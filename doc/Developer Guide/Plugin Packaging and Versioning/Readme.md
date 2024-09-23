@@ -93,8 +93,22 @@ For example:
 #### SourceUrl Element
 The **SourceUrl** element in the configuration file is a link to the package source code. This is intended for open sourced projects.
 
+```xml
+<Package Name="MyPackage">
+  <SourceUrl>https://github.com/opentap/opentap</SourceUrl>
+  ...
+</Package>
+```
+
 #### SourceLicense Element
 The license of the open source project. Must be a [SPDX identifier](https://spdx.org/licenses/).
+
+```xml
+<Package Name="MyPackage">
+  <SourceLicense>MIT</SourceLicense>
+  ...
+</Package>
+```
 
 #### Dependency Element
 OpenTAP will automatically add dependencies to other packages if they are referenced in the plugin code. 
@@ -311,6 +325,8 @@ The below configuration file results in `MyPlugin.{version}.TapPackage` file,con
 <?xml version="1.0" encoding="utf-8"?>
 <Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
 		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
+  <SourceUrl>https://github.com/opentap/opentap</SourceUrl>
+  <SourceLicense>MIT</SourceLicense>
   <Description>
     This is an example of a "package.xml" file.
     <Status>Released</Status>
