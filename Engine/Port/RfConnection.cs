@@ -20,12 +20,15 @@ namespace OpenTap
         /// </summary>
         public class CableLossPoint : ValidatingObject
         {
-            /// <summary>
-            /// Initializes a new instance of the <see cref="CableLossPoint"/> class.
-            /// </summary>
-            public CableLossPoint()
+            /// <summary> Returns an error if the frequency is less 0. </summary>
+            protected override string GetError(string propertyName = null)
             {
-                Rules.Add(() => Frequency >= 0, "Frequency must not be negative.", "Frequency");
+                if (propertyName == nameof(Frequency) || propertyName == null)
+                {
+                    if (Frequency < 0)
+                        return "Frequency must not be negative";
+                }
+                return null;
             }
 
             /// <summary>

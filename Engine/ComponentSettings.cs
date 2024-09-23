@@ -216,7 +216,7 @@ namespace OpenTap
         public ComponentSettingsList()
         {
             list = new ObservableCollection<ContainedType>();
-            list.CollectionChanged += list_CollectionChanged;
+            list.CollectionChanged += OnCollectionChanged;
             ilist = list;
         }
 
@@ -225,7 +225,8 @@ namespace OpenTap
             return touchedResources.GetElements().Where(x => Contains(x) == false).ToArray();
         }
 
-        void list_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        /// <summary> This gets invoked when the collection is changed. </summary>
+        internal protected virtual void OnCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.Action == NotifyCollectionChangedAction.Add)
             {
@@ -372,6 +373,7 @@ namespace OpenTap
             }
         }
 
+
         /// <summary>
         /// Invoked when collection is changed.
         /// </summary>
@@ -493,6 +495,8 @@ namespace OpenTap
         /// Get the currently loaded ComponentSettings instance for this class.
         /// </summary>
         public static T Current =>  GetCurrent();
+        
+        internal static T CurrentFromCache =>  (T)GetCurrentFromCache(typeof(T));
     }
 
     /// <summary>

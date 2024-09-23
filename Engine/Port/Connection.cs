@@ -4,7 +4,6 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
-using System.Collections.Specialized;
 using System.Linq;
 
 namespace OpenTap
@@ -23,40 +22,20 @@ namespace OpenTap
         [Display("Name", Order: 0 - 100000)]
         public string Name { get; set; }
 
-        Port port1;
         /// <summary>
         /// The port at the first end of the connection.
         /// </summary>
         [Display("Port 1", Order: 1 - 100000)] 
-        public Port Port1
-        {
-            get { return port1; }
-            set
-            {
-                var oldvalue = port1;
-                port1 = value;
-                loadEndpoint(value, oldvalue);
-            }
-        }
+        public Port Port1 { get; set; }
 
         /// <summary> returns true if the port is used by this connection. </summary>
         internal bool HasPort(Port port) => Equals(Port1, port) || Equals(Port2, port);
 
-        Port port2;
         /// <summary>
         /// The port at the second end of the connection.
         /// </summary>
         [Display("Port 2", Order: 3 - 100000)]
-        public Port Port2
-        {
-            get { return port2; }
-            set
-            {
-                var oldvalue = port2;
-                port2 = value;
-                loadEndpoint(value, oldvalue);
-            }
-        }
+        public Port Port2 { get; set; }
         
         /// <summary>
         /// Gets the list of <see cref="ViaPoint"/>s that this connection goes through. 
@@ -81,8 +60,6 @@ namespace OpenTap
         public Connection()
         {
             Name = "Conn";
-            port1 = null;
-            port2 = null;
             Via = new List<ViaPoint>();
         }
 
@@ -91,53 +68,16 @@ namespace OpenTap
         /// </summary>
         public Port GetOtherPort(Port p)
         {
-            if (Equals(p, port1))
-                return port2;
-            if (Equals(p, port2))
-                return port1;
+            if (Equals(p, Port1))
+                return Port2;
+            if (Equals(p, Port2))
+                return Port1;
             
             throw new ArgumentException("Argument must be either Port1 or Port2");
         }
 
-        /// <summary>
-        /// Handle that an endpoint can disappear.
-        /// </summary>
-        /// <param name="newport"></param>
-        /// <param name="oldPort"></param>
-        void loadEndpoint(Port newport, Port oldPort)
-        {
-            if (oldPort?.Device != null)
-            {
-                var type = oldPort.Device.GetType();
-                var list = ComponentSettingsList.GetContainer(type) as INotifyCollectionChanged;
-                if (list != null)
-                    list.CollectionChanged -= componentSettingsChanged;
 
-            }
-
-            if (newport?.Device != null)
-            {
-                var type = newport.Device.GetType();
-                var list = ComponentSettingsList.GetContainer(type) as INotifyCollectionChanged;
-                if (list != null)
-                {
-                    list.CollectionChanged += componentSettingsChanged;
-                }
-            }
-        }
-
-        private void componentSettingsChanged(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            // Check if an endpoint has disappeared.
-            if (e.OldItems != null)
-            {
-                if (Port1 != null && e.OldItems.Contains(Port1.Device))
-                    Port1 = null;
-                if (Port2 != null && e.OldItems.Contains(Port2.Device))
-                    Port2 = null;
-            }
-        }
-
+        
         /// <summary>
         /// Returns a string representation of this connection which names the ports in each end.
         /// </summary>
