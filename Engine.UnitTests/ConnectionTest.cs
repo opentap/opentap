@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -96,10 +97,13 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(2, loss);
 
             // check exact match
+            
             con = new RfConnection();
             con.CableLoss.Add(new RfConnection.CableLossPoint { Frequency = 100, Loss = 2 });
             con.CableLoss.Add(new RfConnection.CableLossPoint { Frequency = 200, Loss = 4 });
             con.CableLoss.Add(new RfConnection.CableLossPoint { Frequency = 300, Loss = 5 });
+            loss = con.GetInterpolatedCableLoss(50);
+            Assert.AreEqual(2, loss);
             loss = con.GetInterpolatedCableLoss(100);
             Assert.AreEqual(2, loss);
             loss = con.GetInterpolatedCableLoss(200);
@@ -110,6 +114,39 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(4.75, loss);
             loss = con.GetInterpolatedCableLoss(300);
             Assert.AreEqual(5, loss);
+            loss = con.GetInterpolatedCableLoss(400);
+            Assert.AreEqual(5, loss);
+
+            // now generate a large set of cable losses
+            var bigCon = new RfConnection();
+            for (double x = 100; x < 500; x += 0.001)
+            {
+                bigCon.CableLoss.Add(new RfConnection.CableLossPoint()
+                {
+                    Frequency = x,
+                    Loss = con.GetInterpolatedCableLoss(x)
+                });
+            }
+            
+            // shuffle to verify that we are robust to unsorted data.
+            bigCon.CableLoss.Shuffle();
+            
+            // calculated cable losses should be more or less the same.
+            con = bigCon;
+            loss = con.GetInterpolatedCableLoss(50);
+            Assert.AreEqual(2, loss);
+            loss = con.GetInterpolatedCableLoss(100);
+            Assert.AreEqual(2, loss);
+            loss = con.GetInterpolatedCableLoss(200);
+            Assert.IsTrue(Math.Abs(4 -  loss) < 0.0001);
+            loss = con.GetInterpolatedCableLoss(250);
+            Assert.IsTrue(Math.Abs(4.5 -  loss) < 0.0001);
+            loss = con.GetInterpolatedCableLoss(275);
+            Assert.IsTrue(Math.Abs(4.75 -  loss) < 0.0001);
+            loss = con.GetInterpolatedCableLoss(300);
+            Assert.IsTrue(Math.Abs(5 -  loss) < 0.0001);
+            loss = con.GetInterpolatedCableLoss(400);
+            Assert.IsTrue(Math.Abs(5 -  loss) < 0.0001);
         }
 
         
