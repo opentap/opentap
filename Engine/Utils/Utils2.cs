@@ -23,21 +23,52 @@ namespace OpenTap
                 {
                     if (waiter == current)
                     {
-                        if (waited == item) 
+                        if (waited == item)
                             return true;
                         stack.Push(waited);
                     }
                 }
             }
-            
-            
+
+
             return false;
         }
-        
+
         public static Action Bind<T>(this Action del, Action<T> f, T v)
         {
             del += () => f(v);
             return del;
         }
+
+        public static bool IsSortedBy<T>(this IList<T> values, Func<T, double> desc)
+        {
+            var n = values.Count;
+            if (n <= 1) return true;
+            
+            double v0 = desc(values[0]);
+            for (int i = 1; i < n; i++)
+            {
+                var v1 = desc(values[i]);
+                if (v0 > v1)
+                    return false;
+                
+                v0 = v1;
+            }
+
+            return true;
+        }
+        
+        public static void Shuffle<T>(this List<T> list)
+        {
+            Random rng = new Random();
+            int n = list.Count;
+            while (n > 1)
+            {
+                n--;
+                int k = rng.Next(n + 1);
+                
+                (list[k], list[n]) = (list[n], list[k]);
+            }
+        }   
     }
 }
