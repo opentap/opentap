@@ -274,7 +274,7 @@ namespace OpenTap
         }
 
         /// <summary>  Call on a ParameterMemberData to remove itself from its parent type. </summary>
-        internal void Remove()
+        public void Remove()
         {
             while (ParameterizedMembers.Any())
             {

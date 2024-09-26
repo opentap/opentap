@@ -376,6 +376,97 @@ namespace OpenTap.Plugins.BasicSteps
             
             UpdateStep();
         }
+
+        string GetPath()
+        {
+            object testplandir = null;
+            var currentSerializer = TapSerializer.GetObjectDeserializer(this);
+            if (currentSerializer != null && currentSerializer.ReadPath != null)
+                testplandir = System.IO.Path.GetDirectoryName(currentSerializer.ReadPath);
+            
+            var refPlanPath = Filepath.Expand(testPlanDir: testplandir as string);
+            refPlanPath = refPlanPath.Replace('\\', '/');
+            if (!File.Exists(refPlanPath))
+            {
+                Log.Warning("File does not exist: \"{0}\"", refPlanPath);
+                return null;
+            }
+            return refPlanPath;
+        }
+
+        public bool anyStepsLoaded => ChildTestSteps.Any() && File.Exists(GetPath());
+        
+        [Browsable(true)]
+        [Display("Convert to Sequence", "Convert  the test plan reference to a sequence step.", Order: 10, Group:"Utilities", Collapsed: true)]
+        [EnabledIf(nameof(anyStepsLoaded), HideIfDisabled = true)]
+        public void ConvertToSequence()
+        {
+            var subPlan = TestPlan.Load(GetPath());
+            var seq = new SequenceStep
+            {
+                Name = Name != "Test Plan Reference" ? Name : "Sequence",
+                Parent = Parent,
+                Id = this.Id
+            };
+            
+            ChildItemVisibility.SetVisibility(seq, ChildItemVisibility.GetVisibility(this));
+            
+            var parameters = TypeData.GetTypeData(subPlan).GetMembers().OfType<ParameterMemberData>()
+                .Select(e => new {Name = e.Name , Members = e.ParameterizedMembers.ToArray()}).ToArray();
+            
+            foreach (var param in TypeData.GetTypeData(subPlan).GetMembers().OfType<ParameterMemberData>().ToArray())
+            {
+                param.Remove();
+            }
+            var steps = subPlan.ChildTestSteps.ToArray();
+            subPlan.ChildTestSteps.Clear();
+            foreach (var step in steps)
+            {
+                seq.ChildTestSteps.Add(step);
+            }
+            ChildTestSteps.IsReadOnly = false;
+            var parent = this.Parent;
+            var idx = parent.ChildTestSteps.IndexOf(this);
+            parent.ChildTestSteps[idx] = seq;
+            
+            // This section copies parameters  over from the test plan reference to the sequence
+            foreach (var parameter in parameters)
+            {
+                var name = parameter.Name;
+                ParameterMemberData parameterMember = null;
+                foreach (var member in parameter.Members)
+                {
+                    parameterMember = member.Member.Parameterize(seq, member.Source, name);
+                }
+                parameterMember.SetValue(seq, ExternalParameters.First(x => x.Name == name).GetValue(this));
+            }
+            
+            // This section copies mixins over from the test plan reference to the sequence
+            var seqType = TypeData.GetTypeData(seq);
+            foreach (var member in TypeData.GetTypeData(this).GetMembers())
+            {
+                if (member is MixinMemberData mixinMember)
+                {
+                    var mixin = mixinMember.Source;
+                    var mem = mixin.ToDynamicMember(seqType);
+                    if (mem == null)
+                    {
+                        if (mixin is IValidatingObject validating && validating.Error is string err && string.IsNullOrEmpty(err) == false)
+                        {
+                            Log.Error($"Unable to load mixin: {err}");
+                        }
+                        else
+                        {
+                            Log.Error($"Unable to load mixin: {TypeData.GetTypeData(mixin)?.GetDisplayAttribute()?.Name ?? mixin.ToString()}");
+                        }
+                        continue;
+                    }
+                    DynamicMember.AddDynamicMember(seq, mem);
+                    mem.SetValue(seq, member.GetValue(this));
+                }
+            }
+        }
+        
         internal ParameterMemberData[] ExternalParameters { get; private set; } = Array.Empty<ParameterMemberData>();
     }
 }
