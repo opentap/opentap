@@ -397,7 +397,7 @@ namespace OpenTap.Plugins.BasicSteps
         public bool anyStepsLoaded => ChildTestSteps.Any() && File.Exists(GetPath());
         
         [Browsable(true)]
-        [Display("Convert to Sequence", "Convert  the test plan reference to a sequence step.", Order: 10, Group:"Utilities", Collapsed: true)]
+        [Display("Convert to Sequence", "Convert  the test plan reference to a sequence step.", Order: 1.1)]
         [EnabledIf(nameof(anyStepsLoaded), HideIfDisabled = true)]
         public void ConvertToSequence()
         {
