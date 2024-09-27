@@ -214,6 +214,43 @@ namespace OpenTap.Package
     }
 
     /// <summary>
+    /// Represents an external command that can be executed as a CLI action
+    /// </summary>
+    public class ExternalCliAction
+    {
+      /// <summary>
+      /// The name of the CLI action, similar to DisplayAttribute
+      /// </summary>
+      [XmlAttribute("Name")]
+      public string Name { get; set; }
+
+      /// <summary>
+      /// The description of the CLI actiom, similar to DisplayAttribute 
+      /// </summary>
+      [XmlAttribute("Description")]
+      public string Description { get; set; }
+
+      /// <summary>
+      /// The Groups that the CLI action belongs to, similar to DisplayAttribute 
+      /// </summary>
+      [XmlAttribute("Groups")]
+      public string Groups { get; set; }
+
+      /// <summary>
+      /// The binary executable that should be executed
+      /// </summary>
+      [XmlAttribute("ExeFile")]
+      public string ExeFile { get; set; }
+
+      /// <summary>
+      /// Any extra arguments that should be applied to the invocation. Arugments supplied by 
+      /// the user on the CLI are appended to this value
+      /// </summary>
+      [XmlAttribute("Arguments")]
+      public string Arguments { get; set; }
+    }
+
+    /// <summary>
     /// Represents an action/step that can be executed during or after installation of a package.
     /// </summary>
     public class ActionStep
@@ -472,6 +509,11 @@ namespace OpenTap.Package
         public List<PackageFile> Files { get; set; }
 
         /// <summary>
+        /// Contains definitions of CLI actions which will invoke external commands
+        /// </summary>
+        public List<ExternalCliAction> ExternalCliActions { get; set; }
+
+        /// <summary>
         /// Contains steps that can be executed for this plugin during, or after installation.
         /// </summary>
         public List<ActionStep> PackageActionExtensions { get; set; }
@@ -482,6 +524,7 @@ namespace OpenTap.Package
         internal PackageDef()
         {
             Files = new List<PackageFile>();
+            ExternalCliActions = new List<ExternalCliAction>();
             PackageActionExtensions = new List<ActionStep>();
             OS = "Windows";
             Architecture = CpuArchitecture.AnyCPU;
