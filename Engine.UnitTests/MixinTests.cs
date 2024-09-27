@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
+using Tap.Shared;
 namespace OpenTap.UnitTests
 {
     [TestFixture]
@@ -308,6 +309,38 @@ namespace OpenTap.UnitTests
 
         }
 
+        [Test]
+        public void CanAddMixinToTestPlanReference()
+        {
+            var plan1 = new TestPlan();
+            plan1.ChildTestSteps.Add(new DelayStep());
+            var plan1File = PathUtils.GetTempFileName("TapPlan");
+            plan1.Save(plan1File);
+
+            var plan2 = new TestPlan();
+            var tpr = new TestPlanReference();
+            tpr.Filepath.Text = plan1File;
+
+            plan2.ChildTestSteps.Add(tpr);
+            tpr.LoadTestPlan();
+            {
+                var a = AnnotationCollection.Annotate(tpr);
+                var addMixin = a.GetIcon(IconNames.AddMixin);
+                var enabled = addMixin.Get<IAccessAnnotation>();
+                // it _is_ allowed to add mixins to test plan reference.
+                Assert.IsTrue(enabled.IsVisible);
+            }
+            {
+                var a = AnnotationCollection.Annotate(tpr.ChildTestSteps[0]);
+                var addMixin = a.GetIcon(IconNames.AddMixin);
+                var enabled = addMixin.Get<IAccessAnnotation>();
+                // it is not allowed to add mixins to the child steps of test plan reference.
+                Assert.IsFalse(enabled.IsVisible);
+            }
+
+        }
+        
+        
 
         [Test]
         public void CannotModifyMixinTest()
