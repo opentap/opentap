@@ -159,7 +159,7 @@
     </AddAssemblyReferencesFromPackage>
     <Touch Files="$(MSBuildThisFileFullPath)"/>
     <ItemGroup>
-      <ReferencePathWithRefAssemblies Include="@(_OpenTapPackagesReferences-> '$(OutDir)%(Identity)')"/>
+      <Reference Include="@(_OpenTapPackagesReferences-> '$(OutDir)%(Identity)')"/>
     </ItemGroup>
   </Target>
 </Project>
