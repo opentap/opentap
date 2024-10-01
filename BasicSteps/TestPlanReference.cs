@@ -395,12 +395,37 @@ namespace OpenTap.Plugins.BasicSteps
         }
 
         public bool anyStepsLoaded => ChildTestSteps.Any() && File.Exists(GetPath());
+
+        
+        
+        [Display("Are you sure?")]
+        class ConvertWarning
+        {
+            public enum ConvertOrCancel
+            {
+                Convert,
+                Cancel
+            }
+            [Browsable(true)]
+            [Layout(LayoutMode.FullRow)]
+            public string Message => "Are you sure you want to convert the Test Plan Reference to a Sequence?\n\nAny future changes to the referenced test plan will not be reflected.";
+
+            [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
+            [Submit]
+            public ConvertOrCancel Response { set; get; } = ConvertOrCancel.Cancel;
+
+        }
+            
         
         [Browsable(true)]
         [Display("Convert to Sequence", "Convert  the test plan reference to a sequence step.", Order: 1.1)]
         [EnabledIf(nameof(anyStepsLoaded), HideIfDisabled = true)]
         public void ConvertToSequence()
         {
+            var warn = new ConvertWarning();
+            UserInput.Request(warn, true);
+            if (warn.Response == ConvertWarning.ConvertOrCancel.Cancel)
+                return;
             var subPlan = TestPlan.Load(GetPath());
             var seq = new SequenceStep
             {
