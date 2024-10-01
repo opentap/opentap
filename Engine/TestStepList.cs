@@ -241,7 +241,8 @@ namespace OpenTap
         protected override void InsertItem(int index, ITestStep item)
         {
             if (item == null)
-                throw new ArgumentNullException("item");
+                throw new ArgumentNullException(nameof(item));
+            
             throwIfRunning();
 
             var childsteps = Utils.FlattenHeirarchy(new ITestStep[] { item }, (step) => step.ChildTestSteps);
@@ -273,10 +274,66 @@ namespace OpenTap
                         throw new ArgumentException(String.Format("Cannot add test step of type {0} to {1}", item.GetType().Name, Parent.GetType().Name));
                 }
             }
-            
             base.InsertItem(index, item);
+            
             onContentChanged(this, ChildStepsChangedAction.AddedStep, item, index);
         }
+        
+        /// <summary>
+        /// Invoked when an item is set. 
+        /// </summary>
+        /// <param name="index"></param>
+        /// <param name="item"></param>
+        /// <exception cref="InvalidOperationException"></exception>
+        /// <exception cref="ArgumentException"></exception>
+        protected override void SetItem(int index, ITestStep item)
+        {
+            throwIfRunning();
+            
+            var childsteps = Utils.FlattenHeirarchy(new ITestStep[] { item }, (step) => step.ChildTestSteps);
+
+            foreach (var step in childsteps)
+            {
+                var existingstep = findStepWithGuid(step.Id);
+                if (existingstep != null)
+                {
+                    if (existingstep == step)
+                        throw new InvalidOperationException("Test step already exists in the test plan");
+                    step.Id = Guid.NewGuid();
+                }
+            }
+
+            // Parent can be null if the list is being loaded from XML, in that case we 
+            // set the parent property of the children in the setter of the Parent property
+            if (Parent != null)
+                item.Parent = Parent;
+            
+            if (EnforceNestingRulesOnInsert && Parent != null)
+            {
+                Type parentType = Parent.GetType();
+                if (!AllowChild(parentType, item.GetType()))
+                {
+                    if (Parent is TestPlan)
+                        throw new ArgumentException(String.Format("Cannot add test step of type {0} as a root test step (must be nested).", item.GetType().Name));
+                    else
+                        throw new ArgumentException(String.Format("Cannot add test step of type {0} to {1}", item.GetType().Name, Parent.GetType().Name));
+                }
+            }
+            base.SetItem(index, item);
+            onContentChanged(this, ChildStepsChangedAction.SetStep, item, index);
+        }
+
+        /// <summary>
+        /// Invoked when an item has been moved
+        /// </summary>
+        /// <param name="oldIndex"></param>
+        /// <param name="newIndex"></param>
+        protected override void MoveItem(int oldIndex, int newIndex)
+        {
+            base.MoveItem(oldIndex, newIndex);
+            onContentChanged(this, ChildStepsChangedAction.MovedStep, this[newIndex], newIndex);
+        }
+
         /// <summary>
         /// Returns true if a TestStep of type stepType can be inserted as a child step.
         /// </summary>
@@ -326,7 +383,15 @@ namespace OpenTap
             /// <summary>
             /// Specifies that the TestStepList has been replaced. The sender is in this case the new object. Object and Index will be null.
             /// </summary>
-            ListReplaced
+            ListReplaced,
+            /// <summary>
+            /// Specifies that a step has been set.
+            /// </summary>
+            SetStep,
+            /// <summary>
+            /// Specifies that a step has been moved.
+            /// </summary>
+            MovedStep
         }
 
         static readonly Random changeIdRandomState = new Random();
