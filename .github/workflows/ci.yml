@@ -587,10 +587,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Echo Version
+        run: echo "${{needs.GetVersion.outputs.LongVersion}}"
       - name: Update Version
         run: |
           Set-Content .\templates\Templates.csproj (Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Set-Content .\templates\src\project\ProjectName.csproj (Get-Content .\templates\src\project\ProjectName.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+      - name: Cat Files
+        run: |
+          cat .\templates\Templates.csproj 
+          cat .\templates\src\project\ProjectName.csproj
       - name: Package
         run: dotnet pack ./templates/
       - uses: actions/upload-artifact@v4
