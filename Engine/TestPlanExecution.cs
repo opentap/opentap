@@ -745,6 +745,7 @@ namespace OpenTap
         /// Opens all resources referenced in this TestPlan (Instruments/DUTs/ResultListeners). 
         /// This can be called before <see cref="TestPlan.Execute()"/> to manually control the opening/closing of the resources.
         /// </summary>
+        /// <param name="listeners">Result listeners used in connection with the test plan.</param>
         public void Open(IEnumerable<IResultListener> listeners)
         {
             Open(listeners, Array.Empty<IResource>());
@@ -753,16 +754,21 @@ namespace OpenTap
         /// <summary>
         /// Opens all resources referenced in this TestPlan (Instruments/DUTs/ResultListeners). 
         /// This can be called before <see cref="TestPlan.Execute()"/> to manually control the opening/closing of the resources.
+        /// It can also be called multiple times to add more resources.
         /// </summary>
-        public void Open(IEnumerable<IResource> resources)
+        /// <param name="additionalResources">Additional resources added as 'static' resources.</param>
+        public void Open(IEnumerable<IResource> additionalResources)
         {
-            Open(ResultSettings.Current, resources);
+            Open(ResultSettings.Current, additionalResources);
         }
 
         /// <summary>
         /// Opens all resources referenced in this TestPlan (Instruments/DUTs/ResultListeners). 
         /// This can be called before <see cref="TestPlan.Execute()"/> to manually control the opening/closing of the resources.
+        /// It can also be called multiple times to add more resources.
         /// </summary>
+        /// <param name="listeners">Result listeners used in connection with the test plan.</param>
+        /// <param name="additionalResources">Additional resources added as 'static' resources.</param>
         public void Open(IEnumerable<IResultListener> listeners, IEnumerable<IResource> additionalResources)
         {
             if (listeners == null)
