@@ -614,10 +614,6 @@ jobs:
       - GetVersion
       - Package-Templates
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
@@ -641,6 +637,12 @@ jobs:
         with:
           name: package-templates
           path: bin/Release/Packages2/SDK/
+      - name: Insurance
+        run: git clean -dfx || true
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Echo Gitversion
         run: echo ${{ needs.GetVersion.outputs.LongVersion }}
       - name: Calc Gitversion
