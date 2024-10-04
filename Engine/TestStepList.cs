@@ -158,6 +158,20 @@ namespace OpenTap
                     idLookup[thing.Id] = thing;
                 }
             }
+            else if (Action == ChildStepsChangedAction.SetStep)
+            {
+                if (idLookup.TryGetValue(Object.Id, out var prev))
+                {
+                    foreach(var thing in Utils.FlattenHeirarchy(new []{Object}, x => x.ChildTestSteps))
+                    {
+                        idLookup.Remove(thing.Id);
+                    }
+                }
+                foreach (var thing in Utils.FlattenHeirarchy(new[] { Object }, x => x.ChildTestSteps))
+                {
+                    idLookup[thing.Id] = thing;
+                }
+            }
         }
 
         /// <summary>
