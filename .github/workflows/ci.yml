@@ -17,9 +17,7 @@ env:
 
 jobs:
   GetVersion:
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     outputs:
       ShortVersion: ${{ steps.gitversion.outputs.ShortVersion }}
@@ -36,9 +34,7 @@ jobs:
         run: echo "VER=$SMARTINSTALLER_IMAGE" >> $GITHUB_OUTPUT
 
   CheckSecrets:
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     outputs:
       gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
@@ -87,9 +83,7 @@ jobs:
   Build-DevGuide:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.ks8500_repo_token_is_set == 'true'
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Setup OpenTAP
@@ -112,9 +106,7 @@ jobs:
   Build-ApiDoc:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     container:
       image: ghcr.io/opentap/oci-images/build-doxygen:latest
     steps:
@@ -145,9 +137,7 @@ jobs:
           path: API
 
   Build-Pages:
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-ApiDoc
@@ -195,9 +185,7 @@ jobs:
           path: public
 
   Build-Linux:
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Checkout
@@ -527,9 +515,7 @@ jobs:
             OpenTAP.*.Windows.TapPackage
 
   Package-Cross:
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Linux
@@ -803,9 +789,7 @@ jobs:
 
   
   Build-Installer-Windows:
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     needs:
       - GetVersion
       - Package-Win
@@ -849,9 +833,7 @@ jobs:
   Publish-Installer-Windows:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     environment: packages.opentap.io 
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Installer-Windows 
@@ -876,9 +858,7 @@ jobs:
         run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP.exe" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/WindowsX32/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}.exe"
 
   Build-Installer-Linux:
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     needs:
       - GetVersion
       - Package-Cross
@@ -919,9 +899,7 @@ jobs:
   Publish-Installer-Linux:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
     environment: packages.opentap.io 
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Installer-Linux
@@ -945,9 +923,7 @@ jobs:
 
   Docker-Linux:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     container: ghcr.io/opentap/oci-images/build-docker:latest
     environment: sign
     strategy:
@@ -1029,9 +1005,7 @@ jobs:
   Publish-TapPackages:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: packages.opentap.io
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Package-Win
