@@ -641,6 +641,10 @@ jobs:
         with:
           name: package-templates
           path: bin/Release/Packages2/SDK/
+      - name: Echo Gitversion
+        run: echo ${{ needs.GetVersion.outputs.LongVersion }}
+      - name: Calc Gitversion
+        run: .\bin\Release\tap.exe sdk gitversion -v
       - name: Package
         run: |
           $env:Sign = "false"
