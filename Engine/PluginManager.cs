@@ -498,7 +498,19 @@ namespace OpenTap
         {
             FileFinder.Invalidate();
             FileFinder.DirectoriesToSearch = directoriesToSearch;
-            lastSearchedDirs = FileFinder.DirectoriesToSearch.ToHashSet();
+
+            // If the directories to search have changed we should invalidate all assemblies. If the directories to
+            // search have not changed we should still invalidate the assemblies that were not resolved because they
+            // could be now available in the directories to search (for example, if they were copied there).
+            if (false == lastSearchedDirs.SetEquals(FileFinder.DirectoriesToSearch))
+            {
+                lastSearchedDirs = FileFinder.DirectoriesToSearch.ToHashSet();
+                assemblyResolutionMemorizer.InvalidateAll();
+            }
+            else
+            {
+                assemblyResolutionMemorizer.InvalidateWhere((k, v) => v == null);
+            }
         }
 
         
