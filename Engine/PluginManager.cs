@@ -496,9 +496,27 @@ namespace OpenTap
         /// </summary>
         public void Invalidate(IEnumerable<string> directoriesToSearch)
         {
-            FileFinder.Invalidate();
             FileFinder.DirectoriesToSearch = directoriesToSearch;
+            InvalidateIfNewDirectoriesToSearch(true);
+        }
+
+        private void InvalidateIfNewDirectoriesToSearch(bool invalidateAll)
+        {
+            // If the directories to search did not change we do not need to do anything.
+            if (lastSearchedDirs.SetEquals(FileFinder.DirectoriesToSearch))
+                return;
+
             lastSearchedDirs = FileFinder.DirectoriesToSearch.ToHashSet();
+            FileFinder.Invalidate();
+
+            if (invalidateAll)
+            {
+                assemblyResolutionMemorizer.InvalidateAll();
+            }
+            else
+            {
+                assemblyResolutionMemorizer.InvalidateWhere((k, v) => v == null);
+            }
         }
 
         
@@ -529,23 +547,13 @@ namespace OpenTap
 
         public string[] GetAssembliesToSearch()
         {
-            if (false == lastSearchedDirs.SetEquals(FileFinder.DirectoriesToSearch))
-            {  // If directories to search has changed.
-                lastSearchedDirs = FileFinder.DirectoriesToSearch.ToHashSet();
-                FileFinder.Invalidate();
-                assemblyResolutionMemorizer.InvalidateWhere((k, v) => v == null);
-            }
+            InvalidateIfNewDirectoriesToSearch(false);
             return FileFinder.AllAssemblies();
         }
 
         public Assembly Resolve(string name, bool reflectionOnly)
         {
-            if(false == lastSearchedDirs.SetEquals(FileFinder.DirectoriesToSearch))
-            {  // If directories to search has changed.
-                lastSearchedDirs = FileFinder.DirectoriesToSearch.ToHashSet();
-                FileFinder.Invalidate();
-                assemblyResolutionMemorizer.InvalidateWhere((k,v) => v == null);
-            }
+            InvalidateIfNewDirectoriesToSearch(false);
             return assemblyResolutionMemorizer.Invoke(new resolveKey { Name = name, ReflectionOnly = reflectionOnly });
         }
 
