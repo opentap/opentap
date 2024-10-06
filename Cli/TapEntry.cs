@@ -205,17 +205,15 @@ namespace OpenTap.Cli
             }
 
             string[] args = Environment.GetCommandLineArgs().Skip(1).ToArray();
-            bool installCommand;
-            bool uninstallCommand;
-            bool packageManagerCommand;
-            installCommand = args.Contains("install");
-            uninstallCommand = args.Contains("uninstall");
-            packageManagerCommand = args.Contains("packagemanager");
+            var installCommand = args.Contains("install");
+            var uninstallCommand = args.Contains("uninstall");
+            var upgrade = args.Contains("upgrade");
+            var packageManagerCommand = args.Contains("packagemanager");
             // "--no-isolation" can be useful for debugging package install related issues,
             // e.g when deploying an image with "tap image install ..."
             bool noIsolation = args.Contains("--no-isolation");
 
-            if ((installCommand || uninstallCommand || packageManagerCommand) && !noIsolation)
+            if ((installCommand || uninstallCommand || packageManagerCommand || upgrade) && !noIsolation)
             {
                 goIsolated();
             }
