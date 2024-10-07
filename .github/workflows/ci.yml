@@ -267,6 +267,10 @@ jobs:
         run: dotnet build --no-restore tap/tap.csproj -c Release /p:Platform=${{ matrix.Architecture }}
       - name: cat tap.runtimeconfig.json 
         run: get-content ./bin/Release/tap.runtimeconfig.json
+      - run: ./bin/Release/tap sdk gitversion -v
+      - run: echo ${{needs.GetVersion.outputs.ShortVersion}} 
+      - run: echo ${{needs.GetVersion.outputs.LongVersion}} 
+      - run: echo ${{needs.GetVersion.outputs.GitVersion}} 
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
