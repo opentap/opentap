@@ -254,6 +254,7 @@ jobs:
         run: dotnet build -c Release /p:Platform=${{ matrix.Architecture }}
       - name: cat tap.runtimeconfig.json 
         run: get-content ./bin/Release/tap.runtimeconfig.json
+      - run: git log -n 10 --pretty=oneline --no-decorate
       - run: ./bin/Release/tap sdk gitversion -v
       - run: echo ${{needs.GetVersion.outputs.ShortVersion}} 
       - run: echo ${{needs.GetVersion.outputs.LongVersion}} 
