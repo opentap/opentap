@@ -195,9 +195,7 @@ jobs:
           path: public
 
   Build-Linux:
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Checkout
