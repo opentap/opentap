@@ -415,14 +415,15 @@ namespace OpenTap.Package
             // This should make the gitversion calculation work as expected after `git fetch --all`.
             if (b1.TrackedBranch != null)
             {
+                // Check if all local commits are reachable from the tracking branch
                 var unreachableCommits = (IQueryableCommitLog)repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = b1.Tip, ExcludeReachableFrom = b1.TrackedBranch.Tip});
                 if (unreachableCommits.Any())
                 {
-                    log.Debug($"{b1.GetShortName()} contains commits not contained in the tracked branch, and will be used for gitversion calculation.");
+                    log.Debug($"The local branch '{b1.GetShortName()}' contains commits not contained in the remote tracking branch. The local branch will be used for gitversion calculation.");
                 }
                 else 
                 {
-                    log.Debug($"The remote tracking branch of {b1.GetShortName()} contains all local commits and will be used for gitversion calculation.");
+                    log.Debug($"The local branch '{b1.GetShortName()}' is fully merged in the remote tracking branch. The remote branch will be used for gitversion calculation.");
                     b1 = b1.TrackedBranch;
                 }
             }
