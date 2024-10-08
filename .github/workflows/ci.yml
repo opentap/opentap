@@ -224,7 +224,7 @@ jobs:
             bin/Release/publish/*
 
   Build-Win:
-    runs-on: [self-hosted, windows]
+    runs-on: codebuild-GitHubWindowsCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
     strategy:
       matrix:
         Architecture: [x86, x64]
