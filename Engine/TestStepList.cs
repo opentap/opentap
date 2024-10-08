@@ -145,17 +145,31 @@ namespace OpenTap
             if (idLookup == null) rebuildIdLookup();
             if(Action == ChildStepsChangedAction.RemovedStep)
             {
-                foreach(var thing in Utils.FlattenHeirarchy(new[] { Object }, x => x.ChildTestSteps))
+                foreach(var step in Utils.FlattenHeirarchy(new[] { Object }, subStep => subStep.ChildTestSteps))
                 {
-                    idLookup.Remove(thing.Id);
+                    idLookup.Remove(step.Id);
                 }
             }else if (Action == ChildStepsChangedAction.AddedStep)
             {
-                foreach (var thing in Utils.FlattenHeirarchy(new[] { Object }, x => x.ChildTestSteps))
+                foreach (var step in Utils.FlattenHeirarchy(new[] { Object }, subStep => subStep.ChildTestSteps))
                 {
                     // in some cases a thing can be added twice.
                     // happens for TestPlanReference. Hence we should use [] and not Add 
-                    idLookup[thing.Id] = thing;
+                    idLookup[step.Id] = step;
+                }
+            }
+            else if (Action == ChildStepsChangedAction.SetStep)
+            {
+                if (idLookup.TryGetValue(Object.Id, out var previous))
+                {
+                    foreach(var step in Utils.FlattenHeirarchy(new []{previous}, subStep => subStep.ChildTestSteps))
+                    {
+                        idLookup.Remove(step.Id);
+                    }
+                }
+                foreach (var step in Utils.FlattenHeirarchy(new[] { Object }, subStep => subStep.ChildTestSteps))
+                {
+                    idLookup[step.Id] = step;
                 }
             }
         }
