@@ -408,6 +408,25 @@ namespace OpenTap.Package
         /// </summary>
         private Commit findFirstCommonAncestor(Branch b1, Commit target)
         {
+            // This fixes gitversion calculation in scenarios where the local revision of
+            // a checked out branch is behind the origin branch. If the local revision is fully merged
+            // in the remote tracking branch, we base our calculation on the remote branch instead.
+            // Otherwise, if the local branch contains commits that are *not* merged in the remote, we base the calculation on that.
+            // This should make the gitversion calculation work as expected after `git fetch --all`.
+            if (b1.TrackedBranch != null)
+            {
+                var unreachableCommits = (IQueryableCommitLog)repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = b1.Tip, ExcludeReachableFrom = b1.TrackedBranch.Tip});
+                if (unreachableCommits.Any())
+                {
+                    log.Debug($"{b1.GetShortName()} contains commits not contained in the tracked branch, and will be used for gitversion calculation.");
+                }
+                else 
+                {
+                    log.Debug($"The remote tracking branch of {b1.GetShortName()} contains all local commits and will be used for gitversion calculation.");
+                    b1 = b1.TrackedBranch;
+                }
+            }
+
             Commit b1Commit = b1.Tip;
             while (b1Commit != null)
             {
