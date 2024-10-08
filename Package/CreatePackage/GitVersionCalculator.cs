@@ -419,13 +419,11 @@ namespace OpenTap.Package
                 var unreachableCommits = (IQueryableCommitLog)repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = b1.Tip, ExcludeReachableFrom = b1.TrackedBranch.Tip});
                 if (unreachableCommits.Any())
                 {
-                    log.Debug($"The local branch '{b1.GetShortName()}' contains commits not contained in the remote tracking branch. The local branch will be used for gitversion calculation.");
+                    throw new Exception(
+                        $"The local branch '{b1.GetShortName()}' contains commits missing from the tracked upstream branch.\n" +
+                        $"This can cause unexpected mismatching version numbers. Please align '{b1.GetShortName()}' with its upstream.");
                 }
-                else 
-                {
-                    log.Debug($"The local branch '{b1.GetShortName()}' is fully merged in the remote tracking branch. The remote branch will be used for gitversion calculation.");
-                    b1 = b1.TrackedBranch;
-                }
+                b1 = b1.TrackedBranch;
             }
 
             Commit b1Commit = b1.Tip;
