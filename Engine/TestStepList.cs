@@ -160,9 +160,9 @@ namespace OpenTap
             }
             else if (Action == ChildStepsChangedAction.SetStep)
             {
-                if (idLookup.ContainsKey(Object.Id))
+                if (idLookup.TryGetValue(Object.Id, out var previous))
                 {
-                    foreach(var step in Utils.FlattenHeirarchy(new []{Object}, subStep => subStep.ChildTestSteps))
+                    foreach(var step in Utils.FlattenHeirarchy(new []{previous}, subStep => subStep.ChildTestSteps))
                     {
                         idLookup.Remove(step.Id);
                     }
