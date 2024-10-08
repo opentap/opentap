@@ -415,9 +415,9 @@ namespace OpenTap.Package
             // This should make the gitversion calculation work as expected after `git fetch --all`.
             if (b1.TrackedBranch != null)
             {
-                // Check if all local commits are reachable from the tracking branch
-                var unreachableCommits = (IQueryableCommitLog)repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = b1.Tip, ExcludeReachableFrom = b1.TrackedBranch.Tip});
-                if (unreachableCommits.Any())
+                // Check if any local commits are unreachable from the tracking branch
+                var commitsMissingFromUpstream = (IQueryableCommitLog)repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = b1.Tip, ExcludeReachableFrom = b1.TrackedBranch.Tip});
+                if (commitsMissingFromUpstream.Any())
                 {
                     throw new Exception(
                         $"The local branch '{b1.GetShortName()}' contains commits missing from the tracked upstream branch.\n" +
