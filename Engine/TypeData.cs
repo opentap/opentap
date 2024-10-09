@@ -372,7 +372,6 @@ namespace OpenTap
 
                     reason =
                         $"This type depends on {dependencyVersion}, but the current process is running {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}.";
-                    throw new InvalidOperationException(reason);
                 }
                 log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", Name, Assembly.Location, reason);
                 log.Debug(ex);
