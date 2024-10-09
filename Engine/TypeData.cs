@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -348,8 +349,32 @@ namespace OpenTap
             catch (Exception ex)
             {
                 failedLoad = true;
-                log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", Name, Assembly.Location,
-                    ex.Message);
+                var reason = ex.Message;
+                // Create a special-case error message when the load error is due to a dotnet runtime mismatch.
+                // FileName is a qualified assembly name, e.g. System.Runtime, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a
+                if (ex is FileNotFoundException notFound && notFound.FileName.StartsWith("system.runtime", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Build the reason string. I don't know if it's possible for the assembly to not be strong-named,
+                    // but let's handle that just in case.
+                    var filename = notFound.FileName;
+                    var dependencyVersion = ".NET";
+                    var versionPrefix = "System.Runtime, Version=";
+                    if (filename.StartsWith(versionPrefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var commaIndex = filename.IndexOf(',', versionPrefix.Length);
+                        if (commaIndex == -1)
+                        {
+                            commaIndex = filename.Length;
+                        }
+                        var versionString = filename.Substring(versionPrefix.Length, commaIndex - versionPrefix.Length);
+                        dependencyVersion += $" {versionString}";
+                    }
+
+                    reason =
+                        $"This type depends on {dependencyVersion}, but the current process is running {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}.";
+                    throw new InvalidOperationException(reason);
+                }
+                log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", Name, Assembly.Location, reason);
                 log.Debug(ex);
             }
 
