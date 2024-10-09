@@ -331,6 +331,12 @@ namespace OpenTap.Cli
                 log.Info("{0}", e.Message);
                 return (int)ExitCodes.UnknownCliAction;
             }
+            catch (InvalidOperationException ex)
+            {
+                log.Error("Unable to load CLI Action '{0}'", SelectedAction.GetDisplayAttribute().GetFullName());
+                log.Info("{0}", ex.Message);
+                return (int)ExitCodes.GeneralException;
+            }
             
             if (packageAction == null)
             {
