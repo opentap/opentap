@@ -90,7 +90,10 @@ namespace OpenTap
         /// <summary> The user input fills the whole row. </summary>
         FullRow = 2,
         /// <summary> The user input floats to the bottom.</summary>
-        FloatBottom = 4
+        FloatBottom = 4,
+        ///<summary> Whether word wrapping should be enabled. </summary>
+        WordWrapping = 8
+        
     }
 
     /// <summary> LayoutAttribute can be used to specify the wanted layout for user interfaces.</summary>
@@ -104,7 +107,11 @@ namespace OpenTap
         /// <summary> Maximum row height for the input. </summary>
         public int MaxRowHeight { get; } = 1000;
 
-        /// <summary> </summary>
+        /// <summary> Minimum width in the width of an average character (approximately.).
+        /// This can be used for displays where an item is showed as a column where the width is a variable.</summary>
+        public int MinWidth { get; set; } = -1;
+
+        /// <summary> Creates a new instance of layout attribute. </summary>
         /// <param name="mode"></param>
         /// <param name="rowHeight"></param>
         /// <param name="maxRowHeight"></param>
@@ -113,6 +120,10 @@ namespace OpenTap
             Mode = mode;
             RowHeight = rowHeight;
             MaxRowHeight = maxRowHeight;
+        }
+        public LayoutAttribute() : this(0)
+        {
+            
         }
     }
 

@@ -20,12 +20,14 @@ namespace OpenTap
         /// A name for the connection to be displayed in the user interface.
         /// </summary>
         [Display("Name", Order: 0 - 100000)]
+        [Layout(MinWidth=10)]
         public string Name { get; set; }
 
         /// <summary>
         /// The port at the first end of the connection.
         /// </summary>
-        [Display("Port 1", Order: 1 - 100000)] 
+        [Display("Port 1", Order: 1 - 100000)]
+        [Layout(MinWidth=13)] // "Port A on DUT" : 13 characters. 
         public Port Port1 { get; set; }
 
         /// <summary> returns true if the port is used by this connection. </summary>
@@ -35,11 +37,13 @@ namespace OpenTap
         /// The port at the second end of the connection.
         /// </summary>
         [Display("Port 2", Order: 3 - 100000)]
+        [Layout(MinWidth=13)]
         public Port Port2 { get; set; }
         
         /// <summary>
         /// Gets the list of <see cref="ViaPoint"/>s that this connection goes through. 
         /// </summary>
+        [Layout(MinWidth=13)]
         [Display("Via", Order: 2 - 100000)]
         public List<ViaPoint> Via { get; set; } // ToDo: would be nice to make the setter private, but it is currently needed for deserialization 
 
