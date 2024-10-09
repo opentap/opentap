@@ -17,7 +17,10 @@ env:
 
 jobs:
   GetVersion:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     outputs:
       ShortVersion: ${{ steps.gitversion.outputs.ShortVersion }}
       LongVersion: ${{ steps.gitversion.outputs.LongVersion }}
@@ -33,7 +36,9 @@ jobs:
         run: echo "VER=$SMARTINSTALLER_IMAGE" >> $GITHUB_OUTPUT
 
   CheckSecrets:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
     outputs:
       gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
       ks8500_repo_token_is_set: ${{ steps.check_KS8500_REPO_TOKEN.outputs.is_set }}
@@ -652,7 +657,10 @@ jobs:
             SDK.*.TapPackage
 
   Package-Diff:
-    runs-on: ubuntu-latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Package-Cross
     steps:
