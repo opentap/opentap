@@ -368,7 +368,7 @@ namespace OpenTap
                     var versionString = filename.Substring(versionPrefix.Length, versionEnd - versionPrefix.Length);
 
                     reason =
-                        $"This type depends on .NET {versionString}, but the current process is running {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}.";
+                        $"This type depends on .NET {versionString}, but the current process is running {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}";
                 }
                 log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", Name, Assembly.Location, reason);
                 log.Debug(ex);
