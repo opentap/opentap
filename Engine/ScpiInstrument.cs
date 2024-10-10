@@ -82,7 +82,6 @@ namespace OpenTap
                 throw new VISAException(0, error);
         }
 
-        [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] // Required by .NET to catch AccessViolationException.
         internal static int GetResourceManager()
         {
             try
