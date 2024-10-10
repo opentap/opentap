@@ -17,7 +17,9 @@ env:
 
 jobs:
   GetVersion:
-    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     outputs:
       ShortVersion: ${{ steps.gitversion.outputs.ShortVersion }}
@@ -34,8 +36,9 @@ jobs:
         run: echo "VER=$SMARTINSTALLER_IMAGE" >> $GITHUB_OUTPUT
 
   CheckSecrets:
-    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
     outputs:
       gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
       ks8500_repo_token_is_set: ${{ steps.check_KS8500_REPO_TOKEN.outputs.is_set }}
@@ -212,7 +215,7 @@ jobs:
             bin/Release/publish/*
 
   Build-Win:
-    runs-on: codebuild-GitHubWindowsCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: [self-hosted, windows]
     strategy:
       matrix:
         Architecture: [x86, x64]
@@ -433,7 +436,7 @@ jobs:
   ###############
   Package-Win:
     if: needs.CheckSecrets.outputs.sign_is_set == 'true'
-    runs-on: codebuild-GitHubWindowsCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: [self-hosted, windows]
     strategy:
       matrix:
         Architecture: [x86, x64]
@@ -566,7 +569,7 @@ jobs:
             OpenTAP.*.TapPackage
 
   Package-Templates:
-    runs-on: codebuild-GitHubWindowsCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: [self-hosted, windows]
     needs:
       - GetVersion
     steps:
@@ -587,7 +590,7 @@ jobs:
           path: ./bin/Release/OpenTAP.Templates.*.nupkg
 
   Package-SDK:
-    runs-on: codebuild-GitHubWindowsCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: [self-hosted, windows]
     needs:
       - Build-Win
       - Build-DevGuide
@@ -654,7 +657,10 @@ jobs:
             SDK.*.TapPackage
 
   Package-Diff:
-    runs-on: ubuntu-20.04
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Package-Cross
     steps:
@@ -673,7 +679,7 @@ jobs:
         run: tap package diff OpenTAP.TapPackage -o diff
 
   Package-NuGet:
-    runs-on: codebuild-GitHubWindowsCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: [self-hosted, windows]
     needs:
       - Build-Win
       - Package-Win
@@ -962,7 +968,7 @@ jobs:
   Publish-NuGet:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
-    runs-on: codebuild-GitHubWindowsCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: [self-hosted, windows]
     needs:
       - Package-NuGet
     steps:
@@ -977,7 +983,7 @@ jobs:
   Publish-Templates:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
-    runs-on: codebuild-GitHubWindowsCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on: [self-hosted, windows]
     needs:
       - Package-Templates
     steps:
