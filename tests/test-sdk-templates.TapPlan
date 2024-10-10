@@ -95,7 +95,7 @@
           <BreakConditions>Inherit</BreakConditions>
         </TestStep>
       </ChildTestSteps>
-      <BreakConditions>Inherit</BreakConditions>
+      <BreakConditions>BreakOnError</BreakConditions>
       <Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>sdk new project symbols?&amp;/()=</Parameters_x0020__x005C__x0020_Command_x0020_Line_x0020_Arguments>
     </TestStep>
     <TestStep type="OpenTap.Plugins.BasicSteps.SweepParameterStep" Version="9.4.0-Development" Id="8a6aa2a3-b87d-416a-b264-91886d44b78e">

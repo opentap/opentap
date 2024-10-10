@@ -13,6 +13,7 @@
           <Name Metadata="Step Name">Run: {Application} {Command Line Arguments}</Name>
         </TestStep>
       </ChildTestSteps>
+      <BreakConditions>BreakOnError</BreakConditions>
     </TestStep>
   </Steps>
 </TestPlan>
