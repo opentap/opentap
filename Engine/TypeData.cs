@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -348,8 +349,28 @@ namespace OpenTap
             catch (Exception ex)
             {
                 failedLoad = true;
-                log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", Name, Assembly.Location,
-                    ex.Message);
+                var reason = ex.Message;
+                // Create a special-case error message when the load error is due to a dotnet runtime mismatch.
+                // FileName is a qualified assembly name, e.g. System.Runtime, Version=8.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a
+                const string versionPrefix = "System.Runtime, Version=";
+                if (ex is FileNotFoundException notFound && notFound.FileName.StartsWith(versionPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    // Build the reason string. I don't know if it's possible for the assembly to not be strong-named,
+                    // but let's handle that just in case.
+                    var filename = notFound.FileName;
+                    
+                    var versionEnd = filename.IndexOf(',', versionPrefix.Length);
+                    if (versionEnd == -1)
+                    {
+                        // no comma, so it ends with "Version=X.Y.Z.W"
+                        versionEnd = filename.Length;
+                    }
+                    var versionString = filename.Substring(versionPrefix.Length, versionEnd - versionPrefix.Length);
+
+                    reason =
+                        $"This type depends on .NET {versionString}, but the current process is running {System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription}";
+                }
+                log.Error("Unable to load type '{0}' from '{1}'. Reason: '{2}'.", Name, Assembly.Location, reason);
                 log.Debug(ex);
             }
 
