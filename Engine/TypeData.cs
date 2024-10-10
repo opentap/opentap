@@ -364,6 +364,7 @@ namespace OpenTap
                         var commaIndex = filename.IndexOf(',', versionPrefix.Length);
                         if (commaIndex == -1)
                         {
+                            // no comma so it ends with "Version=X.Y.Z.W"
                             commaIndex = filename.Length;
                         }
                         var versionString = filename.Substring(versionPrefix.Length, commaIndex - versionPrefix.Length);
