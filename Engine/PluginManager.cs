@@ -499,6 +499,7 @@ namespace OpenTap
             FileFinder.Invalidate();
             FileFinder.DirectoriesToSearch = directoriesToSearch;
             lastSearchedDirs = FileFinder.DirectoriesToSearch.ToHashSet();
+            assemblyResolutionMemorizer.InvalidateWhere((k, v) => v == null);
         }
 
         
