@@ -249,6 +249,8 @@ namespace OpenTap.Plugins.BasicSteps
                 SweepRow Value = SweepValues[i];
                 if (Value.Enabled == false) continue;
                 var AdditionalParams = new ResultParameters();
+                
+                AdditionalParams.Add("Sweep", "Iteration", iteration, null);
 
 
                 foreach (var set in sets)
