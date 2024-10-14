@@ -89,7 +89,7 @@ You can also specify a package that you just want installed (in e.g. bin/Debug/)
 </ItemGroup>
 ```
 
-### Versioning Assemblies with OpenTapGitAssistedAssemblyVersion
+### Versioning Assemblies with OpenTapSetAssemblyVersion
 
 If you are already using [Git Assisted Versioning](../Plugin%20Packaging%20and%20Versioning/Readme.html#git-assisted-versioning), you can automatically version your DLLs during build.
 To do so, set the following options in a property group in your .csproj file:
@@ -99,7 +99,7 @@ To do so, set the following options in a property group in your .csproj file:
   <!-- Must be set. otherwise the compiler will not version the output -->
   <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   <!-- Enable automatic versioning -->
-  <OpenTapGitAssistedAssemblyVersion>true</OpenTapGitAssistedAssemblyVersion>
+  <OpenTapSetAssemblyVersion>true</OpenTapSetAssemblyVersion>
 </PropertyGroup>
 ```
 
@@ -117,11 +117,11 @@ conditionally control it through an environment variable:
   <!-- Must be set. otherwise the compiler will not version the output -->
   <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   <!-- Calculate the version if it is not controlled by an environment variable -->
-  <OpenTapGitAssistedAssemblyVersion Condition="'$(SomeVersionFromEnvironment)' == ''">true</OpenTapGitAssistedAssemblyVersion>
+  <OpenTapSetAssemblyVersion Condition="'$(SomeVersionFromEnvironment)' == ''">true</OpenTapSetAssemblyVersion>
   <!-- Otherwise use the version from the environment variable -->
-  <OpenTapGitAssistedAssemblyVersion Condition="'$(SomeVersionFromEnvironment)' != ''">
+  <OpenTapSetAssemblyVersion Condition="'$(SomeVersionFromEnvironment)' != ''">
     <GitVersion>$(SomeVersionFromEnvironment)</GitVersion>
-  </OpenTapGitAssistedAssemblyVersion>
+  </OpenTapSetAssemblyVersion>
 </PropertyGroup>
 ```
 

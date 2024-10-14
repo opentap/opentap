@@ -163,26 +163,26 @@
     </ItemGroup>
   </Target>
 
-  <Target Name="CheckVersioningVariables" BeforeTargets="Build">
+  <Target Name="OpenTapCheckVersioningVariables" BeforeTargets="Build">
     <Error 
-    Condition="'$(OpenTapGitAssistedAssemblyVersion)' != '' AND '$(OpenTapGitAssistedAssemblyVersion)' != 'false' AND '$(GenerateAssemblyInfo)' != 'true'"
-           Text="OpenTapGitAssistedAssemblyVersion was specified, but GenerateAssemblyInfo is false. Please set GenerateAssemblyInfo to true."/>
+    Condition="'$(OpenTapSetAssemblyVersion)' != '' AND '$(OpenTapSetAssemblyVersion)' != 'false' AND '$(GenerateAssemblyInfo)' != 'true'"
+           Text="OpenTapSetAssemblyVersion was specified, but GenerateAssemblyInfo is false. Please set GenerateAssemblyInfo to true."/>
   </Target>
 
-  <UsingTask TaskName="Keysight.OpenTap.Sdk.MSBuild.SetGitVersion" AssemblyFile="$(MSBuildThisFileDirectory)\Keysight.OpenTap.Sdk.MSBuild.dll"/>
+  <UsingTask TaskName="Keysight.OpenTap.Sdk.MSBuild.CalculateVersion" AssemblyFile="$(MSBuildThisFileDirectory)\Keysight.OpenTap.Sdk.MSBuild.dll"/>
   <Target 
-    Condition="'$(OpenTapGitAssistedAssemblyVersion)' != '' AND '$(OpenTapGitAssistedAssemblyVersion)' != 'false'"
-    Name="OpenTapGitAssistedAssemblyVersion"
-    AfterTargets="CheckVersioningVariables"
+    Condition="'$(OpenTapSetAssemblyVersion)' != '' AND '$(OpenTapSetAssemblyVersion)' != 'false'"
+    Name="OpenTapCalculateAssemblyVersion"
+    AfterTargets="OpenTapCheckVersioningVariables"
     BeforeTargets="GetAssemblyAttributes">
-    <SetGitVersion 
+    <CalculateVersion 
       TapDir="$(OutDir)"
-      InputGitVersion="$(OpenTapGitAssistedAssemblyVersion)"
+      InputGitVersion="$(OpenTapSetAssemblyVersion)"
       SourceFile="$(MSBuildProjectFullPath)"
       >
       <Output TaskParameter="OutputShortVersion" ItemName="_OpenTapPluginVersion"/>
       <Output TaskParameter="OutputGitVersion" ItemName="_OpenTapPluginInformationalVersion"/>
-    </SetGitVersion>
+    </CalculateVersion>
     <PropertyGroup>
       <Version>@(_OpenTapPluginVersion)</Version>
       <AssemblyVersion>@(_OpenTapPluginVersion)</AssemblyVersion>

@@ -14,9 +14,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     /// MSBuild Task to version the build output using gitversion.
     /// </summary>
     [Serializable]
-    public class SetGitVersion : Task, ICancelableTask
+    public class CalculateVersion : Task, ICancelableTask
     {
-        private const string TargetName = "OpenTapGitAssistedAssemblyVersion";
+        private const string TargetName = "OpenTapSetAssemblyVersion";
         /// <summary>
         /// The build directory containing 'tap.exe' and 'OpenTAP.dll'
         /// </summary>
