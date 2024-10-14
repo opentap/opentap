@@ -162,4 +162,33 @@
       <Reference Include="@(_OpenTapPackagesReferences-> '$(OutDir)%(Identity)')"/>
     </ItemGroup>
   </Target>
+
+  <Target Name="OpenTapCheckVersioningVariables" BeforeTargets="Build">
+    <Error 
+    Condition="'$(OpenTapSetAssemblyVersion)' != '' AND '$(OpenTapSetAssemblyVersion)' != 'false' AND '$(GenerateAssemblyInfo)' != 'true'"
+           Text="OpenTapSetAssemblyVersion was specified, but GenerateAssemblyInfo is false. Please set GenerateAssemblyInfo to true."/>
+  </Target>
+
+  <UsingTask TaskName="Keysight.OpenTap.Sdk.MSBuild.CalculateVersion" AssemblyFile="$(MSBuildThisFileDirectory)\Keysight.OpenTap.Sdk.MSBuild.dll"/>
+  <Target 
+    Condition="'$(OpenTapSetAssemblyVersion)' != '' AND '$(OpenTapSetAssemblyVersion)' != 'false'"
+    Name="OpenTapCalculateAssemblyVersion"
+    AfterTargets="OpenTapCheckVersioningVariables"
+    BeforeTargets="GetAssemblyAttributes">
+    <CalculateVersion 
+      TapDir="$(OutDir)"
+      InputVersion="$(OpenTapSetAssemblyVersion)"
+      SourceFile="$(MSBuildProjectFullPath)"
+      >
+      <Output TaskParameter="OutputShortVersion" ItemName="_OpenTapPluginVersion"/>
+      <Output TaskParameter="OutputLongVersion" ItemName="_OpenTapPluginInformationalVersion"/>
+    </CalculateVersion>
+    <PropertyGroup>
+      <Version>@(_OpenTapPluginVersion)</Version>
+      <AssemblyVersion>@(_OpenTapPluginVersion)</AssemblyVersion>
+      <FileVersion>@(_OpenTapPluginVersion).0</FileVersion>
+      <InformationalVersion>@(_OpenTapPluginInformationalVersion)</InformationalVersion>
+    </PropertyGroup>
+  </Target>
+
 </Project>
