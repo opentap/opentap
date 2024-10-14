@@ -29,22 +29,22 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         public string SourceFile { get; set; }
 
         /// <summary>
-        /// Optional input gitversion. This is useful in CI pipelines where shallow clones
+        /// Optional input version. This is useful in CI pipelines where shallow clones
         /// are used for performance reasons.
         /// </summary>
-        public string InputGitVersion { get; set; }
+        public string InputVersion { get; set; }
         
         /// <summary>
-        /// The output gitversion.
+        /// The output shortversion (x.y.z).
         /// </summary>
         [Microsoft.Build.Framework.Output]
         public string OutputShortVersion { get; set; }
 
         /// <summary>
-        /// The output gitversion plus informational version.
+        /// The output gitversion plus informational version (x.y.z-beta.1+hash).
         /// </summary>
         [Microsoft.Build.Framework.Output]
-        public string OutputGitVersion { get; set; }
+        public string OutputLongVersion { get; set; }
 
         private bool tryParseXElement(string text, out XElement elem)
         {
@@ -90,7 +90,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             if (!proc.HasExited)
             {
                 stdout = stderr = null;
-                Log.LogError($"{TargetName}: tap sdk gitversion appears to hanging.");
+                Log.LogError($"{TargetName}: tap sdk gitversion is hanging.");
                 return false;
             }
             stdout = outStream.ToString();
@@ -128,19 +128,19 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         }
 
         // This does not need to be perfect.
-        private static Regex gitversionRegex = new Regex(@"^\d+\.\d+\.\d+", RegexOptions.Compiled); 
-        private bool tryParseGitVersion(string inputGitVersion, out string shortVersion, out string gitversion)
+        private static Regex versionRegex = new Regex(@"^\d+\.\d+\.\d+", RegexOptions.Compiled); 
+        private bool tryParseVersion(string inputVersion, out string shortVersion, out string longVersion)
         {
-            inputGitVersion = inputGitVersion.Trim();
-            var m = gitversionRegex.Match(inputGitVersion);
+            inputVersion = inputVersion.Trim();
+            var m = versionRegex.Match(inputVersion);
             if (m.Success)
             {
                 shortVersion = m.Value;
-                gitversion = inputGitVersion;
+                longVersion = inputVersion;
                 return true;
             }
 
-            shortVersion = gitversion = null;
+            shortVersion = longVersion = null;
             return false;
         }
 
@@ -194,7 +194,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
             foreach (var l in lines)
             {
-                if (tryParseGitVersion(l, out shortVersion, out gitversion))
+                if (tryParseVersion(l, out shortVersion, out gitversion))
                     return true;
             }
 
@@ -215,12 +215,12 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             // 3. An xml tag enclosing a value, such as <GitVersion>1.2.3</GitVersion>
 
             // Case 1: calculate the version
-            if (new[] { "true", "1" }.Contains(InputGitVersion.Trim(), StringComparer.OrdinalIgnoreCase))
+            if (new[] { "true", "1" }.Contains(InputVersion.Trim(), StringComparer.OrdinalIgnoreCase))
             {
                 if (tryCalculateGitversion(out shortVersion, out longVersion))
                 {
                     OutputShortVersion = shortVersion;
-                    OutputGitVersion = longVersion;
+                    OutputLongVersion = longVersion;
                     return true;
                 }
 
@@ -228,7 +228,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             }
 
             // Case 2/3: parse the provided version from the input
-            if (!tryParseXElement($"<{TargetName}>{InputGitVersion.Trim()}</{TargetName}>", out var elem))
+            if (!tryParseXElement($"<{TargetName}>{InputVersion.Trim()}</{TargetName}>", out var elem))
             {
                 // This should not be possible since the input is exactly the inner text of the .csproj property element.
                 // If the input is not valid xml, then the compilation should have already failed.
@@ -236,28 +236,28 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 return false;
             }
             
-            if (elem.Element("GitVersion") is XElement gv)
+            if (elem.Element("Version") is XElement gv)
             {
                 input = gv.Value.Trim();
             }
-            else if (tryParseGitVersion(elem.Value.Trim(), out _, out _))
+            else if (tryParseVersion(elem.Value.Trim(), out _, out _))
             {
                 input = elem.Value.Trim();
             }
             else
             { 
-                Log.LogError($"{TargetName}: Expected element named 'GitVersion'.");
+                Log.LogError($"{TargetName}: Expected element named 'Version'.");
                 return false;
             }
 
-            if (!tryParseGitVersion(input, out shortVersion, out longVersion))
+            if (!tryParseVersion(input, out shortVersion, out longVersion))
             {
-                Log.LogError($"{TargetName}: Provided gitversion is not a valid semantic version: '{input}'"); 
+                Log.LogError($"{TargetName}: Provided version is not a valid semantic version: '{input}'"); 
                 return false;
             }
             
             OutputShortVersion = shortVersion;
-            OutputGitVersion = longVersion;
+            OutputLongVersion = longVersion;
             return true; 
         }
 

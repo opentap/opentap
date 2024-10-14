@@ -177,11 +177,11 @@
     BeforeTargets="GetAssemblyAttributes">
     <CalculateVersion 
       TapDir="$(OutDir)"
-      InputGitVersion="$(OpenTapSetAssemblyVersion)"
+      InputVersion="$(OpenTapSetAssemblyVersion)"
       SourceFile="$(MSBuildProjectFullPath)"
       >
       <Output TaskParameter="OutputShortVersion" ItemName="_OpenTapPluginVersion"/>
-      <Output TaskParameter="OutputGitVersion" ItemName="_OpenTapPluginInformationalVersion"/>
+      <Output TaskParameter="OutputLongVersion" ItemName="_OpenTapPluginInformationalVersion"/>
     </CalculateVersion>
     <PropertyGroup>
       <Version>@(_OpenTapPluginVersion)</Version>

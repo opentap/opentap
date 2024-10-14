@@ -120,7 +120,7 @@ conditionally control it through an environment variable:
   <OpenTapSetAssemblyVersion Condition="'$(SomeVersionFromEnvironment)' == ''">true</OpenTapSetAssemblyVersion>
   <!-- Otherwise use the version from the environment variable -->
   <OpenTapSetAssemblyVersion Condition="'$(SomeVersionFromEnvironment)' != ''">
-    <GitVersion>$(SomeVersionFromEnvironment)</GitVersion>
+    <Version>$(SomeVersionFromEnvironment)</Version>
   </OpenTapSetAssemblyVersion>
 </PropertyGroup>
 ```
