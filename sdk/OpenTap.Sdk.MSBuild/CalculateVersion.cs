@@ -96,7 +96,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             stdout = outStream.ToString();
             stderr = errStream.ToString();
 
-            return true;
+            return proc.ExitCode == 0;
         }
 
         private bool isWindows()
@@ -215,7 +215,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             // 3. An xml tag enclosing a value, such as <GitVersion>1.2.3</GitVersion>
 
             // Case 1: calculate the version
-            if (new[] { "true", "1" }.Contains(InputVersion.Trim(), StringComparer.OrdinalIgnoreCase))
+            if (new[] { "true", "1" , "gitversion", "auto", "git" }.Contains(InputVersion.Trim(), StringComparer.OrdinalIgnoreCase))
             {
                 if (tryCalculateGitversion(out shortVersion, out longVersion))
                 {

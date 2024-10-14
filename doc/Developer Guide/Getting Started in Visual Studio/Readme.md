@@ -99,7 +99,7 @@ To do so, set the following options in a property group in your .csproj file:
   <!-- Must be set. otherwise the compiler will not version the output -->
   <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   <!-- Enable automatic versioning -->
-  <OpenTapSetAssemblyVersion>true</OpenTapSetAssemblyVersion>
+  <OpenTapSetAssemblyVersion>gitversion</OpenTapSetAssemblyVersion>
 </PropertyGroup>
 ```
 
@@ -117,7 +117,7 @@ conditionally control it through an environment variable:
   <!-- Must be set. otherwise the compiler will not version the output -->
   <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
   <!-- Calculate the version if it is not controlled by an environment variable -->
-  <OpenTapSetAssemblyVersion Condition="'$(SomeVersionFromEnvironment)' == ''">true</OpenTapSetAssemblyVersion>
+  <OpenTapSetAssemblyVersion Condition="'$(SomeVersionFromEnvironment)' == ''">gitversion</OpenTapSetAssemblyVersion>
   <!-- Otherwise use the version from the environment variable -->
   <OpenTapSetAssemblyVersion Condition="'$(SomeVersionFromEnvironment)' != ''">
     <Version>$(SomeVersionFromEnvironment)</Version>
