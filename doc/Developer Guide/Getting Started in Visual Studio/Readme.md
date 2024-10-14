@@ -127,6 +127,12 @@ conditionally control it through an environment variable:
 
 When a version is explicitly specified like this, OpenTAP will use this version instead of trying to calculate it.
 
+> NOTE: `GenerateAssemblyInfo` is incompatible with the
+> `[assembly:AssemblyVersionAttribute()]` attribute. If you are currently using
+> this attribute to set your assembly version, you should delete it before
+> using this feature. Otherwise you will see compiler errors such as `Duplicate
+> 'System.Reflection.AssemblyVersionAttribute' attribute.`
+
 ## SDK Package
 
 The Software Development Kit (SDK) package demonstrates the core capabilities of OpenTAP and makes it faster and simpler to develop your solutions. It also contains the Developer Guide which contains documentation relevant for developers.
