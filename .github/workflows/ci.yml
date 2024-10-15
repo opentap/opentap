@@ -13,7 +13,7 @@ env:
   OPENTAP_NO_UPDATE_CHECK: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_CONSOLE_ANSI_COLOR: true
-  SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller:2.2.0-beta.3
+  SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller:20-tapexe-not-removed
 
 jobs:
   GetVersion:
