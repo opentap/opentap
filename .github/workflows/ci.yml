@@ -782,7 +782,9 @@ jobs:
 
   
   Build-Installer-Windows:
-    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on:
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     needs:
       - GetVersion
       - Package-Win
@@ -825,8 +827,10 @@ jobs:
 
   Publish-Installer-Windows:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
-    environment: packages.opentap.io 
-    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    environment: packages.opentap.io
+    runs-on:
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Installer-Windows 
@@ -846,12 +850,14 @@ jobs:
                -H 'Metadata-Version: "${{ needs.GetVersion.outputs.LongVersion }}"' \
                -H 'Metadata-OS: "Windows"' \
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
-               --form 'file=@"'$(pwd)'/OpenTAP.exe"'
+               --form 'file=@"OpenTAP.exe"'
       - name: Upload Installer to Archive
-        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP.exe" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/WindowsX32/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}.exe"
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"OpenTAP.exe" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/WindowsX32/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}.exe"
 
   Build-Installer-Linux:
-    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on:
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     needs:
       - GetVersion
       - Package-Cross
@@ -891,13 +897,15 @@ jobs:
 
   Publish-Installer-Linux:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
-    environment: packages.opentap.io 
-    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    environment: packages.opentap.io
+    runs-on:
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Installer-Linux
       - GetVersion
-    steps: 
+    steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -910,13 +918,15 @@ jobs:
                -H 'Metadata-Version: "${{ needs.GetVersion.outputs.LongVersion }}"' \
                -H 'Metadata-OS: "Linux"' \
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
-               --form 'file=@"'$(pwd)'/OpenTAP"'
+               --form 'file=@"OpenTAP"'
       - name: Upload Installer to Archive
-        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/LinuxX64/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}"
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"OpenTAP" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/LinuxX64/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}"
 
   Docker-Linux:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
-    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on:
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-docker:latest
     environment: sign
     strategy:
@@ -998,7 +1008,9 @@ jobs:
   Publish-TapPackages:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: packages.opentap.io
-    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on:
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Package-Win
