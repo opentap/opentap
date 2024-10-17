@@ -3409,6 +3409,18 @@ namespace OpenTap
     /// </summary>
     public class MultiObjectAnnotator : IAnnotator
     {
+        class MergedValidationErrorAnnotation : IErrorAnnotation
+        {
+            readonly AnnotationCollection annotation;
+            public MergedValidationErrorAnnotation(AnnotationCollection annotation)
+            {
+                this.annotation = annotation;
+            }
+
+            public IEnumerable<string> Errors => annotation.Get<MergedValueAnnotation>().Merged
+                .SelectMany(a => a.Get<ValidationErrorAnnotation>()?.Errors ?? Enumerable.Empty<string>())
+                .Distinct();
+        }
         class MergedAvailableValues : IAvailableValuesAnnotation
         {
             public IEnumerable AvailableValues
@@ -3458,8 +3470,16 @@ namespace OpenTap
             }
             var merged = annotation.Get<MergedValueAnnotation>();
             if (merged == null) return;
-            var members = annotation.Get<IMembersAnnotation>();
 
+            var validationErrors = annotation.Get<ValidationErrorAnnotation>();
+            if (validationErrors != null)
+            {
+                annotation.Remove(validationErrors);
+                annotation.Add(new MergedValidationErrorAnnotation(annotation));
+            }
+            
+            var members = annotation.Get<IMembersAnnotation>();
+            
             if (members != null)
             {
                 var manyToOne = new ManyToOneAnnotation(annotation);
@@ -3819,7 +3839,7 @@ namespace OpenTap
         {
             get
             {
-                var disp = Get<IDisplayAnnotation>()?.Name ?? Get<IReflectionAnnotation>().ReflectionInfo?.Name;
+                var disp = Get<IDisplayAnnotation>()?.Name ?? Get<IReflectionAnnotation>()?.ReflectionInfo?.Name;
                 return disp ?? "?";
             }
         }
