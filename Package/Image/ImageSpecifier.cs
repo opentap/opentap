@@ -43,6 +43,16 @@ namespace OpenTap.Package
         public ImageSpecifier()
         {
             
+        } 
+        
+        private static bool IsZipFile(string path)
+        {
+            using var fs = File.OpenRead(path);
+            byte[] buf = new byte[4];
+            int read = fs.Read(buf, 0, 4);
+            if (read != 4) return false;
+            // Check for presence of magic header
+            return buf[0] == 'P' && buf[1] == 'K' && buf[2] == 3 && buf[3] == 4;
         }
 
         internal static ImageSpecifier FromAddedPackages(Installation installation, IEnumerable<PackageSpecifier> newPackages)
@@ -60,13 +70,16 @@ namespace OpenTap.Package
                     additionalPackages.Add(ext);
                 }
 
-                if (File.Exists(package.Name))
+                // IsZipFile handles the special case where there exists a file on disk
+                // with the same name as a package which is not a zip file.
+                if (File.Exists(package.Name) && IsZipFile(package.Name))
                 {
                     var package2 = PackageDef.FromPackage(package.Name);
                     toInstall.Add(new PackageSpecifier(package2.Name, package2.Version.AsExactSpecifier()));
                     installed.Add(package2);
                     continue;
                 }
+
                 toInstall.Add(package);
             }
 
