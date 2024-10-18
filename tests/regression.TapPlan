@@ -114,6 +114,7 @@
           <Name Metadata="Step Name">Test Plan {Referenced Plan}</Name>
         </TestStep>
       </ChildTestSteps>
+      <BreakConditions>BreakOnError, BreakOnFail</BreakConditions>
     </TestStep>
   </Steps>
 </TestPlan>

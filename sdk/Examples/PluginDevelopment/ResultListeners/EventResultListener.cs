@@ -24,7 +24,7 @@ namespace OpenTap.Plugins.PluginDevelopment
     {
         public EventResultListener()
         {
-            Name = "Evnt";
+            Name = "Event";
         }
 
         public override void OnTestPlanRunStart(TestPlanRun planRun)
