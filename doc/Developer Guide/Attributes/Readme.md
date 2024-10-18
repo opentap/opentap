@@ -182,6 +182,14 @@ The syntax works as follows:
 
 Each filter comes in pairs of two, a name and a list of extensions. The name of a filter can be anything, excluding the '|' character. It normally contains the name of all the included file extensions, for example "Image Files (\*.png, \*.jpg)". The file extensions is normally not seen by the user, but should contain all the supported file extensions as a semi-colon separated list. Lastly, it is common practice to include the 'AllFiles | \*.\*' part, which makes it possible for the user to override the known filters and manually select any kind of file.
 
+In addition to string properties, the FilePath attribute can also be applied to `List<string>` types. For example:
+```cs
+[FilePath]
+public List<string> FilePaths {get;set;} = new List<string>();
+```
+
+When used this way, multiple files can be selected simultaneously, simplifying the process of choosing several files from the same directory. However, the user experience may vary across different platforms.
+
 ### Submit Attribute
 This attribute is used only for objects used together with UserInput.Request. It is used to mark the property that finalizes the input. For example this could be used with an enum to add an OK/Cancel button, that closes the dialog when clicked. See the example in UserInputExample.cs for an example of how to use it.
 
