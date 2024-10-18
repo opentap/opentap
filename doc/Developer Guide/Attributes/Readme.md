@@ -182,7 +182,7 @@ The syntax works as follows:
 
 Each filter comes in pairs of two, a name and a list of extensions. The name of a filter can be anything, excluding the '|' character. It normally contains the name of all the included file extensions, for example "Image Files (\*.png, \*.jpg)". The file extensions is normally not seen by the user, but should contain all the supported file extensions as a semi-colon separated list. Lastly, it is common practice to include the 'AllFiles | \*.\*' part, which makes it possible for the user to override the known filters and manually select any kind of file.
 
-In addition to string properties, the FilePath attribute can also be applied to List<string> types. For example:
+In addition to string properties, the FilePath attribute can also be applied to `List<string>` types. For example:
 ```cs
 [FilePath]
 public List<string> FilePaths {get;set;} = new List<string>();
