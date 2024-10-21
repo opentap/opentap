@@ -250,7 +250,7 @@ namespace OpenTap.Plugins.BasicSteps
                 if (Value.Enabled == false) continue;
                 var AdditionalParams = new ResultParameters();
                 
-                AdditionalParams.Add("Sweep", "Iteration", iteration, null);
+                AdditionalParams.Add("Sweep", "Iteration", iteration + 1, null);
 
 
                 foreach (var set in sets)

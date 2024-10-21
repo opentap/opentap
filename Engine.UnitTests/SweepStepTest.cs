@@ -490,7 +490,7 @@ namespace OpenTap.Engine.UnitTests
             var step2RunData = runData.StepRuns.Where(stepRun => stepRun.TestStepId == step2.Id);
             var iterationValues = stepRunData.Select(run => (int) run.Parameters.Find("Iteration", "Sweep").Value).ToArray();
             Assert.IsTrue(iterationValues.Distinct().Count() == iterationValues.Length);
-            Assert.AreEqual(0, iterationValues[0]);
+            Assert.AreEqual(1, iterationValues[0]);
             var iterationValues2 = step2RunData.Select(run => (int) run.Parameters.Find("Iteration", "Sweep").Value).ToArray();
             Assert.IsTrue(iterationValues.SequenceEqual(iterationValues2));
         }
@@ -541,7 +541,7 @@ namespace OpenTap.Engine.UnitTests
                 {
                     for (int j = 0; j < testValuesInner.Length; j++)
                     {
-                        Assert.IsTrue(iterationSweepValues[index] == j);
+                        Assert.IsTrue(iterationSweepValues[index] == (j + 1));
                         index++;
                     }
                 }
@@ -551,7 +551,7 @@ namespace OpenTap.Engine.UnitTests
 
                 for (int j = 0; j < testValuesInner.Length; j++)
                 {
-                    Assert.IsTrue(iterationSweepValues[j] == j);
+                    Assert.IsTrue(iterationSweepValues[j] == (j+1));
                 }
             }
         }
@@ -581,7 +581,7 @@ namespace OpenTap.Engine.UnitTests
 
             var runData = plan.ExecuteReturnData();
             var iterations = runData.StepRuns.Where(stepRun => stepRun.TestStepId == step.Id).Select(stepRun => (int)stepRun.Parameters.Find("Iteration", "Sweep").Value).ToArray();
-            Assert.AreEqual(0, iterations[0]);
+            Assert.AreEqual(1, iterations[0]);
             Assert.IsTrue(iterations.Count() == loop.SweepPoints);
             Assert.IsTrue(iterations.Distinct().Count() == iterations.Length);
 
