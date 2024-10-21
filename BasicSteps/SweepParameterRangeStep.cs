@@ -186,7 +186,7 @@ namespace OpenTap.Plugins.BasicSteps
                 OnPropertyChanged("");
 
                 var AdditionalParams = new ResultParameters();
-                
+                AdditionalParams.Add("Sweep", "Iteration", iteration, null);
                 foreach (var disp in disps)
                     AdditionalParams.Add(new ResultParameter(disp.Group.FirstOrDefault() ?? "", disp.Name, Value));
 
