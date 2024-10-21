@@ -86,7 +86,9 @@ jobs:
   Build-DevGuide:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.ks8500_repo_token_is_set == 'true'
-    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on:
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Setup OpenTAP
@@ -109,7 +111,9 @@ jobs:
   Build-ApiDoc:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
-    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on:
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container:
       image: ghcr.io/opentap/oci-images/build-doxygen:latest
     steps:
@@ -140,7 +144,9 @@ jobs:
           path: API
 
   Build-Pages:
-    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on:
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-ApiDoc
@@ -188,7 +194,9 @@ jobs:
           path: public
 
   Build-Linux:
-    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on:
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Checkout
@@ -505,7 +513,9 @@ jobs:
             OpenTAP.*.Windows.TapPackage
 
   Package-Cross:
-    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    runs-on:
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Linux
