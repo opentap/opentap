@@ -447,6 +447,71 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsFalse(wasUsed);
             }
         }
+
+        public class ClassWithComplexList : IElementFactory
+        {
+            public class ComplexElement
+            {
+                readonly ClassWithComplexList Parent;
+                
+                internal ComplexElement(ClassWithComplexList parent)
+                {
+                    this.Parent = parent;
+                }
+            }
+
+            public class ComplexList : List<ComplexElement>, IElementFactory
+            {
+                readonly ClassWithComplexList parent;
+                public ComplexList(ClassWithComplexList lst)
+                {
+                    this.parent = lst;
+                }
+                public object NewElement(IMemberData member, ITypeData elementType)
+                {
+                    return new ComplexElement(parent);
+                }
+            }
+
+            public List<ComplexElement> Items { get; set; } = new List<ComplexElement>();
+            
+            public ComplexList Items2 { get; set; }
+
+            public ComplexList NewComplexList()
+            {
+                return new ComplexList(this);
+            }
+            
+            public ClassWithComplexList()
+            {
+                Items2 = new ComplexList(this);
+            }
+
+            public object NewElement(IMemberData member, ITypeData elementType)
+            {
+                if (elementType.IsA(typeof(ComplexList)))
+                {
+                    return new ComplexList(this);
+                }
+                return new ComplexElement(this);
+            }
+        }
+
+        [Test]
+        public void SerializeWithElementFactory()
+        {
+            var test = new ClassWithComplexList();
+            test.Items.Add((ClassWithComplexList.ComplexElement)test.NewElement(null, null));
+            test.Items2.Add((ClassWithComplexList.ComplexElement)test.Items2.NewElement(null, TypeData.FromType(typeof(ClassWithComplexList.ComplexList))));
+
+            var xml = new TapSerializer().SerializeToString(test);
+
+            var test2 =(ClassWithComplexList) new TapSerializer().DeserializeFromString(xml);
+            Assert.AreEqual(1, test2.Items2.Count);
+            Assert.IsNotNull(test2.Items2[0]);
+            Assert.AreEqual(1, test2.Items.Count);
+            Assert.IsNotNull(test2.Items[0]);
+        }
         
     }
 }

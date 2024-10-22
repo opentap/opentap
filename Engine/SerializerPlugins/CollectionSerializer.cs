@@ -86,7 +86,9 @@ namespace OpenTap.Plugins
 
                     return false;
                 }
-
+                
+                IEnumerable values = null;
+                
                 if (genericType.IsNumeric() && element.HasElements == false)
                 {
                     var str = element.Value;
@@ -104,26 +106,36 @@ namespace OpenTap.Plugins
                 {
                     if (!_t.CanCreateInstance && !t.IsArray)
                     {
-                        // the data has to be updated in-place.
+                        
                         var os = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
                         var mem = os?.CurrentMember;
                         if (mem == null) throw new Exception("Unable to get member list");
-                        var val = ((IEnumerable)mem.GetValue(os.Object)).Cast<object>();
-                        var elems = element.Elements();
-                        if (elems.Count() != val.Count())
+                        if (os.Object is IElementFactory fac && fac.NewElement(mem, mem.TypeDescriptor) is object target)
                         {
-                            Log.Warning("Deserialized unbalanced list.");
+                            values = (IList)target;
+                            this.Object = values;
                         }
-
-                        foreach (var (elem, obj) in elems.Pairwise(val))
+                        else
                         {
-                            if (!os.TryDeserializeObject(elem, TypeData.GetTypeData(obj), o => { }, obj, true))
-                                return false;
-                        }
+                            // the data has to be updated in-place.
+                            var val = ((IEnumerable)mem.GetValue(os.Object)).Cast<object>();
+                            var elems = element.Elements();
+                            if (elems.Count() != val.Count())
+                            {
+                                Log.Warning("Deserialized unbalanced list.");
+                            }
 
-                        return true;
+                            foreach (var (elem, obj) in elems.Pairwise(val))
+                            {
+                                if (!os.TryDeserializeObject(elem, TypeData.GetTypeData(obj), o => { }, obj, true))
+                                    return false;
+                            }
+
+                            return true;
+                        }
                     }
-                    this.Object = finalValues;
+                    if(this.Object != values)
+                        this.Object = finalValues;
                     var vals = (IList) finalValues;
                     foreach (var node2 in element.Elements())
                     {
@@ -148,7 +160,7 @@ namespace OpenTap.Plugins
                     }
                 }
 
-                IEnumerable values;
+                
                 if (t.IsArray)
                 {
                     int elementCount = finalValues.Cast<object>().Count();
@@ -162,6 +174,13 @@ namespace OpenTap.Plugins
                             lst[i++] = item;
                         setResult(values);
                     });
+                }
+                else if (!_t.CanCreateInstance && !t.IsArray && Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault()?.Object is IElementFactory fac)
+                {
+                    var lst = (IList)values;
+                    foreach (var item in finalValues)
+                        lst.Add(item);
+                    values = lst;
                 }
                 else if (t.DescendsTo(typeof(System.Collections.ObjectModel.ReadOnlyCollection<>)))
                 {

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Xml.Serialization;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -13,7 +14,7 @@ namespace OpenTap.Plugins.BasicSteps
         public bool Enabled { get; set; } = true;
         
         /// <summary> The sweep step owning this row. This is needed to figure out which properties the object has. </summary>
-        [Browsable(false)]
+        [Browsable(false), XmlIgnore]
         public SweepParameterStep Loop { get; set; }
         
         /// <summary> Dictionary for storing dynamic property values. </summary>
@@ -22,5 +23,17 @@ namespace OpenTap.Plugins.BasicSteps
         internal string GetIterationString() => string
             .Join(", ", 
                 Values.OrderBy(x => x.Key).Select(x => $"{x.Key} = {x.Value}"));
+
+        /// <summary> Create a sweep row instance. </summary>
+        public SweepRow()
+        {
+            
+        }
+        
+        /// <summary> Create a sweep row instance with a step. </summary>
+        public SweepRow(SweepParameterStep loop)
+        {
+            this.Loop = loop;
+        }
     }
 }
