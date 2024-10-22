@@ -379,8 +379,8 @@ namespace OpenTap.UnitTests
             sweep.ChildTestSteps.Add(step);
            
             
-            sweep.SweepValues.Add(new SweepRow());
-            sweep.SweepValues.Add(new SweepRow());
+            sweep.SweepValues.Add(new SweepRow(sweep));
+            sweep.SweepValues.Add(new SweepRow(sweep));
 
             TypeData.GetTypeData(step).GetMember(nameof(ScopeTestStep.A)).Parameterize(sweep, step, "Parameters \\ A");
             TypeData.GetTypeData(step).GetMember(nameof(ScopeTestStep.EnabledTest)).Parameterize(sweep, step, nameof(ScopeTestStep.EnabledTest));
@@ -568,9 +568,9 @@ namespace OpenTap.UnitTests
             
             TypeData.GetTypeData(step).GetMember(nameof(step.NormallyNull)).Parameterize(sweep, step, nameof(step.NormallyNull));
             
-            var row = new SweepRow {Loop = sweep};
+            var row = new SweepRow(sweep);
             row.Values[nameof(step.NormallyNull)] = null;
-            sweep.SweepValues.Add(new SweepRow{Loop = sweep});
+            sweep.SweepValues.Add(new SweepRow(sweep));
 
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
@@ -716,7 +716,7 @@ namespace OpenTap.UnitTests
             var failStep = new FailParameterStep();
             step1.ChildTestSteps.Add(failStep);
             TypeData.GetTypeData(failStep).GetMember(nameof(failStep.Value)).Parameterize(step1, failStep, "A");
-            step1.SweepValues.Add(new SweepRow());
+            step1.SweepValues.Add(new SweepRow(step1));
             // this should make failStep fail.
             step1.SweepValues[0].Values["A"] = -1.0;
 
@@ -733,7 +733,7 @@ namespace OpenTap.UnitTests
             var testStep = new DelayStep();
             sweep.ChildTestSteps.Add(testStep);
             TypeData.GetTypeData(testStep).GetMember(nameof(testStep.DelaySecs)).Parameterize(sweep, testStep, "A");
-            sweep.SweepValues.Add(new SweepRow());
+            sweep.SweepValues.Add(new SweepRow(sweep));
             sweep.SweepValues[0].Values["A"] = -1;
 
             var result = plan.Execute();
@@ -804,7 +804,7 @@ namespace OpenTap.UnitTests
                 mem.Parameterize(step1, step2, "Instrument");
                 for (int i = 0; i < iterations; i++)
                 {
-                    var row1 = new SweepRow();
+                    var row1 = new SweepRow(step1);
                     row1.Values["Instrument"] = instruments[i];
                     step1.SweepValues.Add(row1);
                 }

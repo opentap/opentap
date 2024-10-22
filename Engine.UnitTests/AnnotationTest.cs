@@ -1893,7 +1893,7 @@ namespace OpenTap.UnitTests
 
             void addRow(double delay, bool validationErrors)
             {
-                sweep.SweepValues.Add(new SweepRow());
+                sweep.SweepValues.Add(new SweepRow(sweep));
                 var td = TypeData.GetTypeData(sweep.SweepValues[0]);
                 var timeDelay = td.GetMember(nameof(errorStep.DelaySecs));
                 var valErrors = td.GetMember(nameof(validationErrorStep.HasValidationErrors));
