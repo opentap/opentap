@@ -74,22 +74,16 @@ namespace OpenTap.Plugins
                     // if the instance type cannot be constructed,
                     // use the instance already on the object.
                     var objectSerializer = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
-                    var factory = Serializer.SerializerStack.OfType<IConstructingSerializer>().Skip(1).FirstOrDefault(s => s?.Object is IElementFactory)?.Object as IElementFactory;
                     var ownerMember = objectSerializer?.CurrentMember;
                     var ownerObj = objectSerializer?.Object;
                     if (ownerMember == null || ownerObj == null)
                     {
                         throw new Exception($"Cannot create instance of {t} and no default value exists.");
                     }
-                    
-                    if (factory != null)
+                  
+                    if (ownerMember.HasAttribute<IFactoryAttribute>())
                     {
-                        newobj = factory.NewElement(ownerMember, t);
-                    }
-                    
-                    if (newobj == null && ownerObj is IElementFactory elem )
-                    {
-                        newobj = elem.NewElement(ownerMember, t);
+                        newobj = FactoryAttribute.Create(ownerObj, ownerMember.GetAttribute<IFactoryAttribute>());
                     }
 
                     if (newobj == null)

@@ -11,7 +11,7 @@ namespace OpenTap.Plugins.BasicSteps
 {
     [AllowAnyChild]
     [Display("Sweep Parameter", "Table based loop that sweeps the value of its parameters based on a set of values.", "Flow Control")]
-    public class SweepParameterStep : SweepParameterStepBase, IElementFactory
+    public class SweepParameterStep : SweepParameterStepBase
     {
         public bool SweepValuesEnabled => SelectedParameters.Count > 0;
 
@@ -21,7 +21,9 @@ namespace OpenTap.Plugins.BasicSteps
         [HideOnMultiSelect] // todo: In the future support multi-selecting this.
         [EnabledIf(nameof(SweepValuesEnabled), true)]
         [Unsweepable, Unmergable]
-        public SweepRowCollection SweepValues { get; set; }
+        [ElementFactory(nameof(NewElement))]
+        [Factory(nameof(NewSweepRowCollection))]
+        public SweepRowCollection SweepValues { get; set; } 
 
         /// <summary>
         /// This property declares to the Resource Manager which resources are declared by this test step. 
@@ -287,13 +289,13 @@ namespace OpenTap.Plugins.BasicSteps
                 sets[i].SetValue(this, originalValues[i]);
         }
         
-        public object NewElement(IMemberData member, ITypeData elementType)
+        SweepRow NewElement()
         {
-            if (member.Name == "SweepValues" && elementType.DescendsTo(typeof(SweepRowCollection)))
-            {
-                return new SweepRowCollection(this);
-            }
-            return null;
+            return new SweepRow(this);
+        }
+        SweepRowCollection NewSweepRowCollection()
+        {
+            return new SweepRowCollection(this);
         }
     }
 }
