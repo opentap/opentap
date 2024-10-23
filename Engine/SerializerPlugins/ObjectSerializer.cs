@@ -80,10 +80,18 @@ namespace OpenTap.Plugins
                     {
                         throw new Exception($"Cannot create instance of {t} and no default value exists.");
                     }
+                  
+                    if (ownerMember.HasAttribute<IFactoryAttribute>())
+                    {
+                        newobj = FactoryAttribute.Create(ownerObj, ownerMember.GetAttribute<IFactoryAttribute>());
+                    }
 
-                    newobj = ownerMember.GetValue(ownerObj);
                     if (newobj == null)
-                        throw new Exception($"Unable to get default value of {ownerMember}");
+                    {
+                        newobj = ownerMember.GetValue(ownerObj);
+                        if (newobj == null)
+                            throw new Exception($"Unable to get default value of {ownerMember}");
+                    }
                 }
                 else
                 {

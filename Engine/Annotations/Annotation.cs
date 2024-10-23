@@ -1755,7 +1755,19 @@ namespace OpenTap
 
         class BasicCollectionAnnotation : IBasicCollectionAnnotation, IOwnedAnnotation, IFixedSizeCollectionAnnotation
         {
-            public IEnumerable Elements { get; set; }
+            IEnumerable elements;
+            public IEnumerable Elements
+            {
+                get => elements;
+                set
+                {
+
+                    elements = value;
+                    if (annotations.Get<IObjectValueAnnotation>() is IObjectValueAnnotation va)
+                       va.Value = value;
+                }
+            }
+
 
             public bool IsFixedSize
             {
@@ -2079,8 +2091,15 @@ namespace OpenTap
                         }
                     }
                 }
-                
-                                        
+
+                if (rdonly && lst == null)
+                {
+                    //throw new Exception("Unable to show list value");
+                    // an error should be thrown here, but that will critically break current implementations
+                    // lets wait a few releases before we do that.
+                    return;
+                }
+
                 // Some IObjectValue annotations works best if they are notified of a modification this way.
                 // for example MergedValueAnnotation.
                 objValue.Value = lst;
@@ -2112,6 +2131,15 @@ namespace OpenTap
                             return fac.AnnotateSub(elem2, "");
                         if (elem2.IsNumeric)
                             return fac.AnnotateSub(elem2, Convert.ChangeType(0, elem2.Type));
+                        object instance = null;
+                        var member = fac.Get<IMemberAnnotation>()?.Member;
+                        if(member?.GetAttribute<FactoryAttribute>() is FactoryAttribute f)
+                        {
+                            instance = FactoryAttribute.Create(fac.Source, f);
+                        }
+                        if (instance != null)
+                            return fac.AnnotateSub(null, instance);
+                        
                         if (elem2.IsValueType)
                         {
                             if (elem2.DescendsTo(typeof(Enum)))
@@ -2130,7 +2158,15 @@ namespace OpenTap
                         object instance = null;
                         try
                         {
-                            instance = elem2.CreateInstance(Array.Empty<object>());
+                            var member = fac.Get<IMemberAnnotation>()?.Member;
+                            if(member?.GetAttribute<FactoryAttribute>() is FactoryAttribute f)
+                            {
+                                instance = FactoryAttribute.Create(fac.Source, f);
+                            }
+                            if(instance == null)
+                            {
+                               instance = elem2.CreateInstance(Array.Empty<object>());
+                            }
                         }
                         catch
                         {
