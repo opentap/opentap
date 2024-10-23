@@ -1,6 +1,6 @@
 namespace OpenTap.Plugins.BasicSteps
 {
-    public class SweepRowCollection : VirtualCollection<SweepRow>, IElementFactory
+    public class SweepRowCollection : VirtualCollection<SweepRow>
     {
         public SweepRowCollection(SweepParameterStep loop) => this.loop = loop;
         SweepParameterStep loop; 
@@ -40,11 +40,6 @@ namespace OpenTap.Plugins.BasicSteps
                     value.Loop = Loop;
                 base[index] = value;
             }
-        }
-        
-        public object NewElement(IMemberData elementBaseType, ITypeData elemType)
-        {
-            return new SweepRow(Loop);
         }
     }
 }

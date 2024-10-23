@@ -448,7 +448,7 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
-        public class ClassWithComplexList : IElementFactory
+        public class ClassWithComplexList
         {
             public class ComplexElement
             {
@@ -460,24 +460,28 @@ namespace OpenTap.Engine.UnitTests
                 }
             }
 
-            public class ComplexList : List<ComplexElement>, IElementFactory
+            public class ComplexList : List<ComplexElement>
             {
                 readonly ClassWithComplexList parent;
                 public ComplexList(ClassWithComplexList lst)
                 {
                     this.parent = lst;
                 }
-                public object NewElement(IMemberData member, ITypeData elementType)
-                {
-                    return new ComplexElement(parent);
-                }
             }
 
+            [Factory(nameof(NewElement))]
             public List<ComplexElement> Items { get; set; } = new List<ComplexElement>();
             
+            [ElementFactory(nameof(NewElement))]
+            [Factory(nameof(NewComplexList))]
             public ComplexList Items2 { get; set; }
 
-            public ComplexList NewComplexList()
+            internal ComplexElement NewElement()
+            {
+                return new ComplexElement(this);
+            }
+
+            internal ComplexList NewComplexList()
             {
                 return new ComplexList(this);
             }
@@ -487,22 +491,14 @@ namespace OpenTap.Engine.UnitTests
                 Items2 = new ComplexList(this);
             }
 
-            public object NewElement(IMemberData member, ITypeData elementType)
-            {
-                if (elementType.IsA(typeof(ComplexList)))
-                {
-                    return new ComplexList(this);
-                }
-                return new ComplexElement(this);
-            }
         }
 
         [Test]
         public void SerializeWithElementFactory()
         {
             var test = new ClassWithComplexList();
-            test.Items.Add((ClassWithComplexList.ComplexElement)test.NewElement(null, null));
-            test.Items2.Add((ClassWithComplexList.ComplexElement)test.Items2.NewElement(null, TypeData.FromType(typeof(ClassWithComplexList.ComplexList))));
+            test.Items.Add(test.NewElement());
+            test.Items2.Add(test.NewElement());
 
             var xml = new TapSerializer().SerializeToString(test);
 
