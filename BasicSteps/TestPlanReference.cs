@@ -386,15 +386,11 @@ namespace OpenTap.Plugins.BasicSteps
             
             var refPlanPath = Filepath.Expand(testPlanDir: testplandir as string);
             refPlanPath = refPlanPath.Replace('\\', '/');
-            if (!File.Exists(refPlanPath))
-            {
-                Log.Warning("File does not exist: \"{0}\"", refPlanPath);
-                return null;
-            }
+            
             return refPlanPath;
         }
 
-        public bool anyStepsLoaded => ChildTestSteps.Any() && File.Exists(GetPath());
+        public bool anyStepsLoaded => ChildTestSteps.Any() && GetPath() is string path && File.Exists(path);
 
         
         
@@ -418,7 +414,7 @@ namespace OpenTap.Plugins.BasicSteps
             
         
         [Browsable(true)]
-        [Display("Convert to Sequence", "Convert  the test plan reference to a sequence step.", Order: 1.1)]
+        [Display("Convert to Sequence", "Convert the test plan reference to a sequence step.", Order: 1.1)]
         [EnabledIf(nameof(anyStepsLoaded), HideIfDisabled = true)]
         public void ConvertToSequence()
         {
@@ -426,23 +422,31 @@ namespace OpenTap.Plugins.BasicSteps
             UserInput.Request(warn, true);
             if (warn.Response == ConvertWarning.ConvertOrCancel.Cancel)
                 return;
+            
+            // This test plan contains a clone of all the test steps in 'this'.
             var subPlan = TestPlan.Load(GetPath());
+            
+            // the new sequence step.
             var seq = new SequenceStep
             {
-                Name = Name != "Test Plan Reference" ? Name : "Sequence",
+                // Replace Test Plan Reference if the name starts with that.
+                Name = Name.StartsWith("Test Plan Reference") ? ("Sequence" + Name.Substring("Test Plan Reference".Length)) : Name,
                 Parent = Parent,
                 Id = this.Id
             };
             
             ChildItemVisibility.SetVisibility(seq, ChildItemVisibility.GetVisibility(this));
             
+            // first figure out which steps are parameterized to this in the list of child steps.
             var parameters = TypeData.GetTypeData(subPlan).GetMembers().OfType<ParameterMemberData>()
                 .Select(e => new {Name = e.Name , Members = e.ParameterizedMembers.ToArray()}).ToArray();
-            
             foreach (var param in TypeData.GetTypeData(subPlan).GetMembers().OfType<ParameterMemberData>().ToArray())
             {
+                // unparameterize those.
                 param.Remove();
             }
+            
+            // now copy the steps over to the new step. 
             var steps = subPlan.ChildTestSteps.ToArray();
             subPlan.ChildTestSteps.Clear();
             foreach (var step in steps)
@@ -454,7 +458,7 @@ namespace OpenTap.Plugins.BasicSteps
             var idx = parent.ChildTestSteps.IndexOf(this);
             parent.ChildTestSteps[idx] = seq;
             
-            // This section copies parameters  over from the test plan reference to the sequence
+            // This section copies parameters over from the test plan reference to the sequence
             foreach (var parameter in parameters)
             {
                 var name = parameter.Name;
@@ -467,6 +471,7 @@ namespace OpenTap.Plugins.BasicSteps
             }
             
             // This section copies mixins over from the test plan reference to the sequence
+            
             var seqType = TypeData.GetTypeData(seq);
             foreach (var member in TypeData.GetTypeData(this).GetMembers())
             {
@@ -490,6 +495,42 @@ namespace OpenTap.Plugins.BasicSteps
                     mem.SetValue(seq, member.GetValue(this));
                 }
             }
+
+            
+            // This section migrates parameters to the new step.
+            
+            ParameterMemberData GetParameter(object target, object source, IMemberData parameterizedMember)
+            {
+                var parameterMembers = TypeData.GetTypeData(target).GetMembers().OfType<ParameterMemberData>();
+                foreach (var fwd in parameterMembers)
+                {
+                    if (fwd.ContainsMember((source, parameterizedMember)))
+                        return fwd;
+                }
+                return null;
+            }
+            foreach (var member in TypeData.GetTypeData(this).GetMembers())
+            {
+                if (member.IsParameterized(this))
+                {
+                    
+                    var parent2 = Parent;
+                    while (parent2 != null)
+                    {
+                        var p = GetParameter(parent2, this, member);
+                        if (p != null)
+                        {
+                            TypeData.GetTypeData(seq).GetMember(member.Name).Parameterize(parent2, seq, p.Name);
+                            member.Unparameterize(p, this);
+                            
+                            break;
+                        }
+                        parent2 = parent2.Parent;
+                    }
+                }
+            }
+            
+            // .. and done.
         }
         
         internal ParameterMemberData[] ExternalParameters { get; private set; } = Array.Empty<ParameterMemberData>();

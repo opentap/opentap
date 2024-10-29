@@ -136,13 +136,12 @@ namespace OpenTap
         internal object Target { get; }
 
         /// <summary> Immutable data structure for managing parameter members. </summary>
-        readonly struct ParameterMembers : IEnumerable<(object, IMemberData)>
+        readonly struct ParameterMembers : ICollection<(object, IMemberData)>
         {
             public readonly object Source;
             public readonly IMemberData Member;
             public readonly ImmutableHashSet<(object Source, IMemberData Member)> Additional;
-            public readonly int Count;
-
+            
             public ParameterMembers(object source, IMemberData member, ImmutableHashSet<(object Source, IMemberData Member)> additionalMembers)
             {
                 Source = source;
@@ -190,6 +189,31 @@ namespace OpenTap
             IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
             
             public bool Contains(object findSource, IMemberData findMember) => Equals(findSource, Source) && Equals(findMember, Member) || Additional.Contains((findSource, findMember));
+            public void Add((object, IMemberData) item)
+            {
+                throw new NotSupportedException("This class is readonly, create a new instance instead.");
+            }
+            public void Clear()
+            {
+                throw new NotSupportedException("This class is readonly, create a new instance instead.");
+            }
+            public bool Contains((object, IMemberData) item) => Contains(item.Item1, item.Item2);
+            
+            public void CopyTo((object, IMemberData)[] array, int arrayIndex)
+            {
+                array[arrayIndex] = (Source, Member);
+                foreach (var elem in Additional)
+                {
+                    arrayIndex++;
+                    array[arrayIndex] = elem;
+                }
+            }
+            public bool Remove((object, IMemberData) item)
+            {
+                throw new NotSupportedException("This class is readonly, create a new instance instead.");
+            }
+            public int Count { get; }
+            public bool IsReadOnly => true;
         }
 
         ParameterMembers parameterMembers;
@@ -226,7 +250,8 @@ namespace OpenTap
         /// <summary>  The members and objects that make up the aggregation of this parameter. </summary>
         public IEnumerable<(object Source, IMemberData Member)> ParameterizedMembers => parameterMembers;
 
-        internal bool ContainsMember((object Source, IMemberData Member) memberKey) => parameterMembers.Contains(memberKey.Source, memberKey.Member);
+
+        internal bool ContainsMember(object Source, IMemberData Member) => parameterMembers.Contains(Source, Member);
 
         /// <summary> The target object type. </summary>
         public ITypeData DeclaringType { get; }
