@@ -44,8 +44,13 @@ namespace OpenTap
     
     class TestStepPreRunEvent : MixinEvent<ITestStepPreRunMixin>
     {
-        public static TestStepPreRunEventArgs Invoke(ITestStep step, out bool anyInvoked) => 
-            Invoke(step, (v, arg) => v.OnPreRun(arg), new TestStepPreRunEventArgs(step), out anyInvoked);
+        public static TestStepPreRunEventArgs Invoke(ITestStep step)
+        {
+            var eventArg = new TestStepPreRunEventArgs(step);
+            Invoke(step, (v, arg) => v.OnPreRun(arg), eventArg, out bool anyInvoked);
+            eventArg.AnyPrerunsInvoked = anyInvoked;
+            return eventArg;
+        }
     }
     
     /// <summary> Event args for ITestStepPreRun mixin. </summary>
@@ -55,6 +60,9 @@ namespace OpenTap
         public ITestStep TestStep { get; }
         /// <summary> Can be set to true to skip the step</summary>
         public bool SkipStep { get; set; }
+        
+        /// <summary> Indicates whether any prerun mixins were invoked. </summary>
+        internal bool AnyPrerunsInvoked { get; set; }
 
         internal TestStepPreRunEventArgs(ITestStep step) => TestStep = step;
     }

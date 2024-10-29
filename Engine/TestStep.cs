@@ -940,17 +940,8 @@ namespace OpenTap
             };
 
             // evaluate pre run mixins
-            bool skipStep = TestStepPreRunEvent.Invoke(Step, out bool anyPrerunInvoked).SkipStep;
-
-            bool needsParameterUpdate = anyPrerunInvoked && skipStep == false;
-            if (needsParameterUpdate)
-            {
-                // Update parameters after running prerun mixins. This is needed to reflect updated properties.
-                // Note that this does not handle the edge case where e.g. a PreRun mixin caused 
-                // the removal of a member sourced from some TypeData, but it is impossible to distinguish a TypeData parameter
-                // from a manually added 'steprun.Parameters["foo"] = "bar" - style parameter.
-                stepRun.Parameters.AddRange(ResultParameters.GetParams(Step));
-            }
+            var prerun = TestStepPreRunEvent.Invoke(Step);
+            var skipStep = prerun.SkipStep; 
 
             planRun.ThrottleResultPropagation();
 
@@ -965,9 +956,18 @@ namespace OpenTap
                 stepRun.Skipped = true;
                 return stepRun;    
             }
-
+            
             TapThread.ThrowIfAborted(); // if an OfferBreak handler called TestPlan.Abort, abort now.
-
+            
+            if (prerun.AnyPrerunsInvoked)
+            {
+                // Update parameters after running prerun mixins. This is needed to reflect updated properties.
+                // Note that this does not handle the edge case where e.g. a PreRun mixin caused 
+                // the removal of a member sourced from some TypeData, but it is impossible to distinguish a TypeData parameter
+                // from a manually added 'steprun.Parameters["foo"] = "bar" - style parameter.
+                stepRun.UpdateParams();
+            } 
+            
             // To properly support single stepping stopwatch has to be below offerBreak
             // since OfferBreak requires a TestStepRun, this has to be re-instantiated.
             var swatch = Stopwatch.StartNew();
