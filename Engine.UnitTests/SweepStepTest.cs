@@ -464,5 +464,128 @@ namespace OpenTap.Engine.UnitTests
 
         }
 
+        [Test]
+        public void SweepParametersWithIterations()
+        {
+            string[] testValues = ["a", "b", "c"];
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            var step = new LogStep();
+            var step2 = new LogStep();
+
+            plan.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(step);
+            sweep.ChildTestSteps.Add(step2);
+
+            TypeData.GetTypeData(step).GetMember(nameof(step.LogMessage)).Parameterize(sweep, step, "A");
+            
+            foreach (var value in testValues)
+            {
+                sweep.SweepValues.Add(new SweepRow(){Values = {{"Enabled", true}, {"A", value}}});    
+            }
+
+            var runData = plan.ExecuteReturnData();
+            
+            var stepRunData = runData.StepRuns.Where(stepRun => stepRun.TestStepId == step.Id);
+            var step2RunData = runData.StepRuns.Where(stepRun => stepRun.TestStepId == step2.Id);
+            var iterationValues = stepRunData.Select(run => (int) run.Parameters.Find("Iteration", "Sweep").Value).ToArray();
+            Assert.IsTrue(iterationValues.Distinct().Count() == iterationValues.Length);
+            Assert.AreEqual(1, iterationValues[0]);
+            var iterationValues2 = step2RunData.Select(run => (int) run.Parameters.Find("Iteration", "Sweep").Value).ToArray();
+            Assert.IsTrue(iterationValues.SequenceEqual(iterationValues2));
+        }
+
+        [Test]
+        public void MultilevelSweepParametersWithIterations()
+        {
+            string[] testValuesInner = ["a", "b", "c"];
+            LogSeverity[] testValuesOuter = [LogSeverity.Info, LogSeverity.Debug, LogSeverity.Warning];
+            
+            var plan = new TestPlan();
+            var innerLoop = new SweepParameterStep();
+            var outerLoop = new SweepParameterStep();
+            var step = new LogStep();
+            var step2 = new LogStep();
+
+            plan.ChildTestSteps.Add(outerLoop);
+            outerLoop.ChildTestSteps.Add(innerLoop);
+            innerLoop.ChildTestSteps.Add(step);
+            innerLoop.ChildTestSteps.Add(step2);
+
+            TypeData.GetTypeData(step).GetMember(nameof(step.LogMessage)).Parameterize(innerLoop, step, "A");
+            TypeData.GetTypeData(step).GetMember(nameof(step.Severity)).Parameterize(outerLoop, step, "B");
+            
+            foreach (var value in testValuesInner)
+            {
+                innerLoop.SweepValues.Add(new SweepRow(){Values = {{"Enabled", true}, {"A", value}}});    
+            }
+            foreach (var value in testValuesOuter)
+            {
+                outerLoop.SweepValues.Add(new SweepRow(){Values = {{"Enabled", true}, {"B", value}}});    
+            }
+
+            var runData = plan.ExecuteReturnData();
+            var stepRunData = runData.StepRuns.ToLookup(run => plan.ChildTestSteps.GetStep(run.TestStepId));
+            var step1RunData = stepRunData[step];
+            var innerLoopData = stepRunData[innerLoop];
+            var outerLoopData = stepRunData[outerLoop];
+            
+            Assert.IsTrue(outerLoopData.Count() == 1);
+            Assert.IsTrue(innerLoopData.Count() == testValuesOuter.Length);
+            Assert.IsTrue(step1RunData.Count() == testValuesOuter.Length * testValuesInner.Length);
+
+            {
+                var iterationSweepValues = step1RunData.Select(step => (int)step.Parameters.Find("Iteration", "Sweep").Value).ToArray();
+                int index = 0;
+                for (int i = 0; i < testValuesOuter.Length; i++)
+                {
+                    for (int j = 0; j < testValuesInner.Length; j++)
+                    {
+                        Assert.IsTrue(iterationSweepValues[index] == (j + 1));
+                        index++;
+                    }
+                }
+            }
+            {
+                var iterationSweepValues = innerLoopData.Select(step => (int)step.Parameters.Find("Iteration", "Sweep").Value).ToArray();
+
+                for (int j = 0; j < testValuesInner.Length; j++)
+                {
+                    Assert.IsTrue(iterationSweepValues[j] == (j+1));
+                }
+            }
+        }
+
+        class DoubleTestStep : TestStep
+        {
+            public double Value { get; set; }
+            public override void Run()
+            {
+                
+            }
+        }
+        [Test]
+        public void SweepParameterRangeWithIterations()
+        {
+            var plan = new TestPlan();
+            var loop = new SweepParameterRangeStep();
+            var step = new DoubleTestStep();
+
+            plan.ChildTestSteps.Add(loop);
+            loop.ChildTestSteps.Add(step);
+
+            TypeData.GetTypeData(step).GetMember(nameof(step.Value)).Parameterize(loop, step, "A");
+            loop.SweepStart = 0;
+            loop.SweepEnd = 10;
+            loop.SweepStep = 1;
+
+            var runData = plan.ExecuteReturnData();
+            var iterations = runData.StepRuns.Where(stepRun => stepRun.TestStepId == step.Id).Select(stepRun => (int)stepRun.Parameters.Find("Iteration", "Sweep").Value).ToArray();
+            Assert.AreEqual(1, iterations[0]);
+            Assert.IsTrue(iterations.Count() == loop.SweepPoints);
+            Assert.IsTrue(iterations.Distinct().Count() == iterations.Length);
+
+
+        }
     }
 }
