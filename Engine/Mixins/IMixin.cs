@@ -13,8 +13,10 @@ namespace OpenTap
     abstract class MixinEvent<T2> where T2: IMixin
     {
         static TraceSource log = Log.CreateSource("Mixin");
-        protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg) 
+        protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg) => Invoke(target, f, arg, out _);
+        protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg, out bool anyInvoked)
         {
+            anyInvoked = false;
             var emb = TypeData.GetTypeData(target).GetBaseType<EmbeddedTypeData>();
             if (emb == null) return arg;
             foreach (var mem in emb.GetEmbeddingMembers())
@@ -22,9 +24,10 @@ namespace OpenTap
                 if (!mem.TypeDescriptor.DescendsTo(typeof(T2))) continue;
                 if (mem.Readable == false) continue;
                 try
-                {
+                { 
                     if (mem.GetValue(target) is T2 mixin)
                     {
+                        anyInvoked = true;
                         f(mixin, arg);
                     }
                 }
@@ -41,8 +44,8 @@ namespace OpenTap
     
     class TestStepPreRunEvent : MixinEvent<ITestStepPreRunMixin>
     {
-        public static TestStepPreRunEventArgs Invoke(ITestStep step) => 
-            Invoke(step, (v, arg) => v.OnPreRun(arg), new TestStepPreRunEventArgs(step));
+        public static TestStepPreRunEventArgs Invoke(ITestStep step, out bool anyInvoked) => 
+            Invoke(step, (v, arg) => v.OnPreRun(arg), new TestStepPreRunEventArgs(step), out anyInvoked);
     }
     
     /// <summary> Event args for ITestStepPreRun mixin. </summary>

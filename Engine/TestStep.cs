@@ -940,13 +940,17 @@ namespace OpenTap
             };
 
             // evaluate pre run mixins
-            bool skipStep = TestStepPreRunEvent.Invoke(Step).SkipStep;
+            bool skipStep = TestStepPreRunEvent.Invoke(Step, out bool anyPrerunInvoked).SkipStep;
 
-            // Update parameters after running prerun mixins. This is needed to reflect updated properties.
-            // Note that this does not handle the edge case where e.g. a PreRun mixin caused 
-            // the removal of a member sourced from some TypeData, but it is impossible to distinguish a TypeData parameter
-            // from a manually added 'steprun.Parameters["foo"] = "bar" - style parameter.
-            stepRun.Parameters.AddRange(ResultParameters.GetParams(Step));
+            bool needsParameterUpdate = anyPrerunInvoked && skipStep == false;
+            if (needsParameterUpdate)
+            {
+                // Update parameters after running prerun mixins. This is needed to reflect updated properties.
+                // Note that this does not handle the edge case where e.g. a PreRun mixin caused 
+                // the removal of a member sourced from some TypeData, but it is impossible to distinguish a TypeData parameter
+                // from a manually added 'steprun.Parameters["foo"] = "bar" - style parameter.
+                stepRun.Parameters.AddRange(ResultParameters.GetParams(Step));
+            }
 
             planRun.ThrottleResultPropagation();
 
