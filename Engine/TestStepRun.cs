@@ -283,8 +283,13 @@ namespace OpenTap
             TestStepName = step.GetFormattedName();
             stepTypeData = TypeData.GetTypeData(step);
             TestStepTypeName = stepTypeData.AsTypeData().AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step);
+            Parameters = ResultParameters.GetParams(step, stepTypeData);
             Verdict = Verdict.NotSet;
+        }
+        
+        internal void UpdateParams()
+        {
+            ResultParameters.UpdateParams(Parameters, _step, type: stepTypeData);
         }
         
         /// <summary>

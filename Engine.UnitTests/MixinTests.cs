@@ -307,6 +307,68 @@ namespace OpenTap.UnitTests
             var isDisabled2 = enabled.Any(x => x.IsEnabled == false);
             Assert.IsFalse(isDisabled2);
 
+        } 
+        public class PrerunMixinModifyingParametersBuilder : IMixinBuilder
+        {
+            public void Initialize(ITypeData targetType)
+            {
+            }
+            
+            IEnumerable<Attribute> GetAttributes()
+            {
+                yield return new EmbedPropertiesAttribute();
+            }
+
+            public MixinMemberData ToDynamicMember(ITypeData targetType)
+            {
+                return new MixinMemberData(this, () => new PrerunMixinModifyingParameters())
+                {
+                    TypeDescriptor = TypeData.FromType(typeof(PrerunMixinModifyingParameters)),
+                    Writable = true,
+                    Readable = true,
+                    DeclaringType = targetType,
+                    Attributes = GetAttributes(),
+                    Name = nameof(PrerunMixinModifyingParameters) 
+                };
+            }
+        }
+        
+        public class PrerunMixinModifyingParameters : IMixin, ITestStepPreRunMixin
+        {
+            public PrerunMixinModifyingParameters()
+            {
+                
+            }
+            public void OnPreRun(TestStepPreRunEventArgs eventArgs)
+            {
+                var step = eventArgs.TestStep as LogStep;
+                step.LogMessage = "Hello Prerun";
+                step.StepRun.Parameters["Additional Parameter"] = "More Info";
+            }
+        }
+
+        [Test]
+        public void PrerunMixinModifyParametersTest()
+        { 
+            var plan = new TestPlan();
+            var step = new LogStep() { LogMessage = "No Prerun" };
+            plan.ChildTestSteps.Add(step);
+
+            { /* no mixin */
+                var rl = new RecordAllResultListener();
+                plan.Execute(new[] { rl });
+                var run = rl.RunStart.First(r => (r.Value as TestStepRun)?.TestStepId == step.Id).Value; 
+                Assert.AreEqual("No Prerun", run.Parameters["Log Message"]);
+            }
+
+            { /* prerun mixin */
+                MixinFactory.LoadMixin(step, new PrerunMixinModifyingParametersBuilder());
+                var rl = new RecordAllResultListener();
+                plan.Execute(new[] { rl });
+                var run = rl.RunStart.First(r => (r.Value as TestStepRun)?.TestStepId == step.Id).Value; 
+                Assert.AreEqual("Hello Prerun", run.Parameters["Log Message"]);
+                Assert.AreEqual("More Info", run.Parameters["Additional Parameter"]);
+            }
         }
 
         [Test]
