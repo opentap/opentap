@@ -422,7 +422,6 @@ namespace OpenTap
 
         public static bool ContainsMember(this IParameterMemberData p, (object Source, IMemberData Member) item)
         {
-            if (p is ParameterMemberData p2) return p2.ContainsMember(item);
             return p.ParameterizedMembers.Contains(item);
         }
             

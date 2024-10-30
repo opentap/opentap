@@ -99,13 +99,11 @@ namespace OpenTap
                 onContentChanged(this, ChildStepsChangedAction.ListReplaced, null, -1);
                 if (Parent is TestPlan)
                 {
-                    ChildStepsChanged += TestStepList_ChildStepsChanged;
                     rebuildIdLookup();
                 }
                 else
                 {
                     idLookup = null;
-                    ChildStepsChanged -= TestStepList_ChildStepsChanged;
                 }
             }
         }
@@ -303,19 +301,23 @@ namespace OpenTap
         protected override void SetItem(int index, ITestStep item)
         {
             throwIfRunning();
-            
+     
             var childsteps = Utils.FlattenHeirarchy(new ITestStep[] { item }, (step) => step.ChildTestSteps);
 
+            /*
             foreach (var step in childsteps)
             {
                 var existingstep = findStepWithGuid(step.Id);
                 if (existingstep != null)
                 {
                     if (existingstep == step)
+                    {
+                        rebuildIdLookup();
                         throw new InvalidOperationException("Test step already exists in the test plan");
+                    }
                     step.Id = Guid.NewGuid();
                 }
-            }
+            }*/
 
             // Parent can be null if the list is being loaded from XML, in that case we 
             // set the parent property of the children in the setter of the Parent property
@@ -416,7 +418,11 @@ namespace OpenTap
         void onContentChanged(TestStepList sender, ChildStepsChangedAction Action, ITestStep Object, int Index)
         {
             ChangeId += 1;
-            if (Parent != null && Parent.Parent != null && Parent.Parent.ChildTestSteps != null)
+            if (Parent is TestPlan)
+            {
+                TestStepList_ChildStepsChanged(sender, Action, Object, Index);
+            }
+            else if (Parent is ITestStepParent parent && parent.Parent is ITestStepParent parent2 && parent2.ChildTestSteps != null)
                 Parent.Parent.ChildTestSteps.onContentChanged(sender, Action, Object, Index);
             if (ChildStepsChanged != null)
                 ChildStepsChanged(sender, Action, Object, Index);

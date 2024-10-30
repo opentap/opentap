@@ -493,7 +493,7 @@ namespace OpenTap
         
         static bool isParameterized(ITestStepParent item, IMemberData member) => item.GetParents().Any(parent =>
             TypeData.GetTypeData(parent).GetMembers().OfType<ParameterMemberData>()
-                .Any(x => x.ContainsMember((item, Member: member))));
+                .Any(x => x.ContainsMember(item, member)));
         static bool IsValidParameter(IMemberData property, ITestStepParent[] steps, bool checkTestPlan = true)
         {
             if (steps.Length == 0) return false;
