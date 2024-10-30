@@ -136,6 +136,7 @@ namespace OpenTap
         internal object Target { get; }
 
         /// <summary> Immutable data structure for managing parameter members. </summary>
+        // implementing ICollection gives performance benefits for calling Enumerable.Contains
         readonly struct ParameterMembers : ICollection<(object, IMemberData)>
         {
             public readonly object Source;
@@ -298,13 +299,14 @@ namespace OpenTap
             return false;
         }
 
-        /// <summary>  Call on a ParameterMemberData to remove itself from its parent type. </summary>
+        /// <summary>  Completely removes the parameter from a type. </summary>
         public void Remove()
         {
-            while (ParameterizedMembers.Any())
+            var oldMembers = parameterMembers;
+            parameterMembers = new ParameterMembers();
+            foreach (var member in oldMembers)
             {
-                var fst = ParameterizedMembers.First();
-                fst.Member.Unparameterize(this, fst.Source);
+                DynamicMember.UnregisterParameter(member.Item2, member.Item1, this);
             }
         }
 
@@ -470,7 +472,7 @@ namespace OpenTap
             else
                 GetPlanFor(source)?.RegisterParameter(member, source);
         }
-        static void unregisterParameter(IMemberData member, object source, ParameterMemberData parameter)
+        internal static void UnregisterParameter(IMemberData member, object source, ParameterMemberData parameter)
         {
             if (source is IParameterizedMembersCache cache)
                 cache.UnregisterParameterizedMember(member, parameter);
@@ -549,8 +551,9 @@ namespace OpenTap
             if (parameterMember == null) throw new ArgumentNullException(nameof(parameterMember));
             if (parameterMember == null)
                 throw new Exception($"Member {parameterMember.Name} is not a forwarded member.");
+            
             parameterMember.RemoveMember(member, source);
-            unregisterParameter(member, source, parameterMember);
+            UnregisterParameter(member, source, parameterMember);
         }
 
         /// <summary>
