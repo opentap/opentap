@@ -19,10 +19,16 @@ namespace OpenTap.Diagnostic
         /// <summary> Prints a friendly name. </summary>
         /// <returns></returns>
         public override string ToString() => "Local and Accurate";
+        
+        // DateTime.UtcNow is not very accurate (Roughly 10-15ms accuracy)
+        // Stopwatches are much higher resolution. We can use Datetime to get a rough
+        // estimate of the current time, and stopwatches to the number of ticks that elapsed since it was created.
+        private readonly long UtcStart = DateTime.UtcNow.Ticks;
+        private readonly Stopwatch StopwatchStart = Stopwatch.StartNew();
         long ILogTimestampProvider.Timestamp()
         {
-            return DateTime.UtcNow.Ticks;
-        }
+            return UtcStart + StopwatchStart.ElapsedTicks;
+        } 
 
         Stopwatch sw = Stopwatch.StartNew();
         long UtcOffset = TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow).Ticks;
