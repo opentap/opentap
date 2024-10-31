@@ -7,6 +7,7 @@ using NUnit.Framework;
 using OpenTap.EngineUnitTestUtils;
 using OpenTap.Package;
 using OpenTap.Plugins.BasicSteps;
+using OpenTap.UnitTests;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -448,66 +449,20 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
-        public class ClassWithComplexList
-        {
-            public class ComplexElement
-            {
-                readonly ClassWithComplexList Parent;
-                
-                internal ComplexElement(ClassWithComplexList parent)
-                {
-                    this.Parent = parent;
-                }
-            }
-
-            public class ComplexList : List<ComplexElement>
-            {
-                readonly ClassWithComplexList parent;
-                public ComplexList(ClassWithComplexList lst)
-                {
-                    this.parent = lst;
-                }
-            }
-
-            [Factory(nameof(NewElement))]
-            public List<ComplexElement> Items { get; set; } = new List<ComplexElement>();
-            
-            [ElementFactory(nameof(NewElement))]
-            [Factory(nameof(NewComplexList))]
-            public ComplexList Items2 { get; set; }
-
-            internal ComplexElement NewElement()
-            {
-                return new ComplexElement(this);
-            }
-
-            internal ComplexList NewComplexList()
-            {
-                return new ComplexList(this);
-            }
-            
-            public ClassWithComplexList()
-            {
-                Items2 = new ComplexList(this);
-            }
-
-        }
-
         [Test]
         public void SerializeWithElementFactory()
         {
-            var test = new ClassWithComplexList();
+            var test = new ElementFactoryTest.ClassWithComplexList();
             test.Items.Add(test.NewElement());
             test.Items2.Add(test.NewElement());
 
             var xml = new TapSerializer().SerializeToString(test);
 
-            var test2 =(ClassWithComplexList) new TapSerializer().DeserializeFromString(xml);
+            var test2 =(ElementFactoryTest.ClassWithComplexList) new TapSerializer().DeserializeFromString(xml);
             Assert.AreEqual(1, test2.Items2.Count);
             Assert.IsNotNull(test2.Items2[0]);
             Assert.AreEqual(1, test2.Items.Count);
             Assert.IsNotNull(test2.Items[0]);
         }
-        
     }
 }

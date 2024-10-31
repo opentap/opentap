@@ -24,9 +24,6 @@ namespace OpenTap
         }
 
         /// <summary> Creates an object by calling thet target member. </summary>
-        /// <param name="ownerObj"></param>
-        /// <param name="factoryAttribute"></param>
-        /// <returns></returns>
         internal static object Create(object ownerObj, IFactoryAttribute factoryAttribute)
         {
             var type = ownerObj.GetType();
@@ -40,10 +37,7 @@ namespace OpenTap
         /// <summary> The name of the method that can be used to create a value. This can be a private method.</summary>
         public string FactoryMethodName { get; }
 
-        /// <summary>
-        /// Creates an instance of ElementFactoryAttribute
-        /// </summary>
-        /// <param name="factoryMethodName"></param>
+        /// <summary> Creates an instance of ElementFactoryAttribute. </summary>
         public ElementFactoryAttribute(string factoryMethodName)
         {
             FactoryMethodName = factoryMethodName;

@@ -2133,7 +2133,7 @@ namespace OpenTap
                             return fac.AnnotateSub(elem2, Convert.ChangeType(0, elem2.Type));
                         object instance = null;
                         var member = fac.Get<IMemberAnnotation>()?.Member;
-                        if(member?.GetAttribute<FactoryAttribute>() is FactoryAttribute f)
+                        if(member?.GetAttribute<ElementFactoryAttribute>() is ElementFactoryAttribute f)
                         {
                             instance = FactoryAttribute.Create(fac.Source, f);
                         }
@@ -2159,7 +2159,7 @@ namespace OpenTap
                         try
                         {
                             var member = fac.Get<IMemberAnnotation>()?.Member;
-                            if(member?.GetAttribute<FactoryAttribute>() is FactoryAttribute f)
+                            if(member?.GetAttribute<ElementFactoryAttribute>() is ElementFactoryAttribute f)
                             {
                                 instance = FactoryAttribute.Create(fac.Source, f);
                             }
