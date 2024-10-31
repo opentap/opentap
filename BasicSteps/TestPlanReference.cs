@@ -403,7 +403,7 @@ namespace OpenTap.Plugins.BasicSteps
                 Cancel
             }
             [Browsable(true)]
-            [Layout(LayoutMode.FullRow)]
+            [Layout(LayoutMode.FullRow | LayoutMode.WrapText)]
             public string Message => "Are you sure you want to convert the Test Plan Reference to a Sequence?\n\nAny future changes to the referenced test plan will not be reflected.";
 
             [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]

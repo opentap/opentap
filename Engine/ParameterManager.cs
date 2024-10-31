@@ -249,7 +249,7 @@ namespace OpenTap
             }
 
             [Display("Message", Order: 1)]
-            [Layout(LayoutMode.FullRow, 3)]
+            [Layout(LayoutMode.FullRow | LayoutMode.WrapText, 3)]
             [Browsable(true)]
             public string Message => string.Join("\n", getMessage().Select(x => x.message));
 
