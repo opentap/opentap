@@ -448,21 +448,5 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsFalse(wasUsed);
             }
         }
-
-        [Test]
-        public void SerializeWithElementFactory()
-        {
-            var test = new ElementFactoryTest.ClassWithComplexList();
-            test.Items.Add(test.NewElement());
-            test.Items2.Add(test.NewElement());
-
-            var xml = new TapSerializer().SerializeToString(test);
-
-            var test2 =(ElementFactoryTest.ClassWithComplexList) new TapSerializer().DeserializeFromString(xml);
-            Assert.AreEqual(1, test2.Items2.Count);
-            Assert.IsNotNull(test2.Items2[0]);
-            Assert.AreEqual(1, test2.Items.Count);
-            Assert.IsNotNull(test2.Items[0]);
-        }
     }
 }

@@ -1755,19 +1755,7 @@ namespace OpenTap
 
         class BasicCollectionAnnotation : IBasicCollectionAnnotation, IOwnedAnnotation, IFixedSizeCollectionAnnotation
         {
-            IEnumerable elements;
-            public IEnumerable Elements
-            {
-                get => elements;
-                set
-                {
-
-                    elements = value;
-                    if (annotations.Get<IObjectValueAnnotation>() is IObjectValueAnnotation va)
-                       va.Value = value;
-                }
-            }
-
+            public IEnumerable Elements { get; set; }
 
             public bool IsFixedSize
             {
