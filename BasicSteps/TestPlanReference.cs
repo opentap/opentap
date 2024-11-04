@@ -357,7 +357,6 @@ namespace OpenTap.Plugins.BasicSteps
                                 DynamicMember.AddDynamicMember(this, mem);
                                 mem.SetValue(this, member.GetValue(this));
                             }
-
                         }
 
                         // transfer dynamic member values.
@@ -575,6 +574,8 @@ namespace OpenTap.Plugins.BasicSteps
                 }
             }
             
+            
+            // This section copies dynamic member values.
             
             foreach (var member in TypeData.GetTypeData(this).GetMembers().Where(mem => mem is DynamicMember))
             {
