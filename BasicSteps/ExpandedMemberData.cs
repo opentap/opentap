@@ -165,6 +165,8 @@ namespace OpenTap.Plugins.BasicSteps
 
         public IEnumerable<IMemberData> GetMembers()
         {
+            if (Object == null) // this can occur during deserialization
+                return InnerDescriptor.GetMembers();
             var names2 = string.Join(",", Object.ExternalParameters.Select(x => x.Name));
             if (names == names2 && savedMembers != null) return savedMembers;
             List<IMemberData> members = new List<IMemberData>();

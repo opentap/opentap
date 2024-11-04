@@ -325,6 +325,50 @@ namespace OpenTap.Plugins.BasicSteps
                             step.OnPropertyChanged("");
                         }
                     }
+
+                    if (currentSerializer == null)
+                    {
+                        // if currentSerializer is set, it means that we are loading a previously saved test plan reference.
+                        // Hence these things will be automatically set up.
+                        // otherwise we need to trasfer mixins and dynamic member values.
+                        
+                        // transfer mixins
+                        var thisType = TypeData.GetTypeData(this);
+
+                        foreach (var member in TypeData.GetTypeData(tp).GetMembers())
+                        {
+                            if (member is MixinMemberData mixinMember)
+                            {
+                                if (thisType.GetMember(member.Name) != null) continue;
+                                var mixin = mixinMember.Source;
+                                var mem = mixin.ToDynamicMember(thisType);
+                                if (mem == null)
+                                {
+                                    if (mixin is IValidatingObject validating && validating.Error is string err && string.IsNullOrEmpty(err) == false)
+                                    {
+                                        Log.Error($"Unable to load mixin: {err}");
+                                    }
+                                    else
+                                    {
+                                        Log.Error($"Unable to load mixin: {TypeData.GetTypeData(mixin)?.GetDisplayAttribute()?.Name ?? mixin.ToString()}");
+                                    }
+                                    continue;
+                                }
+                                DynamicMember.AddDynamicMember(this, mem);
+                                mem.SetValue(this, member.GetValue(this));
+                            }
+                        }
+
+                        // transfer dynamic member values.
+                        foreach (var member in TypeData.GetTypeData(tp).GetMembers().Where(mem => mem is DynamicMember))
+                        {
+                            if (member.HasAttribute<XmlIgnoreAttribute>())
+                                continue;
+                            member.SetValue(this, member.GetValue(tp));
+                        }
+                    }
+
+
                 }
                 finally
                 {
@@ -530,6 +574,17 @@ namespace OpenTap.Plugins.BasicSteps
                 }
             }
             
+            
+            // This section copies dynamic member values.
+            
+            foreach (var member in TypeData.GetTypeData(this).GetMembers().Where(mem => mem is DynamicMember))
+            {
+                if (member.HasAttribute<XmlIgnoreAttribute>())
+                    continue;
+                var val = member.GetValue(this);
+                val = new ObjectCloner(val).Clone(false, this, member.TypeDescriptor);
+                member.SetValue(seq, val);
+            }
             // .. and done.
         }
         
