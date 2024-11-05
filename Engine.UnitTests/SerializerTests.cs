@@ -7,6 +7,7 @@ using NUnit.Framework;
 using OpenTap.EngineUnitTestUtils;
 using OpenTap.Package;
 using OpenTap.Plugins.BasicSteps;
+using OpenTap.UnitTests;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -447,6 +448,5 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsFalse(wasUsed);
             }
         }
-        
     }
 }
