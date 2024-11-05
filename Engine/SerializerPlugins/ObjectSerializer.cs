@@ -80,10 +80,18 @@ namespace OpenTap.Plugins
                     {
                         throw new Exception($"Cannot create instance of {t} and no default value exists.");
                     }
-                  
                     if (ownerMember.HasAttribute<IFactoryAttribute>())
                     {
-                        newobj = FactoryAttribute.Create(ownerObj, ownerMember.GetAttribute<IFactoryAttribute>());
+                        // Use element factory if the member type is not the target type, but rather 'has a' target type.
+                        // we dont need to detect if it 'has a' target type, lets just assume it.
+                        if (ownerMember.TypeDescriptor.DescendsTo(t) && ownerMember.GetAttribute<FactoryAttribute>() is FactoryAttribute f)
+                        {
+                            newobj = FactoryAttribute.Create(ownerObj, f);
+                        }
+                        else if (ownerMember.GetAttribute<ElementFactoryAttribute>() is ElementFactoryAttribute f2)
+                        {
+                            newobj = FactoryAttribute.Create(ownerObj, f2);
+                        }
                     }
 
                     if (newobj == null)

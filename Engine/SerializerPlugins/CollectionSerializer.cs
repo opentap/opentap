@@ -70,7 +70,17 @@ namespace OpenTap.Plugins
 
                     try
                     {
-                        if (t.IsArray)
+                        if (!_t.CanCreateInstance && !t.IsArray
+                                                  && Serializer.SerializerStack
+                                                      .OfType<ObjectSerializer>()
+                                                      .FirstOrDefault()?.CurrentMember is IMemberData member
+                                                  && member.GetAttribute<FactoryAttribute>() is FactoryAttribute factory
+                                                  && member.TypeDescriptor.DescendsTo(t))
+                        {
+                            setResult((IList)FactoryAttribute.Create(Serializer.SerializerStack
+                                .OfType<ObjectSerializer>()
+                                .FirstOrDefault()?.Object, factory));
+                        }else if (t.IsArray)
                             setResult(Array.CreateInstance(t.GetElementType(), 0));
                         else if (t.IsInterface)
                             setResult(null);
@@ -102,7 +112,7 @@ namespace OpenTap.Plugins
                         return true;
                     }
                 }
-                else
+                
                 {
                     if (!_t.CanCreateInstance && !t.IsArray)
                     {
@@ -142,6 +152,8 @@ namespace OpenTap.Plugins
                     }
                     if(this.Object != values)
                         this.Object = finalValues;
+                    if (finalValues is ICombinedNumberSequence seq)
+                        finalValues = seq.Cast<object>().ToArray();
                     var vals = (IList) finalValues;
                     foreach (var node2 in element.Elements())
                     {
