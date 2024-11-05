@@ -165,6 +165,8 @@ namespace OpenTap.Plugins.BasicSteps
 
         public IEnumerable<IMemberData> GetMembers()
         {
+            if (Object == null) // this can occur during deserialization
+                return InnerDescriptor.GetMembers();
             var names2 = string.Join(",", Object.ExternalParameters.Select(x => x.Name));
             if (names == names2 && savedMembers != null) return savedMembers;
             List<IMemberData> members = new List<IMemberData>();
@@ -326,10 +328,10 @@ namespace OpenTap.Plugins.BasicSteps
         
         public object CreateInstance(object[] arguments)
         {
-            return new SweepRow {Loop = SweepParameterLoop};
+            throw new Exception("Cannot create instance");
         }
 
-        public bool CanCreateInstance => true;
+        public bool CanCreateInstance => false;
 
         public override bool Equals(object obj)
         {

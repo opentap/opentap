@@ -640,7 +640,7 @@ namespace OpenTap
             {
                 execStage.FailedToStart = true; // Set it here in case OpenInternal throws an exception. Could happen if a step is missing an instrument
 
-                OpenInternal(execStage, continuedExecutionState, allEnabledSteps);
+                OpenInternal(execStage, continuedExecutionState, allEnabledSteps, Array.Empty<IResource>());
                     
                 execStage.WaitForSerialization();
                 execStage.ResourceManager.BeginStep(execStage, this, TestPlanExecutionStage.Execute, TapThread.Current.AbortToken);
@@ -745,15 +745,37 @@ namespace OpenTap
         /// Opens all resources referenced in this TestPlan (Instruments/DUTs/ResultListeners). 
         /// This can be called before <see cref="TestPlan.Execute()"/> to manually control the opening/closing of the resources.
         /// </summary>
+        /// <param name="listeners">Result listeners used in connection with the test plan.</param>
         public void Open(IEnumerable<IResultListener> listeners)
+        {
+            Open(listeners, Array.Empty<IResource>());
+        }
+        
+        /// <summary>
+        /// Opens all resources referenced in this TestPlan (Instruments/DUTs/ResultListeners). 
+        /// This can be called before <see cref="TestPlan.Execute()"/> to manually control the opening/closing of the resources.
+        /// It can also be called multiple times to add more resources.
+        /// </summary>
+        /// <param name="additionalResources">Additional resources added as 'static' resources.</param>
+        public void Open(IEnumerable<IResource> additionalResources)
+        {
+            Open(ResultSettings.Current, additionalResources);
+        }
+
+        /// <summary>
+        /// Opens all resources referenced in this TestPlan (Instruments/DUTs/ResultListeners). 
+        /// This can be called before <see cref="TestPlan.Execute()"/> to manually control the opening/closing of the resources.
+        /// It can also be called multiple times to add more resources.
+        /// </summary>
+        /// <param name="listeners">Result listeners used in connection with the test plan.</param>
+        /// <param name="additionalResources">Additional resources added as 'static' resources.</param>
+        public void Open(IEnumerable<IResultListener> listeners, IEnumerable<IResource> additionalResources)
         {
             if (listeners == null)
                 throw new ArgumentNullException(nameof(listeners));
             if (PrintTestPlanRunSummary)
                 listeners = listeners.Concat(new IResultListener[] { summaryListener });
-
-            if (currentExecutionState != null)
-                throw new InvalidOperationException("Open has already been called.");
+                
             if (IsRunning)
                 throw new InvalidOperationException("This TestPlan is already running.");
 
@@ -762,9 +784,13 @@ namespace OpenTap
                 var allSteps = Utils.FlattenHeirarchy(Steps.Where(x => x.Enabled), step => step.GetEnabledChildSteps()).ToList();
 
                 Stopwatch timer = Stopwatch.StartNew();
-                currentExecutionState = new TestPlanRun(this, listeners.ToList(), DateTime.Now, Stopwatch.GetTimestamp(), true);
-                currentExecutionState.Start();
-                OpenInternal(currentExecutionState, false, allSteps);
+                if (currentExecutionState == null)
+                {
+                    currentExecutionState = new TestPlanRun(this, listeners.ToList(), DateTime.Now, Stopwatch.GetTimestamp(), true);
+                    currentExecutionState.Start();
+                }
+                OpenInternal(currentExecutionState, false, allSteps, additionalResources);
+                
                 try
                 {
                     currentExecutionState.ResourceManager.WaitUntilAllResourcesOpened(TapThread.Current.AbortToken);
@@ -793,7 +819,7 @@ namespace OpenTap
             }
         }
         
-        private void OpenInternal(TestPlanRun run, bool isOpen, List<ITestStep> steps)
+        private void OpenInternal(TestPlanRun run, bool isOpen, List<ITestStep> steps, IEnumerable<IResource> additionalResources)
         {
             monitors = TestPlanRunMonitors.GetCurrent();
 
@@ -802,7 +828,7 @@ namespace OpenTap
                 item.EnterTestPlanRun(run);
             
             run.ResourceManager.EnabledSteps = steps;
-            run.ResourceManager.StaticResources = run.ResultListeners.ToArray();
+            run.ResourceManager.StaticResources = run.ResultListeners.Concat(additionalResources).ToArray();
             run.ResultListenersSealed = true;
             if (!isOpen)
                 run.ResourceManager.BeginStep(run, this, TestPlanExecutionStage.Open, TapThread.Current.AbortToken);

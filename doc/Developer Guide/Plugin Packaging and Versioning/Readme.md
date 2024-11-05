@@ -488,7 +488,7 @@ To add and push annotated tag to the latest commit (and create a release version
 
   ```sh
   git tag -a v1.0.0 -m "version 1.0.0"
-  git push --tags
+  git push origin v1.0.0
   ```
 
 Annotated tags can also be created in Visual Studio. This is done by including a tag message during tag creation. A lightweight tag, which Git assisted versioning will not consider, is created if the tag message is left out.

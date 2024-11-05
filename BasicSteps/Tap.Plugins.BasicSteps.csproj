@@ -4,6 +4,9 @@
     <RootNamespace>OpenTap.Plugins.BasicSteps</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="..\Engine\ObjectCloner.cs">
+      <Link>ObjectCloner.cs</Link>
+    </Compile>
     <Compile Include="..\Shared\AssemblyInfo.cs" Link="Shared\AssemblyInfo.cs" />
     <Compile Include="..\Shared\ExecutorInterop.cs" Link="Shared\ExecutorInterop.cs" />
     <Compile Include="..\Shared\OperatingSystem.cs" Link="Shared\OperatingSystem.cs" />

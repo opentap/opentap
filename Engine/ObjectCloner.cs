@@ -69,7 +69,7 @@ namespace OpenTap
                         xmlString = serializer.SerializeToString(value);
                     if (xmlString != null)
                     {
-                        clone = serializer.DeserializeFromString(xmlString);
+                        clone = serializer.DeserializeFromString(xmlString, targetType);
                         if (serializer.Errors.Any())
                             return false;
                         return true;

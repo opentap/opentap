@@ -89,6 +89,50 @@ You can also specify a package that you just want installed (in e.g. bin/Debug/)
 </ItemGroup>
 ```
 
+### Versioning Assemblies with OpenTapSetAssemblyVersion
+
+If you are already using [Git Assisted Versioning](../Plugin%20Packaging%20and%20Versioning/Readme.html#git-assisted-versioning), you can automatically version your DLLs during build.
+To do so, set the following options in a property group in your .csproj file:
+
+```xml
+<PropertyGroup>
+  <!-- Must be set. otherwise the compiler will not version the output -->
+  <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  <!-- Enable automatic versioning -->
+  <OpenTapSetAssemblyVersion>gitversion</OpenTapSetAssemblyVersion>
+</PropertyGroup>
+```
+
+This feature requires that:
+
+1. Your project directory is tracked by git.
+2. You have configured git-assisted-versioning.
+3. Your git directory is a full clone (as opposed to a shallow clone, which many CI systems default to).
+
+If you are operating on a shallow clone, and still wish to version your assemblies according to some known version number, you can 
+conditionally control it through an environment variable:
+
+```xml
+<PropertyGroup>
+  <!-- Must be set. otherwise the compiler will not version the output -->
+  <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  <!-- Calculate the version if it is not controlled by an environment variable -->
+  <OpenTapSetAssemblyVersion Condition="'$(SomeVersionFromEnvironment)' == ''">gitversion</OpenTapSetAssemblyVersion>
+  <!-- Otherwise use the version from the environment variable -->
+  <OpenTapSetAssemblyVersion Condition="'$(SomeVersionFromEnvironment)' != ''">
+    <Version>$(SomeVersionFromEnvironment)</Version>
+  </OpenTapSetAssemblyVersion>
+</PropertyGroup>
+```
+
+When a version is explicitly specified like this, OpenTAP will use this version instead of trying to calculate it.
+
+> NOTE: `GenerateAssemblyInfo` is incompatible with the
+> `[assembly:AssemblyVersionAttribute()]` attribute. If you are currently using
+> this attribute to set your assembly version, you should delete it before
+> using this feature. Otherwise you will see compiler errors such as `Duplicate
+> 'System.Reflection.AssemblyVersionAttribute' attribute.`
+
 ## SDK Package
 
 The Software Development Kit (SDK) package demonstrates the core capabilities of OpenTAP and makes it faster and simpler to develop your solutions. It also contains the Developer Guide which contains documentation relevant for developers.

@@ -581,11 +581,11 @@ namespace OpenTap
 
         
         
-        static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false)
+        static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false, ITypeData type = null)
         {
             if (obj == null)
                 return;
-            var type = TypeData.GetTypeData(obj);
+            type ??= TypeData.GetTypeData(obj);
             foreach (var (prop, group, name, metadata) in ParameterCache.GetParametersMap(type, metadataOnly))
             {
                 object value = prop.GetValue(obj);
@@ -595,11 +595,11 @@ namespace OpenTap
             }
         }
 
-        internal static void UpdateParams(ResultParameters parameters, object obj, string namePrefix = "")
+        internal static void UpdateParams(ResultParameters parameters, object obj, string namePrefix = "", ITypeData type = null)
         {
             if (obj == null)
                 return;
-            var type = TypeData.GetTypeData(obj);
+            type ??= TypeData.GetTypeData(obj);
             var p = ParameterCache.GetParametersMap(type, false);
             foreach (var (prop, group, _name, metadata) in p)
             {
@@ -631,12 +631,12 @@ namespace OpenTap
         /// Returns a <see cref="ResultParameters"/> list with one entry for every setting of the inputted 
         /// TestStep.
         /// </summary>
-        internal static ResultParameters GetParams(ITestStep step)
+        internal static ResultParameters GetParams(ITestStep step, ITypeData type = null)
         {
             if (step == null)
                 throw new ArgumentNullException(nameof(step));
             var parameters = new List<ResultParameter>(5);
-            GetPropertiesFromObject(step, parameters);
+            GetPropertiesFromObject(step, parameters, type: type);
             
             if (parameters.Count == 0)
                 return new ResultParameters();

@@ -2079,8 +2079,15 @@ namespace OpenTap
                         }
                     }
                 }
-                
-                                        
+
+                if (rdonly && lst == null)
+                {
+                    //throw new Exception("Unable to show list value");
+                    // an error should be thrown here, but that will critically break current implementations
+                    // lets wait a few releases before we do that.
+                    return;
+                }
+
                 // Some IObjectValue annotations works best if they are notified of a modification this way.
                 // for example MergedValueAnnotation.
                 objValue.Value = lst;
@@ -2112,6 +2119,21 @@ namespace OpenTap
                             return fac.AnnotateSub(elem2, "");
                         if (elem2.IsNumeric)
                             return fac.AnnotateSub(elem2, Convert.ChangeType(0, elem2.Type));
+                        object instance = null;
+                        var member = fac.Get<IMemberAnnotation>()?.Member;
+                       
+                        if(member?.GetAttribute<ElementFactoryAttribute>() is ElementFactoryAttribute f)
+                        {
+                            var source = fac.Source;
+                            if (member is IParameterMemberData param)
+                            {
+                                source = (param.ParameterizedMembers.FirstOrDefault(x => x.Member.GetAttribute<ElementFactoryAttribute>() == f).Source) ?? source;
+                            }
+                            instance = FactoryAttribute.Create(source, f);
+                        }
+                        if (instance != null)
+                            return fac.AnnotateSub(null, instance);
+                        
                         if (elem2.IsValueType)
                         {
                             if (elem2.DescendsTo(typeof(Enum)))
@@ -2130,7 +2152,20 @@ namespace OpenTap
                         object instance = null;
                         try
                         {
-                            instance = elem2.CreateInstance(Array.Empty<object>());
+                            var member = fac.Get<IMemberAnnotation>()?.Member;
+                            if(member?.GetAttribute<ElementFactoryAttribute>() is ElementFactoryAttribute f)
+                            {
+                                var source = fac.Source;
+                                if (member is IParameterMemberData param)
+                                {
+                                    source = (param.ParameterizedMembers.FirstOrDefault(x => x.Member.GetAttribute<ElementFactoryAttribute>() == f).Source) ?? source;
+                                }
+                                instance = FactoryAttribute.Create(source, f);
+                            }
+                            if(instance == null)
+                            {
+                               instance = elem2.CreateInstance(Array.Empty<object>());
+                            }
                         }
                         catch
                         {
@@ -3409,6 +3444,18 @@ namespace OpenTap
     /// </summary>
     public class MultiObjectAnnotator : IAnnotator
     {
+        class MergedValidationErrorAnnotation : IErrorAnnotation
+        {
+            readonly AnnotationCollection annotation;
+            public MergedValidationErrorAnnotation(AnnotationCollection annotation)
+            {
+                this.annotation = annotation;
+            }
+
+            public IEnumerable<string> Errors => annotation.Get<MergedValueAnnotation>().Merged
+                .SelectMany(a => a.Get<ValidationErrorAnnotation>()?.Errors ?? Enumerable.Empty<string>())
+                .Distinct();
+        }
         class MergedAvailableValues : IAvailableValuesAnnotation
         {
             public IEnumerable AvailableValues
@@ -3458,8 +3505,16 @@ namespace OpenTap
             }
             var merged = annotation.Get<MergedValueAnnotation>();
             if (merged == null) return;
-            var members = annotation.Get<IMembersAnnotation>();
 
+            var validationErrors = annotation.Get<ValidationErrorAnnotation>();
+            if (validationErrors != null)
+            {
+                annotation.Remove(validationErrors);
+                annotation.Add(new MergedValidationErrorAnnotation(annotation));
+            }
+            
+            var members = annotation.Get<IMembersAnnotation>();
+            
             if (members != null)
             {
                 var manyToOne = new ManyToOneAnnotation(annotation);
@@ -3819,7 +3874,7 @@ namespace OpenTap
         {
             get
             {
-                var disp = Get<IDisplayAnnotation>()?.Name ?? Get<IReflectionAnnotation>().ReflectionInfo?.Name;
+                var disp = Get<IDisplayAnnotation>()?.Name ?? Get<IReflectionAnnotation>()?.ReflectionInfo?.Name;
                 return disp ?? "?";
             }
         }

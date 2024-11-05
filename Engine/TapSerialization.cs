@@ -358,20 +358,28 @@ namespace OpenTap
         {
             var typeattribute = element.Attribute(typeName);
             if (typeattribute != null)
-            {   // if a specific type is given by the element use that.
+            {   
+                // if a specific type is given by the element use that.
                 // If it cannot be found fall back on previous value.
                 // This can happen if LocateType cannot find it, eg. private type.
-                var t2 = TypeData.GetTypeData(typeattribute.Value);
-                
-                if (t2 != null)
+                if (t is TypeData td && td.Name == typeattribute.Value)
                 {
-                    t = t2;
+                    // no reason to search for the type if 't' matches it exactly.
                 }
                 else
                 {
-                    PushError(element, $"Unable to locate type '{typeattribute.Value}'. Are you missing a plugin?");
-                    if (t == null)
-                        return false;
+                    var t2 = TypeData.GetTypeData(typeattribute.Value);
+
+                    if (t2 != null)
+                    {
+                        t = t2;
+                    }
+                    else
+                    {
+                        PushError(element, $"Unable to locate type '{typeattribute.Value}'. Are you missing a plugin?");
+                        if (t == null)
+                            return false;
+                    }
                 }
             }
 

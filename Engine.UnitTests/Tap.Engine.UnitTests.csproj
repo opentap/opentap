@@ -3,7 +3,6 @@
     <AssemblyName>OpenTap.UnitTests</AssemblyName>
     <RootNamespace>OpenTap.UnitTests</RootNamespace>
     <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
-    <LangVersion>8.0</LangVersion>
   </PropertyGroup>
   
   <ItemGroup>

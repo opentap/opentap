@@ -302,7 +302,7 @@ namespace OpenTap.Package
     class ContinueRequest
     {
         [Browsable(true)]
-        [Layout(LayoutMode.FullRow)]
+        [Layout(LayoutMode.FullRow | LayoutMode.WrapText)]
         public string Message => message;
         internal string message;
         public string Name { get; private set; } = "Continue?";
@@ -327,8 +327,9 @@ namespace OpenTap.Package
         }
 
         [Browsable(true)]
-        [Layout(LayoutMode.FullRow)]
+        [Layout(LayoutMode.FullRow | LayoutMode.WrapText)]
         public string Message { get; }
+        
         [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
         [Submit] public UninstallResponse Response { get; set; }
     }

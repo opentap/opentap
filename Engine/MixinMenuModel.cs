@@ -19,7 +19,7 @@ namespace OpenTap
         public MixinMenuModel(ITypeData type) => this.type = type;
         bool? showMixins;
         public bool ShowMixins => (showMixins ??= (MixinFactory.GetMixinBuilders(type).Any()))&& !TestPlanLocked;
-        public bool StepLocked => source.OfType<ITestStep>().Any(x => x.ChildTestSteps.IsReadOnly);
+        public bool StepLocked => source.OfType<ITestStep>().Any(x => x.IsReadOnly);
         
         [Display("Add Mixin...", "Add a new mixin.", Order: 2.0, Group: "Mixins")]
         [Browsable(true)]

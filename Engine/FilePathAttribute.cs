@@ -58,7 +58,6 @@ namespace OpenTap
             if (s.Length % 2 == 1) throw new InvalidFilterSpecification(str);
             for(int i = 0; i < s.Length; i += 2)
             {
-                //var name = s[i];
                 var value = s[i + 1];
                 if (value.Contains("*.") == false)
                     throw new InvalidFilterSpecification($"'{value}' must start with '*'.");
@@ -72,12 +71,14 @@ namespace OpenTap
                     if(filter2.StartsWith("*.") == false)
                         throw new InvalidFilterSpecification(str);
                     filter2 = filter2.Substring(2);
+                    
                     if (filter2 == "*")
                         continue;
+                    
                     foreach(var chr in filter2)
                     {
                         if(invalidchars.Contains(chr))
-                            throw new InvalidFilterSpecification(str);
+                            throw new InvalidFilterSpecification($"'{str}': '{filter}' must not contain '{chr}'.");
                     }
                     
                 }

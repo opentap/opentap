@@ -15,22 +15,15 @@ namespace OpenTap.Plugins.BasicSteps
     {
         public bool SweepValuesEnabled => SelectedParameters.Count > 0;
 
-        SweepRowCollection sweepValues = new SweepRowCollection();
+        
         [DeserializeOrder(1)] // this should be deserialized as the last thing.
         [Display("Sweep Values", "A table of values to be swept for the selected parameters.", "Sweep")]
         [HideOnMultiSelect] // todo: In the future support multi-selecting this.
         [EnabledIf(nameof(SweepValuesEnabled), true)]
         [Unsweepable, Unmergable]
-        public SweepRowCollection SweepValues 
-        { 
-            get => sweepValues;
-            set
-            {
-                sweepValues = value;
-                sweepValues.Loop = this;
-            }
-        }
-
+        [ElementFactory(nameof(NewElement))]
+        [Factory(nameof(NewSweepRowCollection))]
+        public SweepRowCollection SweepValues { get; set; } 
 
         /// <summary>
         /// This property declares to the Resource Manager which resources are declared by this test step. 
@@ -56,7 +49,7 @@ namespace OpenTap.Plugins.BasicSteps
             
         public SweepParameterStep()
         {
-            SweepValues.Loop = this;
+            SweepValues = new SweepRowCollection(this);
             Name = "Sweep {Parameters}";
             Rules.Add(() => string.IsNullOrWhiteSpace(Validate()), Validate, nameof(SweepValues));
         }
@@ -75,7 +68,7 @@ namespace OpenTap.Plugins.BasicSteps
 
                 if (SelectedParameters.Count <= 0)
                 {
-                    SweepValues = new SweepRowCollection();
+                    SweepValues = new SweepRowCollection(this);
                 }
                 {
                     // Remove sweep values not in the selected parameters. This can be needed when the user has removed some.
@@ -249,6 +242,8 @@ namespace OpenTap.Plugins.BasicSteps
                 SweepRow Value = SweepValues[i];
                 if (Value.Enabled == false) continue;
                 var AdditionalParams = new ResultParameters();
+                
+                AdditionalParams.Add("Sweep", "Iteration", iteration + 1, null);
 
 
                 foreach (var set in sets)
@@ -292,6 +287,15 @@ namespace OpenTap.Plugins.BasicSteps
 
             for (int i = 0; i < sets.Length; i++)
                 sets[i].SetValue(this, originalValues[i]);
+        }
+        
+        SweepRow NewElement()
+        {
+            return new SweepRow(this);
+        }
+        SweepRowCollection NewSweepRowCollection()
+        {
+            return new SweepRowCollection(this);
         }
     }
 }

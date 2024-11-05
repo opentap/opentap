@@ -4,7 +4,6 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Linq;
-using System.Runtime.InteropServices;
 
 namespace OpenTap.Package
 {
@@ -39,6 +38,11 @@ namespace OpenTap.Package
     /// </summary>
     public static class IPackageIdentifierExtensions
     {
+        private static string[] SplitOs(string os)
+        {
+            if (os == null) return Array.Empty<string>();
+            return os.Split(',').Select(o => o.Trim()).Where(o => !string.IsNullOrWhiteSpace(o)).ToArray();
+        }
         /// <summary>
         /// True if this package is compatible (can be installed on) the specified operating system and architecture
         /// </summary>
@@ -49,20 +53,22 @@ namespace OpenTap.Package
         public static bool IsPlatformCompatible(this IPackageIdentifier pkg, CpuArchitecture selectedArch = CpuArchitecture.Unspecified, string selectedOS = null)
         {
             var cpu = selectedArch == CpuArchitecture.Unspecified ? ArchitectureHelper.GuessBaseArchitecture : selectedArch;
-            var os = selectedOS ?? RuntimeInformation.OSDescription;
+            var os = selectedOS ?? OperatingSystem.Current.ToString();
 
             if (ArchitectureHelper.CompatibleWith(cpu, pkg.Architecture) == false)
                 return false;
+            
+            if (string.IsNullOrWhiteSpace(pkg.OS) || string.IsNullOrWhiteSpace(os))
+                return true;
 
-            if (IsOsCompatible(pkg,os) == false)
-                return false;
-
-            return true;
+            var oses = SplitOs(os);
+            return oses.Any(o => IsOsCompatible(pkg, o));
         }
 
         internal static bool IsOsCompatible(this IPackageIdentifier pkg, string os)
         {
-            return string.IsNullOrWhiteSpace(pkg.OS) || string.IsNullOrWhiteSpace(os) || pkg.OS.ToLower().Split(',').Select(p => p.Trim()).Any(os.ToLower().Contains) || os.Split(',').Select(p => p.Trim()).Intersect(pkg.OS.Split(','), StringComparer.OrdinalIgnoreCase).Any();
+            var supported = SplitOs(pkg.OS);
+            return supported.Contains(os, StringComparer.OrdinalIgnoreCase);
         }
 
     }

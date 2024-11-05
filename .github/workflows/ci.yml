@@ -39,7 +39,6 @@ jobs:
     runs-on:
        group: OpenTAP-SpokeVPC
        labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     outputs:
       gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
       ks8500_repo_token_is_set: ${{ steps.check_KS8500_REPO_TOKEN.outputs.is_set }}
@@ -88,8 +87,8 @@ jobs:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.ks8500_repo_token_is_set == 'true'
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Setup OpenTAP
@@ -113,8 +112,8 @@ jobs:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container:
       image: ghcr.io/opentap/oci-images/build-doxygen:latest
     steps:
@@ -146,8 +145,8 @@ jobs:
 
   Build-Pages:
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-ApiDoc
@@ -196,8 +195,8 @@ jobs:
 
   Build-Linux:
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Checkout
@@ -237,13 +236,6 @@ jobs:
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
-      - name: Nuget Cache
-        uses: actions/cache@v4
-        id: cache
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }} #hash of project files
-          restore-keys: ${{ runner.os }}-nuget-
       - name: Stamp Version
         run: |
           $AssemblyVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}.0`""
@@ -257,14 +249,8 @@ jobs:
           $AssemblyInfoFile | Set-Content AssemblyInfo.cs
           cat AssemblyInfo.cs
           Pop-Location
-      - name: Restore
-        #if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          dotnet restore /p:Platform=${{ matrix.Architecture }}
       - name: Build
-        run: dotnet build --no-restore -c Release /p:Platform=${{ matrix.Architecture }}
-      - name: Build tap.csproj
-        run: dotnet build --no-restore tap/tap.csproj -c Release /p:Platform=${{ matrix.Architecture }}
+        run: dotnet build -c Release /p:Platform=${{ matrix.Architecture }}
       - name: cat tap.runtimeconfig.json 
         run: get-content ./bin/Release/tap.runtimeconfig.json
       - name: Upload binaries
@@ -528,8 +514,8 @@ jobs:
 
   Package-Cross:
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Linux
@@ -681,7 +667,10 @@ jobs:
             SDK.*.TapPackage
 
   Package-Diff:
-    runs-on: ubuntu-20.04
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Package-Cross
     steps:
@@ -804,8 +793,8 @@ jobs:
   
   Build-Installer-Windows:
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     needs:
       - GetVersion
       - Package-Win
@@ -848,10 +837,10 @@ jobs:
 
   Publish-Installer-Windows:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
-    environment: packages.opentap.io 
+    environment: packages.opentap.io
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Installer-Windows 
@@ -871,14 +860,14 @@ jobs:
                -H 'Metadata-Version: "${{ needs.GetVersion.outputs.LongVersion }}"' \
                -H 'Metadata-OS: "Windows"' \
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
-               --form 'file=@"'$(pwd)'/OpenTAP.exe"'
+               --form 'file=@"OpenTAP.exe"'
       - name: Upload Installer to Archive
-        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP.exe" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/WindowsX32/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}.exe"
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"OpenTAP.exe" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/WindowsX32/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}.exe"
 
   Build-Installer-Linux:
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     needs:
       - GetVersion
       - Package-Cross
@@ -918,15 +907,15 @@ jobs:
 
   Publish-Installer-Linux:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
-    environment: packages.opentap.io 
+    environment: packages.opentap.io
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Installer-Linux
       - GetVersion
-    steps: 
+    steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -939,15 +928,15 @@ jobs:
                -H 'Metadata-Version: "${{ needs.GetVersion.outputs.LongVersion }}"' \
                -H 'Metadata-OS: "Linux"' \
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
-               --form 'file=@"'$(pwd)'/OpenTAP"'
+               --form 'file=@"OpenTAP"'
       - name: Upload Installer to Archive
-        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/LinuxX64/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}"
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"OpenTAP" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/LinuxX64/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}"
 
   Docker-Linux:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-docker:latest
     environment: sign
     strategy:
@@ -1030,8 +1019,8 @@ jobs:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: packages.opentap.io
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Package-Win
