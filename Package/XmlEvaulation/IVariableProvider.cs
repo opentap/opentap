@@ -182,7 +182,9 @@ namespace OpenTap.Package
     [DependsOn(typeof(EnvironmentVariableExpander))]
     internal class DefaultVariableExpander : IElementExpander
     {
-        private static Regex VariableRegex = new Regex("\\$\\(.*?\\)");
+        private static Regex VariableRegex = new Regex("\\$!?\\(.*?\\)");
+        public HashSet<string> UndefinedVariables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>
         /// Replace all variables with an empty string. E.g. '$(whatever) -> '')'
         /// </summary>
@@ -195,17 +197,22 @@ namespace OpenTap.Package
             {
                 foreach (Match match in VariableRegex.Matches(textNode.Value))
                 {
+                    if (match.Value.StartsWith("$!("))
+                        UndefinedVariables.Add(match.Value.Substring(3, match.Value.Length - 4));
                     textNode.Value = textNode.Value.Replace(match.Value, "");
                 }
             }
 
-            foreach (var attribute in element.Attributes().ToArray())
+            var attributeNodes = element.Attributes().ToArray();
+            foreach (var attribute in attributeNodes)
             {
                 foreach (Match match in VariableRegex.Matches(attribute.Value))
                 {
+                    if (match.Value.StartsWith("$!("))
+                        UndefinedVariables.Add(match.Value.Substring(3, match.Value.Length - 4));
                     attribute.Value = attribute.Value.Replace(match.Value, "");
                 }
-            }
+            } 
         }
     }
 
