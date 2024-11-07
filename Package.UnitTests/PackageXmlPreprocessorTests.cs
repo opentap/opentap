@@ -28,8 +28,8 @@ namespace OpenTap.Package.UnitTests
     <SourceUrl>{sourceUrl}</SourceUrl>
     <SignVar Condition=""{sign} == True"">true</SignVar>
   </Variables>
-  <SourceUrl Condition=""$(PlatformVar) == Windows"">$(SourceUrl)</SourceUrl>
-  <Owner Condition=""$(PlatformVar) == Linux"">$(Owner)</Owner>
+  <SourceUrl Condition=""$(PlatformVar) == Windows"">$!(SourceUrl)</SourceUrl>
+  <Owner Condition=""$!(PlatformVar) == Linux"">$(Owner)</Owner>
   <Files Condition=""a == b"">
     <File Path=""WrongFile""/>
   </Files>
