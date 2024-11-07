@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
 using System.Linq;
 using System.Xml.Linq;
 using NUnit.Framework;
@@ -126,6 +127,35 @@ namespace OpenTap.Package.UnitTests
         {
             var expander = new ConditionExpander();
             Assert.AreEqual(expander.GetExpansion(str).Any(), success, $"Expected [{str}] == [{success}].");
+        }
+
+
+        [Test]
+        public void DefaultExpanderThrowsIfPedanticTest([Values(true, false)] bool require)
+        {
+            string prefix = require ? "$!" : "$";
+            var elem = XElement.Parse(
+                $"""
+                 <Package>
+                 <Elem Condition="{prefix}(MyVar)" />
+                 <Elem2>{prefix}(MyOtherVar)</Elem2>
+                 </Package>
+                 """);
+            var proc = new PackageXmlPreprocessor(elem);
+
+            try
+            {
+                proc.Evaluate();
+                if (require)
+                    Assert.Fail($"Asserted variables should throw if not set.");
+            }
+            catch (Exception e)
+            {
+                if (!require)
+                    Assert.Fail($"Non-asserted variables should not throw if not set."); 
+                StringAssert.Contains($"MyVar", e.Message);
+                StringAssert.Contains($"MyOtherVar", e.Message);
+            }
         }
     }
 }
