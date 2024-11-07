@@ -7,13 +7,19 @@ namespace OpenTap.UnitTests;
 public class TestPlanReferenceTest
 {
     [Test]
-    public void TestRemovingParameter()
+    public void RemovingParameterFromReferencedPlan()
     {
-        var planWithoutParam = nameof(TestRemovingParameter) + ".no-parameter.TapPlan";
-        var planWithParam = nameof(TestRemovingParameter) + ".parameter.TapPlan";
+        // this unit test checks that a parameterization is automatically removed if
+        // the parameter comes from a test plan reference which initially has the parameter
+        // but later the referenced plan removes the parameter after which
+        // the test plan is reloaded.
+        
+        var planWithoutParam = nameof(RemovingParameterFromReferencedPlan) + ".no-parameter.TapPlan";
+        var planWithParam = nameof(RemovingParameterFromReferencedPlan) + ".parameter.TapPlan";
         try
         {
             {
+                // create two test plans, one with the external parameter 'A' and one without.
                 var plan = new TestPlan();
                 var step = new DelayStep();
                 plan.ChildTestSteps.Add(step);
@@ -23,20 +29,33 @@ public class TestPlanReferenceTest
             }
 
             {
+                
                 var plan = new TestPlan();
                 var tpr = new TestPlanReference();
+                
+                // first we load the test plan reference containing the parameter A and 
+                // parameterize that onto the plan.
+                
                 tpr.Filepath.Text = planWithParam;
                 plan.ChildTestSteps.Add(tpr);
                 tpr.LoadTestPlan();
                 var aMember = TypeData.GetTypeData(tpr).GetMember("A");
                 aMember.Parameterize(plan, tpr, "B");
-                tpr.Filepath.Text = planWithoutParam;
-                var mem0 = TypeData.GetTypeData(plan).GetMember("B");
-                tpr.LoadTestPlan();
-                var mem = TypeData.GetTypeData(plan).GetMember("B");
+                var memberBPre = TypeData.GetTypeData(plan).GetMember("B");
                 
-                Assert.IsNotNull(mem0);
-                Assert.IsNull(mem);
+                // now we select the test plan _without_ the parameter A
+                // and load that with the parameter B still existing on the test plan.
+                
+                tpr.Filepath.Text = planWithoutParam;
+                tpr.LoadTestPlan();
+                
+                var memberBPost = TypeData.GetTypeData(plan).GetMember("B");
+                
+                // if everything works, we should no longer be able to access 'B'.
+                // it is automatically removed by the parameter sanitation algorithm, ParameterManager.checkParameterSanity.
+                
+                Assert.IsNotNull(memberBPre);
+                Assert.IsNull(memberBPost);
             }
             
         }
