@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace OpenTap.Plugins.BasicSteps
 {
-    class ExpandedMemberData : IMemberData, IParameterMemberData
+    class ExpandedMemberData : IMemberData, IParameterMemberData, IDynamicMemberData
     {
         public override bool Equals(object obj)
         {
@@ -94,6 +94,9 @@ namespace OpenTap.Plugins.BasicSteps
             ExternalParameter.ParameterizedMembers
                 .Select(x => new KeyValuePair<ITestStep, IEnumerable<IMemberData>>((ITestStep)x.Source, new []{x.Member}))
                 .SelectMany(x => x.Value.Select(y => ((object)x.Key, y)));
+        
+        /// <summary> Set to true if the member has been removed from the test plan reference.</summary>
+        public bool IsDisposed => ExternalParameter == null || ParameterizedMembers.Any() == false;
     }
 
     class ExpandedTypeData : ITypeData
