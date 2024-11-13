@@ -115,7 +115,19 @@ namespace OpenTap
                 // copy all attributes from first member.
                 // if there is no display attribute, create one.
                 bool found = false;
-                var attrs = member.Attributes.ToArray();
+
+                // remove the attributes that should not follow the
+                static bool FilterAttributes(object attr)
+                {
+                    switch (attr)
+                    {
+                        case ColumnDisplayNameAttribute: return false;
+                        case ExternalParameterAttribute: return false;
+                        default: return true;
+                    }
+                }
+
+                var attrs = member.Attributes.Where(FilterAttributes).ToArray();
                 for (int i = 0; i < attrs.Length; i++)
                 {
                     if (false == (attrs[i] is DisplayAttribute))
