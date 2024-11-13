@@ -78,14 +78,17 @@ namespace OpenTap.Plugins.BasicSteps
                 dis = Member.GetDisplayAttribute();
             
             attrs.Add(new DisplayAttribute(dis.Name, Description: dis.Description, Order: 5, Groups:dis.Group));
-            if (attrs.Any(x => x is ColumnDisplayNameAttribute))
+            static bool FilterAttributes(object attr)
             {
-                var colAttr = (ColumnDisplayNameAttribute) attrs.FirstOrDefault(x => x is ColumnDisplayNameAttribute);
-                attrs.Remove(colAttr);
-
-                var newColAttr = new ColumnDisplayNameAttribute(ep.Name, colAttr.Order, colAttr.IsReadOnly);
-                attrs.Add(newColAttr);
+                switch (attr)
+                {
+                    case ColumnDisplayNameAttribute: return false;
+                    case ExternalParameterAttribute: return false;
+                    default: return true;
+                }
             }
+            attrs.RemoveIf<object>(static x => FilterAttributes(x) == false);
+
 
             Attributes = attrs;
         }
