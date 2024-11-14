@@ -448,12 +448,18 @@ namespace OpenTap.Plugins.BasicSteps
             }
             [Browsable(true)]
             [Layout(LayoutMode.FullRow | LayoutMode.WrapText)]
-            public string Message => "Are you sure you want to convert the Test Plan Reference to a Sequence?\n\nAny future changes to the referenced test plan will not be reflected.";
+            public string Message { get; }
 
             [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
             [Submit]
             public ConvertOrCancel Response { set; get; } = ConvertOrCancel.Cancel;
 
+            public ConvertWarning(bool multiSelect)
+            {
+                Message = "Are you sure you want to convert the Test Plan Reference to a Sequence?\n\nAny future changes to the referenced test plan will not be reflected.";
+                if(multiSelect)
+                    Message += "\n\nThis will affect all selected test steps.";
+            }
         }
             
         
@@ -462,11 +468,19 @@ namespace OpenTap.Plugins.BasicSteps
         [EnabledIf(nameof(anyStepsLoaded), HideIfDisabled = true)]
         public void ConvertToSequence()
         {
-            var warn = new ConvertWarning();
-            UserInput.Request(warn, true);
-            if (warn.Response == ConvertWarning.ConvertOrCancel.Cancel)
-                return;
-            
+            ConvertToSequence(true, false);
+        }
+
+        internal bool ConvertToSequence(bool userShouldConfirm, bool multiSelect)
+        {
+            if (userShouldConfirm)
+            {
+                var warn = new ConvertWarning(multiSelect);
+                UserInput.Request(warn, true);
+                if (warn.Response == ConvertWarning.ConvertOrCancel.Cancel)
+                    return false;
+            }
+
             // This test plan contains a clone of all the test steps in 'this'.
             var subPlan = TestPlan.Load(GetPath());
             
@@ -586,6 +600,7 @@ namespace OpenTap.Plugins.BasicSteps
                 member.SetValue(seq, val);
             }
             // .. and done.
+            return true;
         }
         
         internal ParameterMemberData[] ExternalParameters { get; private set; } = Array.Empty<ParameterMemberData>();

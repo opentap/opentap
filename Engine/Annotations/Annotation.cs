@@ -53,6 +53,14 @@ namespace OpenTap
         object Value { get; set; }
     }
 
+    /// <summary>
+    /// A marker interface for object value annotations that comes from a merged source instead of a single-value source.
+    /// </summary>
+    public interface IMergedValueAnnotation : IObjectValueAnnotation
+    {
+
+    }
+
     /// <summary> Specifies how available values proxies are implemented. This class should rarely be implemented. Consider implementing just IAvailableValuesAnnotation instead.</summary>
     public interface IAvailableValuesAnnotationProxy : IAnnotation
     {
@@ -194,6 +202,16 @@ namespace OpenTap
     {
         /// <summary> Invokes the action.  </summary>
         void Invoke();
+    }
+
+    /// <summary>
+    /// The merged method annotation marks a custom method annotation which overrides
+    /// the standard behavior in the case where multiple values are merged.
+    /// This can happen during multi select of a test step with a method.
+    /// </summary>
+    public interface IMergedMethodAnnotation : IMethodAnnotation
+    {
+
     }
 
     /// <summary> Specifies how to implement basic collection annotations. </summary>
@@ -712,7 +730,7 @@ namespace OpenTap
 
     }
 
-    class MergedValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation
+    class MergedValueAnnotation : IMergedValueAnnotation, IOwnedAnnotation
     {
         public IEnumerable<AnnotationCollection> Merged => merged;
         readonly List<AnnotationCollection> merged;
@@ -902,8 +920,10 @@ namespace OpenTap
                     var method = newa.Get<IMethodAnnotation>();
                     if (method != null)
                     {
-                        newa.Add(new ManyToOneMethodAnnotation(newa));
-                        newa.Remove(method);
+                        // skip adding many-to-one method annotation.
+                        // if the method annotation can already handle the merged case.
+                        if(!(method is IMergedMethodAnnotation))
+                            newa.Add(new ManyToOneMethodAnnotation(newa));
                     }
 
                     var enabledValue = newa.Get<IEnabledValueAnnotation>();
