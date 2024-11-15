@@ -193,6 +193,44 @@ jobs:
           retention-days: 5
           path: public
 
+  Build-SDK-Windows:
+    runs-on: [self-hosted, windows]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build SDK (debug)
+        working-directory: sdk/Examples
+        run: dotnet build -c "Debug CE"
+      - name: Build SDK (debug)
+        working-directory: sdk/Examples
+        run: dotnet build -c Debug
+      - name: Build SDK (release)
+        working-directory: sdk/Examples
+        run: dotnet build -c Release
+
+  Build-SDK-Linux:
+    runs-on:
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build SDK (debug)
+        working-directory: sdk/Examples
+        run: dotnet build -c LinuxDebug
+      - name: Build SDK (release)
+        working-directory: sdk/Examples
+        run: dotnet build -c LinuxRelease
+
   Build-Linux:
     runs-on:
       group: OpenTAP-SpokeVPC
