@@ -15,9 +15,13 @@
     <Folder Include="Properties\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
+  </ItemGroup>
+
   <ItemGroup Condition="'$(IsWindows)'=='True'">
-	<AdditionalOpenTapPackage Include="$(DevelopersSystem)" />
-	<OpenTapPackageReference Include="WPF Controls" />
+	  <AdditionalOpenTapPackage Include="$(DevelopersSystem)" />
+	  <OpenTapPackageReference Include="WPF Controls" />
   </ItemGroup>
 
   <ItemGroup>

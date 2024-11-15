@@ -37,10 +37,4 @@
 		<DevelopersSystem Condition="'$(Configuration)' == 'Debug CE'">Editor X</DevelopersSystem>
 		<DevelopersSystem Condition="'$(Configuration)' != 'Debug CE'">Developer's System</DevelopersSystem>
 	</PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
-  </ItemGroup>
-
-
 </Project>
