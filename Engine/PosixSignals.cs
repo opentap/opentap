@@ -22,17 +22,49 @@ namespace OpenTap
 
         // Currently, we are only interested in handling SIGTERM and SIGINT
         const int SIGINT = 2;
+        const int SIGALARM = 14;
         const int SIGTERM = 15;
 
-        // Keep a list of registered callbacks to ensure they won't be garbage collected
-        private static List<SignalCallback> callbacks = new List<SignalCallback>();
+        private static readonly TimeSpan ShutdownGracePeriod = TimeSpan.FromSeconds(5);
+        private static List<SignalCallback> OnSigInt = new List<SignalCallback>();
+        private static List<SignalCallback> OnSigTerm = new List<SignalCallback>();
+
+        private static void OnSigAlarm(int sig, int info)
+        {
+            Console.WriteLine($"Application did not respond to previous signal. Shutting down forcefully.");
+            Environment.Exit(SIGALARM); 
+        }
+        private static void OnSignal(int sig, int info)
+        {
+            // re-enable this signal.
+            // Signals are disabled when they are raised, so subsequent signals will not be caught otherwise.
+            signal(sig, OnSignal);
+            var callbacks = sig == SIGINT ? OnSigInt : OnSigTerm;
+            foreach (var cb in callbacks)
+            {
+                try
+                {
+                    cb(sig, info);
+                }
+                catch
+                {
+                    // ignore
+                }
+            }
+
+            {
+                // trigger an alarm if the process hasn't exited within a reasonable amount of time
+                signal(SIGALARM, OnSigAlarm);
+                alarm((uint)ShutdownGracePeriod.Seconds);
+            } 
+        } 
 
         public static event SignalCallback SigTerm
         {
             add
             {
-                callbacks.Add(value);
-                signal(SIGTERM, value);
+                OnSigTerm.Add(value);
+                signal(SIGTERM, OnSignal);
             }
             remove { throw new NotSupportedException(); }
         }
@@ -41,14 +73,17 @@ namespace OpenTap
         {
             add
             {
-                callbacks.Add(value);
-                signal(SIGINT, value);
+                OnSigInt.Add(value);
+                signal(SIGINT, OnSignal);
             }
             remove { throw new NotSupportedException(); }
         }
 
         public delegate void SignalCallback(int sig, int info);
 
+        [DllImport("libc", EntryPoint = "alarm")]
+        private static extern void alarm(uint seconds);
+         
         [DllImport("libc", EntryPoint = "signal")]
         private static extern void signal(int sig, SignalCallback callback);
     }
