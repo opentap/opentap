@@ -169,8 +169,8 @@ namespace OpenTap.Cli
             // Signals are not supported on Windows.
             if (OperatingSystem.Current != OperatingSystem.Windows)
             {
-                PosixSignals.SigTerm += (sig, info) => abort();
-                PosixSignals.SigInt += (sig, info) => abort();
+                PosixSignals.SetSigInt((sig, info) => abort());
+                PosixSignals.SetSigTerm((sig, info) => abort());
             }
 
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;

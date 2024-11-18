@@ -25,9 +25,9 @@ namespace OpenTap
         const int SIGALARM = 14;
         const int SIGTERM = 15;
 
-        private static readonly TimeSpan ShutdownGracePeriod = TimeSpan.FromSeconds(5);
-        private static List<SignalCallback> OnSigInt = new List<SignalCallback>();
-        private static List<SignalCallback> OnSigTerm = new List<SignalCallback>();
+        private static readonly TimeSpan ShutdownGracePeriod = TimeSpan.FromSeconds(2);
+        private static SignalCallback OnSigInt = (_, _) => { };
+        private static SignalCallback OnSigTerm = (_, _) => { };
 
         private static void OnSigAlarm(int sig, int info)
         {
@@ -39,44 +39,32 @@ namespace OpenTap
             // re-enable this signal.
             // Signals are disabled when they are raised, so subsequent signals will not be caught otherwise.
             signal(sig, OnSignal);
-            var callbacks = sig == SIGINT ? OnSigInt : OnSigTerm;
-            foreach (var cb in callbacks)
+            
+            if (sig == SIGTERM)
             {
-                try
-                {
-                    cb(sig, info);
-                }
-                catch
-                {
-                    // ignore
-                }
+                OnSigTerm(sig, info);
             }
-
+            else
+            {
+                OnSigInt(sig, info);
+            }
+            
             {
                 // trigger an alarm if the process hasn't exited within a reasonable amount of time
                 signal(SIGALARM, OnSigAlarm);
                 alarm((uint)ShutdownGracePeriod.Seconds);
             } 
-        } 
-
-        public static event SignalCallback SigTerm
-        {
-            add
-            {
-                OnSigTerm.Add(value);
-                signal(SIGTERM, OnSignal);
-            }
-            remove { throw new NotSupportedException(); }
         }
 
-        public static event SignalCallback SigInt
+        internal static void SetSigTerm(SignalCallback callback)
         {
-            add
-            {
-                OnSigInt.Add(value);
-                signal(SIGINT, OnSignal);
-            }
-            remove { throw new NotSupportedException(); }
+            OnSigTerm = callback;
+            signal(SIGTERM, OnSignal);
+        }
+        internal static void SetSigInt(SignalCallback callback)
+        {
+            OnSigInt = callback;
+            signal(SIGINT, OnSignal);
         }
 
         public delegate void SignalCallback(int sig, int info);
