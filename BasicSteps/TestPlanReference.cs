@@ -462,13 +462,18 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
             
-        
+
+        /// <summary> Convert the test plan reference to a sequence step. This will pop up a dialog. </summary>
         [Browsable(true)]
         [Display("Convert to Sequence", "Convert the test plan reference to a sequence step.", Order: 1.1)]
         [EnabledIf(nameof(anyStepsLoaded), HideIfDisabled = true)]
         public void ConvertToSequence()
         {
-            ConvertToSequence(true, false);
+            // only show the dialog if the user input interface has been set.
+            // otherwise treat this as a normal method.
+            bool showDialog = UserInput.Interface != null;
+
+            ConvertToSequence(showDialog, false);
         }
 
         internal bool ConvertToSequence(bool userShouldConfirm, bool multiSelect)
