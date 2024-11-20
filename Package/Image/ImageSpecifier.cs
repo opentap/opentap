@@ -43,8 +43,8 @@ namespace OpenTap.Package
         public ImageSpecifier()
         {
             
-        }
-
+        } 
+        
         internal static ImageSpecifier FromAddedPackages(Installation installation, IEnumerable<PackageSpecifier> newPackages)
         {
             var toInstall = new List<PackageSpecifier>();
@@ -60,13 +60,27 @@ namespace OpenTap.Package
                     additionalPackages.Add(ext);
                 }
 
+                // IsZipFile handles the special case where there exists a file on disk
+                // with the same name as a package which is not a zip file.
                 if (File.Exists(package.Name))
                 {
-                    var package2 = PackageDef.FromPackage(package.Name);
-                    toInstall.Add(new PackageSpecifier(package2.Name, package2.Version.AsExactSpecifier()));
-                    installed.Add(package2);
-                    continue;
+                    if (PackageDef.TryFromPackage(package.Name, out var package2))
+                    {
+                        toInstall.Add(new PackageSpecifier(package2.Name, package2.Version.AsExactSpecifier()));
+                        installed.Add(package2);
+                        continue;
+                    }
+                    else 
+                    {
+                        var extension = Path.GetExtension(package.Name);
+                        var expectedExtensions = new string[] { ".zip", ".tappackage" };
+                        if (extension != null && expectedExtensions.Any(e => string.Equals(e, extension, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            throw new Exception($"Package {package.Name} could not be installed. The file is not a valid tap package.");
+                        }
+                    }
                 }
+
                 toInstall.Add(package);
             }
 

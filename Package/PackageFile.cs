@@ -621,6 +621,20 @@ namespace OpenTap.Package
             return packages;
         }
 
+        internal static bool TryFromPackage(string path, out PackageDef package)
+        {
+            try 
+            {
+                package = FromPackage(path);
+                return true;
+            }
+            catch 
+            {
+                package = null;
+                return false;
+            }
+        }
+
         /// <summary>
         /// Constructs a PackageDef object to represent a TapPackage package that has already been created.
         /// </summary>
