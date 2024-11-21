@@ -164,7 +164,7 @@ namespace OpenTap
     public class TapThread
     {
         #region fields
-        static readonly ThreadManager manager = new ThreadManager();
+        internal static readonly ThreadManager manager = new ThreadManager();
         
         static readonly SessionLocal<ThreadManager> sessionThreadManager = new SessionLocal<ThreadManager>(manager);
         Action action;
@@ -371,8 +371,7 @@ namespace OpenTap
 
         internal static Task StartAwaitable(Action action, CancellationToken? token, string name = "")
         {
-            var wait = new ManualResetEventSlim(false);
-            Exception ex = null;
+            var task = new TaskCompletionSource<bool>();
             Start(() =>
             {
                 try
@@ -390,20 +389,14 @@ namespace OpenTap
                 }
                 catch (Exception inner)
                 {
-                    ex = inner;
+                    task.SetException(inner);
                 }
                 finally
                 {
-                    wait.Set();
+                    task.SetResult(true);
                 }
             }, null, name);
-            var awaiter = new Awaitable(wait);
-            return Task.Factory.FromAsync(awaiter, x =>
-            {
-                // rethrow the exception if there was one.
-                // The Rethrow extension method preserves the original stacktrace.
-                ex?.Rethrow();
-            });
+            return task.Task;
         }
 
         /// <summary> Starts a new Tap Thread.</summary>
@@ -543,167 +536,234 @@ namespace OpenTap
 
         /// <summary> The number of currently available workers.</summary>
         int freeWorkers = 0;
-        /// <summary>
-        /// Max number of worker threads.
-        /// </summary>
-        int MaxWorkerThreads = 1024; // normally around 1024.
 
         /// <summary> Current number of threads. </summary>
         public uint ThreadCount => (uint)threads;
-
+        int threads = 0;
         /// <summary> Thread manager root abort token. This can cancel all thread and child threads.
         /// Canceled when the thread manager is disposed. </summary>
         public CancellationToken AbortToken => cancelSrc.Token;
 
+        void monitorThread()
+        {
+            while (AbortToken.IsCancellationRequested == false)
+            {
+                try
+                {
+                    TapThread.Sleep(1000);
+                }
+                catch
+                {
+                    
+                }
+                Log.CreateSource("monitor").Debug($"Threads count:  {threadCount}");
+            }
+        }
+        bool monitorStarted = false;
+        
         /// <summary> Enqueue an action to be executed in the future. </summary>
         /// <param name="work">The work to be processed.</param>
         public void Enqueue(TapThread work)
         {
             if(cancelSrc.IsCancellationRequested) 
                 throw new Exception("ThreadManager has been disposed.");
-            workQueue.Enqueue(work);
-            freeWorkSemaphore.Release();
+
+            if (!monitorStarted)
+            {
+                monitorStarted = true;
+                TapThread.Start(monitorThread);
+            }
+            retry:
+            WorkerThread worker = null;
+
+            do
+            {
+                worker = idleThreads;
+            }while(worker != null && Interlocked.CompareExchange(ref idleThreads, idleThreads.NextFree, worker) != worker);
+            
+            if (worker == null)
+                worker = newWorkerThread();
+            if (worker.IsEnded)
+            {
+                goto retry;
+            }
+            worker.Start(work);
         }
         
         /// <summary> Creates a new ThreadManager. </summary>
         internal ThreadManager()
         {
-            var threadManagerThread = new Thread(threadManagerWork) { Name = "Thread Manager", IsBackground = true, Priority = ThreadPriority.Normal };
-            threadManagerThread.Start();
-            //ThreadPool.GetMaxThreads(out MaxWorkerThreads, out int _);
+            
         }
         internal static int IdleThreadCount { get => idleThreadCount; set => idleThreadCount = value; }
         static int idleThreadCount = 4;
-        void threadManagerWork()
+        WorkerThread newWorkerThread()
         {
-            var handles = new WaitHandle[2];
-            while (cancelSrc.IsCancellationRequested == false)
+            var workerThread = new WorkerThread(this);
+            Interlocked.Increment(ref freeWorkers);
+            return workerThread;
+        }
+        static int threadCount; 
+        class WorkerThread
+        {
+            public override string ToString()
             {
-                for(uint i = (uint)threads; i < idleThreadCount; i++)
-                {
-                    newWorkerThread();
-                }
+                return $"WorkerThread; {WorkerThreadIndex}";
+            }
+            static int workerThreadCounter = 0;
+            public readonly int WorkerThreadIndex = Interlocked.Increment(ref workerThreadCounter);
+            public WorkerThread NextFree;
+            readonly Thread trd;
+            readonly ThreadManager manager;
+            TapThread work;
+            readonly object monitor = new object();
+            bool isStarted;
+            bool isEnded;
+            public bool IsEnded => isEnded;
+            public WorkerThread(ThreadManager manager)
+            {
+                this.manager = manager;
+                trd = new Thread(processQueue) { IsBackground = true, Name = "Unnamed Work Thread", Priority = ThreadPriority.BelowNormal };
+            }
 
-                handles[0] = freeWorkSemaphore;
-                handles[1] = cancelSrc.Token.WaitHandle;
-                int state = WaitHandle.WaitAny(handles);
-                if (state == 1) break;
-
-                freeWorkSemaphore.Release();
-                if (freeWorkers < workQueue.Count)
+            public void Start(TapThread task)
+            {
+                
+                this.work = task;
+                if (!isStarted)
                 {
-                    if (freeWorkers > 20)
-                        Thread.Sleep(freeWorkers);
-                    else if (threads > MaxWorkerThreads)
-                    {
-                        int delay = threads - MaxWorkerThreads;
-                        Thread.Sleep(delay); // throttle the creation of new threads.
-                        newWorkerThread();
-                    }
-                    else
-                    {
-                        newWorkerThread();
-                    }
+                    Interlocked.Increment(ref threadCount);
+                    isStarted = true;
+                    trd.Start();
                 }
                 else
                 {
-                    Thread.Yield();
+                    lock (monitor)
+                    {
+                        Monitor.Pulse(monitor);
+                    }
                 }
             }
-        }
 
-        void newWorkerThread()
-        {
-            var trd = new Thread(processQueue) { IsBackground = true, Name = "Unnamed Work Thread", Priority = ThreadPriority.BelowNormal };
-            trd.Start();
-
-            Interlocked.Increment(ref freeWorkers);
-        }
-        
-        // if a thread waits for some time and no new work is fetched, it can stop.
-        // 5000ms is a good number, because resultlisteners sometimes wait 3s if they have too much work.
-        // this avoids the threads shutting down just because of this.
-        static readonly int timeout = 5 * 60 * 1000; // 5 minutes
-        int threads = 0;
-        // This method can be processed by many threads at once.
-        void processQueue()
-        {
-            Interlocked.Increment(ref threads);
-            var handles = new WaitHandle[2];
-            try
+            public void Pulse()
             {
-                handles[0] = freeWorkSemaphore;
-                handles[1] = cancelSrc.Token.WaitHandle;
+                lock(monitor)
+                    Monitor.Pulse(monitor);
+            }
 
-                while (cancelSrc.IsCancellationRequested == false)
+            void processQueue()
+            {
+                try
                 {
-                    int state = WaitHandle.WaitAny(handles, timeout);
-                    if (state == WaitHandle.WaitTimeout)
+                    while (manager.cancelSrc.IsCancellationRequested == false)
                     {
-                        if (ThreadCount < idleThreadCount)
-                            continue;
-                        break;
-                    }
-                    if (workQueue.Count == 0)
-                        continue; // Someone already handled the work. go back to sleep.
-
-                    // once resumed, crunch as much as possible.
-                    // this will reduce latency and cause some threads to wake up just to go to sleep again.
-                    Interlocked.Decrement(ref freeWorkers);
-                    try
-                    {
-                        while (cancelSrc.IsCancellationRequested == false && workQueue.TryDequeue(out TapThread work))
+                        if (work != null)
                         {
+                            ThreadKey = work;
                             try
                             {
-                                ThreadKey = work;
                                 work.Process();
+                            }
+
+                            catch (OperationCanceledException)
+                            {
+                                break;
+                            }
+                            catch (ThreadAbortException)
+                            {
+                                break;
+                            }
+                            catch (Exception)
+                            {
+                                break;
                             }
                             finally
                             {
                                 ThreadKey = null;
                             }
+                            work = null;
+                        }
+
+                        lock (monitor)
+                        {
+                            do
+                            {
+                                NextFree = manager.idleThreads;
+                            } while (Interlocked.CompareExchange(ref manager.idleThreads, this, NextFree) != NextFree);
+
+                            if (!Monitor.Wait(monitor, timeout))
+                            {
+                                isEnded = true;
+                                break;
+                            }
                         }
                     }
-                    finally
-                    {
-                        Interlocked.Increment(ref freeWorkers);
-                    }
+                }
+                catch (Exception)
+                {
+                    // ignored
+                }
+                finally
+                {
+                    isEnded = true;
+                   CleanList();
+                    Interlocked.Decrement(ref threadCount);
                 }
             }
-            catch (OperationCanceledException)
+            public void CleanList()
             {
+                bool cleanList(ref WorkerThread wk)
+                {
+                    var val = wk;
+                    if (val == null) return true;
+                    if (val.IsEnded && val.NextFree == null)
+                    {
+                        wk = null;
+                        return true;
+                    }
+                    if (val.NextFree != null && cleanList(ref val.NextFree))
+                    {
+                        wk = null;
+                        return true;
+                    }
+                    return false;
+                }
+                cleanList(ref NextFree);
+            }
 
-            }
-            catch (ThreadAbortException)
-            {
-                // Can be thrown when the application exits.
-            }
-            catch (Exception e)
-            {
-                // exceptions should be handled at the 'work' level.
-                log.Error("Exception unhandled in worker thread.");
-                log.Debug(e);
-            }
-            finally
-            {
-                Interlocked.Decrement(ref freeWorkers);
-                Interlocked.Decrement(ref threads);
-            }
         }
+        WorkerThread idleThreads = null;
+        
+        // if a thread waits for some time and no new work is fetched, it can stop.
+        // 5000ms is a good number, because resultlisteners sometimes wait 3s if they have too much work.
+        // this avoids the threads shutting down just because of this.
+        static readonly int timeout = 5 * 60 * 1000; // 5 minutes
 
-        private static TraceSource _log;
-        private static TraceSource log
+        public static void ShutDown()
         {
-            get => (_log ?? (_log = Log.CreateSource("thread")));
+            TapThread.manager.Dispose();
         }
+
 
         /// <summary> Disposes the ThreadManager. This can optionally be done at program exit.</summary>
         public void Dispose()
         {
             cancelSrc.Cancel();
-            while (threads > 0)
+            while (threadCount > 0)
+            {
+                var trd = idleThreads;
+                while (trd != null)
+                {
+                    if (!trd.IsEnded)
+                    {
+                        trd.Pulse();    
+                    }
+                            
+                    trd = trd.NextFree;
+                }
                 Thread.Sleep(10);
+                idleThreads?.CleanList();
+            }
         }
     }
 
