@@ -33,8 +33,7 @@ namespace OpenTap
     // It creates a wrapper around existing types and gives them an extra layer
     // which contains the added properties.
     //
-
-    class EmbeddedMemberData : IMemberData, IDynamicMemberData
+    class EmbeddedMemberData : IMemberData, IDynamicMemberData, IEmbeddedMemberData
     {
         public IMemberData OwnerMember => ownerMember;
         public IMemberData InnerMember => innerMember;
