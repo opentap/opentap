@@ -666,6 +666,18 @@ jobs:
           path: |
             SDK.*.TapPackage
 
+  Package-Diff-Comment:
+    runs-on: ubuntu-latest
+    name: package-diff-comment
+    strategy:
+      matrix:
+        Package: [ win-x86, win-x64, linux-x64 ]
+      - name: Run comment action
+        uses: alnlarsen/package-diff-comment@test-pr-logic
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          package: OpenTAP.TapPackage        
+
   Package-Diff:
     runs-on:
        group: OpenTAP-SpokeVPC
