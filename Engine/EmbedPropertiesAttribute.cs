@@ -34,7 +34,7 @@ namespace OpenTap
     // which contains the added properties.
     //
 
-    class EmbeddedMemberData : IMemberData, IDynamicMemberData
+    public class EmbeddedMemberData : IMemberData, IDynamicMemberData
     {
         public IMemberData OwnerMember => ownerMember;
         public IMemberData InnerMember => innerMember;
