@@ -354,8 +354,10 @@ namespace OpenTap.Plugins.BasicSteps
                                     }
                                     continue;
                                 }
+                                // transfer  the value from the test plan instance to this instance.
+                                var value = member.GetValue(tp);
                                 DynamicMember.AddDynamicMember(this, mem);
-                                mem.SetValue(this, member.GetValue(this));
+                                mem.SetValue(this, value);
                             }
                         }
 
@@ -543,12 +545,13 @@ namespace OpenTap.Plugins.BasicSteps
 
             foreach (var member in TypeData.GetTypeData(this).GetMembers())
             {
-                MixinMemberData mixinMember = null;
+                MixinMemberData mixinMember = member switch
+                {
+                    MixinMemberData mixin => mixin,
+                    IEmbeddedMemberData emb => emb.OwnerMember as MixinMemberData,
+                    var _ => null
+                };
 
-                if (member is MixinMemberData)
-                    mixinMember = (MixinMemberData)member;
-                else if (member is EmbeddedMemberData emd) // Handle mixins that use the EmbedPropertiesAttribute
-                    mixinMember = emd.OwnerMember as MixinMemberData;
 
                 if (mixinMember != null && !seen.Contains(mixinMember))
                 {
