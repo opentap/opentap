@@ -987,7 +987,7 @@ jobs:
   ### Publish ###
   ###############
   Publish-NuGet:
-    #if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
     runs-on: [self-hosted, windows]
     needs:
@@ -1002,7 +1002,7 @@ jobs:
         run: nuget push OpenTAP.*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json
 
   Publish-Templates:
-    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    #if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
     runs-on: [self-hosted, windows]
     needs:
