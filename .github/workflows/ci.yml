@@ -987,7 +987,7 @@ jobs:
   ### Publish ###
   ###############
   Publish-NuGet:
-    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    #if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
     runs-on: [self-hosted, windows]
     needs:
@@ -1138,4 +1138,3 @@ jobs:
         working-directory: ./Packages/SDK/Examples
       - run: dotnet build -c Release
         working-directory: ./Packages/SDK/Examples
-
