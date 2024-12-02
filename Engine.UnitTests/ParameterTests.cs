@@ -18,6 +18,7 @@ public class ParameterTests
         seq.ChildTestSteps.Add(seq2);
         seq2.ChildTestSteps.Add(delay);
         seq3.ChildTestSteps.Add(seq);
+        seq3.ChildTestSteps.Remove(seq);
 
         TypeData.GetTypeData(delay).GetMember(nameof(delay.DelaySecs)).Parameterize(seq, delay, "A");
 
