@@ -116,7 +116,10 @@ namespace OpenTap
             var steps = this.ToList();
             base.ClearItems();
             foreach (var step in steps)
+            {
+                step.Parent = null;
                 onContentChanged(this, ChildStepsChangedAction.RemovedStep, step, 0);
+            }
 
         }
 
@@ -135,6 +138,8 @@ namespace OpenTap
             {
                 idLookup.Add(thing.Id, thing);
             }
+            if(Parent is ITestStep step)
+                idLookup.Add(step.Id, step);
         }
 
         Dictionary<Guid, ITestStep> idLookup = null;
@@ -535,6 +540,8 @@ namespace OpenTap
                     return result;
                 return null;
             }
+            if (this._Parent is ITestStep thisStep && thisStep.Id == id)
+                return thisStep;
             foreach (ITestStep step in this)
             {
                 if (step.Id == id)
