@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
+using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
 {
@@ -119,5 +121,67 @@ namespace OpenTap.UnitTests
 
         }
 
+        [Test]
+        public void TestDeserializePrameterizedElements()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            var delay = new DelayStep();
+            sweep.ChildTestSteps.Add(delay);
+            plan.ChildTestSteps.Add(sweep);
+            { /* parameterize DelaySecs */
+                var delaySecs = AnnotationCollection.Annotate(delay).GetMember(nameof(delay.DelaySecs));
+                var mem = delaySecs.Get<IMemberAnnotation>().Member;
+                mem.Parameterize(sweep, delay, $"Parameters \\ {mem.GetDisplayAttribute().Name}");
+            }
+
+            { /* parameterize sweep values on test plan */
+                var sweepValues = AnnotationCollection.Annotate(sweep).GetMember(nameof(sweep.SweepValues));
+
+                var col = sweepValues.Get<ICollectionAnnotation>();
+
+                void addDelay(double delay)
+                {
+                    var elem1 = col.NewElement();
+                    var delayMem = elem1.GetMember("Parameters \\ Time Delay");
+                    delayMem.Get<IObjectValueAnnotation>().Value = delay;
+                    col.AnnotatedElements = col.AnnotatedElements.Append(elem1);
+                }
+                
+                addDelay(1);
+                addDelay(2);
+                
+                sweepValues.Write();
+                sweepValues.Read();
+                
+                var mem = sweepValues.Get<IMemberAnnotation>().Member;
+                mem.Parameterize(plan, sweep, $"Parameters \\ {mem.GetDisplayAttribute().Name}"); 
+            }
+
+            var ser = new TapSerializer() { IgnoreErrors = false };
+            var planXml = ser.SerializeToString(plan);
+            Assert.IsTrue(!ser.Errors.Any());
+            var plan2 = ser.DeserializeFromString(planXml) as TestPlan;
+            Assert.IsTrue(!ser.Errors.Any());
+
+            { /* verify parameters were correctly deserialized */
+                var sweep1 = sweep.SweepValues;
+                var sweep2 = (SweepRowCollection)plan2.ExternalParameters.Entries.First().Value;
+                
+                Assert.IsTrue(sweep1.Count == sweep2.Count);
+
+                for (int i = 0; i < sweep1.Count; i++)
+                {
+                    var d1 = sweep1[i];
+                    var d2 = sweep2[i];
+                    foreach (var kvp in d1.Values)
+                    {
+                        var v1 = kvp.Value;
+                        var v2 = d2.Values[kvp.Key];
+                        Assert.IsTrue(v1.Equals(v2));
+                    }
+                }
+            }
+        } 
     }
 }
