@@ -363,7 +363,15 @@ namespace OpenTap.UnitTests
             }
             plan.ChildTestSteps.Remove(repeat);
             {
-                var member = TypeData.GetTypeData(log).GetMember(nameof(DelayStep.DelaySecs));
+                var member = TypeData.GetTypeData(log).GetMember(nameof(LogStep.LogMessage));
+                var outputMember = TypeData.GetTypeData(repeat).GetMember(nameof(RepeatStep.IterationInfo));
+                Assert.IsTrue(InputOutputRelation.IsInput(log, member));
+                Assert.IsTrue(InputOutputRelation.IsOutput(repeat, outputMember));
+            }
+
+            repeat.ChildTestSteps.Remove(log);
+            {
+                var member = TypeData.GetTypeData(log).GetMember(nameof(LogStep.LogMessage));
                 var outputMember = TypeData.GetTypeData(repeat).GetMember(nameof(RepeatStep.IterationInfo));
                 Assert.IsFalse(InputOutputRelation.IsInput(log, member));
                 Assert.IsFalse(InputOutputRelation.IsOutput(repeat, outputMember));
