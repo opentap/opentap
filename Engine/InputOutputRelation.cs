@@ -115,6 +115,8 @@ namespace OpenTap
 
         static bool IsInScope(ITestStepParent target, ITestStep otherStep)
         {
+            if (target.Parent == otherStep)
+                return true;
             var parent = target;
             while (parent != null)
             {
@@ -126,22 +128,17 @@ namespace OpenTap
 
             return false;
         }
-        
+
         static void checkRelations(ITestStepParent target)
         {
-            var plan = target.GetParent<TestPlan>();
-            if (plan == null) return;
-            bool removeAllRelations = false;
-            if (target is ITestStep step)
-                removeAllRelations = plan.ChildTestSteps.GetStep(step.Id) == null;
-            Action defer = () => { };
+            Action defer = null;
 
             foreach (var connection in getOutputRelations(target))
             {
                 if (connection.OutputObject is ITestStep otherStep)
                 {
                     // steps can only be connected to a step from the same test plan.
-                    if (removeAllRelations || plan.ChildTestSteps.GetStep(otherStep.Id) == null || IsInScope(target, otherStep) == false)
+                    if (IsInScope(target, otherStep) == false)
                     {
                         defer = defer.Bind(Unassign, connection);
                     }
@@ -159,14 +156,6 @@ namespace OpenTap
 
             foreach (var connection in getInputRelations(target))
             {
-                if (connection.InputObject is ITestStep otherStep)
-                {
-                    // steps can only be connected to a step from the same test plan.
-                    if (removeAllRelations || plan.ChildTestSteps.GetStep(otherStep.Id) == null)
-                    {
-                        defer = defer.Bind(Unassign, connection);
-                    }
-                }
                 if (connection.InputMember is IDynamicMemberData dyn && dyn.IsDisposed)
                 {
                     defer = defer.Bind(Unassign, connection);
@@ -177,7 +166,7 @@ namespace OpenTap
                 }
             }
 
-            defer();
+            defer?.Invoke();
         }
 
         static TestStepRun ResolveStepRun(ITestStep step, Guid waiterStep)

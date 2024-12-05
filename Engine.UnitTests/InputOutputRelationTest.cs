@@ -14,9 +14,10 @@ namespace OpenTap.UnitTests
         [Test]
         public void TestBasicInputOutputRelation()
         {
-            
+            var seq = new SequenceStep();
             var delay1 = new DelayStep();
             var delay2 = new DelayStep();
+            seq.ChildTestSteps.AddRange([delay1, delay2]);
             {
                 var member = TypeData.GetTypeData(delay1).GetMember(nameof(DelayStep.DelaySecs));
                 InputOutputRelation.Assign(delay2, member, delay1, member);
@@ -143,12 +144,13 @@ namespace OpenTap.UnitTests
             var step1 = new OutputInput {Output = 5, Input = 5, Name = "Step 1"};
             var step2 = new OutputInput {Output = 5, Input = 5, Name = "Step 1"};
             var step3 = new OutputInput {Output = 5, Input = 5, Name = "Step 1"};
+            parallel.ChildTestSteps.AddRange(new [] {step1, step2, step3});
             var a = TypeData.GetTypeData(step1).GetMember(nameof(step1.Input));
             var b = TypeData.GetTypeData(step1).GetMember(nameof(step1.Output));
             InputOutputRelation.Assign(step2, a, step1, b);
             InputOutputRelation.Assign(step3, a, step2, b);
             InputOutputRelation.Assign(step1, a, step3, b);
-            parallel.ChildTestSteps.AddRange(new [] {step1, step2, step3});
+
            
             var r = plan.Execute();
             Assert.AreEqual(Verdict.Error, r.Verdict);
@@ -363,7 +365,15 @@ namespace OpenTap.UnitTests
             }
             plan.ChildTestSteps.Remove(repeat);
             {
-                var member = TypeData.GetTypeData(log).GetMember(nameof(DelayStep.DelaySecs));
+                var member = TypeData.GetTypeData(log).GetMember(nameof(LogStep.LogMessage));
+                var outputMember = TypeData.GetTypeData(repeat).GetMember(nameof(RepeatStep.IterationInfo));
+                Assert.IsTrue(InputOutputRelation.IsInput(log, member));
+                Assert.IsTrue(InputOutputRelation.IsOutput(repeat, outputMember));
+            }
+
+            repeat.ChildTestSteps.Remove(log);
+            {
+                var member = TypeData.GetTypeData(log).GetMember(nameof(LogStep.LogMessage));
                 var outputMember = TypeData.GetTypeData(repeat).GetMember(nameof(RepeatStep.IterationInfo));
                 Assert.IsFalse(InputOutputRelation.IsInput(log, member));
                 Assert.IsFalse(InputOutputRelation.IsOutput(repeat, outputMember));
@@ -411,6 +421,8 @@ namespace OpenTap.UnitTests
         {
             var a = new OutputInput();
             var b = new OutputInput();
+            var seq = new SequenceStep();
+            seq.ChildTestSteps.AddRange([a,b]);
             var inputMember = TypeData.GetTypeData(a).GetMember(nameof(a.Input));
             var outputMember= TypeData.GetTypeData(b).GetMember(nameof(b.Output));
             var inputMember2= TypeData.GetTypeData(a).GetMember(nameof(a.ExpectedInput)); 

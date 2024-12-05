@@ -116,7 +116,10 @@ namespace OpenTap
             var steps = this.ToList();
             base.ClearItems();
             foreach (var step in steps)
+            {
+                step.Parent = null;
                 onContentChanged(this, ChildStepsChangedAction.RemovedStep, step, 0);
+            }
 
         }
 
@@ -135,6 +138,8 @@ namespace OpenTap
             {
                 idLookup.Add(thing.Id, thing);
             }
+            if(Parent is ITestStep step)
+                idLookup.Add(step.Id, step);
         }
 
         Dictionary<Guid, ITestStep> idLookup = null;
@@ -257,7 +262,7 @@ namespace OpenTap
             
             throwIfRunning();
 
-            var childsteps = Utils.FlattenHeirarchy(new ITestStep[] { item }, (step) => step.ChildTestSteps);
+            var childsteps = Utils.FlattenHeirarchy([item], static step => step.ChildTestSteps);
 
             foreach (var step in childsteps)
             {
@@ -301,23 +306,6 @@ namespace OpenTap
         protected override void SetItem(int index, ITestStep item)
         {
             throwIfRunning();
-     
-            var childsteps = Utils.FlattenHeirarchy(new ITestStep[] { item }, (step) => step.ChildTestSteps);
-
-            /*
-            foreach (var step in childsteps)
-            {
-                var existingstep = findStepWithGuid(step.Id);
-                if (existingstep != null)
-                {
-                    if (existingstep == step)
-                    {
-                        rebuildIdLookup();
-                        throw new InvalidOperationException("Test step already exists in the test plan");
-                    }
-                    step.Id = Guid.NewGuid();
-                }
-            }*/
 
             // Parent can be null if the list is being loaded from XML, in that case we 
             // set the parent property of the children in the setter of the Parent property
@@ -453,13 +441,15 @@ namespace OpenTap
             throwIfRunning();
             var item = this[index];
             base.RemoveItem(index);
+            item.Parent = null;
             onContentChanged(this, ChildStepsChangedAction.RemovedStep, item, index);
         }
 
-        /// <summary> Removed a number of steps from the test plan. Also includes child steps of selected steps. </summary>
+        /// <summary> Removed a number of steps from the test plan. </summary>
         /// <param name="steps">The steps to remove.</param>
         public void RemoveItems(IEnumerable<ITestStep> steps)
         {
+            // find the topmost parent (usually the test plan itself).
             ITestStepParent parent = Parent;
             while (parent.Parent != null)
                 parent = parent.Parent;
@@ -550,6 +540,8 @@ namespace OpenTap
                     return result;
                 return null;
             }
+            if (this._Parent is ITestStep thisStep && thisStep.Id == id)
+                return thisStep;
             foreach (ITestStep step in this)
             {
                 if (step.Id == id)
