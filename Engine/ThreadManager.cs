@@ -323,6 +323,13 @@ namespace OpenTap
             Abort(null);
         }
 
+        /// <summary> Abort this thread after a predetermined amount of time. </summary>
+        /// <param name="delay">The delay after which to cancel. </param>
+        public void AbortAfter(TimeSpan delay)
+        {
+            abortTokenSource.CancelAfter(delay);
+        }
+
         internal void AbortNoThrow()
         {
             abortTokenSource.Cancel();
@@ -335,8 +342,6 @@ namespace OpenTap
         /// </summary>
         internal void Abort(string reason)
         {
-            //if (CanAbort == false)
-            //    throw new Exception("Cannot abort Thread");
             abortTokenSource.Cancel();
             if (Current.AbortToken.IsCancellationRequested)
             {
@@ -524,6 +529,8 @@ namespace OpenTap
         {
             return $"[Thread '{Name}']";
         }
+
+
     }
 
     /// <summary> Custom thread pool for fast thread startup. </summary>

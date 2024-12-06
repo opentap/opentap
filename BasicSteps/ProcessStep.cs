@@ -138,8 +138,22 @@ namespace OpenTap.Plugins.BasicSteps
             }
             return true;
         }
-
         public override void Run()
+        {
+            if(Timeout <= 0 && WaitForEnd == false)
+                Run0();
+            else
+            {
+                TapThread.WithNewContext(() =>
+                {
+                    TapThread.Current.AbortAfter(TimeSpan.FromMilliseconds(Timeout));
+
+                    Run0();
+                }, TapThread.Current);
+            }
+        }
+
+        void Run0()
         {
             output?.Clear();
             ThrowOnValidationError(true);
@@ -166,7 +180,6 @@ namespace OpenTap.Plugins.BasicSteps
                 }
             }
 
-            Int32 timeout = Timeout <= 0 ? Int32.MaxValue : Timeout;
             prepend = string.IsNullOrEmpty(LogHeader) ? "" : LogHeader + " ";
 
             var process = new Process
@@ -203,7 +216,11 @@ namespace OpenTap.Plugins.BasicSteps
                         // this might be ok. It probably means that the input has already been closed.
                     }
                     if (!process.WaitForExit(500)) // give some time for the process to close by itself.
-                        process.Kill();
+                    {
+                        Thread.Sleep(10);
+                        if(process.HasExited == false)
+                            process.Kill();
+                    }
                 }
                 catch(Exception ex)
                 {
@@ -222,32 +239,35 @@ namespace OpenTap.Plugins.BasicSteps
                     process.ErrorDataReceived += ErrorDataRecv;
 
                     Log.Debug("Starting process {0} with arguments \"{1}\"", Application, Arguments);
+                    // Ensure that all asynchronous processing is completed by calling process.WaitForExit()
+                    // Only the overload with no parameters has this guarantee. See remarks at
+                    // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.process.waitforexit?view=netframework-4.8
+                    var done = new ManualResetEventSlim(false);
+                    var elapsed = Stopwatch.StartNew();
+                    process.Exited += (s, e) =>
+                    {
+                        done.Set();
+                        elapsed.Stop();
+                    };
+
                     process.Start();
 
                     process.BeginOutputReadLine();
                     process.BeginErrorReadLine();
 
-                    var elapsed = Stopwatch.StartNew();
+
                     // Wait for the process to exit, allowing for cancellation every 100 ms
-                    while (elapsed.Elapsed.TotalSeconds < timeout && process.WaitForExit(100) == false)
+                    while (process.WaitForExit(100) == false)
                         TapThread.ThrowIfAborted();
-                    
-                    // Ensure that all asynchronous processing is completed by calling process.WaitForExit()
-                    // Only the overload with no parameters has this guarantee. See remarks at
-                    // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.process.waitforexit?view=netframework-4.8
-                    var done = new ManualResetEventSlim(false);
-                    TapThread.Start(() =>
+
+                    while (process.HasExited == false && done.WaitHandle.WaitOne(100) == false)
                     {
-                        // Wrap it in a thread because this can block indefinitely due to a bug in dotnet. See:
-                        // https://github.com/dotnet/runtime/issues/74677
-                        // https://github.com/dotnet/runtime/issues/28583
-                        process.WaitForExit();
-                        done.Set();
-                    });
-                    
-                    while (elapsed.Elapsed.TotalSeconds < timeout && done.WaitHandle.WaitOne(100) == false)
+                        if (process.HasExited)
+                            break;
+
                         TapThread.ThrowIfAborted();
-                    
+                    }
+
                     if (elapsed.Elapsed.TotalSeconds < timeout)
                     {
                         var resultData = output.ToString();
