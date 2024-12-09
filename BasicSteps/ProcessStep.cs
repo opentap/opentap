@@ -68,17 +68,17 @@ namespace OpenTap.Plugins.BasicSteps
         [DefaultValue(true)]
         public bool WaitForEnd { get; set; } = true;
         
-        int timeout = 0;
+        int timeoutMs = 0;
         [Display("Wait Timeout", Order: -2.1, Description: "The time to wait for the process to end. Set to 0 to wait forever.")]
         [Unit("s", PreScaling: 1000)]
         [EnabledIf("WaitForEnd", true, HideIfDisabled = true)]
         public Int32 Timeout
         {
-            get { return timeout; }
+            get { return timeoutMs; }
             set
             {
                 if (value >= 0)
-                    timeout = value;
+                    timeoutMs = value;
                 else throw new Exception("Timeout must be positive");
             }
         }
@@ -140,7 +140,7 @@ namespace OpenTap.Plugins.BasicSteps
         }
         public override void Run()
         {
-            if (Timeout <= 0 || WaitForEnd == false)
+            if (WaitForEnd == false)
             {
                 Run0();
             }
@@ -151,8 +151,8 @@ namespace OpenTap.Plugins.BasicSteps
                 // in the test plan (except from the abort verdict).
                 TapThread.WithNewContext(() =>
                 {
-                    TapThread.Current.AbortAfter(TimeSpan.FromMilliseconds(Timeout));
-
+                    if(timeoutMs > 0)
+                        TapThread.Current.AbortAfter(TimeSpan.FromMilliseconds(Timeout));
                     Run0();
                 }, TapThread.Current);
             }
@@ -205,8 +205,11 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 process.StartInfo.Environment.Add(environmentVariable.Name, environmentVariable.Value);
             }
+            var startEvent = new ManualResetEventSlim();
             var abortRegistration = TapThread.Current.AbortToken.Register(() =>
             {
+                startEvent.Wait(500);
+                if (process.HasExited) return;
                 Log.Debug("Ending process '{0}'.", Application);
                 try
                 {  // process.Kill may throw if it has already exited.
@@ -220,9 +223,10 @@ namespace OpenTap.Plugins.BasicSteps
                     {
                         // this might be ok. It probably means that the input has already been closed.
                     }
-                    if (!process.WaitForExit(500)) // give some time for the process to close by itself.
+
+                    if (!process.HasExited && !process.WaitForExit(500)) // give some time for the process to close by itself.
                     {
-                        Thread.Sleep(10);
+                        Thread.Sleep(100);
                         if(process.HasExited == false)
                             process.Kill();
                     }
@@ -260,20 +264,36 @@ namespace OpenTap.Plugins.BasicSteps
                     process.BeginOutputReadLine();
                     process.BeginErrorReadLine();
 
+                    startEvent.Set();
+
 
                     // Wait for the process to exit, allowing for cancellation every 100 ms
                     while (process.WaitForExit(100) == false)
-                        TapThread.ThrowIfAborted();
+                        if (TapThread.Current.AbortToken.IsCancellationRequested)
+                            break;
 
                     while (process.HasExited == false && done.WaitHandle.WaitOne(100) == false)
                     {
                         if (process.HasExited)
                             break;
 
-                        TapThread.ThrowIfAborted();
+                        if (TapThread.Current.AbortToken.IsCancellationRequested)
+                            break;
                     }
 
-                    if (elapsed.Elapsed.TotalSeconds < timeout || timeout == 0)
+                    if (TapThread.Current.AbortToken.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            process.WaitForExit(500);
+                        }
+                        catch
+                        {
+                            // ok
+                        }
+                    }
+
+                    if (elapsed.Elapsed.TotalMilliseconds < timeoutMs || timeoutMs == 0)
                     {
                         var resultData = output.ToString();
 
@@ -297,10 +317,15 @@ namespace OpenTap.Plugins.BasicSteps
 
                         ProcessOutput(resultData);
 
-                        Log.Error("Timed out while waiting for application. Trying to kill process...");
-
-                        process.Kill();
-                        UpgradeVerdict(Verdict.Fail);
+                        if (!TapThread.Current.Parent.AbortToken.IsCancellationRequested)
+                        {
+                            Log.Info("Timed out while waiting for process to end.");
+                            Verdict = Verdict.Fail;
+                        }
+                        else
+                        {
+                            TapThread.ThrowIfAborted();
+                        }
                     }
                 }
             }
