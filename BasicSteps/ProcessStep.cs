@@ -273,7 +273,7 @@ namespace OpenTap.Plugins.BasicSteps
                         TapThread.ThrowIfAborted();
                     }
 
-                    if (elapsed.Elapsed.TotalSeconds < timeout)
+                    if (elapsed.Elapsed.TotalSeconds < timeout || timeout == 0)
                     {
                         var resultData = output.ToString();
 
