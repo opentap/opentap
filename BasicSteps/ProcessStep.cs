@@ -140,10 +140,15 @@ namespace OpenTap.Plugins.BasicSteps
         }
         public override void Run()
         {
-            if(Timeout <= 0 && WaitForEnd == false)
+            if (Timeout <= 0 || WaitForEnd == false)
+            {
                 Run0();
+            }
             else
             {
+                // for timeouts we use the regular TapThread abort feature.
+                // this way it will work like if the user clicked the stop button
+                // in the test plan (except from the abort verdict).
                 TapThread.WithNewContext(() =>
                 {
                     TapThread.Current.AbortAfter(TimeSpan.FromMilliseconds(Timeout));
