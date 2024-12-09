@@ -4,6 +4,7 @@ using OpenTap.Plugins.BasicSteps;
 using System;
 using System.Collections;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 
@@ -92,7 +93,47 @@ namespace OpenTap.UnitTests
             var result = plan.Execute();
             Assert.AreEqual(exitCode, processStep.ExitCode);
             Assert.IsTrue(processStep.Output.Contains($"Failing with exit code {exitCode}"));
-            
+        }
+
+        [Test]
+        public void ProcessStepTimeoutTest()
+        {
+            var plan = new TestPlan();
+            var processStep = new ProcessStep()
+            {
+                Application = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "tap.exe"),
+                WorkingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                Arguments = $"test fail",
+                Timeout = 50, // ms
+                WaitForEnd = true,
+            };
+            plan.ChildTestSteps.Add(processStep);
+            var rl = new RecordAllResultListener();
+            var planRun = plan.Execute([rl]);
+            Assert.AreEqual(Verdict.Fail, planRun.Verdict);
+            foreach (var line in rl.planLogs.First().Value.Split('\n'))
+            {
+                Assert.IsTrue(line.Split(';').ElementAtOrDefault(2)?.Trim() != "Error");
+            }
+            Assert.IsTrue(rl.planLogs.First().Value.Contains("Timed out while waiting for process to end"));
+        }
+
+        [Test]
+        public void ProcessStepPass()
+        {
+            var plan = new TestPlan();
+            var processStep = new ProcessStep()
+            {
+                Application = "tap.exe",
+                WorkingDirectory = "",
+                Arguments = $"test fail --error 0",
+                Timeout = 50000, // ms
+                WaitForEnd = true,
+                CheckExitCode = true
+            };
+            plan.ChildTestSteps.Add(processStep);
+            var planRun = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, planRun.Verdict);
         }
     }
 }
