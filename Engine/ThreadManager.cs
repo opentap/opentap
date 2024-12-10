@@ -323,6 +323,13 @@ namespace OpenTap
             Abort(null);
         }
 
+        /// <summary> Abort this thread after a predetermined amount of time. </summary>
+        /// <param name="delay">The delay after which to cancel. </param>
+        public void AbortAfter(TimeSpan delay)
+        {
+            abortTokenSource.CancelAfter(delay);
+        }
+
         internal void AbortNoThrow()
         {
             abortTokenSource.Cancel();
@@ -335,8 +342,6 @@ namespace OpenTap
         /// </summary>
         internal void Abort(string reason)
         {
-            //if (CanAbort == false)
-            //    throw new Exception("Cannot abort Thread");
             abortTokenSource.Cancel();
             if (Current.AbortToken.IsCancellationRequested)
             {
@@ -371,8 +376,7 @@ namespace OpenTap
 
         internal static Task StartAwaitable(Action action, CancellationToken? token, string name = "")
         {
-            var wait = new ManualResetEventSlim(false);
-            Exception ex = null;
+            var result = new TaskCompletionSource<bool>();
             Start(() =>
             {
                 try
@@ -380,30 +384,21 @@ namespace OpenTap
                     if (token.HasValue)
                     {
                         var trd = TapThread.Current;
-                        using (token.Value.Register(() => trd.Abort()))
+                        using (token.Value.Register(trd.Abort))
                             action();
                     }
                     else
                     {
                         action();
                     }
+                    result.SetResult(true);
                 }
                 catch (Exception inner)
                 {
-                    ex = inner;
-                }
-                finally
-                {
-                    wait.Set();
+                    result.SetException(inner);
                 }
             }, null, name);
-            var awaiter = new Awaitable(wait);
-            return Task.Factory.FromAsync(awaiter, x =>
-            {
-                // rethrow the exception if there was one.
-                // The Rethrow extension method preserves the original stacktrace.
-                ex?.Rethrow();
-            });
+            return result.Task;
         }
 
         /// <summary> Starts a new Tap Thread.</summary>
@@ -417,6 +412,7 @@ namespace OpenTap
         {
             if (action == null)
                 throw new ArgumentNullException(nameof(action), "Action to be executed cannot be null.");
+
             var newThread = new TapThread(threadContext ?? Current, action, onHierarchyCompleted, name);
             manager.Enqueue(newThread);
             return newThread;

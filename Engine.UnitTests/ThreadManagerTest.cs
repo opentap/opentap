@@ -1,5 +1,7 @@
+using System;
 using System.Threading;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests;
 namespace OpenTap.UnitTests
 {
     public class ThreadManagerTest
@@ -56,6 +58,30 @@ namespace OpenTap.UnitTests
             });
             workQueue.Wait();
             Assert.IsTrue(workEnded2);
+        }
+
+        [Test]
+        public void AwaitableTest()
+        {
+            var task = TapThread.StartAwaitable(() => throw new ExpectedException("TEST"));
+            try
+            {
+                task.Wait();
+            }
+            catch (AggregateException e)
+            {
+                Assert.IsTrue(e.InnerException is ExpectedException);
+
+
+            }
+        }
+
+        class ExpectedException : Exception
+        {
+            public ExpectedException(string message): base(message)
+            {
+
+            }
         }
     }
 }
