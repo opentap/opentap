@@ -384,21 +384,18 @@ namespace OpenTap
                     if (token.HasValue)
                     {
                         var trd = TapThread.Current;
-                        using (token.Value.Register(() => trd.Abort()))
+                        using (token.Value.Register(trd.Abort))
                             action();
                     }
                     else
                     {
                         action();
                     }
+                    result.SetResult(true);
                 }
                 catch (Exception inner)
                 {
                     result.SetException(inner);
-                }
-                finally
-                {
-                    result.SetResult(true);
                 }
             }, null, name);
             return result.Task;
@@ -415,6 +412,7 @@ namespace OpenTap
         {
             if (action == null)
                 throw new ArgumentNullException(nameof(action), "Action to be executed cannot be null.");
+
             var newThread = new TapThread(threadContext ?? Current, action, onHierarchyCompleted, name);
             manager.Enqueue(newThread);
             return newThread;
@@ -522,8 +520,6 @@ namespace OpenTap
         {
             return $"[Thread '{Name}']";
         }
-
-
     }
 
     /// <summary> Custom thread pool for fast thread startup. </summary>
