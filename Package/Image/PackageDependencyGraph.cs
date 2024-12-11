@@ -235,7 +235,7 @@ namespace OpenTap.Package
                         {
                             yield return semv;
                         }
-                        else if (packageSpecifier.Version.IsCompatible(semv))
+                        else if (packageSpecifier.Version.WithMatchBehavior(packageSpecifier.Version.MatchBehavior & ~VersionMatchBehavior.AnyPrerelease).IsCompatible(semv))
                             yield return semv;
 
                     }

@@ -236,7 +236,7 @@ namespace OpenTap.Package
                     semver.Patch,
                     semver.PreRelease,
                     semver.BuildMetadata, 
-                    VersionMatchBehavior.Compatible);
+                    VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease);
             }
             // For compatability (pre 9.0 packages may not have correctly formatted version numbers)
             var plugins = PluginManager.GetPlugins<IVersionTryConverter>().Concat(PluginManager.GetPlugins<IVersionConverter>());
