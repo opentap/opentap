@@ -108,6 +108,7 @@ namespace OpenTap.Image.Tests
                                                       "OpenTAP, 9.17.4-rc.1+3ffb292e;OSIntegration, 1.4.2+15f32a31;Results Viewer, 9.17.2-beta.12+a3f06537;" +
                                                       "SDK, 9.17.4-rc.1+3ffb292e;SQLite and PostgreSQL, 9.4.2+3009aace;" +
                                                       "Timing Analyzer, 9.17.2-beta.12+a3f06537;Visual Studio SDK, 1.2.5+08b71a6e;WPF Controls, 9.17.2-beta.12+a3f06537");
+            yield return ("OpenTAP, 9.17.4;OpenTAP, ^9.17.4;OpenTAP, 9.17.4", "OpenTAP, 9.17.4");
 
         }}
 
