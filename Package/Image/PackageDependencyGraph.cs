@@ -350,16 +350,24 @@ namespace OpenTap.Package
         /// </summary>
         public IEnumerable<PackageSpecifier> GetDependencies(string pkgName, SemanticVersion version)
         {
-            if (name2Id.TryGetValue(pkgName, out var Id))
+            int Id = 0;
+            bool cached = false;
+            (int packageNameId, int versionSpecifierId)[] deps = [];
+            
+            cached = name2Id.TryGetValue(pkgName, out Id) && dependencies.TryGetValue((Id, GetVersionId(version)), out deps);
+            if (!cached)
             {
-                if (dependencies.TryGetValue((Id, GetVersionId(version)), out var deps))
+                EnsurePreReleasesCached(new PackageSpecifier(pkgName, version.AsExactSpecifier())); 
+                cached = name2Id.TryGetValue(pkgName, out Id) && dependencies.TryGetValue((Id, GetVersionId(version)), out deps);
+            }
+            
+            if (cached)
+            {
+                foreach (var dep in deps)
                 {
-                    foreach (var dep in deps)
-                    {
-                        var depVersion = versionSpecifierLookup[dep.Item2];
+                    var depVersion = versionSpecifierLookup[dep.Item2];
 
-                        yield return new PackageSpecifier(nameLookup[dep.Item1], depVersion);
-                    }
+                    yield return new PackageSpecifier(nameLookup[dep.Item1], depVersion);
                 }
             }
         }
