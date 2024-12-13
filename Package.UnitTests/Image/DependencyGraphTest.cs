@@ -33,7 +33,8 @@ namespace OpenTap.Image.Tests
         [Test]
         public void TestQueryGraph()
         {
-            var graph = PackageDependencyQuery.QueryGraph("https://packages.opentap.io", "Windows", CpuArchitecture.x64, "");
+            IQueryPrereleases repo = new HttpPackageRepository("https://packages.opentap.io");
+            var graph = repo.QueryPrereleases("Windows", CpuArchitecture.x64, "", null);
         }
 
         [Test]
@@ -43,13 +44,12 @@ namespace OpenTap.Image.Tests
             var graph0 = new PackageDependencyGraph();
             foreach (var repo in repositories)
             {
-                if (repo is HttpPackageRepository http)
+                if (repo is IQueryPrereleases http)
                 {
-                    var graph = PackageDependencyQuery.QueryGraph(http.Url, "Windows", CpuArchitecture.x64,"");
+                    var graph = http.QueryPrereleases("Windows", CpuArchitecture.x64,"", null);
                     graph0.Absorb(graph);
                 }
-
-                if (repo is FilePackageRepository fpkg)
+                else if (repo is FilePackageRepository fpkg)
                 {
                     var graph = new PackageDependencyGraph();
                     var packages = fpkg.GetAllPackages(TapThread.Current.AbortToken);
@@ -142,7 +142,7 @@ namespace OpenTap.Image.Tests
 
 
         }
-        
+
         [TestCaseSource(nameof(Specifiers2))]
         public void TestResolvePackages(string spec, string result)
         {
@@ -153,6 +153,33 @@ namespace OpenTap.Image.Tests
 
             if (result == null)
                 Assert.IsFalse(r.Success);
+            else
+            {
+                Assert.IsTrue(r.Success);
+                foreach (var pkg in str2packages(result))
+                {
+                    Assert.IsTrue(r.Packages.Any(x => x.Name == pkg.Name && x.Version.Equals(pkg.Version)));
+                }
+            }
+        }
+
+        [TestCase("I,0.2.0-beta.5","H,0.2.0-beta.1,I,0.2.0-beta.5")]
+        [TestCase("H,^0.1.0;I,0.2.0-beta.5","H,0.2.0-beta.1,I,0.2.0-beta.5")]
+        public void TestResolvePackagesDependencyExpansion(string spec, string result)
+        { 
+            var resolver2 = new ImageResolver(TapThread.Current.AbortToken);
+            var img = image(spec);
+            // Ensure MockRepository is instantiated
+            var mockRepository = MockRepository.Instance;
+            var dep = new PackageDependencyCache("Windows", CpuArchitecture.AnyCPU, ["mock://localhost"]);
+            dep.LoadFromRepositories();
+
+            var r = resolver2.ResolveImage(img, dep.Graph);
+
+            if (result == null)
+            {
+                Assert.IsFalse(r.Success);
+            }
             else
             {
                 Assert.IsTrue(r.Success);

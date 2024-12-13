@@ -8,7 +8,7 @@ using System.Threading;
 
 namespace OpenTap.Image.Tests
 {
-    public class MockRepository : IPackageRepository
+    internal class MockRepository : IPackageRepository, IQueryPrereleases
     {
         public string Url { get; private set; }
         readonly List<PackageDef> AllPackages;
@@ -66,6 +66,7 @@ namespace OpenTap.Image.Tests
                     DefinePackage("OpenTAP","9.14.0"),
                     DefinePackage("OpenTAP","9.15.2+39e6c2a2"),
                     DefinePackage("OpenTAP","9.16.0"),
+                    DefinePackage("OpenTAP","9.22.1"),
                     DefinePackage("OSIntegration","1.4.0+c70929ac", CpuArchitecture.AnyCPU, "windows", ("OpenTAP", "^9.5.0+45ab79bc"))
                         .WithPackageAction(new ActionStep { ActionName = "uninstall", ExeFile = "tap", Arguments = "package list -i" }),
                     DefinePackage("SDK","9.16.0", CpuArchitecture.AnyCPU, "windows,linux,macos", ("OpenTAP", "any")),
@@ -139,6 +140,9 @@ namespace OpenTap.Image.Tests
                     DefinePackage("G",        "2.2.0-alpha.2.1"),
                     DefinePackage("G",        "2.2.0-alpha.2.2"),
                     DefinePackage("G",        "2.3.0-rc.1"),
+                    DefinePackage("H",        "0.1.0"),
+                    DefinePackage("H",        "0.2.0-beta.1"),
+                    DefinePackage("I",        "0.2.0-beta.5", CpuArchitecture.AnyCPU, "Windows,Linux,MacOS", ("H", "^0.2.0-beta.1"), ("OpenTAP", "9.22.1")),
                 };
         }
 
@@ -199,6 +203,32 @@ namespace OpenTap.Image.Tests
                               .Select(p => new PackageVersion(p.Name, p.Version, p.OS, p.Architecture, p.Date, new List<string>()))
                               .OrderByDescending(p => p.Version)
                               .ToArray();
+        }
+
+        public PackageDependencyGraph QueryPrereleases(string os, CpuArchitecture deploymentInstallationArchitecture, string preRelease,
+            string name)
+        {
+            var packages = AllPackages.ToList();
+            if (!string.IsNullOrWhiteSpace(name)) packages.RemoveAll(pkg => pkg.Name != name);
+            if (!string.IsNullOrWhiteSpace(os)) packages.RemoveAll(pkg => pkg.OS.Split([',']).Any(o => o.Trim().Equals(os, StringComparison.OrdinalIgnoreCase)) == false);
+            packages.RemoveAll(pkg =>
+                !ArchitectureHelper.CompatibleWith(deploymentInstallationArchitecture, pkg.Architecture));
+
+            bool matchPrerelease(string pre)
+            {
+                if (string.IsNullOrWhiteSpace(preRelease))
+                    return string.IsNullOrWhiteSpace(pre);
+                if (string.IsNullOrWhiteSpace(pre)) return true;
+                pre = pre.Substring(0, Math.Min(preRelease.Length, pre.Length));
+                int cmp = String.Compare(pre, preRelease, StringComparison.Ordinal);
+                return cmp >= 0;
+            }
+
+            packages.RemoveAll(pkg => !matchPrerelease(pkg.Version.PreRelease));
+            
+            var g = new PackageDependencyGraph(); 
+            g.LoadFromPackageDefs(packages);
+            return g;
         }
     }
 
