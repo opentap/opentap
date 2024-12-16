@@ -207,28 +207,32 @@ namespace OpenTap.Image.Tests
 
         public PackageDependencyGraph QueryPrereleases(string os, CpuArchitecture deploymentInstallationArchitecture, string preRelease,
             string name)
-        {
-            var packages = AllPackages.ToList();
-            if (!string.IsNullOrWhiteSpace(name)) packages.RemoveAll(pkg => pkg.Name != name);
-            if (!string.IsNullOrWhiteSpace(os)) packages.RemoveAll(pkg => pkg.OS.Split([',']).Any(o => o.Trim().Equals(os, StringComparison.OrdinalIgnoreCase)) == false);
-            packages.RemoveAll(pkg =>
-                !ArchitectureHelper.CompatibleWith(deploymentInstallationArchitecture, pkg.Architecture));
-
-            bool matchPrerelease(string pre)
-            {
-                if (string.IsNullOrWhiteSpace(preRelease))
-                    return string.IsNullOrWhiteSpace(pre);
-                if (string.IsNullOrWhiteSpace(pre)) return true;
-                pre = pre.Substring(0, Math.Min(preRelease.Length, pre.Length));
-                int cmp = String.Compare(pre, preRelease, StringComparison.Ordinal);
-                return cmp >= 0;
-            }
-
-            packages.RemoveAll(pkg => !matchPrerelease(pkg.Version.PreRelease));
+        { 
+            var packages = AllPackages.Where(matchName).Where(matchPlatform).Where(matchPrerelease)
+                .OrderBy(pkg => pkg.Name).ThenByDescending(pkg => pkg.Version);
             
             var g = new PackageDependencyGraph(); 
             g.LoadFromPackageDefs(packages);
             return g;
+
+            bool matchName(PackageDef pkg)
+            {
+                if (string.IsNullOrWhiteSpace(name)) return true;
+                return pkg.Name == name;
+            }
+
+            bool matchPlatform(PackageDef pkg) => pkg.IsPlatformCompatible(deploymentInstallationArchitecture, os);
+            
+            bool matchPrerelease(PackageDef pkg)
+            {
+                string pre = pkg.Version.PreRelease;
+                if (string.IsNullOrWhiteSpace(preRelease))
+                    return string.IsNullOrWhiteSpace(pre);
+                if (string.IsNullOrWhiteSpace(pre)) return true;
+                pre = pre.Substring(0, Math.Min(preRelease.Length, pre.Length));
+                int cmp = string.Compare(pre, preRelease, StringComparison.Ordinal);
+                return cmp >= 0;
+            } 
         }
     }
 
