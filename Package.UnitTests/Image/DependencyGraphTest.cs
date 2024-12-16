@@ -2,6 +2,7 @@
 using NUnit.Framework;
 using OpenTap.Package;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 
@@ -161,6 +162,41 @@ namespace OpenTap.Image.Tests
                     Assert.IsTrue(r.Packages.Any(x => x.Name == pkg.Name && x.Version.Equals(pkg.Version)));
                 }
             }
+        }
+
+        [Test]
+        public void TestResolvePackagesFromXml()
+        {
+            PackageDef defFromXml(byte[] xml)
+            { 
+                using var ms = new MemoryStream();
+                ms.Write(xml.ToArray(), 0, xml.Length);
+                ms.Seek(0, SeekOrigin.Begin);
+                return PackageDef.FromXml(ms);
+            }
+            
+            var pkg1Xml = """ 
+                          <Package Name="Pkg1" Version="1.1.1" >
+                              <Dependencies>
+                                  <PackageDependency Package="Pkg2" Version="^1.0.1-beta.2" />
+                              </Dependencies>
+                          </Package> 
+                          """u8;
+            var pkg2Xml = """<Package Name="Pkg2" Version="1.0.1-beta.1" />"""u8;
+
+            var pkg1 = defFromXml(pkg1Xml.ToArray());
+            var pkg2 = defFromXml(pkg2Xml.ToArray());
+            
+            var resolver2 = new ImageResolver(TapThread.Current.AbortToken);
+            // This image should fail to resolve because:
+            // Pkg1 depends on Pkg2 version ^1.0.1-beta.2
+            // The latest version of Pkg2 is 1.0.1-beta.1
+            var img = image("Pkg1,1.1.1");
+            var g = new PackageDependencyGraph();
+            g.LoadFromPackageDefs([pkg1, pkg2]);
+            var r = resolver2.ResolveImage(img, g); 
+            
+            Assert.IsFalse(r.Success);
         }
     }
 }
