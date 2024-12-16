@@ -42,24 +42,7 @@ namespace OpenTap.Package
                         {
                             packages.RemoveAt(j);
                             goto retry;
-                        }
-                        
-                        // In the case where the versions are the same, but the match behavior is different
-                        // If one is exact and the other is compatible, we can remove the compatible one.
-                        if (pkg1.Version.CompareTo(pkg2.Version) == 0)
-                        {
-                            if (pkg1.Version.MatchBehavior == VersionMatchBehavior.Exact && pkg2.Version.MatchBehavior == VersionMatchBehavior.Compatible)
-                            {
-                                packages.RemoveAt(j);
-                                goto retry;
-                            }
-                        
-                            if (pkg2.Version.MatchBehavior == VersionMatchBehavior.Exact && pkg1.Version.MatchBehavior == VersionMatchBehavior.Compatible)
-                            {
-                                packages.RemoveAt(i);
-                                goto retry;
-                            }
-                        }
+                        } 
                         
                         if (!pkg2.Version.IsSatisfiedBy(pkg1.Version) && !pkg1.Version.IsSatisfiedBy(pkg2.Version))
                             return new FailedImageResolution(image, new MutuallyExclusiveResolutionProblem(pkg1, pkg2), Iterations);
