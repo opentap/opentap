@@ -74,6 +74,7 @@ namespace OpenTap.Package
                         {
                             // select pkg2 instead of pkg1
                             packages[i] = pkg2;
+                            pkg1 = pkg2;
                             packages.RemoveAt(j);
                             goto retry;
                         }
