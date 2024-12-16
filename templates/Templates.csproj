@@ -8,6 +8,10 @@
     <Authors>OpenTap.io</Authors>
     <Description>Templates to use when developing OpenTap plugins</Description>
     <PackageTags>dotnet-new;templates;opentap</PackageTags>
+    <PackageLicenseExpression>MPL-2.0</PackageLicenseExpression>
+    <PackageProjectUrl>https://opentap.io</PackageProjectUrl>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/opentap/opentap.git</RepositoryUrl>
 
     <IncludeContentInPack>true</IncludeContentInPack>
     <IncludeBuildOutput>false</IncludeBuildOutput>
@@ -22,6 +26,7 @@
   <ItemGroup>
     <Content Include="src\**\*" PackagePath="content" />
     <Compile Remove="**\*" />
+    <None Include="..\LICENSE.txt" Pack="true" PackagePath="licenses\LICENSE.txt" />
   </ItemGroup>
 
   <ItemGroup>
