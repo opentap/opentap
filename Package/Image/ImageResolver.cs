@@ -37,6 +37,13 @@ namespace OpenTap.Package
                     var pkg2 = packages[j];
                     if (pkg2.Name == pkg1.Name)
                     {
+                        // Trivially remove one of the completely identical packages
+                        if (pkg2.Version == pkg1.Version)
+                        {
+                            packages.RemoveAt(j);
+                            goto retry;
+                        } 
+                        
                         if (!pkg2.Version.IsSatisfiedBy(pkg1.Version) && !pkg1.Version.IsSatisfiedBy(pkg2.Version))
                             return new FailedImageResolution(image, new MutuallyExclusiveResolutionProblem(pkg1, pkg2), Iterations);
 
@@ -50,6 +57,7 @@ namespace OpenTap.Package
                         {
                             // select pkg2 instead of pkg1
                             packages[i] = pkg2;
+                            pkg1 = pkg2;
                             packages.RemoveAt(j);
                             goto retry;
                         }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using NUnit.Framework;
 using OpenTap.Package;
 using System.Collections.Generic;
@@ -109,6 +109,8 @@ namespace OpenTap.Image.Tests
                                                       "OpenTAP, 9.17.4-rc.1+3ffb292e;OSIntegration, 1.4.2+15f32a31;Results Viewer, 9.17.2-beta.12+a3f06537;" +
                                                       "SDK, 9.17.4-rc.1+3ffb292e;SQLite and PostgreSQL, 9.4.2+3009aace;" +
                                                       "Timing Analyzer, 9.17.2-beta.12+a3f06537;Visual Studio SDK, 1.2.5+08b71a6e;WPF Controls, 9.17.2-beta.12+a3f06537");
+            yield return ("OpenTAP, 9.17.4;OpenTAP, ^9.17.4;OpenTAP, 9.17.4", "OpenTAP, 9.17.4");
+            yield return ("OpenTAP, 9.17.4;OpenTAP, ^9.17.4+ea67c63a;OpenTAP, 9.17.4", "OpenTAP, 9.17.4");
 
         }}
 
@@ -150,10 +152,11 @@ namespace OpenTap.Image.Tests
             var resolver2 = new ImageResolver(TapThread.Current.AbortToken);
             var img = image(spec);
             var r = resolver2.ResolveImage(img, graph);
-            var pkgstr = string.Join(";", r.Packages.Select(x => $"{x.Name}, {x.Version}"));
 
             if (result == null)
+            {
                 Assert.IsFalse(r.Success);
+            }
             else
             {
                 Assert.IsTrue(r.Success);
@@ -161,6 +164,13 @@ namespace OpenTap.Image.Tests
                 {
                     Assert.IsTrue(r.Packages.Any(x => x.Name == pkg.Name && x.Version.Equals(pkg.Version)));
                 }
+            }
+            
+            // Ensure that each package occurs only once in the image resolution
+            var members = r.Packages.ToLookup(pkg => pkg.Name);
+            foreach (var m in members)
+            {
+                Assert.IsTrue(m.Count() == 1);
             }
         }
 
