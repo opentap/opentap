@@ -1,7 +1,8 @@
-﻿using System;
+using System;
 using NUnit.Framework;
 using OpenTap.Package;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 
@@ -102,7 +103,7 @@ namespace OpenTap.Image.Tests
             yield return ("OpenTAP; TUI, beta", "OpenTAP, 9.18.4;TUI, 0.1.0-beta.145+6c192a43");
             yield return ("OpenTAP; REST-API; CSV", "CSV, 9.11.0+98498e58;Keysight Licensing, 1.1.1+7a2a1fe3;OpenTAP, 9.18.4+7dec4717;REST-API, 2.9.1+e5319b91");
             yield return ("TEST-A", "TEST-A, 1.0.0; TEST-B,1.0.0;TEST-C,1.0.0");
-            // requesting a bet, but the newest is actually a release. The release versions should then be resolved.
+            // requesting a beta, but the newest is actually a release. The release versions should then be resolved.
             yield return ("Developer's System, beta", "CSV, 9.11.0+98498e58;Developer's System, 9.17.2-beta.12+a3f06537;" +
                                                       "Editor, 9.17.2-beta.12+a3f06537;Keysight Licensing, 1.1.0-rc.3+fc48665d;" +
                                                       "OpenTAP, 9.17.4-rc.1+3ffb292e;OSIntegration, 1.4.2+15f32a31;Results Viewer, 9.17.2-beta.12+a3f06537;" +
@@ -188,6 +189,41 @@ namespace OpenTap.Image.Tests
                     Assert.IsTrue(r.Packages.Any(x => x.Name == pkg.Name && x.Version.Equals(pkg.Version)));
                 }
             }
+        }
+
+        [Test]
+        public void TestResolvePackagesFromXml()
+        {
+            PackageDef defFromXml(byte[] xml)
+            { 
+                using var ms = new MemoryStream();
+                ms.Write(xml.ToArray(), 0, xml.Length);
+                ms.Seek(0, SeekOrigin.Begin);
+                return PackageDef.FromXml(ms);
+            }
+            
+            var pkg1Xml = """ 
+                          <Package Name="Pkg1" Version="1.1.1" >
+                              <Dependencies>
+                                  <PackageDependency Package="Pkg2" Version="^1.0.1-beta.2" />
+                              </Dependencies>
+                          </Package> 
+                          """u8;
+            var pkg2Xml = """<Package Name="Pkg2" Version="1.0.1-beta.1" />"""u8;
+
+            var pkg1 = defFromXml(pkg1Xml.ToArray());
+            var pkg2 = defFromXml(pkg2Xml.ToArray());
+            
+            var resolver2 = new ImageResolver(TapThread.Current.AbortToken);
+            // This image should fail to resolve because:
+            // Pkg1 depends on Pkg2 version ^1.0.1-beta.2
+            // The latest version of Pkg2 is 1.0.1-beta.1
+            var img = image("Pkg1,1.1.1");
+            var g = new PackageDependencyGraph();
+            g.LoadFromPackageDefs([pkg1, pkg2]);
+            var r = resolver2.ResolveImage(img, g); 
+            
+            Assert.IsFalse(r.Success);
         }
     }
 }
