@@ -471,7 +471,7 @@ namespace OpenTap.Package
         internal bool IsExact => MatchBehavior == VersionMatchBehavior.Exact && Major.HasValue && Minor.HasValue &&
                                Patch.HasValue;
 
-        private static int ComparePreRelease(string p1, string p2)
+        internal static int ComparePreRelease(string p1, string p2)
         {
             if (p1 == p2) return 0;
 
