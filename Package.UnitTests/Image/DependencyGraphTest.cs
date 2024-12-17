@@ -180,18 +180,57 @@ namespace OpenTap.Image.Tests
         { 
             var resolver2 = new ImageResolver(TapThread.Current.AbortToken);
             var img = image(spec);
-            // Ensure MockRepository is instantiated
-            var mockRepository = MockRepository.Instance;
-            var dep = new PackageDependencyCache("Windows", CpuArchitecture.AnyCPU, ["mock://localhost"]);
+            var dep = new PackageDependencyCache("Windows", CpuArchitecture.AnyCPU, [MockRepository.Instance.Url]);
             dep.LoadFromRepositories();
 
             var r = resolver2.ResolveImage(img, dep.Graph);
+
+            Assert.IsTrue(r.Success);
+            foreach (var pkg in str2packages(result))
+            {
+                Assert.IsTrue(r.Packages.Any(x => x.Name == pkg.Name && x.Version.Equals(pkg.Version)));
+            }
+        }
+        
+        [TestCase("J,^0-beta","J,0.2.0-beta.1", false)]
+        [TestCase("J,^0.1-beta","J,0.1.2-rc.2", false)]
+        [TestCase("J,^0.1.0-beta","J,0.1.2-rc.2", false)]
+        [TestCase("J,^0.2-beta","J,0.2.0-beta.1", false)]
+        [TestCase("J,^0.2.0-beta","J,0.2.0-beta.1", false)]
+        [TestCase("J,^0","J,0.3.1-alpha.1.2", true)]
+        [TestCase("J,^0.1","J,0.2.0-beta.1", true)]
+        [TestCase("J,^0.2","J,0.3.1-alpha.1.2", true)]
+        [TestCase("J,^0.1.0","J,0.1.1-alpha.1.2", true)]
+        [TestCase("J,^0.1.1","J,0.1.2-rc.2", true)]
+        public void TestResolvePackagesDependencyExpansion2(string spec, string result, bool fetchAlpha)
+        { 
+            var resolver2 = new ImageResolver(TapThread.Current.AbortToken);
+            var img = image(spec);
+            var dep = new PackageDependencyCache("Windows", CpuArchitecture.AnyCPU, [MockRepository.Instance.Url]);
+            dep.LoadFromRepositories();
+
+            var r = resolver2.ResolveImage(img, dep.Graph);
+
+            var fetchedPackages = dep.Graph.PackageSpecifiers().ToLookup(pkg => pkg.Name);
+            var js = fetchedPackages["J"].ToArray();
+
+            if (fetchAlpha)
+            {
+                Assert.That(js.Any(j => j.Version.PreRelease?.StartsWith("alpha") == true), Is.True);
+            } 
+            else
+            {
+                Assert.That(js.Any(j => j.Version.PreRelease?.StartsWith("alpha") == true), Is.False);
+            }
+
+            Assert.That(js.Any(j => j.Version.PreRelease?.StartsWith("beta") == true), Is.True);
+            Assert.That(js.Any(j => j.Version.PreRelease?.StartsWith("rc") == true), Is.True);
+
 
             if (result == null)
             {
                 Assert.IsFalse(r.Success);
             }
-            else
             {
                 Assert.IsTrue(r.Success);
                 foreach (var pkg in str2packages(result))

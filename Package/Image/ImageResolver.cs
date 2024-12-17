@@ -172,6 +172,59 @@ namespace OpenTap.Package
 
             if (k == 0)
             {
+                if (packages.Count == 0) 
+                    // special case when no packages are specified.
+                    // this is an uncommon trivial corner case.
+                    return new ImageResolution([], Iterations);
+
+                {
+                    // Handle the edge case where a compatible specifier does not match any package release versions.
+                    // In this case, we should fetch all prereleases for packages with no candidates and retry the resolution.
+                    // This can happen when trying to install e..g 'Basic Mixins:^0.2' because Basic Mixins (as of now)
+                    // does not have any release versions. So even though 0.2.0-beta.1 is available and compatible,
+                    // it will not have been fetched at this point because the specifier ^0.2 does not enforce fetching prereleases.
+                    var packagesToUpdate = new List<PackageSpecifier>();
+                    for (int i = 0; i < allVersions.Count; i++)
+                    {
+                        if (allVersions[i].Length == 0)
+                        {
+                            packagesToUpdate.Add(packages[i]);
+                        }
+                    }
+
+                    // We can only fetch new versions for compatible specifies with no prerelease
+                    bool allUpdatable = packagesToUpdate.All(
+                        pkg => pkg.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Compatible) &&
+                               !pkg.Version.MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease) &&
+                               pkg.Version.PreRelease == null
+                    );
+
+                    // Don't bother fetching more versions if all specifiers cannot be updated.
+                    if (allUpdatable)
+                    {
+                        bool allUpdated = true;
+                        foreach (var pkg in packagesToUpdate)
+                        {
+                            // Fetch all prereleases for this package.
+                            var spec2 = pkg.Version.WithMatchBehavior(pkg.Version.MatchBehavior |
+                                                                      VersionMatchBehavior.AnyPrerelease);
+                            var fetch = new PackageSpecifier(pkg.Name, spec2, pkg.Architecture, pkg.OS);
+                            allUpdated &= graph.EnsurePreReleasesCached(fetch);
+                            var fetched = graph.PackagesSatisfying(fetch).Count();
+                            allUpdated &= fetched > 0;
+                            if (!allUpdated)
+                                break;
+                        }
+
+                        // If we managed to fetch new versions of all packages with no candidates, retry the resolution
+                        if (allUpdated)
+                        {
+                            return ResolveImage(
+                                new ImageSpecifier(packages.ToList()) { FixedPackages = image.FixedPackages }, graph);
+                        }
+                    }
+                }
+
                 List<PackageSpecifier> ResolveProblems = new List<PackageSpecifier>();
                 for (int i = 0; i < allVersions.Count; i++)
                 {
@@ -180,11 +233,6 @@ namespace OpenTap.Package
                         ResolveProblems.Add(packages[i]);
                     }
                 }
-
-                if (packages.Count == 0) 
-                    // special case when no packages are specified.
-                    // this is an uncommon trivial corner case.
-                    return new ImageResolution(Array.Empty<PackageSpecifier>(), Iterations);
 
                 return DetermineResolveError(image, graph, ResolveProblems);  // no solutions
             }

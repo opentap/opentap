@@ -205,7 +205,7 @@ namespace OpenTap.Package
 
                 // If the pre-release level has not been downloaded, or if its a higher prerelease than the current
                 // for example, if current pre-release is rc, but a beta is asked for, we need to update the graph.
-                if (!currentPreReleases.TryGetValue(packageSpecifier.Name, out var currentPrerelease) || newPreRelease.CompareTo(currentPrerelease) < 0)
+                if (!currentPreReleases.TryGetValue(packageSpecifier.Name, out var currentPrerelease) || VersionSpecifier.ComparePreRelease(newPreRelease, currentPrerelease) < 0)
                 {
                     currentPreReleases[packageSpecifier.Name] = newPreRelease;
                     // update the package dependency graph.

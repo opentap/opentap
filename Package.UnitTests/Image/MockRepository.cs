@@ -143,6 +143,10 @@ namespace OpenTap.Image.Tests
                     DefinePackage("H",        "0.1.0"),
                     DefinePackage("H",        "0.2.0-beta.1"),
                     DefinePackage("I",        "0.2.0-beta.5", CpuArchitecture.AnyCPU, "Windows,Linux,MacOS", ("H", "^0.2.0-beta.1"), ("OpenTAP", "9.22.1")),
+                    DefinePackage("J",        "0.1.1-alpha.1.2"),
+                    DefinePackage("J",        "0.1.2-rc.2"),
+                    DefinePackage("J",        "0.2.0-beta.1"),
+                    DefinePackage("J",        "0.3.1-alpha.1.2"),
                 };
         }
 
@@ -207,9 +211,9 @@ namespace OpenTap.Image.Tests
 
         public PackageDependencyGraph QueryPrereleases(string os, CpuArchitecture deploymentInstallationArchitecture, string preRelease,
             string name)
-        { 
+        {
             var packages = AllPackages.Where(matchName).Where(matchPlatform).Where(matchPrerelease)
-                .OrderBy(pkg => pkg.Name).ThenByDescending(pkg => pkg.Version);
+                .OrderBy(pkg => pkg.Name).ThenByDescending(pkg => pkg.Version).ToArray();
             
             var g = new PackageDependencyGraph(); 
             g.LoadFromPackageDefs(packages);
