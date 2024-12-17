@@ -366,7 +366,7 @@ namespace OpenTap.Package
                     return true;
             }
 
-            if (0 < new SemanticVersion(0, 0, 0, PreRelease, null).CompareTo(new SemanticVersion(0, 0, 0, actualVersion.PreRelease, null)))
+            if (0 < ComparePreRelease(PreRelease, actualVersion.PreRelease))
                 return false;
             return true;
         }
