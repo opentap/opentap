@@ -356,9 +356,17 @@ namespace OpenTap.Package
                 if (Minor.HasValue && Minor.Value == actualVersion.Minor)
                     if (Patch.HasValue && Patch.Value < actualVersion.Patch)
                         return true;
+
+                // In short: We want ^1 to accept 1.x.x-beta
+                // In long: If minor and patch are not specified, then this version specifier is underdetermined.
+                // If the prerelease is also not specified that means the version specifier should be satisfiable by
+                // any prerelease within the appropriate major.
+                if (PreRelease == null && !Minor.HasValue && !Patch.HasValue && Major.HasValue &&
+                    Major.Value == actualVersion.Major)
+                    return true;
             }
 
-            if (0 < new SemanticVersion(0, 0, 0, PreRelease, null).CompareTo(new SemanticVersion(0, 0, 0, actualVersion.PreRelease, null)))
+            if (0 < ComparePreRelease(PreRelease, actualVersion.PreRelease))
                 return false;
             return true;
         }
@@ -463,7 +471,7 @@ namespace OpenTap.Package
         internal bool IsExact => MatchBehavior == VersionMatchBehavior.Exact && Major.HasValue && Minor.HasValue &&
                                Patch.HasValue;
 
-        private static int ComparePreRelease(string p1, string p2)
+        internal static int ComparePreRelease(string p1, string p2)
         {
             if (p1 == p2) return 0;
 

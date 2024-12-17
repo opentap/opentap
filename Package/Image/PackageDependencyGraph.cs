@@ -205,7 +205,7 @@ namespace OpenTap.Package
 
                 // If the pre-release level has not been downloaded, or if its a higher prerelease than the current
                 // for example, if current pre-release is rc, but a beta is asked for, we need to update the graph.
-                if (!currentPreReleases.TryGetValue(packageSpecifier.Name, out var currentPrerelease) || newPreRelease.CompareTo(currentPrerelease) < 0)
+                if (!currentPreReleases.TryGetValue(packageSpecifier.Name, out var currentPrerelease) || VersionSpecifier.ComparePreRelease(newPreRelease, currentPrerelease) < 0)
                 {
                     currentPreReleases[packageSpecifier.Name] = newPreRelease;
                     // update the package dependency graph.
@@ -350,16 +350,24 @@ namespace OpenTap.Package
         /// </summary>
         public IEnumerable<PackageSpecifier> GetDependencies(string pkgName, SemanticVersion version)
         {
-            if (name2Id.TryGetValue(pkgName, out var Id))
+            int Id = 0;
+            bool cached = false;
+            (int packageNameId, int versionSpecifierId)[] deps = [];
+            
+            cached = name2Id.TryGetValue(pkgName, out Id) && dependencies.TryGetValue((Id, GetVersionId(version)), out deps);
+            if (!cached)
             {
-                if (dependencies.TryGetValue((Id, GetVersionId(version)), out var deps))
+                EnsurePreReleasesCached(new PackageSpecifier(pkgName, version.AsExactSpecifier())); 
+                cached = name2Id.TryGetValue(pkgName, out Id) && dependencies.TryGetValue((Id, GetVersionId(version)), out deps);
+            }
+            
+            if (cached)
+            {
+                foreach (var dep in deps)
                 {
-                    foreach (var dep in deps)
-                    {
-                        var depVersion = versionSpecifierLookup[dep.Item2];
+                    var depVersion = versionSpecifierLookup[dep.Item2];
 
-                        yield return new PackageSpecifier(nameLookup[dep.Item1], depVersion);
-                    }
+                    yield return new PackageSpecifier(nameLookup[dep.Item1], depVersion);
                 }
             }
         }
