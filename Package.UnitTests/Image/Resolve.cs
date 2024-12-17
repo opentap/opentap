@@ -108,6 +108,7 @@ namespace OpenTap.Image.Tests
         [TestCase("B", "3-beta", "", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest 3 beta
         [TestCase("B", "2-beta", "Linux", CpuArchitecture.x86, "2.1.0-beta.1")] // means we want latest 2 beta
         [TestCase("B", "^3-beta", "", CpuArchitecture.AnyCPU, "3.2.1-beta.1")] // means we want latest 3, minimum beta
+        [TestCase("B", "^3", "", CpuArchitecture.AnyCPU, "3.1.1")] // ^3 means we want the latest 3, release preferred
         [TestCase("B", "^2-beta", "Linux", CpuArchitecture.x86, "2.1.0-beta.1")] // means we want latest 2 beta
         [TestCase("B", "any", "", CpuArchitecture.AnyCPU, "3.2.2-alpha.1")]  // any means we want latest, even if it is a prerelease
         [TestCase("C", "^1.0-beta", "Linux", CpuArchitecture.x86, "1.0.0-beta.1")]
