@@ -850,8 +850,14 @@ namespace OpenTap.UnitTests
             var param = logType.GetMember(nameof(log.LogMessage)).Parameterize(seq, log, "log1");
             var param2 = param.Parameterize(plan, seq, "log2");
             seq.ChildTestSteps.Clear();
-            using (ParameterManager.WithSanityCheckDelayed(true))
+            using (ParameterManager.WithSanityCheckDelayed(quickCheck: false))
             {
+                var m2 = TypeData.GetTypeData(plan).GetMember(param2.Name);
+                Assert.IsNotNull(m2);
+            }
+            using (ParameterManager.WithSanityCheckDelayed(quickCheck: true))
+            {
+                // since a quick-check is allowed, the check will anyway be done.
                 var m2 = TypeData.GetTypeData(plan).GetMember(param2.Name);
                 Assert.IsNull(m2);
             }
