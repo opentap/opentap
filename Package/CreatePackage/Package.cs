@@ -623,9 +623,15 @@ namespace OpenTap.Package
                                         log.Error($"This package require assembly {requiredAsm.Name} in version {requiredAsm.Version} while that assembly is already installed through package '{candidatePkg.Name}' in version {candidateAsm.Version}.");
                                     else
                                         log.Error($"{Path.GetFileName(depender.FileName)} in this package require assembly {requiredAsm.Name} in version {requiredAsm.Version} while that assembly is already installed through package '{candidatePkg.Name}' in version {candidateAsm.Version}.");
-                                    //log.Error($"Please align the version of {requiredAsm.Name} to ensure interoperability with package '{candidate.Key.Name}' or uninstall that package.");
-                                    throw new ExitCodeException((int)PackageExitCodes.AssemblyDependencyError, 
-                                                                $"Please align the version of {requiredAsm.Name} ({candidateAsm.Version} vs {requiredAsm.Version})  to ensure interoperability with package '{candidatePkg.Name}' or uninstall that package.");
+                                    var here = Directory.GetCurrentDirectory();
+                                    var relPath = Path.GetDirectoryName(candidateAsm.Location)
+                                        .Substring(here.Length + 1).Replace('\\', '/');
+                                    var openTapIgnoreName = relPath + "/.OpenTapIgnore";
+                                    throw new ExitCodeException((int)PackageExitCodes.AssemblyDependencyError,
+                                        $"Please align the version of {requiredAsm.Name} ({candidateAsm.Version} vs {requiredAsm.Version})  to ensure interoperability with package '{candidatePkg.Name}' or uninstall that package.\n" +
+                                        $"If you are sure that the version you are providing is fully compatible with the version you are replacing, add a '.OpenTapIgnore' file to the directory containing the conflicting dll.\n" +
+                                        $"The .OpenTapIgnore file should ideally explain why the override is needed.\n" +
+                                        $@"Hint: <File SourcePath=""<SourceFile>"" Path=""{openTapIgnoreName}""/>");
                                 }
                             }
                         }
