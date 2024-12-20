@@ -44,6 +44,14 @@ namespace OpenTap.Package
         /// <summary> Which repositories to use. </summary>
         [CommandLineArgument("repository", ShortName = "r", Description = "Repositories to use for resolving the image.")]
         public string[] Repositories { get; set; } = null;
+        
+        
+        public override bool Unlocked
+        {
+            get => DryRun;
+            set {}
+        }
+
 
         protected override int LockedExecute(CancellationToken cancellationToken)
         {

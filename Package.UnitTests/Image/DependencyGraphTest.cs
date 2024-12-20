@@ -111,6 +111,8 @@ namespace OpenTap.Image.Tests
                                                       "Timing Analyzer, 9.17.2-beta.12+a3f06537;Visual Studio SDK, 1.2.5+08b71a6e;WPF Controls, 9.17.2-beta.12+a3f06537");
             yield return ("OpenTAP, 9.17.4;OpenTAP, ^9.17.4;OpenTAP, 9.17.4", "OpenTAP, 9.17.4");
             yield return ("OpenTAP, 9.17.4;OpenTAP, ^9.17.4+ea67c63a;OpenTAP, 9.17.4", "OpenTAP, 9.17.4");
+            //[ImageResolution: Editor 9.17.0-rc.2+3810d814, Keysight Licensing 1.0.0+8a228623, OpenTAP 9.17.1+9a03c7c8, OSIntegration 1.4.2+15f32a31, WPF Controls 9.17.0-rc.2+3810d814
+            yield return ("Editor, ^9.17.0-alpha;", "Editor, 9.17.0-rc.2;OpenTAP, 9.17.1");
 
         }}
 
