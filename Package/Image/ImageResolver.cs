@@ -16,7 +16,6 @@ namespace OpenTap.Package
         {
             this.cancelToken = cancelToken;
         }
-           
 
         long Iterations;
 
@@ -126,23 +125,49 @@ namespace OpenTap.Package
             }
             
             // 4. prune away the versions which dependencies conflict with the required packages.
-            // ok, now we know the results is some pair-wise combination of allVersions.
-            // now let's try pruning them a bit
             bool retry = false;
             for (int i = 0; i < packages.Count; i++)
             {
                 var pkg = packages[i];
                 var versions = allVersions[i];
                 var others = packages.Except(x => x == pkg).ToArray();
-                var newVersions = versions.Where(x =>
-                        graph.CouldSatisfy(pkg.Name, new VersionSpecifier(x, VersionMatchBehavior.Exact), others, image.FixedPackages))
-                    .ToArray();
-                allVersions[i] = newVersions;
+                
+                {
+                    // 4.1
+                    // prune the solution space by figuring out which of these versions are already excluded by 
+                    // existing dependencies from 'others' or 'fixed packages'. 
+                    var newCount = graph.PruneAvailableVersions(pkg.Name, versions, others, image.FixedPackages);
+                    if (newCount < versions.Length)
+                    {
+                        Array.Resize(ref versions, newCount);
+                        allVersions[i] = versions;
+                    }
+                }
+                
+                // 4.2 
+                // prune versions to those that does not directly conflict with other dependencies.
+                //var newVersions = versions.Where(x =>
+                //        graph.CouldSatisfy(pkg.Name, new VersionSpecifier(x, VersionMatchBehavior.Exact), others, image.FixedPackages))
+                //    .ToArray();
+                
+                //if (newVersions.SequenceEqual(allVersions[i]) == false)
+                //{
+                //    allVersions[i] = newVersions;    
+                //}
+                var newVersions = allVersions[i];
+                
+                // if there is only one possible version matching the requirement
+                // take that as an exact version.
+                
                 if (newVersions.Length == 1 && !pkg.Version.IsExact)
                 {
+                    
                     packages[i] = new PackageSpecifier(pkg.Name,
                         // newVersions[0] will always be exact.
                         new VersionSpecifier(newVersions[0], VersionMatchBehavior.Exact));
+                    
+                    // the version was not exact, but an exact match was found.
+                    // this means we can go back and update dependencies etc.
                     retry = true;
                 }
                 else if (newVersions.Length == 1)
@@ -162,8 +187,8 @@ namespace OpenTap.Package
             if (retry)
                 return ResolveImage(new ImageSpecifier(packages.ToList()){FixedPackages = image.FixedPackages}, graph);
             
-            // 5. ok now we have X * Y * Z * ... = K possible solutions all satisfying the constraints.
-            // Lets sort all the versions based on version specifiers, then fix  the version and try each combination (brute force)
+            // 5. ok now we have X * Y * Z * ... = K possible solutions all satisfying the known constraints.
+            // Lets sort all the versions based on version specifiers, then fix the version and try each combination (brute force)
             long k = allVersions.FirstOrDefault()?.LongLength ?? 0;
             for (int i = 1; i < allVersions.Count; i++)
             {
@@ -265,12 +290,14 @@ namespace OpenTap.Package
                             }
                         }
                     }
-                    // this is the final case.
+                    // Solution was found.
+                    // this is the final case (in the happy path).
                     return new ImageResolution(packages.ToArray(), Iterations);
                 }
             }
             
-            // sort the versions based on priorities. ^ -> sort ascending, Exact, but undermined e.g  (9.17.*), sort descending.
+            //6. Sort the versions based on priorities. ^ -> sort ascending, Exact, but underdetermined e.g  (9.17.*), sort descending.
+            // this makes sure we arrive at the best case as fast as possible.
             
             for (int i = 0; i < allVersions.Count; i++)
             {
@@ -303,7 +330,7 @@ namespace OpenTap.Package
                 allVersions[i] = versions.ToArray();
             }
 
-            // Iterate each package, fixing one variable and iterating the whole available span.
+            // 7. Iterate each package, fixing one variable and iterating the whole available span.
             // note that this is a recursive call so even though we only fix _one_ variable here
             // the rest of the variables will be fixed in the recursions.
             for (int i = 0; i < allVersions.Count; i++)
@@ -333,47 +360,15 @@ namespace OpenTap.Package
                 }
             }
             
-            // this probably never happens as we already returned null, when K was 0.
+            // this probably never happens as we already returned an error when K was 0.
             return new FailedImageResolution(image, new GenericResolutionProblem(Array.Empty<PackageSpecifier>()), Iterations);
         }
 
         private FailedImageResolution DetermineResolveError(ImageSpecifier image, PackageDependencyGraph graph,
             List<PackageSpecifier> ResolveProblems)
         {
-            ResolutionProblem problem = null;
-            // Provide a different error message depending on the actual conflict
-            // 1. The specified package does not exist
-            // 2. The requested version could not be satisfied
-            // 3. The requested package has a level 1 dependency conflict with the requested image
-            var allSpecs = graph.PackageSpecifiers().ToArray();
-            if (ResolveProblems.All(rp => false == allSpecs.Any(s => s.Name == rp.Name)))
-            {
-                problem = new DoesNotExistResolutionProblem(ResolveProblems);
-            }
-            else if (ResolveProblems.Count == 1)
-            {
-                var version = graph.PackagesSatisfying(ResolveProblems[0]).ToArray();
-                if (version.Length == 0)
-                {
-                    problem = new NoPackagesSatisfyingResolutionProblem(ResolveProblems);
-                }
-                else
-                {
-                    var deps = graph.GetDependencies(ResolveProblems[0].Name, version[0]).ToArray();
-                    foreach (var d in deps)
-                    {
-                        if (image.Packages.FirstOrDefault(p => p.Name == d.Name && !d.Version.IsSatisfiedBy(p.Version))
-                            is { } requested)
-                        {
-                            problem = new IncompatbileResolutionProblem(requested, d, ResolveProblems[0]);
-                            break;
-                        }
-                    }
-                }
-            }
-
-            problem ??= new GenericResolutionProblem(ResolveProblems);
-            return new FailedImageResolution(image, problem, Iterations);
+            return new FailedImageResolution(image, graph, ResolveProblems, Iterations);
+            
         }
     }
 
@@ -457,19 +452,80 @@ namespace OpenTap.Package
 
     class FailedImageResolution : ImageResolution
     {
-        internal readonly ResolutionProblem resolveProblems;
+        internal ResolutionProblem Problem
+        {
+            get
+            {
+                if (problem == null)
+                {
+                    Build();
+                }
+
+                return problem;
+            }
+        }
         readonly ImageSpecifier image;
+        private readonly PackageDependencyGraph graph;
+        private readonly List<PackageSpecifier> specifiers;
+        private ResolutionProblem problem;
+        private readonly List<PackageSpecifier> resolveProblems;
+
+
         public FailedImageResolution(ImageSpecifier img, ResolutionProblem resolveProblems, long iterations) : base(Array.Empty<PackageSpecifier>(), iterations)
         {
             image = img;
+            this.problem = resolveProblems;
+        }
+
+        public FailedImageResolution(ImageSpecifier img, PackageDependencyGraph graph, List<PackageSpecifier> resolveProblems, long l) : base(resolveProblems.ToArray(), l)
+        {
+            image = img;
+            this.graph = graph;
             this.resolveProblems = resolveProblems;
+        }
+
+        void Build()
+        {
+            
+            // Provide a different error message depending on the actual conflict
+            // 1. The specified package does not exist
+            // 2. The requested version could not be satisfied
+            // 3. The requested package has a level 1 dependency conflict with the requested image
+            var allSpecs = graph.PackageSpecifiers().ToArray();
+            if (resolveProblems.All(rp => false == allSpecs.Any(s => s.Name == rp.Name)))
+            {
+                problem = new DoesNotExistResolutionProblem(resolveProblems);
+            }
+            else if (resolveProblems.Count == 1)
+            {
+                var version = graph.PackagesSatisfying(resolveProblems[0]).ToArray();
+                if (version.Length == 0)
+                {
+                    problem = new NoPackagesSatisfyingResolutionProblem(resolveProblems);
+                }
+                else
+                {
+                    var deps = graph.GetDependencies(resolveProblems[0].Name, version[0]).ToArray();
+                    foreach (var d in deps)
+                    {
+                        if (image.Packages.FirstOrDefault(p => p.Name == d.Name && !d.Version.IsSatisfiedBy(p.Version))
+                            is { } requested)
+                        {
+                            this.problem = new IncompatbileResolutionProblem(requested, d, resolveProblems[0]);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            this.problem ??= new GenericResolutionProblem(resolveProblems);
         }
 
         public override bool Success => false;
 
         public override string ToString()
         {
-            return $"Unable to resolve image '{image}':\n" + resolveProblems.Description();
+            return $"Unable to resolve image '{image}':\n" + Problem.Description();
         }
     }
 }

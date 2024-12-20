@@ -35,7 +35,7 @@ namespace OpenTap.Package
         public override string ToString()
         {
             var unsatisfiedDependencies = new List<PackageDef>();
-            if (Result is FailedImageResolution fir && fir.resolveProblems is not GenericResolutionProblem)
+            if (Result is FailedImageResolution fir && fir.Problem is not GenericResolutionProblem)
             {
                 return fir.ToString();
             }
