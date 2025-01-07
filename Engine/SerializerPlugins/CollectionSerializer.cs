@@ -121,9 +121,7 @@ namespace OpenTap.Plugins
                         if (mem == null) throw new Exception("Unable to get member list");
                         if (Serializer.SerializerStack
                                 .OfType<ObjectSerializer>()
-                                .FirstOrDefault()?.CurrentMember is IMemberData member 
-                                // If this is a parameter, it should have been deserialized on the source step
-                                && member is not ParameterMemberData 
+                                .FirstOrDefault()?.CurrentMember is MemberData member 
                                 && member.GetAttribute<FactoryAttribute>() is FactoryAttribute factory
                                 && member.TypeDescriptor.DescendsTo(t))
                         {
@@ -197,7 +195,7 @@ namespace OpenTap.Plugins
                 else if (!_t.CanCreateInstance && !t.IsArray
                                                && Serializer.SerializerStack
                                                    .OfType<ObjectSerializer>()
-                                                   .FirstOrDefault()?.CurrentMember is IMemberData member 
+                                                   .FirstOrDefault()?.CurrentMember is MemberData member 
                                                && member.GetAttribute<FactoryAttribute>() is FactoryAttribute factory
                                                && member.TypeDescriptor.DescendsTo(t))
                 {
