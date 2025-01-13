@@ -1085,6 +1085,82 @@ namespace OpenTap.UnitTests
             parameterizeIcon = icons[IconNames.Unparameterize].First();
             Assert.IsFalse(parameterizeIcon.Get<IAccessAnnotation>().IsVisible);
         }
+        
+        public class MyStep : TestStep
+        {
+            [Display("Some Bool")] public bool SomeBool { get; set; }
+            [Display("Some String")] public string SomeString { get; set; }
+
+            public override void Run()
+            {
+            }
+        }
+
+        [Test]
+        public void TestWriteMergedAnnotations()
+        {
+            string[] stringValues = ["hello1", "hello2"];
+            bool[] boolValues = [true, false]; 
+
+            var plan = new TestPlan();
+            var step1 = new MyStep();
+            var step2 = new MyStep();
+            plan.ChildTestSteps.Add(step1);
+            plan.ChildTestSteps.Add(step2);
+
+            TestStep[] steps = [step1, step2];
+
+            var mem = AnnotationCollection.Annotate(steps).Get<IMembersAnnotation>().Members
+                .ToLookup(mem => mem.Get<IMemberAnnotation>().Member.Name);
+
+            void parameterize(AnnotationCollection a)
+            {
+                var parameterize = a.Get<MenuAnnotation>().MenuItems.FirstOrDefault(mem =>
+                    mem.Get<IIconAnnotation>()?.IconName == IconNames.ParameterizeOnTestPlan);
+                parameterize.Get<IMethodAnnotation>().Invoke();
+            }
+
+            var boolMem = mem[nameof(MyStep.SomeBool)].First();
+            var stringMem = mem[nameof(MyStep.SomeString)].First();
+            parameterize(boolMem);
+            parameterize(stringMem);
+
+            foreach (var stringValue in stringValues)
+            foreach (var boolValue in boolValues)
+            foreach (bool flip in (bool[]) [true, false])
+            {
+                var a = AnnotationCollection.Annotate(plan);
+                var sv = a.GetMember("Parameters \\ Some String");
+                var bv = a.GetMember("Parameters \\ Some Bool");
+
+                void W1()
+                {
+                    sv.Get<IStringValueAnnotation>().Value = stringValue;
+                    sv.Write();
+                }
+
+                void W2()
+                {
+                    bv.Get<IStringValueAnnotation>().Value = boolValue ? "True" : "False";
+                    bv.Write();
+                }
+
+                if (flip)
+                {
+                    W2();
+                    W1();
+                }
+                else
+                {
+                    W1(); 
+                    W2();
+                }
+                Assert.AreEqual(stringValue, step2.SomeString);
+                Assert.AreEqual(boolValue, step2.SomeBool);
+                Assert.AreEqual(stringValue, step1.SomeString);
+                Assert.AreEqual(boolValue, step1.SomeBool);
+            } 
+        }
 
         [Test]
         public void TestMergedInputVerdict([Values(true, false)]bool availableProxy)
