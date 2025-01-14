@@ -196,7 +196,7 @@ namespace OpenTap.Package
                 string newPreRelease;
                 if (packageSpecifier.Version.MatchBehavior.HasFlag(VersionMatchBehavior.AnyPrerelease))
                 {
-                    newPreRelease = "alpha";
+                    newPreRelease = "^alpha";
                 }
                 else
                 {

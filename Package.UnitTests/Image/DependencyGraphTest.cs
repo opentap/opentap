@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using NUnit.Framework.Constraints;
 
 namespace OpenTap.Image.Tests
 {
@@ -191,13 +192,71 @@ namespace OpenTap.Image.Tests
                 Assert.IsTrue(r.Packages.Any(x => x.Name == pkg.Name && x.Version.Equals(pkg.Version)));
             }
         }
-        
+
+        [Test]
+        public void TestPartialVersionSort2()
+        {
+            var wrt = new PackageSpecifier("Basic Mixins", VersionSpecifier.Parse("^0"));
+            var unordered = new[]
+                {
+                    "0.4.0-alpha.1",
+                    "0.1.0",
+                    "0.3.0-beta.1",
+                    "0.2.0-rc.1",
+                }.Select(SemanticVersion.Parse);
+            var expected = new[]
+                {
+                    "0.1.0",
+                    "0.2.0-rc.1",
+                    "0.3.0-beta.1",
+                    "0.4.0-alpha.1",
+                }.Select(SemanticVersion.Parse).ToArray();
+            
+            var sorted = unordered.OrderBy(x => x, wrt.Version.SortPartial).ToList();
+            CollectionAssert.AreEqual(expected, sorted);
+        }
+
+        [Test]
+        public void TestPartialVersionSort()
+        {
+            var wrt = new PackageSpecifier("Basic Mixins", VersionSpecifier.Parse("^0"));
+            var versions = new[]
+            {
+                "0.2.0-alpha.1.1",
+                "0.2.0-beta.1",
+                "0.0.1-alpha.11.1",
+                "0.0.1-alpha.19.2",
+                "0.0.1-beta.9",
+                "0.2.1-alpha.1.1",
+                "0.0.1-beta.13",
+                "0.0.1-beta.20",
+                "0.0.1-beta.21",
+                "0.1.0",
+            }.Select(SemanticVersion.Parse);
+            var expected = new[]
+            {
+                "0.1.0",
+                "0.2.0-beta.1",
+                "0.0.1-beta.21",
+                "0.0.1-beta.20",
+                "0.0.1-beta.13",
+                "0.0.1-beta.9",
+                "0.2.1-alpha.1.1",
+                "0.2.0-alpha.1.1",
+                "0.0.1-alpha.19.2",
+                "0.0.1-alpha.11.1",
+            }.Select(SemanticVersion.Parse);
+            var sorted = versions.OrderBy(x => x, wrt.Version.SortPartial).ToList();
+            CollectionAssert.AreEqual(expected, sorted);
+        }
+
         [TestCase("J,^0-beta","J,0.2.0-beta.1", false)]
         [TestCase("J,^0.1-beta","J,0.1.2-rc.2", false)]
         [TestCase("J,^0.1.0-beta","J,0.1.2-rc.2", false)]
         [TestCase("J,^0.2-beta","J,0.2.0-beta.1", false)]
         [TestCase("J,^0.2.0-beta","J,0.2.0-beta.1", false)]
-        [TestCase("J,^0","J,0.3.1-alpha.1.2", true)]
+        [TestCase("J,^0","J,0.1.2-rc.2", true)]
+        [TestCase("J,^0.0","J,0.1.2-rc.2", true)]
         [TestCase("J,^0.1","J,0.2.0-beta.1", true)]
         [TestCase("J,^0.2","J,0.3.1-alpha.1.2", true)]
         [TestCase("J,^0.1.0","J,0.1.1-alpha.1.2", true)]
