@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
@@ -158,16 +159,17 @@ namespace OpenTap.UnitTests
                 mem.Parameterize(plan, sweep, $"Parameters \\ {mem.GetDisplayAttribute().Name}"); 
             }
 
-            var ser = new TapSerializer() { IgnoreErrors = false };
-            var planXml = ser.SerializeToString(plan);
-            Assert.IsTrue(!ser.Errors.Any());
-            var plan2 = ser.DeserializeFromString(planXml) as TestPlan;
-            Assert.IsTrue(!ser.Errors.Any());
+            TestPlan plan2 = null;
+            {
+                var ser = new TapSerializer() { IgnoreErrors = false };
+                var planXml = ser.SerializeToString(plan);
+                Assert.IsTrue(!ser.Errors.Any());
+                plan2 = ser.DeserializeFromString(planXml) as TestPlan;
+                Assert.IsTrue(!ser.Errors.Any());
+            }
 
-            { /* verify parameters were correctly deserialized */
-                var sweep1 = sweep.SweepValues;
-                var sweep2 = (SweepRowCollection)plan2.ExternalParameters.Entries.First().Value;
-                
+            void AssertSweepsEqual(SweepRowCollection sweep1, SweepRowCollection sweep2)
+            {
                 Assert.IsTrue(sweep1.Count == sweep2.Count);
 
                 for (int i = 0; i < sweep1.Count; i++)
@@ -180,6 +182,44 @@ namespace OpenTap.UnitTests
                         var v2 = d2.Values[kvp.Key];
                         Assert.IsTrue(v1.Equals(v2));
                     }
+                }
+            }
+
+            { /* verify parameters were correctly deserialized */
+                var sweep1 = sweep.SweepValues;
+                var sweep2 = (SweepRowCollection)plan2.ExternalParameters.Entries.First().Value; 
+                AssertSweepsEqual(sweep1, sweep2);
+            }
+
+            { /* test wrapping the test plan in a test plan reference step */
+                var temp = Path.GetTempFileName();
+                try
+                {
+                    plan.Save(temp);
+                    var parentPlan = new TestPlan();
+                    var refStep = new TestPlanReference();
+                    parentPlan.ChildTestSteps.Add(refStep);
+                    refStep.Filepath = new MacroString() { Text = temp };
+                    refStep.LoadTestPlan();
+                    var ser2 = new TapSerializer() { IgnoreErrors = false };
+                    var parentPlanXml = ser2.SerializeToString(parentPlan);
+                    Assert.IsTrue(!ser2.Errors.Any());
+                    var parentPlan2 = ser2.DeserializeFromString(parentPlanXml) as TestPlan;
+                    Assert.IsTrue(!ser2.Errors.Any());
+
+                    var refStep2 = parentPlan2.ChildTestSteps[0] as TestPlanReference;
+                    refStep2.LoadTestPlan();
+
+                    SweepRowCollection GetSweepRow(ITestStepParent p) => AnnotationCollection.Annotate(p).GetMember("Sweep Values").Get<IObjectValueAnnotation>().Value as SweepRowCollection;
+                    
+                    var sweep1 = GetSweepRow(refStep);
+                    var sweep2 = GetSweepRow(refStep2);
+                    
+                    AssertSweepsEqual(sweep1, sweep2);
+                }
+                finally
+                {
+                    File.Delete(temp);
                 }
             }
         } 
