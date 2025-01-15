@@ -23,7 +23,7 @@ namespace OpenTap
             FactoryMethodName = factoryMethodName;
         }
 
-        /// <summary> Creates an object by calling thet target member. </summary>
+        /// <summary> Creates an object by calling that target member. </summary>
         internal static object Create(object ownerObj, IFactoryAttribute factoryAttribute)
         {
             var type = ownerObj.GetType();

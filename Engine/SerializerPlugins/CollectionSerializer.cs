@@ -65,27 +65,51 @@ namespace OpenTap.Plugins
                     }
                 };
 
-                if (element.IsEmpty)
+                bool _memberTryGetValue(IParameterMemberData member, object source, out object memberValue)
                 {
-
                     try
                     {
+                        memberValue = member.GetValue(source);
+                        return true;
+                    }
+                    catch
+                    {
+                        memberValue = null;
+                        return false;
+                    }
+                }
+                if (element.IsEmpty)
+                {
+                    try
+                    {
+                        var os = Serializer.SerializerStack
+                            .OfType<ObjectSerializer>()
+                            .FirstOrDefault();
                         if (!_t.CanCreateInstance && !t.IsArray
-                                                  && Serializer.SerializerStack
-                                                      .OfType<ObjectSerializer>()
-                                                      .FirstOrDefault()?.CurrentMember is IMemberData member
+                                                  && os?.CurrentMember is MemberData member
                                                   && member.GetAttribute<FactoryAttribute>() is FactoryAttribute factory
                                                   && member.TypeDescriptor.DescendsTo(t))
                         {
-                            setResult((IList)FactoryAttribute.Create(Serializer.SerializerStack
-                                .OfType<ObjectSerializer>()
-                                .FirstOrDefault()?.Object, factory));
-                        }else if (t.IsArray)
+                            setResult((IList)FactoryAttribute.Create(os.Object, factory));
+                        }
+                        else if (!_t.CanCreateInstance && os?.CurrentMember is IParameterMemberData pmd &&
+                                 _memberTryGetValue(pmd, os.Object, out var parameterValue))
+                        { 
+                            setResult(parameterValue);
+                        }
+                        else if (t.IsArray)
+                        {
                             setResult(Array.CreateInstance(t.GetElementType(), 0));
+                        }
                         else if (t.IsInterface)
+                        {
                             setResult(null);
+                        }
                         else
+                        {
                             setResult(Activator.CreateInstance(t));
+                        }
+
                         return true;
                     }
                     catch (MemberAccessException)
