@@ -123,7 +123,10 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
-        public void TestDeserializePrameterizedElements()
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(10)]
+        public void TestDeserializeParameterizedElements(int numRows)
         {
             var plan = new TestPlan();
             var sweep = new SweepParameterStep();
@@ -148,10 +151,12 @@ namespace OpenTap.UnitTests
                     delayMem.Get<IObjectValueAnnotation>().Value = delay;
                     col.AnnotatedElements = col.AnnotatedElements.Append(elem1);
                 }
-                
-                addDelay(1);
-                addDelay(2);
-                
+
+                for (int i = 1; i <= numRows; i++)
+                {
+                    addDelay(i);
+                }
+
                 sweepValues.Write();
                 sweepValues.Read();
                 
@@ -163,14 +168,15 @@ namespace OpenTap.UnitTests
             {
                 var ser = new TapSerializer() { IgnoreErrors = false };
                 var planXml = ser.SerializeToString(plan);
-                Assert.IsTrue(!ser.Errors.Any());
+                Assert.That(ser.Errors, Is.Empty);
                 plan2 = ser.DeserializeFromString(planXml) as TestPlan;
-                Assert.IsTrue(!ser.Errors.Any());
+                Assert.That(ser.Errors, Is.Empty);
             }
 
             void AssertSweepsEqual(SweepRowCollection sweep1, SweepRowCollection sweep2)
             {
-                Assert.IsTrue(sweep1.Count == sweep2.Count);
+                Assert.That(sweep1.Count, Is.EqualTo(numRows));
+                Assert.That(sweep1.Count, Is.EqualTo(sweep2.Count));
 
                 for (int i = 0; i < sweep1.Count; i++)
                 {
@@ -186,7 +192,7 @@ namespace OpenTap.UnitTests
             }
 
             { /* verify parameters were correctly deserialized */
-                var sweep1 = sweep.SweepValues;
+                var sweep1 = (SweepRowCollection)plan.ExternalParameters.Entries.First().Value; 
                 var sweep2 = (SweepRowCollection)plan2.ExternalParameters.Entries.First().Value; 
                 AssertSweepsEqual(sweep1, sweep2);
             }
