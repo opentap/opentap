@@ -94,7 +94,7 @@ namespace OpenTap
         {
             if (TryClone(context, targetType, skipIfPossible, out var clone) == false)
             {
-                throw new InvalidCastException($"Failed cloning {value} as {targetType.Name}.");
+                throw new InvalidCastException($"Failed cloning '{value}' as '{targetType.Name}'.");
             }
             return clone;
         }

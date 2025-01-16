@@ -126,7 +126,7 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
-        public void TestDeserializeParameterizedElements([Values(0, 1, 10)] int numRows)
+        public void TestDeserializeParameterizedElements([Values(0, 1, 2, 3, 10)] int numRows)
         {
             using var s = Session.Create(SessionOptions.OverlayComponentSettings);
             var trace = new TestTraceListener();
@@ -235,7 +235,7 @@ namespace OpenTap.UnitTests
             { /* verify that there are no warnings or errors logged */
                 trace.Flush();
                 trace.WarningMessage.RemoveAll(warn =>
-                    warn.StartsWith("Duplicate TEst packages detected.", StringComparison.OrdinalIgnoreCase));
+                    warn.StartsWith("Duplicate Test packages detected.", StringComparison.OrdinalIgnoreCase));
                 Assert.That(trace.WarningMessage, Is.Empty);
                 Assert.That(trace.ErrorMessage, Is.Empty);
             }
