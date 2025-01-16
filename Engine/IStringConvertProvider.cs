@@ -705,9 +705,10 @@ namespace OpenTap
             {
                 if (value is IEnumerable seq)
                 {
-                    bool isNumeric = true;
+                    bool isNumeric = false;
                     foreach (var elem in seq)
                     {
+                        isNumeric = true;
                         if (elem is Enum || Utils.IsNumeric(elem) == false)
                         {
                             isNumeric = false;
