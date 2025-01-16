@@ -84,8 +84,13 @@ namespace OpenTap.Plugins
                         {
                             ctor = () =>
                             {
-                                FactoryAttribute.TryCreateFromMember(pmem, fac, out var o);
-                                return (IList)o;
+                                if (!FactoryAttribute.TryCreateFromMember(pmem, fac, out var o))
+                                    throw new Exception(
+                                        $"Cannot create object of type '{pmem.TypeDescriptor.Name}' using factory '{fac.FactoryMethodName}'.");
+                                if (o is not IList lst)
+                                    throw new Exception(
+                                        $"Object constructed from factory '{fac.FactoryMethodName}' is not a list.");
+                                return lst;
                             };
                             return true;
                         }
