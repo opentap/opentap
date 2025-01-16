@@ -35,6 +35,33 @@ namespace OpenTap
                     $"Factory method '{factoryAttribute.FactoryMethodName}' not found on object of type '{type.FullName}'");
             return fac.Invoke(ownerObj, []);
         }
+
+        // Recursively search for the source of the parameter to try constructing this object
+        internal static bool TryCreateFromMember(IParameterMemberData member, IFactoryAttribute factoryAttribute, out object obj)
+        {
+            obj = null;
+            if (member is IParameterMemberData pmd)
+            {
+                foreach (var p in pmd.ParameterizedMembers)
+                {
+                    // If this is a concrete member, we should be able to use the source object as a factory source.
+                    if (p.Member is MemberData)
+                    {
+                        obj = Create(p.Source, factoryAttribute);
+                        return true;
+                    }
+
+                    // Otherwise, try recursing further
+                    if (p.Member is IParameterMemberData pmd2)
+                    {
+                        if (TryCreateFromMember(pmd2, factoryAttribute, out obj))
+                            return true;
+                    }
+                }
+            }
+
+            return false;
+        }
     }
 
     /// <summary> Specifies that another member method can be used to create an element value for a given list property.</summary>
