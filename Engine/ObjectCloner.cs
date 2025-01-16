@@ -35,7 +35,7 @@ namespace OpenTap
             return TryClone(context, targetType ?? typeOfValue, false, out object _);
         }
         
-        public bool TryClone(object context, ITypeData targetType, bool skipIfPossible, out object clone )
+        public bool TryClone(object context, ITypeData targetType, bool skipIfPossible, out object clone)
         {
             if (ReferenceEquals(targetType, typeOfValue) && valueType || value == null)
             {
@@ -52,8 +52,11 @@ namespace OpenTap
                         strConvertSuccess = StringConvertProvider.TryGetString(value, out convertString);
                     if (strConvertSuccess == true)
                     {
-                        clone = StringConvertProvider.FromString(convertString, targetType, context);
-                        return true;
+                        // Fall back to other clone methods if this fails.
+                        // This is required because misbehaving StringConvertProviders can return string values
+                        // for objects which they are not actually able to clone.
+                        if (StringConvertProvider.TryFromString(convertString, targetType, context, out clone))
+                            return true;
                     }
 
                     if (value is ICloneable cloneable)
