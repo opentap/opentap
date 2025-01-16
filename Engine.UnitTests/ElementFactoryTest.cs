@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -180,7 +179,7 @@ namespace OpenTap.UnitTests
             void AssertSweepsEqual(SweepRowCollection sweep1, SweepRowCollection sweep2)
             {
                 Assert.That(sweep1.Count, Is.EqualTo(numRows));
-                Assert.That(sweep1.Count, Is.EqualTo(sweep2.Count));
+                Assert.That(sweep2.Count, Is.EqualTo(numRows));
 
                 for (int i = 0; i < sweep1.Count; i++)
                 {
@@ -190,7 +189,7 @@ namespace OpenTap.UnitTests
                     {
                         var v1 = kvp.Value;
                         var v2 = d2.Values[kvp.Key];
-                        Assert.IsTrue(v1.Equals(v2));
+                        Assert.That(v1, Is.EqualTo(v2));
                     }
                 }
             }
@@ -199,38 +198,68 @@ namespace OpenTap.UnitTests
                 var sweep1 = (SweepRowCollection)plan.ExternalParameters.Entries[0].Value; 
                 var sweep2 = (SweepRowCollection)plan2.ExternalParameters.Entries[0].Value; 
                 AssertSweepsEqual(sweep1, sweep2);
-            }
+            } 
 
-            { /* test wrapping the test plan in a test plan reference step */
+            { 
                 var temp = Path.GetTempFileName();
+                TestPlanReference refStep;
                 try
                 {
-                    plan.Save(temp);
-                    var parentPlan = new TestPlan();
-                    var refStep = new TestPlanReference();
-                    parentPlan.ChildTestSteps.Add(refStep);
-                    refStep.Filepath = new MacroString() { Text = temp };
-                    refStep.LoadTestPlan();
-                    var ser2 = new TapSerializer() { IgnoreErrors = false };
-                    var parentPlanXml = ser2.SerializeToString(parentPlan);
-                    Assert.IsTrue(!ser2.Errors.Any());
-                    var parentPlan2 = ser2.DeserializeFromString(parentPlanXml) as TestPlan;
-                    Assert.IsTrue(!ser2.Errors.Any());
+                    { /* test wrapping the test plan in a test plan reference step */
+                        plan.Save(temp);
+                        var parentPlan = new TestPlan();
+                        refStep = new TestPlanReference();
+                        parentPlan.ChildTestSteps.Add(refStep);
+                        refStep.Filepath = new MacroString() { Text = temp };
+                        refStep.LoadTestPlan();
 
-                    var refStep2 = parentPlan2.ChildTestSteps[0] as TestPlanReference;
-                    refStep2.LoadTestPlan();
+                        var (parentPlan2, refStep2) = CloneRef(refStep);
+                        refStep2.LoadTestPlan();
 
-                    SweepRowCollection GetSweepRow(ITestStepParent p) => AnnotationCollection.Annotate(p).GetMember("Sweep Values").Get<IObjectValueAnnotation>().Value as SweepRowCollection;
-                    
-                    var sweep1 = GetSweepRow(refStep);
-                    var sweep2 = GetSweepRow(refStep2);
-                    
-                    AssertSweepsEqual(sweep1, sweep2);
+                        {
+                            var sweep1 = GetSweepRow(refStep);
+                            var sweep2 = GetSweepRow(refStep2);
+                            AssertSweepsEqual(sweep1, sweep2);
+                        }
+                        refStep2.LoadTestPlan();
+                        {
+                            var sweep1 = GetSweepRow(refStep);
+                            var sweep2 = GetSweepRow(refStep2);
+                            AssertSweepsEqual(sweep1, sweep2);
+                        }
+                    }
+                    { /* try adding new elements to the parameterized sweep and verify they are correctly serialized */
+                        var a = AnnotationCollection.Annotate(refStep);
+                        var sweepValues = a.GetMember("Sweep Values"); 
+                        var col = sweepValues.Get<ICollectionAnnotation>();
+                        var elem1 = col.NewElement();
+                        var delayMem = elem1.GetMember("Parameters \\ Time Delay");
+                        delayMem.Get<IObjectValueAnnotation>().Value = 123;
+                        col.AnnotatedElements = col.AnnotatedElements.Append(elem1);
+                        a.Write();
+
+                        var (_, refStep2) = CloneRef(refStep);
+                        numRows += 1;
+
+                        {
+                            var sweep1 = GetSweepRow(refStep);
+                            var sweep2 = GetSweepRow(refStep2);
+                            AssertSweepsEqual(sweep1, sweep2);
+                        }
+                        /* ensure the sweep changes are not lost after reloading */
+                        {
+                            refStep2.LoadTestPlan();
+                            var sweep1 = GetSweepRow(refStep);
+                            var sweep2 = GetSweepRow(refStep2);
+                            AssertSweepsEqual(sweep1, sweep2);
+                        }
+                    }
                 }
                 finally
                 {
                     File.Delete(temp);
                 }
+
             }
             { /* verify that there are no warnings or errors logged */
                 trace.Flush();
@@ -239,6 +268,18 @@ namespace OpenTap.UnitTests
                 Assert.That(trace.WarningMessage, Is.Empty);
                 Assert.That(trace.ErrorMessage, Is.Empty);
             }
+            static (TestPlan, TestPlanReference) CloneRef(TestPlanReference refStep)
+            {
+                var parentPlan = new TestPlan();
+                parentPlan.ChildTestSteps.Add(refStep);
+                var ser = new TapSerializer() { IgnoreErrors = false };
+                var xml = ser.SerializeToString(parentPlan);
+                Assert.That(ser.Errors, Is.Empty);
+                var plan2 = ser.DeserializeFromString(xml) as TestPlan;
+                Assert.That(ser.Errors, Is.Empty);
+                return (plan2, plan2.ChildTestSteps[0] as TestPlanReference);
+            }
+            static SweepRowCollection GetSweepRow(ITestStepParent p) => AnnotationCollection.Annotate(p).GetMember("Sweep Values").Get<IObjectValueAnnotation>().Value as SweepRowCollection;
         } 
     }
 }
