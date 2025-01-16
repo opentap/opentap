@@ -52,11 +52,8 @@ namespace OpenTap
                         strConvertSuccess = StringConvertProvider.TryGetString(value, out convertString);
                     if (strConvertSuccess == true)
                     {
-                        // Fall back to other clone methods if this fails.
-                        // This is required because misbehaving StringConvertProviders can return string values
-                        // for objects which they are not actually able to clone.
-                        if (StringConvertProvider.TryFromString(convertString, targetType, context, out clone))
-                            return true;
+                        clone = StringConvertProvider.FromString(convertString, targetType, context);
+                        return true;
                     }
 
                     if (value is ICloneable cloneable)
