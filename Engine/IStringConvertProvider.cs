@@ -683,7 +683,7 @@ namespace OpenTap
                         array.SetValue(item, idx++);
                     return array;
                 }
-                else if (type.GetConstructor(new Type[0]) != null)
+                else if (type.GetConstructor([]) != null)
                 {
                     object lst = Activator.CreateInstance(type);
                     var add = type.GetMethodsTap().First(m => m.Name == "Add");
@@ -703,11 +703,21 @@ namespace OpenTap
             /// <summary> Turns a value into a string, </summary>
             public string GetString(object value, CultureInfo culture)
             {
+                /* return null if we do not know how to construct this type.
+                 Another provider may be able to handle this, so this is fine.
+                 */
+                {
+                    var type = value?.GetType();
+                    if (type == null) return null;
+                    if (type.DescendsTo(typeof(string))) return null;
+                    if (type.IsArray == false && type.GetConstructor([]) == null) return null;
+                }
                 if (value is IEnumerable seq)
                 {
-                    bool isNumeric = true;
+                    bool isNumeric = false;
                     foreach (var elem in seq)
                     {
+                        isNumeric = true;
                         if (elem is Enum || Utils.IsNumeric(elem) == false)
                         {
                             isNumeric = false;

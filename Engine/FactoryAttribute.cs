@@ -27,7 +27,13 @@ namespace OpenTap
         internal static object Create(object ownerObj, IFactoryAttribute factoryAttribute)
         {
             var type = ownerObj.GetType();
-            return type.GetMethod(factoryAttribute.FactoryMethodName, BindingFlags.Instance |BindingFlags.Public | BindingFlags.NonPublic).Invoke(ownerObj, Array.Empty<object>());
+            var fac = type.GetMethod(factoryAttribute.FactoryMethodName,
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            // This is a bug, but showing this message in the log is much nicer than a null reference exception.
+            if (fac == null)
+                throw new Exception(
+                    $"Factory method '{factoryAttribute.FactoryMethodName}' not found on object of type '{type.FullName}'");
+            return fac.Invoke(ownerObj, []);
         }
     }
 

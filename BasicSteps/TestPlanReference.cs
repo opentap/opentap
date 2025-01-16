@@ -277,10 +277,11 @@ namespace OpenTap.Plugins.BasicSteps
                     if (currentSerializer != null)
                         newSerializer.GetSerializer<ExternalParameterSerializer>().PreloadedValues.MergeInto(currentSerializer.GetSerializer<ExternalParameterSerializer>().PreloadedValues);
                     var ext = newSerializer.GetSerializer<ExternalParameterSerializer>();
-                    ExternalParameters.ToList().ForEach(e =>
+                    foreach (var e in ExternalParameters)
                     {
-                        ext.PreloadedValues[e.Name] = StringConvertProvider.GetString(e.GetValue(plan));
-                    });
+                        if (StringConvertProvider.TryGetString(e.GetValue(plan), out var str))
+                            ext.PreloadedValues[e.Name] = str;
+                    }
 
                     CurrentMappings = allMapping;
 
