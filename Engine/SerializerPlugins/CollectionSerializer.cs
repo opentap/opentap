@@ -63,21 +63,44 @@ namespace OpenTap.Plugins
                             }
                         });
                     }
-                };
+                }; 
 
-                bool _memberTryGetValue(IParameterMemberData member, object source, out object memberValue)
+                bool tryGetFactory(out Func<IList> ctor)
                 {
-                    try
+                    var os = Serializer.SerializerStack
+                        .OfType<ObjectSerializer>()
+                        .FirstOrDefault();
+                    if (os?.CurrentMember is IMemberData member
+                        && member.GetAttribute<FactoryAttribute>() is {} fac
+                        && member.TypeDescriptor.DescendsTo(t))
                     {
-                        memberValue = member.GetValue(source);
-                        return true;
+                        if (member is MemberData && os.Object != null)
+                        {
+                            ctor = () => (IList)FactoryAttribute.Create(os.Object, fac);
+                            return true;
+                        }
+
+                        if (member is IParameterMemberData pmem)
+                        {
+                            ctor = () =>
+                            {
+                                if (!FactoryAttribute.TryCreateFromMember(pmem, fac, out var o))
+                                    throw new Exception(
+                                        $"Cannot create object of type '{pmem.TypeDescriptor.Name}' using factory '{fac.FactoryMethodName}'.");
+                                if (o is not IList lst)
+                                    throw new Exception(
+                                        $"Object constructed from factory '{fac.FactoryMethodName}' is not a list.");
+                                return lst;
+                            };
+                            return true;
+                        }
                     }
-                    catch
-                    {
-                        memberValue = null;
-                        return false;
-                    }
+
+                    ctor = null;
+                    return false;
                 }
+
+
                 if (element.IsEmpty)
                 {
                     try
@@ -85,17 +108,9 @@ namespace OpenTap.Plugins
                         var os = Serializer.SerializerStack
                             .OfType<ObjectSerializer>()
                             .FirstOrDefault();
-                        if (!_t.CanCreateInstance && !t.IsArray
-                                                  && os?.CurrentMember is MemberData member
-                                                  && member.GetAttribute<FactoryAttribute>() is FactoryAttribute factory
-                                                  && member.TypeDescriptor.DescendsTo(t))
+                        if (!_t.CanCreateInstance && !t.IsArray && tryGetFactory(out var f))
                         {
-                            setResult((IList)FactoryAttribute.Create(os.Object, factory));
-                        }
-                        else if (!_t.CanCreateInstance && os?.CurrentMember is IParameterMemberData pmd &&
-                                 _memberTryGetValue(pmd, os.Object, out var parameterValue))
-                        { 
-                            setResult(parameterValue);
+                            setResult(f());
                         }
                         else if (t.IsArray)
                         {
@@ -143,18 +158,13 @@ namespace OpenTap.Plugins
                         var os = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
                         var mem = os?.CurrentMember;
                         if (mem == null) throw new Exception("Unable to get member list");
-                        if (Serializer.SerializerStack
-                                .OfType<ObjectSerializer>()
-                                .FirstOrDefault()?.CurrentMember is MemberData member 
-                                && member.GetAttribute<FactoryAttribute>() is FactoryAttribute factory
-                                && member.TypeDescriptor.DescendsTo(t))
+                        /* First check if there is a factory we can use. */
+                        if (tryGetFactory(out var f))
                         {
-                            values = (IList)FactoryAttribute.Create(Serializer.SerializerStack
-                                .OfType<ObjectSerializer>()
-                                .FirstOrDefault()?.Object, factory);
+                            values = f();
                             this.Object = values;
-                        }
-                        else
+                        } 
+                        else /* otherwise try to update in place */
                         {
                             // the data has to be updated in-place.
                             var val = ((IEnumerable)mem.GetValue(os.Object)).Cast<object>();
@@ -173,6 +183,7 @@ namespace OpenTap.Plugins
                             return true;
                         }
                     }
+
                     if(this.Object != values)
                         this.Object = finalValues;
                     if (finalValues is ICombinedNumberSequence seq)
@@ -216,12 +227,7 @@ namespace OpenTap.Plugins
                         setResult(values);
                     });
                 }
-                else if (!_t.CanCreateInstance && !t.IsArray
-                                               && Serializer.SerializerStack
-                                                   .OfType<ObjectSerializer>()
-                                                   .FirstOrDefault()?.CurrentMember is MemberData member 
-                                               && member.GetAttribute<FactoryAttribute>() is FactoryAttribute factory
-                                               && member.TypeDescriptor.DescendsTo(t))
+                else if (!_t.CanCreateInstance && !t.IsArray && tryGetFactory(out _))
                 {
                     var lst = (IList)values;
                     foreach (var item in finalValues)
