@@ -1,7 +1,10 @@
+using System;
 using System.Collections.Generic;
+using System.Diagnostics.Tracing;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
+using OpenTap.EngineUnitTestUtils;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -123,11 +126,12 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
-        [TestCase(0)]
-        [TestCase(1)]
-        [TestCase(10)]
-        public void TestDeserializeParameterizedElements(int numRows)
+        public void TestDeserializeParameterizedElements([Values(0, 1, 10)] int numRows)
         {
+            using var s = Session.Create(SessionOptions.OverlayComponentSettings);
+            var trace = new TestTraceListener();
+            Log.AddListener(trace);
+
             var plan = new TestPlan();
             var sweep = new SweepParameterStep();
             var delay = new DelayStep();
@@ -192,8 +196,8 @@ namespace OpenTap.UnitTests
             }
 
             { /* verify parameters were correctly deserialized */
-                var sweep1 = (SweepRowCollection)plan.ExternalParameters.Entries.First().Value; 
-                var sweep2 = (SweepRowCollection)plan2.ExternalParameters.Entries.First().Value; 
+                var sweep1 = (SweepRowCollection)plan.ExternalParameters.Entries[0].Value; 
+                var sweep2 = (SweepRowCollection)plan2.ExternalParameters.Entries[0].Value; 
                 AssertSweepsEqual(sweep1, sweep2);
             }
 
@@ -227,6 +231,13 @@ namespace OpenTap.UnitTests
                 {
                     File.Delete(temp);
                 }
+            }
+            { /* verify that there are no warnings or errors logged */
+                trace.Flush();
+                trace.WarningMessage.RemoveAll(warn =>
+                    warn.StartsWith("Duplicate TEst packages detected.", StringComparison.OrdinalIgnoreCase));
+                Assert.That(trace.WarningMessage, Is.Empty);
+                Assert.That(trace.ErrorMessage, Is.Empty);
             }
         } 
     }
