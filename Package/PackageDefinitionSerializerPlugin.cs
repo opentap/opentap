@@ -228,15 +228,7 @@ namespace OpenTap.Package
                 return VersionSpecifier.Any;
             if (VersionSpecifier.TryParse(Version, out var semver))
             {
-                if (semver.MatchBehavior.HasFlag(VersionMatchBehavior.Exact))
-                    return semver;
-
-                return new VersionSpecifier(semver.Major,
-                    semver.Minor,
-                    semver.Patch,
-                    semver.PreRelease,
-                    semver.BuildMetadata, 
-                    VersionMatchBehavior.Compatible | VersionMatchBehavior.AnyPrerelease);
+                return semver;
             }
             // For compatability (pre 9.0 packages may not have correctly formatted version numbers)
             var plugins = PluginManager.GetPlugins<IVersionTryConverter>().Concat(PluginManager.GetPlugins<IVersionConverter>());

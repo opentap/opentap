@@ -575,7 +575,7 @@ namespace OpenTap.UnitTests
         }
         public MixinMemberData ToDynamicMember(ITypeData targetType)
         {
-            return new MixinMemberData(this, () => 0)
+            return new MixinMemberData(this, () => 0.0)
             {
                 TypeDescriptor = TypeData.FromType(typeof(double)),
                 Attributes = GetAttributes().ToArray(),
@@ -595,4 +595,3 @@ namespace OpenTap.UnitTests
         }
     }
 }
-
