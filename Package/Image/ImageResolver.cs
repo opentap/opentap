@@ -414,8 +414,7 @@ namespace OpenTap.Package
 
         public override string Description()
         {
-            return "The following required packages do not exist: " + string.Join(", ", this.Packages.Select(p => p.Name)) + "\n" +
-                "Please verify your configured repositories, or check if a prerelease exists.";
+            return "The following required packages do not exist: " + string.Join(", ", this.Packages.Select(p => p.Name));
         }
     }
 
@@ -470,7 +469,9 @@ namespace OpenTap.Package
 
         public override string ToString()
         {
-            return $"Unable to resolve image '{image}':\n" + resolveProblems.Description();
+            string packages = $"Packages: {image}";
+            string repositories = image.Repositories.Any() ? $" from {string.Join(", ", image.Repositories)}" : "";
+            return $"{resolveProblems.Description()} ({packages}{repositories})";
         }
     }
 }

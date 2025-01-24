@@ -64,9 +64,7 @@ namespace OpenTap.Package
                     }
                 }
 
-                return $"Unable to resolve the packages: {Image}.\n" +
-                       $"This is probably due to:\n" +
-                       $"{sb}";
+                return $"{sb} ({Image} from {string.Join(", ", Image.Repositories)})";
             }
 
             return Result.ToString();
