@@ -178,9 +178,9 @@ namespace OpenTap.Package
                     // A beta version strikes a good middle ground. It is pretty likely to resolve, and probably won't be too unstable.
                     if (NonInteractive) throw;
                     if (Packages.Length != 1) throw;
-                    if (fir.resolveProblems.Count != 1) throw;
+                    if (fir.Problem.Count != 1) throw;
 
-                    var problem = fir.resolveProblems[0];
+                    var problem = fir.Problem[0];
                     if (problem.Version != VersionSpecifier.AnyRelease) throw;
                     // Only show the beta option if the resolution problem was with the package we are trying to install
                     if (problem.Name != Packages[0]) throw;
@@ -471,8 +471,8 @@ namespace OpenTap.Package
                 }
 
                 // If the problem is not generic, then there are additional details about the resolution problem.
-                if (ex.Result is FailedImageResolution f && f.resolveProblems is not GenericResolutionProblem)
-                    log.Info(f.resolveProblems.Description());
+                if (ex.Result is FailedImageResolution f && f.Problem is not GenericResolutionProblem)
+                    log.Info(f.Problem.Description());
 
                 Log.Debug("{0}", ex.Message);
                 return (int)ExitCodes.PackageResolutionError;

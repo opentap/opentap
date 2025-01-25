@@ -43,7 +43,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Unlockes the package action to allow multiple running at the same time.
         /// </summary>
-        public bool Unlocked { get; set; }
+        public virtual bool Unlocked { get; set; }
 
         /// <summary>
         /// The location to apply the command to. The default is the location of OpenTap.PackageManager.exe
@@ -98,11 +98,12 @@ namespace OpenTap.Package
                 }
                 FileSystemHelper.EnsureDirectoryOf(Target);
             }
-
-            var lockfile = Path.Combine(Target, ".lock");
-            FileSystemHelper.EnsureDirectoryOf(lockfile);
-            using var fileLock = FileLock.Create(lockfile);
             bool useLocking = Unlocked == false;
+            var lockfile = Path.Combine(Target, ".lock");
+            if(useLocking)
+                FileSystemHelper.EnsureDirectoryOf(lockfile);
+            using var fileLock = useLocking ? FileLock.Create(lockfile) : null;
+            
             if (useLocking && !fileLock.WaitOne(0))
             {
                 log.Info("Waiting for other package manager operation to complete.");

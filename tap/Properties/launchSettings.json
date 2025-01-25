@@ -14,7 +14,7 @@
     },
     "tap (commands)": {
       "commandName": "Project"
-    },
+    }, 
     "tap (run)": {
       "commandName": "Project",
       "commandLineArgs": "run ../../tests/RepeatOutputCompare.TapPlan"
@@ -22,6 +22,10 @@
     "tap (profile)": {
       "commandName": "Project",
       "commandLineArgs": "profile --test OpenTap.UnitTests.ScopeParametersTest.TestIsParameterized"
+    },
+    "tap license resolve": {
+      "commandName": "Project",
+      "commandLineArgs": "image install \"OpenTAP:9-alpha, Basic Mixins:0-beta, Editor:9.27-rc\" --dry-run -t ../test --os Windows --architecture x64 --no-isolation" 
     }
   }
 }
