@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
+using OpenTap.Package.FilesInUse;
 
 namespace OpenTap.Package
 {
@@ -75,20 +76,26 @@ namespace OpenTap.Package
 
                         log.Info(timer, $"Installed {pkg.Name} version {pkg.Version}");
 
-                        if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
+                        if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) &&
+                            PackagePaths.Last() != fileName)
                         {
-                            var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t)).Where(t => t.BaseType == nameof(ICustomPackageData));
-                            if (newPlugins.Any(np => TypeData.GetTypeData(np.Name) == null))  // Only search again, if the new plugins are not already loaded.
+                            var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t))
+                                .Where(t => t.BaseType == nameof(ICustomPackageData));
+                            if (newPlugins.Any(np =>
+                                    TypeData.GetTypeData(np.Name) ==
+                                    null)) // Only search again, if the new plugins are not already loaded.
                             {
                                 if (ExecutorClient.IsRunningIsolated)
                                 {
                                     // Only load installed assemblies if we're running isolated. 
-                                    log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
+                                    log.Info(timer,
+                                        $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
                                     PluginManager.DirectoriesToSearch.Add(TapDir);
                                     PluginManager.SearchAsync();
                                 }
                                 else
-                                    log.Warning($"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
+                                    log.Warning(
+                                        $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
                             }
                         }
                     }
@@ -97,9 +104,11 @@ namespace OpenTap.Package
                         if (!ForceInstall)
                         {
                             if (PackagePaths.Last() != fileName)
-                                log.Warning("Aborting installation of remaining packages (use --force to override this behavior).");
+                                log.Warning(
+                                    "Aborting installation of remaining packages (use --force to override this behavior).");
                             PackageDef failedPackage = PackageDef.FromPackage(fileName);
-                            throw new ExitCodeException((int)PackageExitCodes.PackageInstallError, $"Package failed to install: {failedPackage.Name} version {failedPackage.Version} ({fileName})");
+                            throw new ExitCodeException((int)PackageExitCodes.PackageInstallError,
+                                $"Package failed to install: {failedPackage.Name} version {failedPackage.Version} ({fileName})");
                         }
                         else
                         {
@@ -121,6 +130,10 @@ namespace OpenTap.Package
                 OnError(ex);
                 throw new ExitCodeException((int)PackageExitCodes.PackageInstallError, $"Failed to install packages");
             }
+            finally
+            {
+                postInstallHook();
+            }
 
             Installation installation = new Installation(TapDir);
             installation.AnnouncePackageChange();
@@ -140,7 +153,18 @@ namespace OpenTap.Package
 
         internal int RunCommand(string command, bool force, bool modifiesPackageFiles)
         {
-            var verb = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(command.ToLower()) + "ed";
+            string titlecase(string str) => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(str);
+            
+            var verb = titlecase(command.ToLower()) + "ed";
+            // Example usages:
+            // "Tried to {commandFriendlyName} {pkg.Name}, but there was nothing to do."
+            // "There was an error while trying to {commandFriendlyName} '{pkg.Name}'."
+            var commandFriendlyName = command; 
+            if (string.Equals(command, PrepareUninstall, StringComparison.OrdinalIgnoreCase))
+            {
+                verb = "Prepared to Uninstall";
+                commandFriendlyName = "prepare uninstalling";
+            } 
 
             try
             {
@@ -170,8 +194,8 @@ namespace OpenTap.Package
                 foreach (string fileName in PackagePaths)
                 {
                     PackageDef pkg = PackageDef.FromXml(fileName);
-                    pkg.PackageSource = new XmlPackageDefSource{PackageDefFilePath = fileName};
-                    
+                    pkg.PackageSource = new XmlPackageDefSource { PackageDefFilePath = fileName };
+
                     OnProgressUpdate((int)progressPercent, $"Running command '{command}' on '{pkg.Name}'");
                     Stopwatch timer = Stopwatch.StartNew();
                     var res = pi.ExecuteAction(pkg, command, force, TapDir);
@@ -181,20 +205,21 @@ namespace OpenTap.Package
                         if (!force)
                         {
                             OnProgressUpdate(100, "Done");
-                            return (int) ExitCodes.GeneralException;
+                            return (int)ExitCodes.GeneralException;
                         }
                         else
-                            log.Warning($"There was an error while trying to {command} '{pkg.Name}'.");
+                            log.Warning($"There was an error while trying to {commandFriendlyName} '{pkg.Name}'.");
                     }
-                    else if(res == ActionResult.NothingToDo)
+                    else if (res == ActionResult.NothingToDo)
                     {
-                        log.Debug($"Tried to {command} {pkg.Name}, but there was nothing to do.");
+                        log.Debug($"Tried to {commandFriendlyName} {pkg.Name}, but there was nothing to do.");
                     }
                     else
                         log.Info(timer, $"{verb} {pkg.Name} version {pkg.Version}.");
 
                     progressPercent += (double)80 / PackagePaths.Count();
                 }
+
                 OnProgressUpdate(90, "");
 
                 if (DoSleep)
@@ -215,7 +240,11 @@ namespace OpenTap.Package
                     return (int)ExitCodes.UserCancelled;
 
                 log.Debug(ex);
-                return (int) ExitCodes.GeneralException;
+                return (int)ExitCodes.GeneralException;
+            }
+            finally
+            {
+                postInstallHook();
             }
 
             new Installation(TapDir).AnnouncePackageChange();
@@ -251,8 +280,80 @@ namespace OpenTap.Package
             return filesInUse.ToArray();
         }
 
+        private Action postInstallHook = () => { };
+
+        private void WaitForPacakgeFilesFreeWindows(List<string> packagePaths)
+        {
+            var rm = new RestartManager();
+            var allfiles = packagePaths.SelectMany(PluginInstaller.FilesInPackage).ToArray();
+            rm.RegisterFiles(allfiles);
+
+            string processName(Process p)
+            {
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(p.MainWindowTitle))
+                        return p.MainWindowTitle;
+                }
+                catch
+                {
+                    // ignore
+                }
+
+                return p.ProcessName;
+            }
+            retry:
+            var procs = rm.GetProcessesUsingFiles();
+            if (procs.Count == 0)
+                return;
+            var msg = new StringBuilder();
+            msg.AppendLine("The following applications are blocking the installation:");
+            var procString = string.Join("", procs.Select(p => $"\n - {processName(p)} (PID: {p.Id})"));
+            msg.AppendLine(procString);
+            msg.AppendLine("\nPlease close these applications and try again.");
+
+            var req = new AbortOrShutdownRequest("Files In Use", msg.ToString());
+            UserInput.Request(req);
+            if (req.Response == AbortOrRetryOrShutdownResponse.Retry) goto retry;
+            if (req.Response == AbortOrRetryOrShutdownResponse.Abort) return;
+
+            var shutdownEvent = new ManualResetEventSlim(false);
+            rm.Shutdown(pct =>
+            {
+                if (pct >= 100)
+                    shutdownEvent.Set();
+            }, req.ForceClose);
+            log.Info($"Waiting for applications to close...");
+            if (!shutdownEvent.Wait(TimeSpan.FromSeconds(3)))
+            { 
+                string orForce = req.ForceClose ? "" : ", or retry with force"
+                log.Error($"Timed out waiting for applications to close. Please manually close the applications{orForce}.");
+                goto retry;
+            }
+            log.Info($"Applications closed successfully.");
+
+            postInstallHook = () =>
+            {
+                rm?.Restart(null);
+                rm?.Dispose();
+                rm = null;
+            };
+        }
         private void WaitForPackageFilesFree(string tapDir, List<string> packagePaths)
         {
+            var noninteractive = UserInput.GetInterface() is NonInteractiveUserInputInterface;
+            if (OperatingSystem.Current == OperatingSystem.Windows && noninteractive == false)
+            {
+                try
+                {
+                    WaitForPacakgeFilesFreeWindows(packagePaths);
+                    return;
+                }
+                catch
+                {
+                    // fallback to old logic -- This should never happen, but we should try to be safe..
+                }
+            }
             var filesInUse = GetFilesInUse(tapDir, packagePaths);
 
             if (filesInUse.Length > 0)
@@ -274,7 +375,6 @@ namespace OpenTap.Package
                 var tries = 0;
                 const int maxTries = 10;
                 var delaySeconds = 3;
-                var noninteractive = UserInput.GetInterface() is NonInteractiveUserInputInterface;
                 var inUseString = BuildString(filesInUse);
                 if (noninteractive)
                     log.Warning(inUseString);
@@ -425,5 +525,36 @@ namespace OpenTap.Package
         public string Message { get; }
         [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
         [Submit] public AbortOrRetryResponse Response { get; set; }
+    }
+    enum AbortOrRetryOrShutdownResponse
+    {
+        Abort,
+        Retry,
+        [Display("Close Applications")]
+        AutomaticallyClose,
+    }
+
+    class AbortOrShutdownRequest
+    {
+        public AbortOrShutdownRequest(string title, string message)
+        {
+            Message = message;
+            Name = title;
+        }
+        
+        [Browsable(false)] public string Name { get; } 
+
+        [Browsable(true)]
+        [Layout(LayoutMode.FullRow)]
+        [Display("Message", Order: 1)]
+        public string Message { get; }
+
+        [Display("Force Close Applications?", 
+            "This can lead to loss of data. Please ensure the above applications can be closed safely at this time.",
+            Order: 2)]
+        public bool ForceClose { get; set; } = false;
+        
+        [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+        [Submit] public AbortOrRetryOrShutdownResponse Response { get; set; }
     }
 }
