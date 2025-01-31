@@ -2,7 +2,7 @@
     <PropertyGroup>
         <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
         <TargetFrameworkVersion></TargetFrameworkVersion>
-        <TargetFramework>net8</TargetFramework>
+        <TargetFramework>net9</TargetFramework>
     </PropertyGroup>
     
   <PropertyGroup>

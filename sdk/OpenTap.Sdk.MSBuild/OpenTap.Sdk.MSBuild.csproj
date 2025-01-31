@@ -4,7 +4,7 @@
     <RootNamespace>Keysight.OpenTap.Sdk.MSBuild</RootNamespace>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <TargetFramework>net8</TargetFramework>
+    <TargetFramework>net9</TargetFramework>
     <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
     <TargetFrameworkVersion></TargetFrameworkVersion>
   </PropertyGroup>
