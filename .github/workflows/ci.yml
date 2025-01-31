@@ -226,7 +226,7 @@ jobs:
     runs-on: [self-hosted, windows]
     strategy:
       matrix:
-        Architecture: [x86, x64]
+        Architecture: [ x64] #x86,
     needs: GetVersion
     steps:
       - name: Checkout
