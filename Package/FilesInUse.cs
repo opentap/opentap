@@ -99,7 +99,7 @@ internal class RestartManager : IDisposable
             return status;
         } 
         
-        public static bool TryGetProcesses(DWORD sessionHandle, out List<Process> processes)
+        public static bool TryGetProcesses(DWORD sessionHandle, out List<ProcessObject> processes)
         {
             processes = new();
             
@@ -124,7 +124,7 @@ internal class RestartManager : IDisposable
                     try
                     {
                         var proc = Process.GetProcessById(pid);
-                        processes.Add(proc);
+                        processes.Add(new ProcessObject(proc, rgpi.bRestartable != 0));
                     }
                     catch
                     {
@@ -155,7 +155,36 @@ internal class RestartManager : IDisposable
         Interop.RegisterResources(sessionId, paths);
     }
 
-    public List<Process> GetProcessesUsingFiles()
+    public struct ProcessObject
+    {
+        public ProcessObject(Process process, bool restartable)
+        {
+            Process = process;
+            Restartable = restartable;
+        }
+
+        public Process Process { get; }
+        public bool Restartable { get; }
+        public override string ToString()
+        {
+            var prettyName = Process.ProcessName;
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(Process.MainWindowTitle))
+                    prettyName = Process.MainWindowTitle;
+            }
+            catch
+            {
+                // ignore
+            }
+
+            var prefix = Restartable ? "* " : "";
+            var postfix = $" (PID: {Process.Id})";
+
+            return prefix + prettyName + postfix;
+        }
+    }
+    public List<ProcessObject> GetProcessesUsingFiles()
     {
         if (OperatingSystem.Current != OperatingSystem.Windows) return [];
         Interop.TryGetProcesses(sessionId, out var procs);
@@ -255,7 +284,7 @@ internal class TestFilesInUseCliAction : ICliAction
             if (evt.Wait(0))
                 break;
             var procs2 = rm.GetProcessesUsingFiles();
-            var procString = string.Join("\n\t", procs2.Select(p => $"{p.ProcessName} ({p.Id})"));
+            var procString = string.Join("\n\t", procs2.Select(p => p.ToString()));
             log.Info($"Waiting for processes to shut down:\n{procString}");
         }
         rm.Shutdown(prog =>
