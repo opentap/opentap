@@ -288,28 +288,15 @@ namespace OpenTap.Package
             var allfiles = packagePaths.SelectMany(PluginInstaller.FilesInPackage).ToArray();
             rm.RegisterFiles(allfiles);
 
-            string processName(Process p)
-            {
-                try
-                {
-                    if (!string.IsNullOrWhiteSpace(p.MainWindowTitle))
-                        return p.MainWindowTitle;
-                }
-                catch
-                {
-                    // ignore
-                }
-
-                return p.ProcessName;
-            }
             retry:
             var procs = rm.GetProcessesUsingFiles();
             if (procs.Count == 0)
                 return;
             var msg = new StringBuilder();
             msg.AppendLine("The following applications are blocking the installation:");
-            var procString = string.Join("", procs.Select(p => $"\n - {processName(p)} (PID: {p.Id})"));
+            var procString = string.Join("", procs.Select(p => $"\n - {p}"));
             msg.AppendLine(procString);
+            msg.AppendLine("\n*: Can be automatically restarted.");
             msg.AppendLine("\nPlease close these applications and try again.");
 
             var req = new AbortOrShutdownRequest("Files In Use", msg.ToString());
@@ -325,8 +312,8 @@ namespace OpenTap.Package
             }, req.ForceClose);
             log.Info($"Waiting for applications to close...");
             if (!shutdownEvent.Wait(TimeSpan.FromSeconds(3)))
-            { 
-                string orForce = req.ForceClose ? "" : ", or retry with force"
+            {
+                string orForce = req.ForceClose ? "" : ", or retry with force";
                 log.Error($"Timed out waiting for applications to close. Please manually close the applications{orForce}.");
                 goto retry;
             }
