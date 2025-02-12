@@ -209,7 +209,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
       - name: Copy Debug Package 
@@ -236,6 +236,11 @@ jobs:
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
+      - name: Check .NET SDKS 
+        run: dotnet --list-sdks     
+      - name: Check .NET info 
+        run: dotnet --info     
+
       - name: Stamp Version
         run: |
           $AssemblyVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}.0`""
@@ -256,7 +261,7 @@ jobs:
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
-          name: win-${{ matrix.Architecture }}-bin
+          name: win-${{ matrix.architecture }}-bin
           retention-days: 5
           path: |
             bin/Release/*
@@ -274,7 +279,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
       - name: Copy Debug Package 
@@ -334,8 +339,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
-          cd bin/Release                                                                                                                            # Timeout: 10 minutes (normally takes 5 minutes to run)
-          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=600000 RunConfiguration.TreatNoTestsAsError=true
+          cd bin/Release                                                                       # Timeout: 10 minutes (normally takes 5 minutes to run)
+          dotnet vstest OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=600000 RunConfiguration.TreatNoTestsAsError=true
 
   TestWindowsPlan:
     runs-on: windows-2022
@@ -390,7 +395,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
@@ -420,7 +425,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
@@ -540,6 +545,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
@@ -987,7 +996,7 @@ jobs:
   ### Publish ###
   ###############
   Publish-NuGet:
-    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    # if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
     runs-on: [self-hosted, windows]
     needs:
@@ -1017,7 +1026,7 @@ jobs:
         run: dotnet nuget push OpenTAP.Templates*.nupkg -k ${{ secrets.NUGET_KEY }} -s https://api.nuget.org/v3/index.json # --skip-duplicate --no-symbols
 
   Publish-TapPackages:
-    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    # if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: packages.opentap.io
     runs-on:
       group: OpenTAP-SpokeVPC
