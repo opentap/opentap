@@ -277,6 +277,99 @@ namespace OpenTap.Package
             }
         }
 
+        /// <summary>
+        /// This functions takes the versions which are compatible with the dependencies of the other specified versions.
+        /// Writes directly to 'versions'. Returns the number of valid elements.
+        /// </summary>
+        public int PruneAvailableVersions(string pkgName, SemanticVersion[] versions, PackageSpecifier[] others,
+            PackageSpecifier[] fixedPackages)
+        {
+            
+            int count = versions.Length;
+            if (name2Id.TryGetValue(pkgName, out var Id))
+            {
+                foreach (var o in others.Concat(fixedPackages))
+                {
+                    if (!o.Version.IsExact)
+                        continue;
+                    if (name2Id.TryGetValue(o.Name, out var id2) && o.Version.TryAsExactSemanticVersion(out var v2))
+                    {
+                        if (dependencies.TryGetValue((id2, GetVersionId(v2)), out var deps2))
+                        {
+                            
+                            foreach (var pair in deps2)
+                            {
+                                if (pair.packageNameId == Id)
+                                {
+                                    var depVersionSpec = versionSpecifierLookup[pair.versionSpecifierId];
+                                    int j = 0;
+                                    for (int i = 0; i < count; i++)
+                                    {
+                                        var v = versions[i];
+                                        if (depVersionSpec.IsCompatible(v))
+                                        {
+                                            versions[j] = v;
+                                            j++;
+                                        }
+                                    }
+
+                                    count = j;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                {
+                    int j = 0;
+                    for (int i = 0; i < count; i++)
+                    {
+                        if (dependencies.TryGetValue((Id, GetVersionId(versions[i])), out var deps))
+                        {
+
+                            foreach (var dep in deps)
+                            {
+                                var depVersion = versionSpecifierLookup[dep.Item2];
+                                var depName = nameLookup[dep.Item1];
+                                var o = others.FirstOrDefault(x => x.Name == depName);
+                                if (o == null)
+                                    continue;
+                                if (depVersion.IsSatisfiedBy(o.Version) == false &&
+                                    o.Version.IsSatisfiedBy(depVersion) == false)
+                                    goto next;
+                                var o2 = fixedPackages.FirstOrDefault(x => x.Name == depName);
+                                if (o2 == null)
+                                    continue;
+                                if (depVersion.IsSatisfiedBy(o.Version) == false && o2.Version.IsSatisfiedBy(depVersion) == false)
+                                    goto next;
+                                if (!CouldSatisfy(depName, depVersion, others, []))
+                                {
+                                    goto next;
+                                }
+                            }
+
+                          
+                        }
+                        versions[j] = versions[i];
+                        j++;
+
+
+                        next: ;
+
+                    }
+
+                    if (j < count)
+                    {
+                        
+                    }
+                    count = j;
+                    
+                }
+            }
+
+            return count;
+        }
+
         public bool CouldSatisfy(string pkgName, VersionSpecifier version, PackageSpecifier[] others, PackageSpecifier[] fixedPackages)
         {
             // we only do this if version can actually be interpreted as a semantic version.
