@@ -277,10 +277,19 @@ namespace OpenTap.Plugins.BasicSteps
                     if (currentSerializer != null)
                         newSerializer.GetSerializer<ExternalParameterSerializer>().PreloadedValues.MergeInto(currentSerializer.GetSerializer<ExternalParameterSerializer>().PreloadedValues);
                     var ext = newSerializer.GetSerializer<ExternalParameterSerializer>();
-                    ExternalParameters.ToList().ForEach(e =>
+                    foreach (var e in ExternalParameters)
                     {
-                        ext.PreloadedValues[e.Name] = StringConvertProvider.GetString(e.GetValue(plan));
-                    });
+                        /* If the value can be converted to/from a string, do so */
+                        if (StringConvertProvider.TryGetString(e.GetValue(plan), out var str))
+                        {
+                            ext.PreloadedValues[e.Name] = str;
+                        }
+                        /* otherwise, write a null value to ensure the current value is not overwritten in the serializer. We can write it back later. */
+                        else
+                        {
+                            ext.PreloadedValues[e.Name] = null;
+                        }
+                    }
 
                     CurrentMappings = allMapping;
 
@@ -300,7 +309,23 @@ namespace OpenTap.Plugins.BasicSteps
                         }
                     }
 
-                    ExternalParameters = TypeData.GetTypeData(tp).GetMembers().OfType<ParameterMemberData>().ToArray();
+                    { /* write back any parameters that could not be converted to a string */
+                        var newParameters = TypeData.GetTypeData(tp).GetMembers().OfType<ParameterMemberData>()
+                            .ToArray();
+                        ILookup<string, ParameterMemberData> lookup = null;
+                        foreach (var par in newParameters)
+                        {
+                            if (par.GetValue(plan) == null)
+                            {
+                                lookup ??= ExternalParameters.ToLookup(m => m.Name);
+                                var prevParameter = lookup[par.Name].FirstOrDefault();
+                                if (prevParameter != null)
+                                    par.SetValue(plan, prevParameter.GetValue(plan));
+                            }
+                        }
+                        ExternalParameters = newParameters;
+                    }
+
 
                     var flatSteps = Utils.FlattenHeirarchy(tp.ChildTestSteps, x => x.ChildTestSteps);
 

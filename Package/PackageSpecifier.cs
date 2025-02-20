@@ -356,9 +356,17 @@ namespace OpenTap.Package
                 if (Minor.HasValue && Minor.Value == actualVersion.Minor)
                     if (Patch.HasValue && Patch.Value < actualVersion.Patch)
                         return true;
+
+                // In short: We want ^1 to accept 1.x.x-beta
+                // In long: If minor and patch are not specified, then this version specifier is underdetermined.
+                // If the prerelease is also not specified that means the version specifier should be satisfiable by
+                // any prerelease within the appropriate major.
+                if (PreRelease == null && !Minor.HasValue && !Patch.HasValue && Major.HasValue &&
+                    Major.Value == actualVersion.Major)
+                    return true;
             }
 
-            if (0 < new SemanticVersion(0, 0, 0, PreRelease, null).CompareTo(new SemanticVersion(0, 0, 0, actualVersion.PreRelease, null)))
+            if (0 < ComparePreRelease(PreRelease, actualVersion.PreRelease))
                 return false;
             return true;
         }
@@ -421,7 +429,7 @@ namespace OpenTap.Package
             
             public int Compare(SemanticVersion a, SemanticVersion b)
             {
-                // If pre-releases are not wanted, put them at the very last.
+                // If pre-releases are not wanted, order them according to stability. E.g. alphas go at the end
                 if (pkg.PreRelease == null && (a.PreRelease != null || b.PreRelease != null))
                 {
                     if (a.PreRelease == null && b.PreRelease != null) return -1;
@@ -443,14 +451,45 @@ namespace OpenTap.Package
                 {
                     var m = a.Patch.CompareTo(b.Patch);
                     if (m != 0) return m;
-                }
+                } 
 
+                // If no prerelease is specified, prefer the most "stable" version
+                // e.g. release > rc > beta > alpha, preferring newer versions
+                if (pkg.PreRelease == null)
+                    return CompareStability(a, b); 
+                
+                // Otherwise just sort by prerelease
                 if (a.PreRelease == b.PreRelease) return 0;
                 if (a.PreRelease == null && b.PreRelease != null) return 1;
-                if (a.PreRelease != null && b.PreRelease == null) return -1;
-
+                if (a.PreRelease != null && b.PreRelease == null) return -1; 
                 return ComparePreRelease(a.PreRelease, b.PreRelease);
             }
+        }
+
+        private static int CompareStability(SemanticVersion a, SemanticVersion b)
+        {
+            // If neither is a prerelease, assume the newest version is the most stable
+            if (a.PreRelease == null && b.PreRelease == null) return b.CompareTo(a);
+            
+            // Prefer releases over everything else
+            if (a.PreRelease == null && b.PreRelease != null) return -1;
+            if (a.PreRelease != null && b.PreRelease == null) return 1;
+            
+            string kind(string prerelease)
+            {
+                var idx = prerelease.IndexOf('.');
+                if (idx == -1) idx = prerelease.Length;
+                return prerelease.Substring(0, idx);
+            }
+
+            // Prefer rc > beta > alpha
+            var k1 = kind(a.PreRelease);
+            var k2 = kind(b.PreRelease);
+            var c = string.Compare(k2, k1, StringComparison.Ordinal);
+            if (c != 0) return c;
+
+            // Otherwise prefer the highest version number
+            return b.CompareTo(a);
         }
 
         /// <summary>
@@ -463,7 +502,7 @@ namespace OpenTap.Package
         internal bool IsExact => MatchBehavior == VersionMatchBehavior.Exact && Major.HasValue && Minor.HasValue &&
                                Patch.HasValue;
 
-        private static int ComparePreRelease(string p1, string p2)
+        internal static int ComparePreRelease(string p1, string p2)
         {
             if (p1 == p2) return 0;
 
