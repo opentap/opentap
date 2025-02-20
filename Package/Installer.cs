@@ -12,13 +12,12 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
-using OpenTap.Package.FilesInUse;
 
 namespace OpenTap.Package
 {
     internal class Installer
     {
-        private readonly static TraceSource log =  OpenTap.Log.CreateSource("Installer");
+        private static readonly TraceSource log =  OpenTap.Log.CreateSource("Installer");
         private CancellationToken cancellationToken;
 
         internal delegate void ProgressUpdateDelegate(int progressPercent, string message);
@@ -284,47 +283,23 @@ namespace OpenTap.Package
 
         private void WaitForPacakgeFilesFreeWindows(List<string> packagePaths)
         {
-            var rm = new RestartManager();
             var allfiles = packagePaths.SelectMany(PluginInstaller.FilesInPackage).ToArray();
-            rm.RegisterFiles(allfiles);
 
             retry:
-            var procs = rm.GetProcessesUsingFiles();
+            var procs = RestartManager.GetProcessesUsingFiles(allfiles);
             if (procs.Count == 0)
                 return;
             var msg = new StringBuilder();
             msg.AppendLine("The following applications are blocking the installation:");
             var procString = string.Join("", procs.Select(p => $"\n - {p}"));
             msg.AppendLine(procString);
-            msg.AppendLine("\n*: Can be automatically restarted.");
             msg.AppendLine("\nPlease close these applications and try again.");
 
             var req = new AbortOrShutdownRequest("Files In Use", msg.ToString());
             UserInput.Request(req);
-            if (req.Response == AbortOrRetryOrShutdownResponse.Retry) goto retry;
-            if (req.Response == AbortOrRetryOrShutdownResponse.Abort) return;
-
-            var shutdownEvent = new ManualResetEventSlim(false);
-            rm.Shutdown(pct =>
-            {
-                if (pct >= 100)
-                    shutdownEvent.Set();
-            }, req.ForceClose);
-            log.Info($"Waiting for applications to close...");
-            if (!shutdownEvent.Wait(TimeSpan.FromSeconds(3)))
-            {
-                string orForce = req.ForceClose ? "" : ", or retry with force";
-                log.Error($"Timed out waiting for applications to close. Please manually close the applications{orForce}.");
+            if (req.Response == AbortOrRetryOrShutdownResponse.Retry) 
                 goto retry;
-            }
-            log.Info($"Applications closed successfully.");
-
-            postInstallHook = () =>
-            {
-                rm?.Restart(null);
-                rm?.Dispose();
-                rm = null;
-            };
+            // else abort
         }
         private void WaitForPackageFilesFree(string tapDir, List<string> packagePaths)
         {
@@ -517,8 +492,6 @@ namespace OpenTap.Package
     {
         Abort,
         Retry,
-        [Display("Close Applications")]
-        AutomaticallyClose,
     }
 
     class AbortOrShutdownRequest
