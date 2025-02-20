@@ -10,6 +10,8 @@ public class TestRestartManager
     [Test]
     public void TestFilesInUseDetected()
     {
+        // RestartManager only exists on windows
+        if (OperatingSystem.Current != OperatingSystem.Windows) return;
         var file = Path.GetTempFileName();
         try
         {
