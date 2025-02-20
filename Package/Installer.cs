@@ -299,7 +299,11 @@ namespace OpenTap.Package
             UserInput.Request(req);
             if (req.Response == AbortOrRetryOrShutdownResponse.Retry) 
                 goto retry;
-            // else abort
+            else if (req.Response == AbortOrRetryOrShutdownResponse.Abort)
+            {
+                OnError(new IOException(msg.ToString()));
+                throw new OperationCanceledException(); 
+            }
         }
         private void WaitForPackageFilesFree(string tapDir, List<string> packagePaths)
         {
@@ -311,9 +315,13 @@ namespace OpenTap.Package
                     WaitForPacakgeFilesFreeWindows(packagePaths);
                     return;
                 }
-                catch
+                catch (OperationCanceledException)
                 {
-                    // fallback to old logic -- This should never happen, but we should try to be safe..
+                    throw;
+                }
+                catch 
+                {
+                    // fallback to old logic -- This shouldn't happen, but let's be safe.
                 }
             }
             var filesInUse = GetFilesInUse(tapDir, packagePaths);
@@ -509,11 +517,6 @@ namespace OpenTap.Package
         [Display("Message", Order: 1)]
         public string Message { get; }
 
-        [Display("Force Close Applications?", 
-            "This can lead to loss of data. Please ensure the above applications can be closed safely at this time.",
-            Order: 2)]
-        public bool ForceClose { get; set; } = false;
-        
         [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
         [Submit] public AbortOrRetryOrShutdownResponse Response { get; set; }
     }

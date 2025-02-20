@@ -245,10 +245,9 @@ internal class RestartManager : IDisposable
                 // ignore
             }
 
-            var prefix = Restartable ? "* " : "";
-            var postfix = $" (PID: {Process.Id})";
+            var postfix = $" (Process ID: {Process.Id})";
 
-            return prefix + prettyName + postfix;
+            return prettyName + postfix;
         }
     }
 
