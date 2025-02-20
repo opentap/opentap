@@ -284,7 +284,8 @@ namespace OpenTap.Package
                     versions.Sort();
                     // any version -> take the newest first.
                     versions.Reverse();
-                }else if(pkg.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Exact))
+                }
+                else if(pkg.Version.MatchBehavior.HasFlag(VersionMatchBehavior.Exact))
                 {
                     //exact may be more than one version, even though the match behavior is 'exact'.
                     // for example OpenTAP '9.17' is exact, but many versions matches that.

@@ -668,6 +668,48 @@ Remember, adhering to the correct syntax is crucial for the expressions to evalu
 
    Example: `The number is {1 + 2}.` becomes "The number is 3."
 
+### Extending Expressions with Custom Functions
+
+Expressions can be extended with new functions by plugins. This is done by creating a public class which implements the `IExpressionFunctionProvider` interface.
+This is the way all existing functions (not operators) are implemented.
+
+```csharp
+// Example class which extends expressions with additional methods
+public class ExpressionFunctionProviderExample : IExpressionFunctionProvider
+{
+    // Container class which contains all of our additional methods
+    class CustomMethods
+    {
+        // Boolean string empty check
+        public static bool string_is_empty(string str) => string.IsNullOrEmpty(str);
+
+        // Get the nth number in a list of numbers
+        public static double nth_number(string str, int index) => to_number(str, index, ",");
+        // Overloads are also supported
+        public static double nth_number(string str, int index, string separator) => double.Parse(str.Split(new []{separator}, StringSplitOptions.None).ElementAtOrDefault(index) ?? "");
+
+        // Any symbol supported by C# is fine
+        public static double π => Math.PI;
+    }
+    
+    // Instantiate methods once
+    static readonly MethodInfo[] extraMethods;
+    static readonly PropertyInfo[] extraProperties;
+    static ExpressionFunctionProviderExample()
+    {
+        // Automatically extract all methods from our container
+        extraMethods = typeof(CustomMethods).GetMethods(BindingFlags.Static | BindingFlags.Public);
+        // Automatically extract all properties
+        extraProperties = typeof(CustomMethods).GetProperties(BindingFlags.Static | BindingFlags.Public);
+    }
+
+    public IEnumerable<MemberInfo> GetMembers() => extraMethods.Concat<MemberInfo>(extraProperties);
+}
+```
+
+The Expressions plugin will automatically instantiate all classes that implement this interface, and make the methods returned by `GetMembers()` available in all expressions.
+
+
 ## Mixins
 
 Mixins are small units of functionality that can be integrated or 'mixed in' with an object. 
