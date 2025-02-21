@@ -148,18 +148,27 @@ namespace OpenTap.Package
 
         internal int RunCommand(string command, bool force, bool modifiesPackageFiles)
         {
-            string titlecase(string str) => System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(str);
+            // Example usage:
+            // "Succesfully {pastTense} {pkg.Name} version {pkg.Version}."
+            Dictionary<string, string> pastTenseLookup = new(StringComparer.OrdinalIgnoreCase)
+            {
+                [PrepareUninstall] = "prepared to uninstall", 
+                [Uninstall] = "uninstalled",
+                [Install] = "installed",
+            };
             
-            var verb = titlecase(command.ToLower()) + "ed";
             // Example usages:
             // "Tried to {commandFriendlyName} {pkg.Name}, but there was nothing to do."
             // "There was an error while trying to {commandFriendlyName} '{pkg.Name}'."
-            var commandFriendlyName = command; 
-            if (string.Equals(command, PrepareUninstall, StringComparison.OrdinalIgnoreCase))
-            {
-                verb = "Prepared to Uninstall";
-                commandFriendlyName = "prepare uninstalling";
-            } 
+            Dictionary<string, string> friendlyNameLookup = new(StringComparer.OrdinalIgnoreCase)
+            { 
+                [PrepareUninstall] = "prepare uninstalling",
+                [Uninstall] = "uninstall",
+                [Install] = "install",
+            };
+            
+            var pastTense = pastTenseLookup[command];
+            var friendlyName = friendlyNameLookup[command];
 
             try
             {
@@ -191,7 +200,7 @@ namespace OpenTap.Package
                     PackageDef pkg = PackageDef.FromXml(fileName);
                     pkg.PackageSource = new XmlPackageDefSource { PackageDefFilePath = fileName };
 
-                    OnProgressUpdate((int)progressPercent, $"Running command '{command}' on '{pkg.Name}'");
+                    OnProgressUpdate((int)progressPercent, $"Running command '{friendlyName}' on '{pkg.Name}'");
                     Stopwatch timer = Stopwatch.StartNew();
                     var res = pi.ExecuteAction(pkg, command, force, TapDir);
 
@@ -203,14 +212,14 @@ namespace OpenTap.Package
                             return (int)ExitCodes.GeneralException;
                         }
                         else
-                            log.Warning($"There was an error while trying to {commandFriendlyName} '{pkg.Name}'.");
+                            log.Warning($"There was an error while trying to {friendlyName} '{pkg.Name}'.");
                     }
                     else if (res == ActionResult.NothingToDo)
                     {
-                        log.Debug($"Tried to {commandFriendlyName} {pkg.Name}, but there was nothing to do.");
+                        log.Debug($"Tried to {friendlyName} {pkg.Name}, but there was nothing to do.");
                     }
                     else
-                        log.Info(timer, $"{verb} {pkg.Name} version {pkg.Version}.");
+                        log.Info(timer, $"Succesfully {pastTense} {pkg.Name} version {pkg.Version}.");
 
                     progressPercent += (double)80 / PackagePaths.Count();
                 }
