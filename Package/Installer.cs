@@ -280,7 +280,7 @@ namespace OpenTap.Package
             if (procs.Count == 0)
                 return;
             var msg = new StringBuilder();
-            msg.AppendLine("The following applications are blocking the installation:");
+            msg.AppendLine("The following applications are blocking the operation:");
             var procString = string.Join("", procs.Select(p => $"\n - {p}"));
             msg.AppendLine(procString);
             msg.AppendLine("\nPlease close these applications and try again.");
