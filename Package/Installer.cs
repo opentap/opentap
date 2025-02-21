@@ -281,7 +281,7 @@ namespace OpenTap.Package
 
         private Action postInstallHook = () => { };
 
-        private void WaitForPacakgeFilesFreeWindows(List<string> packagePaths)
+        private void WaitForPackageFilesFreeWindows(List<string> packagePaths)
         {
             var allfiles = packagePaths.SelectMany(PluginInstaller.FilesInPackage).ToArray();
 
@@ -312,7 +312,7 @@ namespace OpenTap.Package
             {
                 try
                 {
-                    WaitForPacakgeFilesFreeWindows(packagePaths);
+                    WaitForPackageFilesFreeWindows(packagePaths);
                     return;
                 }
                 catch (OperationCanceledException)
