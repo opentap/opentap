@@ -129,10 +129,6 @@ namespace OpenTap.Package
                 OnError(ex);
                 throw new ExitCodeException((int)PackageExitCodes.PackageInstallError, $"Failed to install packages");
             }
-            finally
-            {
-                postInstallHook();
-            }
 
             Installation installation = new Installation(TapDir);
             installation.AnnouncePackageChange();
@@ -241,10 +237,6 @@ namespace OpenTap.Package
                 log.Debug(ex);
                 return (int)ExitCodes.GeneralException;
             }
-            finally
-            {
-                postInstallHook();
-            }
 
             new Installation(TapDir).AnnouncePackageChange();
 
@@ -278,8 +270,6 @@ namespace OpenTap.Package
 
             return filesInUse.ToArray();
         }
-
-        private Action postInstallHook = () => { };
 
         private void WaitForPackageFilesFreeWindows(List<string> packagePaths)
         {
