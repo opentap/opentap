@@ -168,7 +168,7 @@ namespace OpenTap.Package.UnitTests
                 var normalOutput = RunTest(false);
                 
                 StringAssert.Contains("Starting test step 'tap sdk gitversion'", normalOutput.Stdout);
-                StringAssert.Contains("Tested MyPlugin5 version 1.0.0.", normalOutput.Stdout);
+                StringAssert.Contains("Successfully tested MyPlugin5 version 1.0.0.", normalOutput.Stdout);
                 StringAssert.Contains("Successfully ran test step  'tap sdk gitversion'", normalOutput.Stdout);
                 StringAssert.Contains(actualGitversion, normalOutput.Stdout);
                 Assert.AreEqual(0, normalOutput.ExitCode);
@@ -176,7 +176,7 @@ namespace OpenTap.Package.UnitTests
             {   // Verbose output tests
                 var verboseOutput = RunTest(true);
 
-                StringAssert.Contains("Tested MyPlugin5 version 1.0.0.", verboseOutput.Stdout);
+                StringAssert.Contains("Successfully tested MyPlugin5 version 1.0.0.", verboseOutput.Stdout);
 
                 var verboseLines = ParseStdout(verboseOutput.Stdout);
 
