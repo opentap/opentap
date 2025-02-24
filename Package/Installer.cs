@@ -150,7 +150,7 @@ namespace OpenTap.Package
         internal int RunCommand(string command, bool force, bool modifiesPackageFiles)
         {
             // Example usage:
-            // "Succesfully {pastTense} {pkg.Name} version {pkg.Version}."
+            // "Successfully {pastTense} {pkg.Name} version {pkg.Version}."
             Dictionary<string, string> pastTenseLookup = new(StringComparer.OrdinalIgnoreCase)
             {
                 [PrepareUninstall] = "prepared to uninstall", 
@@ -222,7 +222,7 @@ namespace OpenTap.Package
                         log.Debug($"Tried to {friendlyName} {pkg.Name}, but there was nothing to do.");
                     }
                     else
-                        log.Info(timer, $"Succesfully {pastTense} {pkg.Name} version {pkg.Version}.");
+                        log.Info(timer, $"Successfully {pastTense} {pkg.Name} version {pkg.Version}.");
 
                     progressPercent += (double)80 / PackagePaths.Count();
                 }
