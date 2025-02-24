@@ -145,6 +145,7 @@ namespace OpenTap.Package
         internal const string Uninstall = "uninstall";
         internal const string PrepareUninstall = "prepareuninstall";
         internal const string Install = "install";
+        internal const string Test = "test";
 
         internal int RunCommand(string command, bool force, bool modifiesPackageFiles)
         {
@@ -155,6 +156,7 @@ namespace OpenTap.Package
                 [PrepareUninstall] = "prepared to uninstall", 
                 [Uninstall] = "uninstalled",
                 [Install] = "installed",
+                [Test] = "tested",
             };
             
             // Example usages:
@@ -165,6 +167,7 @@ namespace OpenTap.Package
                 [PrepareUninstall] = "prepare uninstalling",
                 [Uninstall] = "uninstall",
                 [Install] = "install",
+                [Test] = "test",
             };
             
             var pastTense = pastTenseLookup[command];
