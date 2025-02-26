@@ -482,6 +482,36 @@ namespace OpenTap.Package
 
             public void Clear(PackageDef pkg) => packageAssemblies.Invalidate(pkg);
         }
+        
+        private static void VerifyDependenciesInstalled(this PackageDef pkg)
+        {
+            var currentInstallation = Installation.Current;
+            var installed = currentInstallation.GetPackages().Where(p => p.Name != pkg.Name).ToList();
+            // check versions of any hardcoded dependencies against what is currently installed
+            foreach(PackageDependency dep in pkg.Dependencies)
+            {
+                var installedPackage = installed.FirstOrDefault(ip => ip.Name == dep.Name);
+                if (installedPackage != null)
+                {
+                    if (dep.Version == null)
+                    {
+                        dep.Version = new VersionSpecifier(installedPackage.Version, VersionMatchBehavior.Compatible);
+                        log.Info("A version was not specified for package dependency {0}. Using installed version ({1}).", dep.Name, dep.Version);
+                    }
+                    else
+                    {
+                        if (!dep.Version.IsCompatible(installedPackage.Version))
+                            throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, $"Installed version of {dep.Name} ({installedPackage.Version}) is incompatible with dependency specified in package definition ({dep.Version}).");
+                    }
+                }
+                else
+                {
+                    throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, 
+                        $"Package dependency '{dep.Name}' specified in package definition is not installed. Please install a compatible version first.");
+                }
+            }
+            
+        }
 
         internal static void findDependenciesAndHandleOverrides(this PackageDef pkgDef, List<string> excludeAdd,
             List<AssemblyData> searchedFiles)
@@ -505,9 +535,9 @@ namespace OpenTap.Package
                 {
                     existing.Version = md.Version;
                 }
-            }
-            
-        }
+            } 
+            pkgDef.VerifyDependenciesInstalled();
+        } 
         
         internal static void findDependencies(this PackageDef pkg, List<string> excludeAdd, List<AssemblyData> searchedFiles)
         {
@@ -516,36 +546,9 @@ namespace OpenTap.Package
             // First update the pre-entered dependencies            
             bool foundNew = false;
             var notFound = new HashSet<string>();
-           
-            // find the current installation
-            var currentInstallation = new Installation(Directory.GetCurrentDirectory());
-            if (!currentInstallation.IsInstallationFolder) // if there is no installation in the current folder look where tap is executed from
-                currentInstallation = new Installation(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
 
+            var currentInstallation = Installation.Current;
             var installed = currentInstallation.GetPackages().Where(p => p.Name != pkg.Name).ToList();
-            // check versions of any hardcoded dependencies against what is currently installed
-            foreach(PackageDependency dep in pkg.Dependencies)
-            {
-                var installedPackage = installed.FirstOrDefault(ip => ip.Name == dep.Name);
-                if (installedPackage != null)
-                {
-                    if (dep.Version == null)
-                    {
-                        dep.Version = new VersionSpecifier(installedPackage.Version, VersionMatchBehavior.Compatible);
-                        log.Info("A version was not specified for package dependency {0}. Using installed version ({1}).", dep.Name, dep.Version);
-                    }
-                    else
-                    {
-                        if (!dep.Version.IsCompatible(installedPackage.Version))
-                            throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, $"Installed version of {dep.Name} ({installedPackage.Version}) is incompatible with dependency specified in package definition ({dep.Version}).");
-                    }
-                }
-                else
-                {
-                    throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, 
-                                                $"Package dependency '{dep.Name}' specified in package definition is not installed. Please install a compatible version first.");
-                }
-            }
 
             {
                 
