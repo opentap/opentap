@@ -3108,6 +3108,9 @@ namespace OpenTap
         {
             IEnumerable<AnnotationCollection> annotations;
             object[] prevValues = Array.Empty<object>();
+            // when the object has been re-read, we need to check if the AvailableValues annotations needs update.
+            bool invalidated;
+
             public IEnumerable<AnnotationCollection> AvailableValues
             {
                 get
@@ -3247,8 +3250,7 @@ namespace OpenTap
                 this.a = a;
             }
 
-            // when the object has been re-read, we need to check if the AvailableValues annotations needs update.
-            bool invalidated;
+
             
             public void Read(object source)
             {
@@ -3267,12 +3269,16 @@ namespace OpenTap
         {
             IEnumerable<AnnotationCollection> annotations = null;
             IEnumerable prevValues = Enumerable.Empty<object>();
+            // when the object has been re-read, we need to check if the AvailableValues annotations needs update.
+            bool invalidated;
+
             public IEnumerable<AnnotationCollection> SuggestedValues
             {
                 get
                 {
-                    if (annotations == null)
+                    if (annotations == null || invalidated)
                     {
+                        invalidated = false;
                         var values = a.Get<ISuggestedValuesAnnotation>()?.SuggestedValues ?? Enumerable.Empty<object>();
                         // the same reference of an the value may be updated, so keep a copy of the values instead of a reference.
                         prevValues = values.OfType<object>().ToArray();
@@ -3328,6 +3334,8 @@ namespace OpenTap
 
             public void Read(object source)
             {
+                invalidated = true;
+                if (annotations == null) return;
                 if (annotations == null) return;
                 var values = a.Get<ISuggestedValuesAnnotation>()?.SuggestedValues;
                 if (Enumerable.SequenceEqual(prevValues.Cast<object>(), values.Cast<object>()) == false)
