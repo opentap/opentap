@@ -277,10 +277,19 @@ namespace OpenTap.Plugins.BasicSteps
                     if (currentSerializer != null)
                         newSerializer.GetSerializer<ExternalParameterSerializer>().PreloadedValues.MergeInto(currentSerializer.GetSerializer<ExternalParameterSerializer>().PreloadedValues);
                     var ext = newSerializer.GetSerializer<ExternalParameterSerializer>();
-                    ExternalParameters.ToList().ForEach(e =>
+                    foreach (var e in ExternalParameters)
                     {
-                        ext.PreloadedValues[e.Name] = StringConvertProvider.GetString(e.GetValue(plan));
-                    });
+                        /* If the value can be converted to/from a string, do so */
+                        if (StringConvertProvider.TryGetString(e.GetValue(plan), out var str))
+                        {
+                            ext.PreloadedValues[e.Name] = str;
+                        }
+                        /* otherwise, write a null value to ensure the current value is not overwritten in the serializer. We can write it back later. */
+                        else
+                        {
+                            ext.PreloadedValues[e.Name] = null;
+                        }
+                    }
 
                     CurrentMappings = allMapping;
 
@@ -300,7 +309,23 @@ namespace OpenTap.Plugins.BasicSteps
                         }
                     }
 
-                    ExternalParameters = TypeData.GetTypeData(tp).GetMembers().OfType<ParameterMemberData>().ToArray();
+                    { /* write back any parameters that could not be converted to a string */
+                        var newParameters = TypeData.GetTypeData(tp).GetMembers().OfType<ParameterMemberData>()
+                            .ToArray();
+                        ILookup<string, ParameterMemberData> lookup = null;
+                        foreach (var par in newParameters)
+                        {
+                            if (par.GetValue(plan) == null)
+                            {
+                                lookup ??= ExternalParameters.ToLookup(m => m.Name);
+                                var prevParameter = lookup[par.Name].FirstOrDefault();
+                                if (prevParameter != null)
+                                    par.SetValue(plan, prevParameter.GetValue(plan));
+                            }
+                        }
+                        ExternalParameters = newParameters;
+                    }
+
 
                     var flatSteps = Utils.FlattenHeirarchy(tp.ChildTestSteps, x => x.ChildTestSteps);
 
@@ -354,8 +379,10 @@ namespace OpenTap.Plugins.BasicSteps
                                     }
                                     continue;
                                 }
+                                // transfer  the value from the test plan instance to this instance.
+                                var value = member.GetValue(tp);
                                 DynamicMember.AddDynamicMember(this, mem);
-                                mem.SetValue(this, member.GetValue(this));
+                                mem.SetValue(this, value);
                             }
                         }
 
@@ -462,13 +489,18 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
             
-        
+
+        /// <summary> Convert the test plan reference to a sequence step. This will pop up a dialog. </summary>
         [Browsable(true)]
         [Display("Convert to Sequence", "Convert the test plan reference to a sequence step.", Order: 1.1)]
         [EnabledIf(nameof(anyStepsLoaded), HideIfDisabled = true)]
         public void ConvertToSequence()
         {
-            ConvertToSequence(true, false);
+            // only show the dialog if the user input interface has been set.
+            // otherwise treat this as a normal method.
+            bool showDialog = UserInput.Interface != null;
+
+            ConvertToSequence(showDialog, false);
         }
 
         internal bool ConvertToSequence(bool userShouldConfirm, bool multiSelect)
@@ -528,13 +560,27 @@ namespace OpenTap.Plugins.BasicSteps
                 parameterMember.SetValue(seq, ExternalParameters.First(x => x.Name == name).GetValue(this));
             }
             
-            // This section copies mixins over from the test plan reference to the sequence
-            
+            // This section copies mixins over from the test plan reference to the sequence           
             var seqType = TypeData.GetTypeData(seq);
+
+            // Some MixinMemberData members may be seen multiple times
+            // e.g. multiple EmbeddedMemberData can have the same OwnerMember
+            // Store the seen members so that we can skip it
+            HashSet<MixinMemberData> seen = new HashSet<MixinMemberData>();
+
             foreach (var member in TypeData.GetTypeData(this).GetMembers())
             {
-                if (member is MixinMemberData mixinMember)
+                MixinMemberData mixinMember = member switch
                 {
+                    MixinMemberData mixin => mixin,
+                    IEmbeddedMemberData emb => emb.OwnerMember as MixinMemberData,
+                    var _ => null
+                };
+
+
+                if (mixinMember != null && !seen.Contains(mixinMember))
+                {
+                    seen.Add(mixinMember);
                     var mixin = mixinMember.Source;
                     var mem = mixin.ToDynamicMember(seqType);
                     if (mem == null)
@@ -550,7 +596,7 @@ namespace OpenTap.Plugins.BasicSteps
                         continue;
                     }
                     DynamicMember.AddDynamicMember(seq, mem);
-                    mem.SetValue(seq, member.GetValue(this));
+                    mem.SetValue(seq, mixinMember.GetValue(this));
                 }
             }
 
@@ -587,10 +633,10 @@ namespace OpenTap.Plugins.BasicSteps
                     }
                 }
             }
-            
-            
+
+
             // This section copies dynamic member values.
-            
+
             foreach (var member in TypeData.GetTypeData(this).GetMembers().Where(mem => mem is DynamicMember))
             {
                 if (member.HasAttribute<XmlIgnoreAttribute>())

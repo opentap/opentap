@@ -1,4 +1,6 @@
+using System;
 using System.Linq;
+using System.Xml.Serialization;
 using NUnit.Framework;
 using OpenTap.Engine.UnitTests;
 namespace OpenTap.UnitTests
@@ -236,6 +238,75 @@ namespace OpenTap.UnitTests
             plan.ChildTestSteps.Add(step);
             plan.Execute();
             Assert.IsTrue(resource.TestMixin.PreOpenCalled);
+        }
+
+        public class EmbeddingClass
+        {
+            protected bool Equals(EmbeddingClass other)
+            {
+                return IntMember == other.IntMember && StringMember == other.StringMember;
+            }
+
+            public override bool Equals(object obj)
+            {
+                if (obj is null) return false;
+                if (ReferenceEquals(this, obj)) return true;
+                if (obj.GetType() != GetType()) return false;
+                return Equals((EmbeddingClass)obj);
+            }
+
+            public override int GetHashCode() =>  IntMember.GetHashCode() * 12389321 + StringMember.GetHashCode() * 7310632;
+
+            public int IntMember { get; set; }
+            public string StringMember { get; set; }
+        }
+
+        public class EmbeddedTest3
+        {
+            // This is the member I want to serialize, but it will never be shown to the user.
+            [AnnotationIgnore] public EmbeddingClass[] Objects { get; set; }
+
+            //the index of object can be selected
+            public int SelectedObjectIndex { get; set; }
+
+            [EmbedProperties] [XmlIgnore] public EmbeddingClass SelectedObject => Objects[SelectedObjectIndex];
+        }
+
+        [Test]
+        public void TestXmlIgnoreEmbedding()
+        {
+            var emb = new EmbeddedTest3()
+            {
+                SelectedObjectIndex = 1,
+                Objects = [new() { IntMember = 0, StringMember = "0" }, new() { IntMember = 1, StringMember = "1" }, new() { IntMember = 2, StringMember = "2" }],
+            };
+            var ser = new TapSerializer();
+            var str = ser.SerializeToString(emb);
+            var emb2 = ser.DeserializeFromString(str) as EmbeddedTest3;
+            
+            
+            Assert.That(str, Does.Not.Contain("SelectedObject.IntMember")); 
+            Assert.That(emb2, Is.Not.Null);
+            
+            Assert.That(AnnotationCollection.Annotate(emb).GetMember("Objects"),  Is.Null);
+            Assert.That(AnnotationCollection.Annotate(emb2).GetMember("Objects"),  Is.Null); 
+            
+            Assert.That(emb.SelectedObjectIndex, Is.EqualTo(emb2.SelectedObjectIndex));
+            Assert.That(emb.SelectedObject, Is.EqualTo(emb2.SelectedObject));
+            CollectionAssert.AreEqual(emb.Objects, emb2.Objects);
+            
+            verifyEmbedded(emb);
+            verifyEmbedded(emb2); 
+            void verifyEmbedded(object o)
+            {
+                var embedded = TypeData.GetTypeData(o).GetMembers().OfType<EmbeddedMemberData>().ToArray(); 
+                Assert.That(embedded.Length, Is.EqualTo(2));
+
+                foreach (var emb in embedded)
+                {
+                    Assert.That(emb.HasAttribute<XmlIgnoreAttribute>(), Is.True);
+                }
+            }
         }
     }
 

@@ -145,7 +145,15 @@ namespace OpenTap.Engine.UnitTests
         [TestCase("^9.0.0-alpha.2", "9.0.0-alpha.1", false)]
         [TestCase("^9.0.0-alpha.1", "9.0.0-alpha", false)]
         [TestCase("^9.0.1200-alpha.1.7", "9.0.1200-alpha.1.2", false)]
-        [TestCase("^9.1.0-alpha.1", "9.0.0-alpha.1", false)]
+        [TestCase("^9.1.0-alpha.1", "9.0.0-alpha.1", false)] 
+        [TestCase("^1", "0.1.0", false)] 
+        [TestCase("^1", "1.1.0", true)] 
+        [TestCase("^1", "1.0.0-beta.1", true)] 
+        [TestCase("^1", "1.1.0-beta.1", true)] 
+        [TestCase("^1.0", "1.1.0-beta.1", true)] 
+        [TestCase("^1.1", "1.1.0-beta.1", false)] 
+        [TestCase("^1.1", "1.2.0-beta.1", true)] 
+        [TestCase("^1.1", "2.1.0", false)] 
         public void SpecifierCompatibilityTest(string specifier, string version, bool expected)
         {
             Assert.AreEqual(expected, VersionSpecifier.Parse(specifier).IsCompatible(SemanticVersion.Parse(version)));
