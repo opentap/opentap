@@ -602,7 +602,10 @@ namespace OpenTap
                     try
                     {
                         if (!reflectionOnly)
-                            return Assembly.LoadFrom(loadFilename);
+                        {
+                            var asm = PluginManager.GetSearcher().AddAssembly(loadFilename, null);
+                            return asm?.Load();
+                        }
                         else
                             return Assembly.ReflectionOnlyLoadFrom(loadFilename);
                     }

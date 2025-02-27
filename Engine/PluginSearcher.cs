@@ -285,21 +285,44 @@ namespace OpenTap
                             var thisRef = new AssemblyRef(thisAssembly.Name, def.Version);
 
                             var prov = new CustomAttributeTypeProvider();
-                            foreach (CustomAttributeHandle attrHandle in def.GetCustomAttributes())
                             {
-                                CustomAttribute attr = metadata.GetCustomAttribute(attrHandle);
-
-                                if (attr.Constructor.Kind == HandleKind.MemberReference)
+                                bool versionFound = false;
+                                bool notSupportedFound = false;
+                                foreach (CustomAttributeHandle attrHandle in def.GetCustomAttributes())
                                 {
-                                    var ctor = metadata.GetMemberReference((MemberReferenceHandle)attr.Constructor);
-                                    string attributeFullName = GetFullName(metadata, ctor.Parent);
-                                    if (attributeFullName == typeof(AssemblyInformationalVersionAttribute).FullName)
+                                    CustomAttribute attr = metadata.GetCustomAttribute(attrHandle);
+
+                                    if (attr.Constructor.Kind == HandleKind.MemberReference)
                                     {
-                                        var valueString = attr.DecodeValue(prov).FixedArguments[0].Value?.ToString();
-                                        if (SemanticVersion.TryParse(valueString, out _))
-                                            thisAssembly.RawVersion = valueString;
-                                        break;
+                                        var ctor = metadata.GetMemberReference((MemberReferenceHandle)attr.Constructor);
+                                        string attributeFullName = GetFullName(metadata, ctor.Parent);
+                                        if (attributeFullName == typeof(AssemblyInformationalVersionAttribute).FullName)
+                                        {
+                                            var valueString = attr.DecodeValue(prov).FixedArguments[0].Value
+                                                ?.ToString();
+                                            if (SemanticVersion.TryParse(valueString, out _))
+                                                thisAssembly.RawVersion = valueString;
+                                            versionFound = true;
+                                        }
+                                        else if (attributeFullName == typeof(AssemblyMetadataAttribute).FullName)
+                                        {
+                                            var valueString = attr.DecodeValue(prov).FixedArguments[0].Value
+                                                ?.ToString();
+                                            if ("NotSupported".Equals(valueString, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                notSupportedFound = true;
+                                                var argString = attr.DecodeValue(prov).FixedArguments[1].Value
+                                                    ?.ToString();
+                                                if ("True".Equals(argString, StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    log.Debug($"Dll {file} not loaded because of 'NotSupported' attribute");
+                                                    return null;
+                                                }
+                                            }
+                                        }
                                     }
+
+                                    if (versionFound && notSupportedFound) break;
                                 }
                             }
 
