@@ -138,6 +138,7 @@
           BeforeTargets="Build">
     <InstallOpenTapPackages
       TapDir="$(OutDir)"
+      OpenTapRuntimeDir="$(OpenTapRuntimeDir)"
       PackagesToInstall="@(OpenTapPackagesToInstall)"
       Repositories="@(OpenTapPackageRepository)"
       SourceFile="$(MSBuildProjectFullPath)"

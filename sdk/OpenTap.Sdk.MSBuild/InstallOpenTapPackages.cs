@@ -38,6 +38,11 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// The build directory containing 'tap.exe' and 'OpenTAP.dll'
         /// </summary>
         public string TapDir { get; set; }
+        
+        /// <summary>
+        /// The runtime directory in the OpenTAP nuget package
+        /// </summary>
+        public string OpenTapRuntimeDir { get; set; }
 
         /// <summary>
         /// The target platform defined in msbuild
@@ -111,7 +116,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             if (PackagesToInstall == null || PackagesToInstall.Length == 0) 
                 return true; 
 
-            using (OpenTapContext.Create(TapDir))
+            using (OpenTapContext.Create(TapDir, OpenTapRuntimeDir))
                 return InstallPackages();
         }
 
@@ -253,7 +258,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
             repos = repos.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
 
-            using (var imageInstaller = new OpenTapImageInstaller(TapDir, cts.Token))
+            using (var imageInstaller = new OpenTapImageInstaller(TapDir, OpenTapRuntimeDir, cts.Token))
             {
                 imageInstaller.LogMessage += OnInstallerLogMessage;
                 imageInstaller.ImageDeployer = ImageDeployer;
