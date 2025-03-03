@@ -16,18 +16,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     {
         // The static portion of this type MUST NOT reference OpenTAP.
         #region Static Members
-        /// <summary>
-        /// Compute the payload directory based on the current platform
-        /// </summary>
-        /// <returns></returns>
-        private static string CorrectPayloadDir()
-        {
-            var thisAsmDir = Path.GetDirectoryName(typeof(OpenTapContext).Assembly.Location)!;
-            return Path.Combine(thisAsmDir, "payload");
-        }
 
         private static object loadLock = new object();
-        private static void loadOpenTap(string tapDir)
+        private static void loadOpenTap(string tapDir, string runtimeDir)
         {
             // This alters the value returned by 'ExecutorClient.ExeDir' which would otherwise return the location of
             // OpenTap.dll which in an MSBuild context would be the nuget directory which leads to unexpected behavior
@@ -35,7 +26,6 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", tapDir, EnvironmentVariableTarget.Process);
             Environment.SetEnvironmentVariable("OPENTAP_NO_UPDATE_CHECK", "true");
             Environment.SetEnvironmentVariable("OPENTAP_DEBUG_INSTALL", "true");
-            string root = null;
             
             lock (loadLock)
             {
@@ -46,8 +36,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                     if (loaded.Contains(asmName))
                         continue; // already loaded - continue
 
-                    root ??= CorrectPayloadDir();
-                    Assembly.LoadFrom(Path.Combine(root, $"{asmName}.dll"));
+                    Assembly.LoadFrom(Path.Combine(runtimeDir, $"{asmName}.dll"));
                 }
             }
         }
@@ -57,11 +46,11 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// the default resolver. Also, the resolver will look for the debug version (9.4.0.0) because that's what this
         /// assembly was compiled against. This is sort of a hack, but it should be fine.
         /// </summary>
-        /// <param name="tapDir"></param>
-        public static IDisposable Create(string tapDir)
+        /// <param name="runtimeDir"></param>
+        public static IDisposable Create(string tapDir, string runtimeDir)
         {
-            loadOpenTap(tapDir);
-            return new OpenTapContext(tapDir);
+            loadOpenTap(tapDir, runtimeDir);
+            return new OpenTapContext(runtimeDir);
         }
         
         /// <summary>

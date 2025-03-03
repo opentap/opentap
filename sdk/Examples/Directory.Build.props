@@ -14,7 +14,7 @@
 	<PropertyGroup>
 		<!-- Ensure that all projects in this solution use the same version of OpenTAP -->		
 		<OpenTapVersion>$(GitVersion)</OpenTapVersion>
-		<TargetFramework>netstandard2.0</TargetFramework>
+		<TargetFramework>net9</TargetFramework>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
