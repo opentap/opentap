@@ -448,5 +448,33 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsFalse(wasUsed);
             }
         }
+
+        public class ObjectWithNullable
+        {
+            public double? NullableDouble { get; set; }
+        }
+
+        [Test]
+        public void SerializeDeserializePropertyWithNullable()
+        {
+            var a = new ObjectWithNullable
+            {
+                NullableDouble = 5
+            };
+            var b = new ObjectWithNullable()
+            {
+                NullableDouble = null
+            };
+
+            var aXml = new TapSerializer().SerializeToString(a).Replace("type=\"System.Double\"", "");
+            var bXml = new TapSerializer().SerializeToString(b).Replace("type=\"System.Double\"", "");
+            var a2 = (ObjectWithNullable)new TapSerializer().DeserializeFromString(aXml);
+            var b2 = (ObjectWithNullable)new TapSerializer().DeserializeFromString(bXml);
+            Assert.AreEqual(a.NullableDouble, a2.NullableDouble);
+            Assert.AreEqual(b.NullableDouble, b2.NullableDouble);
+
+
+
+        }
     }
 }
