@@ -459,6 +459,16 @@ namespace OpenTap.Plugins
                 else if (propType.HasInterface<IConvertible>())
                 {
                     value = Convert.ChangeType(valueString, propType, CultureInfo.InvariantCulture);
+                }else if (propType.IsGenericType && propType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                {
+                    // For nullable<T> we recurse focusing on the underlying non-nullable type.
+                    if (valueString == null)
+                    {
+                        outvalue = null;
+                        return true; // null is a valid value for nullable types.
+                    }
+
+                    return readContentInternal(Nullable.GetUnderlyingType(propType), ignoreComponentSettings, getvalueString, elem, out outvalue);
                 }
                 else
                 {

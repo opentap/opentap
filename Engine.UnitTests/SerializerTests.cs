@@ -451,7 +451,9 @@ namespace OpenTap.Engine.UnitTests
 
         public class ObjectWithNullable
         {
-            public double? NullableDouble { get; set; }
+            // if the value is 0x1337 means it has not been set. If its deliberately set to null
+            // we should not treat it as default.
+            public double? NullableDouble { get; set; } = 0x1337;
         }
 
         [Test]
@@ -466,6 +468,8 @@ namespace OpenTap.Engine.UnitTests
                 NullableDouble = null
             };
 
+            // The problem only occurs if the type is not explicit. Note in the future we will probably
+            // not require explicit type since it can be inferred through reflection, so this should work without.
             var aXml = new TapSerializer().SerializeToString(a).Replace("type=\"System.Double\"", "");
             var bXml = new TapSerializer().SerializeToString(b).Replace("type=\"System.Double\"", "");
             var a2 = (ObjectWithNullable)new TapSerializer().DeserializeFromString(aXml);
