@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TestPlan type="OpenTap.TestPlan">
+  <Steps>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.CreateDirectoryStep" Id="3a8e33d7-d7f9-4d58-868b-c38acbf0c15e">
+      <Directory>../../ReferenceNewtonsoftProj</Directory>
+      <Name Metadata="Step Name">Create Directory: {Directory}</Name>
+      <ChildTestSteps />
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Id="45f82fc0-8acf-41b2-8472-2c1b9db25f32">
+      <String>
+        <Base64>PFByb2plY3QgU2RrPSJNaWNyb3NvZnQuTkVULlNkayI+CiAgICAgICAgICAgICAgICA8UHJvcGVydHlHcm91cD4KICAgICAgICAgICAgICAgICAgICA8VGFyZ2V0RnJhbWV3b3JrSWRlbnRpZmllcj48L1RhcmdldEZyYW1ld29ya0lkZW50aWZpZXI+CiAgICAgICAgICAgICAgICAgICAgPFRhcmdldEZyYW1ld29ya1ZlcnNpb24+PC9UYXJnZXRGcmFtZXdvcmtWZXJzaW9uPgogICAgICAgICAgICAgICAgICAgIDxUYXJnZXRGcmFtZXdvcms+bmV0c3RhbmRhcmQyLjA8L1RhcmdldEZyYW1ld29yaz4KICAgICAgICAgICAgICAgICAgICA8QXBwZW5kVGFyZ2V0RnJhbWV3b3JrVG9PdXRwdXRQYXRoPmZhbHNlPC9BcHBlbmRUYXJnZXRGcmFtZXdvcmtUb091dHB1dFBhdGg+CiAgICAgICAgICAgICAgICAgICAgPENvcHlMb2NhbExvY2tGaWxlQXNzZW1ibGllcz50cnVlPC9Db3B5TG9jYWxMb2NrRmlsZUFzc2VtYmxpZXM+CiAgICAgICAgICAgICAgICAgICAgPE91dHB1dFBhdGg+YmluL0RlYnVnPC9PdXRwdXRQYXRoPgogICAgICAgICAgICAgICAgPC9Qcm9wZXJ0eUdyb3VwPgogICAgICAgICAgICAgICAgPEl0ZW1Hcm91cD4KICAgICAgICAgICAgICAgICAgICA8UGFja2FnZVJlZmVyZW5jZSBJbmNsdWRlPSJPcGVuVEFQIiBWZXJzaW9uPSI5LjI3LjEiIC8+DQogICAgICAgICAgICAgICAgICAgIDxQYWNrYWdlUmVmZXJlbmNlIEluY2x1ZGU9Ik5ld3RvbnNvZnQuSnNvbiIgVmVyc2lvbj0iMTIuMC4zIiAvPgogICAgICAgICAgICAgICAgPC9JdGVtR3JvdXA+CiAgICAgICAgICAgPC9Qcm9qZWN0Pg==</Base64>
+      </String>
+      <File>../../ReferenceNewtonsoftProj/ReferenceNewtonsoftProj.csproj</File>
+      <Name Metadata="Step Name">Write {File}</Name>
+      <ChildTestSteps />
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Id="fc4259db-b8d5-4790-a940-5de27bfb515d">
+      <String>
+        <Base64>cHVibGljIGNsYXNzIFRlc3QxDQogICAgew0KICAgIHB1YmxpYyBUZXN0MSgpew0KICAgICAgICAgICAgdHlwZW9mKE5ld3RvbnNvZnQuSnNvbi5Kc29uQ29udmVydCkuVG9TdHJpbmcoKTsNCiAgICAgICAgICAgIHR5cGVvZihPcGVuVGFwLkxvZykuVG9TdHJpbmcoKTsNCiAgICAgfQ0KfQ0K</Base64>
+      </String>
+      <File>../../ReferenceNewtonsoftProj/class.cs</File>
+      <Name Metadata="Step Name">Write {File}</Name>
+      <ChildTestSteps />
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Id="87ef4ac9-541e-4add-8c40-7303cdccda87">
+      <String>
+        <Base64>PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxQYWNrYWdlIE5hbWU9IlJlZmVyZW5jZU5ld3RvbnNvZnRQcm9qIiB4bWxucz0iaHR0cDovL29wZW50YXAuaW8vc2NoZW1hcy9wYWNrYWdlIiBJbmZvTGluaz0iIiBWZXJzaW9uPSIwLjEuMC1hbHBoYSI+DQogIDxGaWxlcz4NCiAgICA8RmlsZSBQYXRoPSJQYWNrYWdlcy9SZWZlcmVuY2VOZXd0b25zb2Z0UHJvai9SZWZlcmVuY2VOZXd0b25zb2Z0UHJvai5kbGwiIFNvdXJjZVBhdGg9IlJlZmVyZW5jZU5ld3RvbnNvZnRQcm9qLmRsbCI+DQogICAgPC9GaWxlPg0KICA8L0ZpbGVzPg0KPC9QYWNrYWdlPg0K</Base64>
+      </String>
+      <File>../../ReferenceNewtonsoftProj/package.xml</File>
+      <Name Metadata="Step Name">Write {File}</Name>
+      <ChildTestSteps />
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Id="03572f31-123d-40de-b737-74c714b8cd31">
+      <Application>dotnet</Application>
+      <Arguments>build</Arguments>
+      <WorkingDirectory>../../ReferenceNewtonsoftProj</WorkingDirectory>
+      <EnvironmentVariables />
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <LogHeader />
+      <CheckExitCode>true</CheckExitCode>
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Name Metadata="Step Name">Run: {Application} {Command Line Arguments}</Name>
+      <ChildTestSteps />
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Id="76f72e46-1057-4a3f-afce-1cb30574d9ac" OpenTap.Visibility="Visible">
+      <ExpectedVerdict>Fail</ExpectedVerdict>
+      <Name Metadata="Step Name">Expect {ExpectedVerdict}</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Id="ef81482d-125b-4f3f-a1d5-eaf212d302fe">
+          <Application>tap</Application>
+          <Arguments>package create ../../package.xml --verbose</Arguments>
+          <WorkingDirectory>../../ReferenceNewtonsoftProj/bin/Debug</WorkingDirectory>
+          <EnvironmentVariables />
+          <Timeout>0</Timeout>
+          <AddToLog>true</AddToLog>
+          <LogHeader />
+          <CheckExitCode>true</CheckExitCode>
+          <RegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </RegularExpressionPattern>
+          <VerdictOnMatch>Pass</VerdictOnMatch>
+          <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+          <ResultRegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </ResultRegularExpressionPattern>
+          <ResultName>Regex Result</ResultName>
+          <Behavior>GroupsAsDimensions</Behavior>
+          <DimensionTitles></DimensionTitles>
+          <Name Metadata="Step Name">Run: {Application} {Command Line Arguments}</Name>
+          <ChildTestSteps />
+        </TestStep>
+        <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.WriteFileStep" Id="fc85791f-7a42-4e8e-a7c0-8d9f87ddd94f">
+          <String>
+            <Base64>PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjxQYWNrYWdlIE5hbWU9IlJlZmVyZW5jZU5ld3RvbnNvZnRQcm9qIiB4bWxucz0iaHR0cDovL29wZW50YXAuaW8vc2NoZW1hcy9wYWNrYWdlIiBJbmZvTGluaz0iIiBWZXJzaW9uPSIwLjEuMC1hbHBoYSI+DQogIDxEZXBlbmRlbmNpZXM+DQogICAgPFBhY2thZ2VEZXBlbmRlbmN5IFBhY2thZ2U9Ik9wZW5UQVAiIFZlcnNpb249Il45LjIyLjErOTQ0N2EyYWYiIC8+DQogIDwvRGVwZW5kZW5jaWVzPg0KICA8RmlsZXM+DQogICAgPEZpbGUgUGF0aD0iUGFja2FnZXMvUmVmZXJlbmNlTmV3dG9uc29mdFByb2ovUmVmZXJlbmNlTmV3dG9uc29mdFByb2ouZGxsIiBTb3VyY2VQYXRoPSJSZWZlcmVuY2VOZXd0b25zb2Z0UHJvai5kbGwiPg0KICAgIDwvRmlsZT4NCiAgPC9GaWxlcz4NCjwvUGFja2FnZT4NCg==</Base64>
+          </String>
+          <File>../../ReferenceNewtonsoftProj/package.xml</File>
+          <Name Metadata="Step Name">Write {File}</Name>
+          <ChildTestSteps />
+        </TestStep>
+      </ChildTestSteps>
+      <BreakConditions>BreakOnError</BreakConditions>
+    </TestStep>
+    <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Id="341f21d3-5f57-4b32-9461-c46186b9e9e8">
+      <Application>dotnet</Application>
+      <Arguments>build</Arguments>
+      <WorkingDirectory>../../ReferenceNewtonsoftProj</WorkingDirectory>
+      <EnvironmentVariables />
+      <Timeout>0</Timeout>
+      <AddToLog>true</AddToLog>
+      <LogHeader />
+      <CheckExitCode>true</CheckExitCode>
+      <RegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </RegularExpressionPattern>
+      <VerdictOnMatch>Pass</VerdictOnMatch>
+      <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+      <ResultRegularExpressionPattern>
+        <Value>(.*)</Value>
+        <IsEnabled>false</IsEnabled>
+      </ResultRegularExpressionPattern>
+      <ResultName>Regex Result</ResultName>
+      <Behavior>GroupsAsDimensions</Behavior>
+      <DimensionTitles></DimensionTitles>
+      <Name Metadata="Step Name">Run: {Application} {Command Line Arguments}</Name>
+      <ChildTestSteps />
+    </TestStep>
+    <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ExpectStep" Id="7ea43a7b-39fe-4fe7-bb64-e07d39ef9baa" OpenTap.Visibility="Visible">
+      <ExpectedVerdict>Fail</ExpectedVerdict>
+      <Name Metadata="Step Name">Expect {ExpectedVerdict}</Name>
+      <ChildTestSteps>
+        <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Id="6d389530-c716-4b51-98f2-07c867aa9e17">
+          <Application>tap</Application>
+          <Arguments>package create ../../package.xml --verbose</Arguments>
+          <WorkingDirectory>../../ReferenceNewtonsoftProj/bin/Debug</WorkingDirectory>
+          <EnvironmentVariables />
+          <Timeout>0</Timeout>
+          <AddToLog>true</AddToLog>
+          <LogHeader />
+          <CheckExitCode>true</CheckExitCode>
+          <RegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </RegularExpressionPattern>
+          <VerdictOnMatch>Pass</VerdictOnMatch>
+          <VerdictOnNoMatch>Fail</VerdictOnNoMatch>
+          <ResultRegularExpressionPattern>
+            <Value>(.*)</Value>
+            <IsEnabled>false</IsEnabled>
+          </ResultRegularExpressionPattern>
+          <ResultName>Regex Result</ResultName>
+          <Behavior>GroupsAsDimensions</Behavior>
+          <DimensionTitles></DimensionTitles>
+          <Name Metadata="Step Name">Run: {Application} {Command Line Arguments}</Name>
+          <ChildTestSteps />
+        </TestStep>
+      </ChildTestSteps>
+      <BreakConditions>BreakOnError</BreakConditions>
+    </TestStep>
+  </Steps>
+</TestPlan>

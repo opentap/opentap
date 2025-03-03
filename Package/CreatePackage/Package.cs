@@ -313,7 +313,7 @@ namespace OpenTap.Package
                 EnumerateAdditionalPlugins(pkgDef);
             }
 
-            pkgDef.findDependencies(excludeAdd, assemblies);
+            pkgDef.findDependenciesAndHandleOverrides(excludeAdd, assemblies);
 
             if (exceptions.Count > 0)
                 throw new AggregateException("Conflicting dependencies", exceptions);
@@ -483,19 +483,9 @@ namespace OpenTap.Package
             public void Clear(PackageDef pkg) => packageAssemblies.Invalidate(pkg);
         }
         
-        internal static void findDependencies(this PackageDef pkg, List<string> excludeAdd, List<AssemblyData> searchedFiles)
+        private static void VerifyDependenciesInstalled(this PackageDef pkg)
         {
-            var searcher = new PackageAssemblyCache(searchedFiles);
-            
-            // First update the pre-entered dependencies            
-            bool foundNew = false;
-            var notFound = new HashSet<string>();
-           
-            // find the current installation
-            var currentInstallation = new Installation(Directory.GetCurrentDirectory());
-            if (!currentInstallation.IsInstallationFolder) // if there is no installation in the current folder look where tap is executed from
-                currentInstallation = new Installation(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
-
+            var currentInstallation = Installation.Current;
             var installed = currentInstallation.GetPackages().Where(p => p.Name != pkg.Name).ToList();
             // check versions of any hardcoded dependencies against what is currently installed
             foreach(PackageDependency dep in pkg.Dependencies)
@@ -517,9 +507,48 @@ namespace OpenTap.Package
                 else
                 {
                     throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, 
-                                                $"Package dependency '{dep.Name}' specified in package definition is not installed. Please install a compatible version first.");
+                        $"Package dependency '{dep.Name}' specified in package definition is not installed. Please install a compatible version first.");
                 }
             }
+            
+        }
+
+        internal static void findDependenciesAndHandleOverrides(this PackageDef pkgDef, List<string> excludeAdd,
+            List<AssemblyData> searchedFiles)
+        { 
+            // The dependencies of a package greatly influence dependency resolution.
+            // This is because a package depending on e.g. 'OpenTAP' is treated as if it provides all the DLLs provided by OpenTAP.
+            // This is useful because a dependency on e.g. `OpenTap.dll' can be resolved by adding a dependency on OpenTAP,
+            // but it has the side effect of allowing a package to provide its version of any dll provided by OpenTAP.
+            // As a workaround for this, we clear manual dependencies before resolution, and re-add them afterwards.
+            var manualDependencies = pkgDef.Dependencies.ToArray();
+            pkgDef.Dependencies.Clear();
+            pkgDef.findDependencies(excludeAdd, searchedFiles);
+            foreach (var md in manualDependencies)
+            {
+                var existing = pkgDef.Dependencies.FirstOrDefault(x => x.Name == md.Name);
+                if (existing == null)
+                {
+                    pkgDef.Dependencies.Add(md);
+                }
+                else
+                {
+                    existing.Version = md.Version;
+                }
+            } 
+            pkgDef.VerifyDependenciesInstalled();
+        } 
+        
+        internal static void findDependencies(this PackageDef pkg, List<string> excludeAdd, List<AssemblyData> searchedFiles)
+        {
+            var searcher = new PackageAssemblyCache(searchedFiles);
+            
+            // First update the pre-entered dependencies            
+            bool foundNew = false;
+            var notFound = new HashSet<string>();
+
+            var currentInstallation = Installation.Current;
+            var installed = currentInstallation.GetPackages().Where(p => p.Name != pkg.Name).ToList();
 
             {
                 

@@ -140,12 +140,12 @@ namespace Tap.Shared
         internal static bool DecendsFromOpenTapIgnore(string location)
         {
             string dir = Path.GetDirectoryName(location);
+            if (dir == null) return false;
             if (File.Exists(Path.Combine(dir, ".OpenTapIgnore")))
                 return true;
             if (string.IsNullOrWhiteSpace(dir))
                 return false;
-            else
-                return DecendsFromOpenTapIgnore(dir);
+            return DecendsFromOpenTapIgnore(dir);
         }
     }
 }

@@ -85,6 +85,10 @@
           <StepMapping />
           <Name Metadata="Step Name">Test Plan: {Referenced Plan}</Name>
         </TestStep>
+        <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Id="65337d35-9a8e-4b78-b04b-bfeef98d2a83">
+          <Filepath>../../tests/package-create-newtonsoft.TapPlan</Filepath>
+          <Name Metadata="Step Name">Test Plan {Referenced Plan}</Name>
+        </TestStep>
         <TestStep type="ref@OpenTap.Plugins.BasicSteps.TestPlanReference" Id="28f79a0f-fa70-4dc8-9b31-322828869f8c">
           <Parameters_x0020__x005C__x0020_ExpectedValue>3</Parameters_x0020__x005C__x0020_ExpectedValue>
           <Filepath>../../tests/RepeatOutputCompare.TapPlan</Filepath>
