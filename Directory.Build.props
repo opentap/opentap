@@ -8,7 +8,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <IsDebug>false</IsDebug>
-    <OpenTapAppTargetFramework>net6.0</OpenTapAppTargetFramework>
+    <OpenTapAppTargetFramework>net9.0</OpenTapAppTargetFramework>
     <TargetFramework>netstandard2.0</TargetFramework>
     <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
     <TargetFrameworkVersion></TargetFrameworkVersion>
