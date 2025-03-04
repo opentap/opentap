@@ -20,7 +20,7 @@ jobs:
     runs-on:
        group: OpenTAP-SpokeVPC
        labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    container: ghcr.io/opentap/oci-images/build-dotnet:v9
     outputs:
       ShortVersion: ${{ steps.gitversion.outputs.ShortVersion }}
       LongVersion: ${{ steps.gitversion.outputs.LongVersion }}
@@ -89,7 +89,7 @@ jobs:
     runs-on:
       group: OpenTAP-SpokeVPC
       labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    container: ghcr.io/opentap/oci-images/build-dotnet:v9
     steps:
       - name: Setup OpenTAP
         uses: opentap/setup-opentap@main
@@ -147,7 +147,7 @@ jobs:
     runs-on:
       group: OpenTAP-SpokeVPC
       labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    container: ghcr.io/opentap/oci-images/build-dotnet:v9
     needs:
       - Build-ApiDoc
     steps:
@@ -197,7 +197,7 @@ jobs:
     runs-on:
       group: OpenTAP-SpokeVPC
       labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    container: ghcr.io/opentap/oci-images/build-dotnet:v9
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -209,7 +209,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
       - name: Copy Debug Package 
@@ -274,7 +274,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
       - name: Copy Debug Package 
@@ -377,7 +377,7 @@ jobs:
 
   TestLinuxPlan:
     runs-on: ubuntu-20.04
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    container: ghcr.io/opentap/oci-images/build-dotnet:v9
     needs: 
     - Build-Linux
     - Package-Templates
@@ -390,7 +390,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
@@ -420,7 +420,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
@@ -516,7 +516,7 @@ jobs:
     runs-on:
       group: OpenTAP-SpokeVPC
       labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    container: ghcr.io/opentap/oci-images/build-dotnet:v9
     needs:
       - Build-Linux
       # - Build-MacOS
@@ -670,7 +670,7 @@ jobs:
     runs-on:
        group: OpenTAP-SpokeVPC
        labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    container: ghcr.io/opentap/oci-images/build-dotnet:v9
     needs:
       - Package-Cross
     steps:
@@ -841,7 +841,7 @@ jobs:
     runs-on:
       group: OpenTAP-SpokeVPC
       labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    container: ghcr.io/opentap/oci-images/build-dotnet:v9
     needs:
       - Build-Installer-Windows 
       - GetVersion
@@ -911,7 +911,7 @@ jobs:
     runs-on:
       group: OpenTAP-SpokeVPC
       labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    container: ghcr.io/opentap/oci-images/build-dotnet:v9
     needs:
       - Build-Installer-Linux
       - GetVersion
@@ -1022,7 +1022,7 @@ jobs:
     runs-on:
       group: OpenTAP-SpokeVPC
       labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    container: ghcr.io/opentap/oci-images/build-dotnet:v9
     needs:
       - Package-Win
       - Package-Cross
