@@ -485,7 +485,10 @@ namespace OpenTap.Package
         
         private static void VerifyDependenciesInstalled(this PackageDef pkg)
         {
-            var currentInstallation = Installation.Current;
+            var currentInstallation = new Installation(Directory.GetCurrentDirectory()); 
+            if (!currentInstallation.IsInstallationFolder) // if there is no installation in the current folder look where tap is executed from
+                currentInstallation = new Installation(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+            
             var installed = currentInstallation.GetPackages().Where(p => p.Name != pkg.Name).ToList();
             // check versions of any hardcoded dependencies against what is currently installed
             foreach(PackageDependency dep in pkg.Dependencies)
@@ -509,8 +512,7 @@ namespace OpenTap.Package
                     throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, 
                         $"Package dependency '{dep.Name}' specified in package definition is not installed. Please install a compatible version first.");
                 }
-            }
-            
+            } 
         }
 
         internal static void findDependenciesAndHandleOverrides(this PackageDef pkgDef, List<string> excludeAdd,
@@ -547,7 +549,10 @@ namespace OpenTap.Package
             bool foundNew = false;
             var notFound = new HashSet<string>();
 
-            var currentInstallation = Installation.Current;
+            var currentInstallation = new Installation(Directory.GetCurrentDirectory()); 
+            if (!currentInstallation.IsInstallationFolder) // if there is no installation in the current folder look where tap is executed from
+                currentInstallation = new Installation(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location));
+            
             var installed = currentInstallation.GetPackages().Where(p => p.Name != pkg.Name).ToList();
 
             {
