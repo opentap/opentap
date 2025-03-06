@@ -40,11 +40,17 @@ namespace OpenTap
             builders = builders.Replace(builders.FirstOrDefault(x => x.GetType() == src.GetType()), src);
             src.Initialize(targetType);
 
+            // use DisplayAttribute if present
+            var displayName = member.GetAttribute<DisplayAttribute>()?.Name;
+            // Otherwise fall back to member name
+            if (displayName == null)
+                displayName = member.Name;
+
             var ui = new MixinBuilderUi(builders.ToArray(), src)
             {
-                InitialMixinName = member.Name
+                InitialMixinName = displayName
             };
-            
+
             UserInput.Request(ui);
 
             if (ui.Submit == MixinBuilderUi.OkCancel.Cancel)
