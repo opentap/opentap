@@ -130,7 +130,7 @@ namespace OpenTap
             var res2 = Visa.viOpenDefaultRM(out rm);
             if (res2 < 0) return MakeError(res2);
 
-            var res = Visa.viOpen(ScpiInstrument.GetResourceManager(), visaAddress, exclusiveLock ? Visa.VI_EXCLUSIVE_LOCK : Visa.VI_NO_LOCK, IOTimeoutMS, out instrument);
+            var res = Visa.viOpen(rm, visaAddress, exclusiveLock ? Visa.VI_EXCLUSIVE_LOCK : Visa.VI_NO_LOCK, IOTimeoutMS, out instrument);
 
             // Use sensible defaults
             sendEnd = true;
