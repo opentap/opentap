@@ -31,5 +31,7 @@ beta, there is no stable version. Use the following command to install the lates
 
 and run the program with `tap tui`.
 
+Learn more about TUI from the [TUI Readme file](https://github.com/StefanHolst/opentap-tui/blob/main/Readme.md).
+
 
 <!-- Result viewers -->
