@@ -50,7 +50,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         public static IDisposable Create(string tapDir, string runtimeDir)
         {
             loadOpenTap(tapDir, runtimeDir);
-            return new OpenTapContext(runtimeDir);
+            return new OpenTapContext(tapDir);
         }
         
         /// <summary>
