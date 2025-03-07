@@ -27,14 +27,20 @@ namespace OpenTap.Package
 
         private void UpdatePrerelease(string name, string version)
         {
-            foreach (var graph in graphs)
+            var newGraphs = graphs
+                .Where(g => repos[g] is IQueryPrereleases)
+                .AsParallel()
+                .Select(g =>
+                {
+                    var newGraph =
+                        (repos[g] as IQueryPrereleases).QueryPrereleases(os, deploymentInstallationArchitecture,
+                            version, name);
+                    g.Absorb(newGraph);
+                    return newGraph;
+                });
+            foreach (var g in newGraphs)
             {
-                if (repos[graph] is IQueryPrereleases q)
-                { 
-                    var graph2 = q.QueryPrereleases(os, deploymentInstallationArchitecture, version, name);
-                    graph.Absorb(graph2);
-                    Graph.Absorb(graph2);
-                }
+                Graph.Absorb(g);
             }
         }
 
