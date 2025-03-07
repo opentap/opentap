@@ -11,10 +11,13 @@
 
     <!-- First priority is runtime identifier, if specified -->
     <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</PayloadDir>
-      <!-- If no runtime is specified, check if PlatformTarget is defined
-        A list of valid platform targets can be found here:
-        https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-options/output#platformtarget
-        -->
+    <!-- This is a workaround when cross-compiling for mac arm64. 
+    This is needed because the expected runtime identifier is osx, but we use macos in our payload directory. -->
+    <PayloadDir Condition="'$(PayloadDir)' == 'osx-arm64'">macos-arm64</PayloadDir>
+    <!-- If no runtime is specified, check if PlatformTarget is defined
+      A list of valid platform targets can be found here:
+      https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-options/output#platformtarget
+      -->
     <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(PlatformTarget).ToUpper()' == 'X64'">$(PlatformEnv)-x64</PayloadDir>
     <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(PlatformTarget).ToUpper()' == 'X86'">$(PlatformEnv)-x86</PayloadDir>
     <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(PlatformTarget).ToUpper()' == 'ARM'">$(PlatformEnv)-arm64</PayloadDir>
@@ -39,12 +42,7 @@
            Text="$(PayloadDir) builds are not supported."/>
   </Target>
 
-  <!-- Common payload files -->
-  <ItemGroup>
-    <PackagePayloadFiles Include="$(OpenTapCommonDir)\**\*"/>
-  </ItemGroup>
-
-  <!-- Payload for runtime -->
+  <!-- Runtime payload -->
   <ItemGroup Condition="Exists($(OpenTapRuntimeDir))">
     <PackagePayloadFiles Include="$(OpenTapRuntimeDir)\**\*"/>
   </ItemGroup>
@@ -140,6 +138,7 @@
           BeforeTargets="Build">
     <InstallOpenTapPackages
       TapDir="$(OutDir)"
+      OpenTapRuntimeDir="$(OpenTapRuntimeDir)"
       PackagesToInstall="@(OpenTapPackagesToInstall)"
       Repositories="@(OpenTapPackageRepository)"
       SourceFile="$(MSBuildProjectFullPath)"

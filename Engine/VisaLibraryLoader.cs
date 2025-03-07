@@ -92,7 +92,6 @@ namespace OpenTap
             return Marshal.GetDelegateForFunctionPointer<T>(s);
         }
         static TraceSource staticLog = OpenTap.Log.CreateSource("VisaLibraryLoader");
-        [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] // Required by .NET to catch AccessViolationException.
         private void Load()
         {
             try

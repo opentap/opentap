@@ -20,7 +20,7 @@
   &lt;PropertyGroup&gt;
   &lt;TargetFrameworkIdentifier&gt;&lt;/TargetFrameworkIdentifier&gt;
     &lt;TargetFrameworkVersion&gt;&lt;/TargetFrameworkVersion&gt;
-    &lt;TargetFramework&gt;netstandard2.0&lt;/TargetFramework&gt;
+    &lt;TargetFramework&gt;net9&lt;/TargetFramework&gt;
     &lt;AppendTargetFrameworkToOutputPath&gt;false&lt;/AppendTargetFrameworkToOutputPath&gt;
     &lt;CopyLocalLockFileAssemblies&gt;true&lt;/CopyLocalLockFileAssemblies&gt;
    &lt;OutputPath&gt;bin/Debug&lt;/OutputPath&gt;
