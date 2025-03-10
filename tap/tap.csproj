@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>tap</AssemblyName>
     <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
-    <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
     <ApplicationIcon>../Installer/Assets/opentap.ico</ApplicationIcon>
     <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
   </PropertyGroup>
@@ -14,12 +13,4 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="..\Shared\tap.runtimeconfig.json">
-      <Link>tap.runtimeconfig.json</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
 </Project>
