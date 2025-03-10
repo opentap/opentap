@@ -1,22 +1,23 @@
 # Editors
 
-As you may have noticed, a test plan consists of XML. You *could* modify and extend test plans by hand, but we recommend
-using the tools we have developed.
+As previously noted, test plans are implemented in XML. You *could* modify and extend test plans manually, but we recommend
+using available creation and editing tools.
 
-You currently have two options:
-1. [Developer’s System](https://www.keysight.com/find/tapinstall) - mature, feature-rich GUI available with a commercial or community license (recommended)
+There currently exist two options:
+1. [Developer System](https://www.keysight.com/find/tapinstall) - mature, feature-rich GUI available with a commercial or community license (recommended)
 2. [TUI](https://packages.opentap.io/index.html#/?name=TUI) - open source cross-platform text-based user interface for usage in terminals (beta)
 
-## The responsibility of an editor
-Editing test plans, providing a clear overview of what steps are available, safely making changes,
-running testplans, clearly organizing the output of a testplan. E.g.
-1. Provide a clear overview of what steps passed, and what steps failed
-2. Display log output at various points throughout a run
-3. Breaking down the data associated with a test run in a way that empowers the user to analyze the results (results viewer)
+## The function of an editor
 
-## Developer’s System
+Editing test plans, providing a clear overview of available steps, safely making changes,
+running testplans, and clearly organizing the output of a testplan, i.e.,
+1. Providing a clear overview of which steps passed, and which failed
+2. Displaying log output at various points throughout a run
+3. Outputting data associated with a test run to enable analysis of the results (results viewer)
 
-Install the Developer's System (commercial or community license) from the following page:
+## Developer System
+
+Install the Developer System (commercial or community license) from the following page:
 
 [https://www.keysight.com/find/tapinstall](https://www.keysight.com/find/tapinstall)
 
@@ -24,8 +25,8 @@ and run it with `tap editor` or `tap editorx` or launch from the app menu.
 
 ## TUI
 
-As mentioned in the previous section, `tap package install` installs the latest stable version. Since TUI is still in
-beta, there is no stable version. Use the following command to install the latest available version:
+As mentioned in the previous section, `tap package install` installs the latest stable version of OpenTAP and other packages. 
+Use the following command to install the latest available version of TUI:
 
 > tap package install TUI --version any
 
