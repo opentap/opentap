@@ -773,6 +773,8 @@ jobs:
 
           Expand-Archive OpenTAP.x64.zip win-x64 -Verbose
           Expand-Archive OpenTAP.x86.zip win-x86 -Verbose
+          # TODO: create a real arm64 build and copy here. Rely on emulation mode for now
+          Expand-Archive OpenTAP.x64.zip win-arm64 -Verbose
           Expand-Archive OpenTAP.Linux.x64.zip linux-x64 -Verbose
           Expand-Archive OpenTAP.Linux.arm64.zip linux-arm64 -Verbose
           Expand-Archive OpenTAP.MacOS.x64.zip macos-x64 -Verbose
