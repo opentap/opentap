@@ -2559,6 +2559,25 @@ namespace OpenTap.Engine.UnitTests
             var run = plan.Execute(new IResultListener[] {rl});
             Assert.AreEqual(Verdict.Error, run.Verdict);
         }
+
+        [Test]
+        public void TestResultPerformance()
+        {
+            var repeat = new RepeatStep()
+            {
+                Count = 1000000
+            };
+            var step = new SequenceStep()
+            {
+                NoLog = true,
+                NoResults = true
+            };
+            repeat.ChildTestSteps.Add(step);
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(repeat);
+            var r =plan.Execute();
+            var elapsed = r.Duration;
+        }
     }
 
     public class TestITestStep : ValidatingObject, ITestStep

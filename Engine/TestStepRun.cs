@@ -259,7 +259,9 @@ namespace OpenTap
         /// <summary> Called by TestStep.DoRun after running the step. </summary>
         internal void CompleteStepRun(TestPlanRun planRun, ITestStep step, TimeSpan runDuration)
         {
-            
+
+            if (step is IAdvancedStep s && s.NoResults)
+                return;
             // update values in the run. 
             ResultParameters.UpdateParams(Parameters, step);
             
@@ -283,7 +285,8 @@ namespace OpenTap
             TestStepName = step.GetFormattedName();
             stepTypeData = TypeData.GetTypeData(step);
             TestStepTypeName = stepTypeData.AsTypeData().AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step, stepTypeData);
+            if(step is IAdvancedStep  s && s.NoResults == false)
+                Parameters = ResultParameters.GetParams(step, stepTypeData);
             Verdict = Verdict.NotSet;
         }
         
@@ -300,14 +303,16 @@ namespace OpenTap
         /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the steps.</param>
         public TestStepRun(ITestStep step, Guid parent, IEnumerable<ResultParameter> attachedParameters = null): this(step)
         {
-            if (attachedParameters != null) Parameters.AddRange(attachedParameters);
+            if(step is IAdvancedStep s && s.NoResults == false)
+                if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent;
         }
 
         internal TestStepRun(ITestStep step, TestRun parent, IEnumerable<ResultParameter> attachedParameters, TestPlanRun testPlanRun): this(step)
         {
             this.testPlanRun = testPlanRun;
-            if (attachedParameters != null) Parameters.AddRange(attachedParameters);
+            if(step is IAdvancedStep s && s.NoResults == false)
+                if (attachedParameters != null) Parameters.AddRange(attachedParameters);
             Parent = parent.Id;
             BreakCondition = calculateBreakCondition(step, parent);
         }

@@ -20,6 +20,13 @@ using System.Runtime.ExceptionServices;
 
 namespace OpenTap
 {
+    public interface IAdvancedStep : ITestStep
+    {
+        bool NoResults { get; }
+        bool NoLog { get; }
+    
+    }
+    
     /// <summary>
     /// All TestSteps that are instances of the TestStep abstract class should override the <see cref="TestStep.Run"/> method. 
     /// Additionally, the  <see cref="TestStep.PrePlanRun"/> and <see cref="TestStep.PostPlanRun"/> methods can be overridden.
@@ -30,7 +37,7 @@ namespace OpenTap
     [ComVisible(true)]
     [Guid("d0b06600-7bac-47fb-9251-f834e420623f")]
     public abstract class TestStep : ValidatingObject, ITestStep, IBreakConditionProvider, IDescriptionProvider, 
-        IDynamicMembersProvider, IInputOutputRelations, IParameterizedMembersCache, IDynamicMemberValue
+        IDynamicMembersProvider, IInputOutputRelations, IParameterizedMembersCache, IDynamicMemberValue, IAdvancedStep
     {
         #region Properties
         /// <summary>
@@ -102,6 +109,12 @@ namespace OpenTap
                 OnPropertyChanged(nameof(Name));
             }
         }
+        
+        [DefaultValue(true)]
+        public bool NoResults { get; set; }
+        
+        [DefaultValue(true)]
+        public bool NoLog { get; set; }
 
         string typeName;
         /// <summary>
@@ -985,10 +998,13 @@ namespace OpenTap
                         
                         if (Step is TestStep _step)
                             _step.Results = new ResultSource(stepRun, Step.PlanRun);
-                        TestPlan.Log.Info("{0} started.", stepRun.TestStepPath);
+                        if(Step is IAdvancedStep s && s.NoLog == false)
+                            TestPlan.Log.Info("{0} started.", stepRun.TestStepPath);
                         stepRun.StartStepRun(); // set verdict to running, set Timestamp.
                         parentRun.ChildStarted(stepRun);
-                        planRun.AddTestStepRunStart(stepRun);
+                        if (Step is IAdvancedStep s2 && s2.NoResults == false)
+                            planRun.AddTestStepRunStart(stepRun);
+                        
                         Step.Run();
                         
                         {
@@ -1088,16 +1104,23 @@ namespace OpenTap
                         TimeSpan time = swatch.Elapsed;
                         
                         stepRun.CompleteStepRun(planRun, Step, time);
-                        if (Step.Verdict == Verdict.NotSet)
+                        if (Step is IAdvancedStep s && s.NoLog == false)
                         {
-                            TestPlan.Log.Info(time, "{0} completed.", stepRun.TestStepPath);
-                        }
-                        else
-                        {
-                            TestPlan.Log.Info(time, "{0} completed with verdict '{1}'.", stepRun.TestStepPath, Step.Verdict);
+
+                            if (Step.Verdict == Verdict.NotSet)
+                            {
+                                TestPlan.Log.Info(time, "{0} completed.", stepRun.TestStepPath);
+                            }
+                            else
+                            {
+                                TestPlan.Log.Info(time, "{0} completed with verdict '{1}'.", stepRun.TestStepPath,
+                                    Step.Verdict);
+                            }
                         }
 
-                        planRun.AddTestStepRunCompleted(stepRun);
+                        if (Step is IAdvancedStep s2 && s2.NoResults == false)
+                            planRun.AddTestStepRunCompleted(stepRun);
+
                         stepRun.SignalCompleted();
                     }
                 }
