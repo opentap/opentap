@@ -342,7 +342,7 @@ namespace OpenTap.Package
 
             var package = PackageDef.FromPackage(path);
             if (!EulaAccept(package))
-                throw new Exception("Eula not accepted.");
+                throw new Cli.ExitCodeException((int)PackageExitCodes.EulaNotAccepted, "EULA not accepted.");
 
             var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : target;
 

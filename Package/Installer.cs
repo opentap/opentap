@@ -98,7 +98,7 @@ namespace OpenTap.Package
                             }
                         }
                     }
-                    catch
+                    catch (Exception ex) when (ex is not ExitCodeException)
                     {
                         if (!ForceInstall)
                         {
@@ -127,6 +127,8 @@ namespace OpenTap.Package
             catch (Exception ex)
             {
                 OnError(ex);
+                if (ex is ExitCodeException)
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex).Throw();
                 throw new ExitCodeException((int)PackageExitCodes.PackageInstallError, $"Failed to install packages");
             }
 
