@@ -376,7 +376,7 @@ jobs:
             NewProj*/**
 
   TestLinuxPlan:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs: 
     - Build-Linux
@@ -1104,7 +1104,8 @@ jobs:
           name: nuget-package
           path: ./Packages/SDK/Examples/nuget-package
       - name: Create Local Nuget Package Source
-        run: echo '<configuration><packageSources><add key="local-nuget" value="./nuget-package" /></packageSources></configuration>' > ./Packages/SDK/Examples/Nuget.config
+        run: dotnet nuget add source $(pwd)/nuget-package --name local-nuget
+        working-directory: ./Packages/SDK/Examples
       - run: dotnet build -c LinuxDebug
         working-directory: ./Packages/SDK/Examples
       - run: dotnet build -c LinuxRelease
@@ -1138,4 +1139,3 @@ jobs:
         working-directory: ./Packages/SDK/Examples
       - run: dotnet build -c Release
         working-directory: ./Packages/SDK/Examples
-

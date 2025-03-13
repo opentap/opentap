@@ -12,7 +12,7 @@ itself ships with a few essential components:
 1. A package manager to browse and install packages.
 2. The capability to execute test plans.
 
-This keeps the core engine fast, lean, and enables easy deployment in container solutions such as Docker.
+This minimalist approach keeps the core engine fast and lean, and enables easy deployment in container solutions such as Docker.
 The CLI help of a clean OpenTAP installation looks something like this:
 
 ```bash
@@ -97,10 +97,10 @@ There are a few CLI options, which most `package` subcommands have in common:
 The default values of `os` and `architecture` are automatically configured according to the machine where OpenTAP is
 installed, and the default repository is the official OpenTAP repository, [packages.opentap.io](http://packages.opentap.io).
 
-By default, all package commands apply operations in the OpenTAP installation directory, where the `tap.exe` file is located. The `--target`
+By default, all package commands apply operations in the OpenTAP installation directory, where the `tap` executable file is located. The `--target`
 option makes it possible to manage multiple `tap` versions on the same machine.
 
-This is usually what you want, but there are some situations where it may be useful to modify them. For example, you can
+This default is usually what you want, but there exist situations where it may be useful to modify those values. For example, you can
 install OpenTAP onto a Linux machine from a Windows machine with `tap package install OpenTAP --os Linux --target
 C:\path\to\linux\installation`.
 
@@ -109,14 +109,14 @@ C:\path\to\linux\installation`.
 The `list` command is used to view information about packages in your local OpenTAP installation, and available packages
 in the online repository.
 
-In order to check what packages are available, run `tap package list`. To see what versions of a package are available,
+In order to check which packages are available, run `tap package list`. To see which versions of a package are available,
 such as OpenTAP itself, run `tap package list OpenTAP`.
 
-To see what packages are currently installed, use the `tap package list --installed` option. You can view what
+To see which packages are currently installed, use the `tap package list --installed` option. You can view which
 packages are in a specific installation directory with `tap package list --installed --target <installation dir>`.
 
 By default, `list` only shows packages compatible with your OS and CPU architecture, and your currently installed
-packages. To see also packages incompatible with your OS and CPU architecture, use the `--all` option.
+packages. To see packages incompatible with your OS and CPU architecture, use the `--all` option.
 
 If a version is specified, `list` displays all sub-versions of that version. `tap package list OpenTAP --version 9.4`
 lists OpenTAP versions 9.4.0, 9.4.1, and 9.4.2.
@@ -154,38 +154,45 @@ Installing a specific version of any package is also simple:
 
 ` ... --version rc` installs the latest release candidate.
 
-Whenever you install a package, the package manager will attempt to resolve the dependencies. If you are missing a
+Whenever you install a package, the package manager will attempt to resolve any dependencies encountered. If you are missing a
 package dependency, the package manager will prompt you, and install it automatically if you confirm. To avoid this
 behavior, you may install a package with the `-y` option to automatically confirm all prompts. If you are trying to
-install a package that is incompatible with your current installation, the package manager will stop. This could happen if
-you have a package installed that depends on OpenTAP >= 9.5.1, and you try to install OpenTAP 9.4. You can override this
-behavior by using the `--force` option, but this can lead to a non-functional installation.
+install a package that is incompatible with your current installation, the package manager will stop. This situation could occur when
+an installed package depends on OpenTAP >= 9.5.1, and you try to install OpenTAP 9.4. You can override this
+behavior by using the `--force` option, but forced installation can lead to a non-functional system.
 
-Using `--os` and `--architecture`, you can install packages built for different operating systems and architectures. If
-you specify values different from your system, they will likely not work. However, used in conjunction with the
+#### Cross Installation
+
+Using `--os` and `--architecture`, you can install packages built for different operating systems and architectures (cross installation). If
+you specify values different from those for your local system, they will likely not work on that local system. However, used in conjunction with the
 `--target` option, you can use them to install packages on a different machine. The `--target` option allows you to
-specify an installation directory. This creates a new tap installation in the specified directory with only the plugins
-required for the packages you requested. This could be useful, for instance, if you need to install a package that is
-incompatible with your current tap installation. You can also install a different version of OpenTAP in another location
-with `tap package install OpenTAP --version 9.4.2 --target C:\path\to\other\installation`.
+specify an alternative installation directory. This procedure creates a new tap installation in the specified directory with only the plugins
+required for the packages requested. This procedure can be useful, for instance, if you need to install a package that is
+incompatible with your current tap installation. 
 
-New plugins may provide their own CLI actions, thus increase the number of options. OpenTAP keeps track of the installed
+You can also install a different version of OpenTAP in another location with
+`tap package install OpenTAP --version 9.4.2 --target C:\path\to\other\installation`.
+Note that the installation path will reside on the same machine as the CLI execution.  You will need to transfer the installed to appropriate machine manually.
+
+#### New Plugins
+
+New plugins may provide their own CLI actions, thus increasing the number of options. OpenTAP keeps track of the installed
 plugins for you, so you can always verify the available CLI actions by running `tap`.
 
 ### uninstall
 
-Uninstall one or more packages, e.g., `tap package uninstall Demonstration Python`. The package manager will warn you if you attempt to uninstall a package other packages in
-your installation depend on. Uninstalling dependencies in spite of warnings may break your installation. However, unless
-you removed OpenTAP, you can repair your installation by reinstalling the uninstalled dependency.
+Uninstall one or more packages, e.g., `tap package uninstall Demonstration Python`. The package manager will warn you if you attempt to uninstall a package other packages upon which 
+your installation has dependencies. Uninstalling dependencies in spite of warnings may break your installation. However, unless
+you removed OpenTAP, you can repair your installation by reinstalling the broken dependency.
 
 Like the above two commands, `uninstall` supports targeting a different directory.
 
 ### download
 
-Download one or more packages without installing them. Dependencies can be automatically downloaded by including the `--dependencies` flag. 
+Download one or more packages without installing them. Dependencies in downloaded files can be automatically resolved during downloaded by including the `--dependencies` flag. 
 All downloaded files are placed in the OpenTAP installation directory. You can specify a different destination using the `--out` parameter.
-If it points to a directory, all downloaded packages are placed in that directory instead.
-If it specifies a filename, this will be the name of the first package specified, and the remaining packages will be placed in the same directory with their default name. 
+If that parameters points to a directory, all downloaded packages are placed in that directory instead.
+If the parameter specifies a filename, it will be the name of the first package specified, and the remaining packages will be placed in the same directory with their default name. 
 Like the install action, the download action also supports specifying the desired os, version, and architecture.
 
 `tap package download Python`.
@@ -243,7 +250,7 @@ If not specified, `<installation dir>/Settings/Bench/Default` is used:
 ### Plugin Search Path
 
 By default, OpenTAP searches for plugins in the installation directory and in the `<installation dir>/Packages` directory.
-More directories to be searched for plugins may be provided with multiple occourrences of the `--search` option,
+More directories to be searched for plugins may be provided with multiple occurrences of the `--search` option,
 one for each additional directory:
 
 `tap run MyTestPlan.TapPlan --search C:\Users\Me\MyDut --search C:\Users\Me\MyInstrument`.
@@ -339,13 +346,13 @@ and then use it with:
 
 If a test plan with external parameters is used in a `Test Plan Reference` step,
 its parameters will appear as regular step settings, and they can be easily modified.
-This means that a collection of test steps can easily be abstracted away to appear as a single,
-fully configurable test step.
+This means that a collection of test steps can easily be abstracted to appear as a single,
+fully-configurable test step.
 
 
 ### Metadata
 
-Similarly to *External* settings, resource settings can be marked as *Metadata*. This could be the serial number of a DUT, for
+Similarly to *External* settings, resource settings can be marked as *Metadata*. This annotation could be the serial number of a DUT, for
 instance. This option may be specified multiple times:
 
 `tap run My.TapPlan --metadata dut1=123 --metadata dut2=456`.

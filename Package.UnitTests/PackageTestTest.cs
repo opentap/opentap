@@ -146,7 +146,7 @@ namespace OpenTap.Package.UnitTests
             StringAssert.Contains("Starting test step 'echo hello'", normalOutput.Stdout);
             // The echoed "hello" should only appear in debug output 
             CollectionAssert.DoesNotContain(normalOutput.Stdout.Split('\n'), "hello");
-            StringAssert.Contains("Succesfully ran test step  'echo hello'", normalOutput.Stdout);
+            StringAssert.Contains("Successfully ran test step  'echo hello'", normalOutput.Stdout);
             Assert.AreEqual(0, normalOutput.ExitCode);
 
             var verboseOutput = RunTest(true);
@@ -168,15 +168,15 @@ namespace OpenTap.Package.UnitTests
                 var normalOutput = RunTest(false);
                 
                 StringAssert.Contains("Starting test step 'tap sdk gitversion'", normalOutput.Stdout);
-                StringAssert.Contains("Tested MyPlugin5 version 1.0.0.", normalOutput.Stdout);
-                StringAssert.Contains("Succesfully ran test step  'tap sdk gitversion'", normalOutput.Stdout);
+                StringAssert.Contains("Successfully tested MyPlugin5 version 1.0.0.", normalOutput.Stdout);
+                StringAssert.Contains("Successfully ran test step  'tap sdk gitversion'", normalOutput.Stdout);
                 StringAssert.Contains(actualGitversion, normalOutput.Stdout);
                 Assert.AreEqual(0, normalOutput.ExitCode);
             }
             {   // Verbose output tests
                 var verboseOutput = RunTest(true);
 
-                StringAssert.Contains("Tested MyPlugin5 version 1.0.0.", verboseOutput.Stdout);
+                StringAssert.Contains("Successfully tested MyPlugin5 version 1.0.0.", verboseOutput.Stdout);
 
                 var verboseLines = ParseStdout(verboseOutput.Stdout);
 
@@ -198,7 +198,7 @@ namespace OpenTap.Package.UnitTests
 
             var normalOutput = RunTest(false);
             StringAssert.Contains($"Starting test step '{exeName} hello'", normalOutput.Stdout);
-            StringAssert.DoesNotContain("Succesfully ran test step", normalOutput.Stdout);
+            StringAssert.DoesNotContain("Successfully ran test step", normalOutput.Stdout);
             Assert.AreNotEqual(0, normalOutput.ExitCode);
             StringAssert.Contains("Failed to run test package action", normalOutput.Stderr);
         }

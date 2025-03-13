@@ -190,7 +190,7 @@ namespace OpenTap.Package
                             throw new Exception($"Failed to run {step.ActionName} step {stepName}. Unexpected exitcode: {p.ExitCode}");
                     }
 
-                    log.Info(sw, $"Succesfully ran {step.ActionName} step  {stepName}. {(p.ExitCode != 0 ? $"Exitcode: {p.ExitCode}" : "")}");
+                    log.Info(sw, $"Successfully ran {step.ActionName} step  {stepName}. {(p.ExitCode != 0 ? $"Exitcode: {p.ExitCode}" : "")}");
                 }
                 catch (Win32Exception) when (step.Optional)
                 {

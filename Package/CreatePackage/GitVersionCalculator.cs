@@ -478,9 +478,12 @@ namespace OpenTap.Package
                 {
                     // be careful to return the remote branch instead of any local one. On build runners the local branch might be behind, as they usually just checkout a sha not the actual branch
                     var branch = repo.Branches.FirstOrDefault(b => b.CanonicalName == defaultRef.TargetIdentifier);
-                    log.Debug("Determined beta branch to be '{0}' by looking at the HEAD of the remote '{1}'.", branch.GetShortName(), remote.Name);
                     if (branch != null)
+                    {
+                        log.Debug("Determined beta branch to be '{0}' by looking at the HEAD of the remote '{1}'.",
+                            branch.GetShortName(), remote.Name);
                         return branch;
+                    }
                 }
             }
 

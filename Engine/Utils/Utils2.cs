@@ -36,6 +36,9 @@ namespace OpenTap
 
         public static Action Bind<T>(this Action del, Action<T> f, T v)
         {
+            if (del == null)
+                return () => f(v);
+
             del += () => f(v);
             return del;
         }

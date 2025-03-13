@@ -17,7 +17,7 @@ namespace OpenTap.Package
 {
     internal class Installer
     {
-        private readonly static TraceSource log =  OpenTap.Log.CreateSource("Installer");
+        private static readonly TraceSource log =  OpenTap.Log.CreateSource("Installer");
         private CancellationToken cancellationToken;
 
         internal delegate void ProgressUpdateDelegate(int progressPercent, string message);
@@ -75,20 +75,26 @@ namespace OpenTap.Package
 
                         log.Info(timer, $"Installed {pkg.Name} version {pkg.Version}");
 
-                        if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) && PackagePaths.Last() != fileName)
+                        if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) &&
+                            PackagePaths.Last() != fileName)
                         {
-                            var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t)).Where(t => t.BaseType == nameof(ICustomPackageData));
-                            if (newPlugins.Any(np => TypeData.GetTypeData(np.Name) == null))  // Only search again, if the new plugins are not already loaded.
+                            var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t))
+                                .Where(t => t.BaseType == nameof(ICustomPackageData));
+                            if (newPlugins.Any(np =>
+                                    TypeData.GetTypeData(np.Name) ==
+                                    null)) // Only search again, if the new plugins are not already loaded.
                             {
                                 if (ExecutorClient.IsRunningIsolated)
                                 {
                                     // Only load installed assemblies if we're running isolated. 
-                                    log.Info(timer, $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
+                                    log.Info(timer,
+                                        $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
                                     PluginManager.DirectoriesToSearch.Add(TapDir);
                                     PluginManager.SearchAsync();
                                 }
                                 else
-                                    log.Warning($"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
+                                    log.Warning(
+                                        $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
                             }
                         }
                     }
@@ -97,9 +103,11 @@ namespace OpenTap.Package
                         if (!ForceInstall)
                         {
                             if (PackagePaths.Last() != fileName)
-                                log.Warning("Aborting installation of remaining packages (use --force to override this behavior).");
+                                log.Warning(
+                                    "Aborting installation of remaining packages (use --force to override this behavior).");
                             PackageDef failedPackage = PackageDef.FromPackage(fileName);
-                            throw new ExitCodeException((int)PackageExitCodes.PackageInstallError, $"Package failed to install: {failedPackage.Name} version {failedPackage.Version} ({fileName})");
+                            throw new ExitCodeException((int)PackageExitCodes.PackageInstallError,
+                                $"Package failed to install: {failedPackage.Name} version {failedPackage.Version} ({fileName})");
                         }
                         else
                         {
@@ -137,10 +145,33 @@ namespace OpenTap.Package
         internal const string Uninstall = "uninstall";
         internal const string PrepareUninstall = "prepareuninstall";
         internal const string Install = "install";
+        internal const string Test = "test";
 
         internal int RunCommand(string command, bool force, bool modifiesPackageFiles)
         {
-            var verb = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ToTitleCase(command.ToLower()) + "ed";
+            // Example usage:
+            // "Successfully {pastTense} {pkg.Name} version {pkg.Version}."
+            Dictionary<string, string> pastTenseLookup = new(StringComparer.OrdinalIgnoreCase)
+            {
+                [PrepareUninstall] = "prepared to uninstall", 
+                [Uninstall] = "uninstalled",
+                [Install] = "installed",
+                [Test] = "tested",
+            };
+            
+            // Example usages:
+            // "Tried to {commandFriendlyName} {pkg.Name}, but there was nothing to do."
+            // "There was an error while trying to {commandFriendlyName} '{pkg.Name}'."
+            Dictionary<string, string> friendlyNameLookup = new(StringComparer.OrdinalIgnoreCase)
+            { 
+                [PrepareUninstall] = "prepare uninstalling",
+                [Uninstall] = "uninstall",
+                [Install] = "install",
+                [Test] = "test",
+            };
+            
+            var pastTense = pastTenseLookup[command];
+            var friendlyName = friendlyNameLookup[command];
 
             try
             {
@@ -170,9 +201,9 @@ namespace OpenTap.Package
                 foreach (string fileName in PackagePaths)
                 {
                     PackageDef pkg = PackageDef.FromXml(fileName);
-                    pkg.PackageSource = new XmlPackageDefSource{PackageDefFilePath = fileName};
-                    
-                    OnProgressUpdate((int)progressPercent, $"Running command '{command}' on '{pkg.Name}'");
+                    pkg.PackageSource = new XmlPackageDefSource { PackageDefFilePath = fileName };
+
+                    OnProgressUpdate((int)progressPercent, $"Running command '{friendlyName}' on '{pkg.Name}'");
                     Stopwatch timer = Stopwatch.StartNew();
                     var res = pi.ExecuteAction(pkg, command, force, TapDir);
 
@@ -181,20 +212,21 @@ namespace OpenTap.Package
                         if (!force)
                         {
                             OnProgressUpdate(100, "Done");
-                            return (int) ExitCodes.GeneralException;
+                            return (int)ExitCodes.GeneralException;
                         }
                         else
-                            log.Warning($"There was an error while trying to {command} '{pkg.Name}'.");
+                            log.Warning($"There was an error while trying to {friendlyName} '{pkg.Name}'.");
                     }
-                    else if(res == ActionResult.NothingToDo)
+                    else if (res == ActionResult.NothingToDo)
                     {
-                        log.Debug($"Tried to {command} {pkg.Name}, but there was nothing to do.");
+                        log.Debug($"Tried to {friendlyName} {pkg.Name}, but there was nothing to do.");
                     }
                     else
-                        log.Info(timer, $"{verb} {pkg.Name} version {pkg.Version}.");
+                        log.Info(timer, $"Successfully {pastTense} {pkg.Name} version {pkg.Version}.");
 
                     progressPercent += (double)80 / PackagePaths.Count();
                 }
+
                 OnProgressUpdate(90, "");
 
                 if (DoSleep)
@@ -215,7 +247,7 @@ namespace OpenTap.Package
                     return (int)ExitCodes.UserCancelled;
 
                 log.Debug(ex);
-                return (int) ExitCodes.GeneralException;
+                return (int)ExitCodes.GeneralException;
             }
 
             new Installation(TapDir).AnnouncePackageChange();
@@ -251,8 +283,49 @@ namespace OpenTap.Package
             return filesInUse.ToArray();
         }
 
+        private void WaitForPackageFilesFreeWindows(List<string> packagePaths)
+        {
+            var allfiles = packagePaths.SelectMany(PluginInstaller.FilesInPackage).ToArray();
+
+            retry:
+            var procs = RestartManager.GetProcessesUsingFiles(allfiles);
+            if (procs.Count == 0)
+                return;
+            var msg = new StringBuilder();
+            msg.AppendLine("The following applications are blocking the operation:");
+            var procString = string.Join("", procs.Select(p => $"\n - {p}"));
+            msg.AppendLine(procString);
+            msg.AppendLine("\nPlease close these applications and try again.");
+
+            var req = new AbortOrShutdownRequest("Files In Use", msg.ToString());
+            UserInput.Request(req);
+            if (req.Response == AbortOrRetryOrShutdownResponse.Retry) 
+                goto retry;
+            else if (req.Response == AbortOrRetryOrShutdownResponse.Abort)
+            {
+                OnError(new IOException(msg.ToString()));
+                throw new OperationCanceledException(); 
+            }
+        }
         private void WaitForPackageFilesFree(string tapDir, List<string> packagePaths)
         {
+            var noninteractive = UserInput.GetInterface() is NonInteractiveUserInputInterface;
+            if (OperatingSystem.Current == OperatingSystem.Windows && noninteractive == false)
+            {
+                try
+                {
+                    WaitForPackageFilesFreeWindows(packagePaths);
+                    return;
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch 
+                {
+                    // fallback to old logic -- This shouldn't happen, but let's be safe.
+                }
+            }
             var filesInUse = GetFilesInUse(tapDir, packagePaths);
 
             if (filesInUse.Length > 0)
@@ -274,7 +347,6 @@ namespace OpenTap.Package
                 var tries = 0;
                 const int maxTries = 10;
                 var delaySeconds = 3;
-                var noninteractive = UserInput.GetInterface() is NonInteractiveUserInputInterface;
                 var inUseString = BuildString(filesInUse);
                 if (noninteractive)
                     log.Warning(inUseString);
@@ -425,5 +497,29 @@ namespace OpenTap.Package
         public string Message { get; }
         [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
         [Submit] public AbortOrRetryResponse Response { get; set; }
+    }
+    enum AbortOrRetryOrShutdownResponse
+    {
+        Abort,
+        Retry,
+    }
+
+    class AbortOrShutdownRequest
+    {
+        public AbortOrShutdownRequest(string title, string message)
+        {
+            Message = message;
+            Name = title;
+        }
+        
+        [Browsable(false)] public string Name { get; } 
+
+        [Browsable(true)]
+        [Layout(LayoutMode.FullRow)]
+        [Display("Message", Order: 1)]
+        public string Message { get; }
+
+        [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+        [Submit] public AbortOrRetryOrShutdownResponse Response { get; set; }
     }
 }
