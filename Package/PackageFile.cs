@@ -302,6 +302,49 @@ namespace OpenTap.Package
         arm64
     }
 
+    [Display("Please review the End User License Agreement")]
+    class EulaAcceptanceDialog
+    {
+        public enum Acceptance
+        {
+            [Display("I accept the agreement")]
+            Accept,
+            [Display("I do not accept the agreement")]
+            Decline,
+        }
+        private readonly EULA _eula; 
+        [Browsable(true)]
+        [Layout(LayoutMode.FullRow)]
+        public string Message => _eula.Source;
+
+        [Submit]
+        [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+        public Acceptance Answer { get; set; } = Acceptance.Accept;
+
+        public EulaAcceptanceDialog(EULA eula)
+        {
+            _eula = eula;
+        }
+    }
+
+    /// <summary>
+    /// End User License Agreement
+    /// </summary>
+    [XmlType("EULA")]
+    public class EULA
+    {
+        /// <summary>
+        /// Unique identifier for this Eula.
+        /// </summary>
+        [XmlAttribute("Identifier")]
+        public string Identifier { get; set; }
+        /// <summary>
+        /// File or URL where the Eula can be accessed.
+        /// </summary>
+        [XmlAttribute("Source")]
+        public string Source { get; set; }
+    }
+
     /// <summary>
     /// Definition of a package file. Contains basic structural information relating to packages.
     /// </summary>
@@ -410,7 +453,13 @@ namespace OpenTap.Package
         /// Specific open source license. Must be a SPDX identifier, read more at https://spdx.org/licenses/.
         /// </summary>
         [DefaultValue(null)]
-        public string SourceLicense { get; set; }
+        public string SourceLicense { get; set; } 
+        
+        /// <summary>
+        /// Link or path to a Eula which must be accepted in order to use this plugin.
+        /// </summary>
+        [DefaultValue(null)]
+        public EULA EULA { get; set; }
 
         /// <summary>
         /// License(s) required to use this package. During package create all '<see cref="PackageFile.LicenseRequired"/>' attributes from '<see cref="Files"/>' will be concatenated into this property.

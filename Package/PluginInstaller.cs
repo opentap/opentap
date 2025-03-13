@@ -309,6 +309,29 @@ namespace OpenTap.Package
 
         }
 
+        private static bool EulaAccept(PackageDef package)
+        {
+            if (package.EULA == null)
+                log.Warning($"Package {package.Name} does not have a EULA.");
+            if (string.IsNullOrWhiteSpace(package?.EULA?.Identifier)) return true;
+
+            string accept = $"{package.EULA.Identifier}: Yes";
+            var EulaAcceptanceFile = Path.Combine(PackageCacheHelper.PackageCacheDirectory, "EulaAcceptance.txt");
+            var acceptedEulas = File.Exists(EulaAcceptanceFile) ? File.ReadLines(EulaAcceptanceFile) : [];
+            if (acceptedEulas.Contains(accept))
+                return true;
+
+            var EulaDialog = new EulaAcceptanceDialog(package.EULA);
+            UserInput.Request(EulaDialog);
+            if (EulaDialog.Answer == EulaAcceptanceDialog.Acceptance.Accept)
+            {
+                log.Debug($"Accepted Eula {package.EULA.Identifier}");
+                File.AppendAllLines(EulaAcceptanceFile, [accept]);
+                return true;
+            }
+            return false;
+        }
+
         /// <summary>
         /// Tries to install a plugin from 'path', throws an exception on error.
         /// </summary>
@@ -318,6 +341,9 @@ namespace OpenTap.Package
             checkFileExists(path);
 
             var package = PackageDef.FromPackage(path);
+            if (!EulaAccept(package))
+                throw new Exception("Eula not accepted.");
+
             var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : target;
 
             try
