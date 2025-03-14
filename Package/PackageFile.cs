@@ -923,11 +923,11 @@ namespace OpenTap.Package
                     var files = Directory.GetFiles(dir, "*", SearchOption.TopDirectoryOnly);
 
                     if (files.Any(f =>
-                        string.Equals(Path.GetFileName(f), ".OpenTapIgnore", StringComparison.InvariantCulture)))
+                        string.Equals(Path.GetFileName(f), ".OpenTapIgnore", StringComparison.OrdinalIgnoreCase)))
                         continue;
 
                     var packageXml = files.FirstOrDefault(f =>
-                        string.Equals(Path.GetFileName(f), "package.xml", StringComparison.InvariantCulture));
+                        string.Equals(Path.GetFileName(f), "package.xml", StringComparison.OrdinalIgnoreCase));
 
                     if (packageXml != null)
                         results.Add(packageXml);

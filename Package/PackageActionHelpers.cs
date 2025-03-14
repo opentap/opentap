@@ -111,7 +111,7 @@ namespace OpenTap.Package
                         }
                     }
                     else if (Path.GetExtension(packageName)
-                             .Equals(".Tappackage", StringComparison.InvariantCultureIgnoreCase) || File.Exists(packageName))
+                             .Equals(".Tappackage", StringComparison.OrdinalIgnoreCase) || File.Exists(packageName))
                     {
                         
                         var pkg = PackageDef.FromPackage(packageName);

@@ -489,7 +489,7 @@ namespace OpenTap
                     for (int i = 0; i < names.Length; i++)
                     {
                         var display = type.GetMember(names[i]).Select(x => x.GetDisplayAttribute()).FirstOrDefault();
-                        if (StringComparer.InvariantCultureIgnoreCase.Equals(display.Name, str))
+                        if (StringComparer.OrdinalIgnoreCase.Equals(display.Name, str))
                         {
                             result = (Enum)Enum.GetValues(type).GetValue(i);
                             return true;
@@ -515,8 +515,8 @@ namespace OpenTap
                     {
                         var display = type.GetMember(names[i]).Select(x => x.GetDisplayAttribute()).FirstOrDefault();
                         var name = display.Name.ToLower().Trim();
-                        if (StringComparer.InvariantCultureIgnoreCase.Equals(name, str) || 
-                            StringComparer.InvariantCultureIgnoreCase.Equals(name.Replace('_', ' '), str))
+                        if (StringComparer.OrdinalIgnoreCase.Equals(name, str) || 
+                            StringComparer.OrdinalIgnoreCase.Equals(name.Replace('_', ' '), str))
                         {
                             result = (Enum) Enum.GetValues(type).GetValue(i);
                             return true;

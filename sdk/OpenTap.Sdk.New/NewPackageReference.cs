@@ -88,7 +88,7 @@ namespace OpenTap.Sdk.New
             foreach (var grp in itemGroups)
             {
                 var existingElem = grp.Elements("OpenTapPackageReference")
-                    .Where(elem => string.Equals(elem.Attribute("Reference")?.Value ?? "True", (!NoReference).ToString(), StringComparison.InvariantCultureIgnoreCase))
+                    .Where(elem => string.Equals(elem.Attribute("Reference")?.Value ?? "True", (!NoReference).ToString(), StringComparison.OrdinalIgnoreCase))
                     .FirstOrDefault(elem => elem.Attribute("Include")?.Value == PackageName);
                 
                 if (existingElem != null)
