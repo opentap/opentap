@@ -128,10 +128,15 @@ namespace OpenTap.Cli
                 SessionLogs.Rename(args.Argument("log"));
             }
 
+            var requiredNamedArgs = argToProp.Values.Where(x => x.GetAttribute<CommandLineArgumentAttribute>().Required)
+                .ToHashSet();
+
             foreach (var opts in args)
             {
                 if (argToProp.ContainsKey(opts.Key) == false) continue;
                 var prop = argToProp[opts.Key];
+                if (requiredNamedArgs.Contains(prop))
+                    requiredNamedArgs.Remove(prop);
 
                 if (prop.TypeDescriptor is TypeData propTd)
                 {
@@ -179,6 +184,7 @@ namespace OpenTap.Cli
             unnamedArgToProp = unnamedArgToProp.OrderBy(p => p.GetAttribute<UnnamedCommandLineArgument>().Order)
                 .ToList();
             var requiredArgs = unnamedArgToProp.Where(x => x.GetAttribute<UnnamedCommandLineArgument>().Required)
+                .Concat(requiredNamedArgs)
                 .ToHashSet();
             int idx = 0;
 
@@ -221,8 +227,14 @@ namespace OpenTap.Cli
                     Console.WriteLine("Unknown options: " + string.Join(" ", args.UnknownsOptions));
 
                 if (requiredArgs.Any())
-                    Console.WriteLine("Missing argument: " + string.Join(" ",
-                        requiredArgs.Select(p => p.GetAttribute<UnnamedCommandLineArgument>().Name)));
+                {
+                    var unnamed = requiredArgs.Where(p => p.HasAttribute<UnnamedCommandLineArgument>())
+                        .Select(p => p.GetAttribute<UnnamedCommandLineArgument>().Name);
+                    var named = requiredArgs.Where(p => p.HasAttribute<CommandLineArgumentAttribute>())
+                        .Select(p => p.GetAttribute<CommandLineArgumentAttribute>().Name);
+                    
+                    Console.WriteLine("Missing argument: " + string.Join(", ", unnamed.Concat(named)));
+                }
 
                 printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
                 return (int)ExitCodes.ArgumentParseError;
