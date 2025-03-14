@@ -302,6 +302,112 @@ namespace OpenTap.Package
         arm64
     }
 
+    [Display("Please review the End User License Agreement")]
+    class EulaAcceptanceDialog
+    {
+        public enum Acceptance
+        {
+            [Display("I accept the agreement")]
+            Accept,
+            [Display("I do not accept the agreement")]
+            Decline,
+        }
+        private readonly EULA _eula; 
+        private static readonly TraceSource log = Log.CreateSource("EULA");
+        
+        [Browsable(true)]
+        [Layout(LayoutMode.FullRow | LayoutMode.WrapText)]
+        [Display("Message", Order: 1)]
+        public string Message => $"Please review the end user license agreement at {_eula.Source}";
+
+        [Browsable(true)]
+        [Layout(LayoutMode.FullRow)]
+        [Display("View License Agreement", Order: 2)]
+        public void OpenEula()
+        {
+            if (!Uri.TryCreate(_eula.Source, UriKind.RelativeOrAbsolute, out var uri))
+            {
+                log.Error($"Cannot determine resource type '{_eula.Source}'. Please review it manually, if possible.");
+                return;
+            }
+
+            string path = null;
+            if (uri.IsAbsoluteUri && !uri.IsFile)
+            {
+                // Assume some Uri scheme which can be opened (most likely http)
+                path = uri.AbsoluteUri;
+            }
+            else
+            {
+                // Assume either a relative or absolute file path
+                if (uri.IsAbsoluteUri && uri.IsFile)
+                {
+                    path = uri.LocalPath;
+                }
+                else
+                {
+                    try
+                    {
+                        path = Path.GetFullPath(_eula.Source);
+                    }
+                    catch (Exception)
+                    {
+                        log.Error($"Cannot determine resource type '{_eula.Source}'. Please review it manually, if possible.");
+                        return;
+                    }
+                }
+
+                if (!File.Exists(path))
+                {
+                    log.Error($"EULA file '{path}' does not exist.");
+                    return;
+                }
+            }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo()
+                {
+                    FileName = path,
+                    UseShellExecute = true,
+                });
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Error opening EULA '{path}': {ex.Message}");
+                log.Debug(ex);
+            }
+        }
+
+        [Submit]
+        [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+        [Display("Answer", Order: 3)]
+        public Acceptance Answer { get; set; } = Acceptance.Accept;
+
+        public EulaAcceptanceDialog(EULA eula)
+        {
+            _eula = eula;
+        }
+    }
+
+    /// <summary>
+    /// End User License Agreement
+    /// </summary>
+    [XmlType("EULA")]
+    public class EULA
+    {
+        /// <summary>
+        /// Unique identifier for this Eula.
+        /// </summary>
+        [XmlAttribute("Identifier")]
+        public string Identifier { get; set; }
+        /// <summary>
+        /// File or URL where the Eula can be accessed.
+        /// </summary>
+        [XmlAttribute("Source")]
+        public string Source { get; set; }
+    }
+
     /// <summary>
     /// Definition of a package file. Contains basic structural information relating to packages.
     /// </summary>
@@ -410,7 +516,13 @@ namespace OpenTap.Package
         /// Specific open source license. Must be a SPDX identifier, read more at https://spdx.org/licenses/.
         /// </summary>
         [DefaultValue(null)]
-        public string SourceLicense { get; set; }
+        public string SourceLicense { get; set; } 
+        
+        /// <summary>
+        /// Link or path to a Eula which must be accepted in order to use this plugin.
+        /// </summary>
+        [DefaultValue(null)]
+        public EULA EULA { get; set; }
 
         /// <summary>
         /// License(s) required to use this package. During package create all '<see cref="PackageFile.LicenseRequired"/>' attributes from '<see cref="Files"/>' will be concatenated into this property.
