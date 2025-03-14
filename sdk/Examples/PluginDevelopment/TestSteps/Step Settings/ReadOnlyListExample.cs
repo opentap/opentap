@@ -24,6 +24,18 @@ namespace OpenTap.Plugins.PluginDevelopment
         [Browsable(true)] public int X => GetHashCode(); 
         [Browsable(true)] public string Message => X + " example";
         public string Note { get; set; } = "Write notes here..";
+
+        public override bool Equals(object obj)
+        {
+            if (obj is ReadOnlyListElement other)
+                return Message == other.Message && Note == other.Note;
+            return false;
+        } 
+
+        public override int GetHashCode()
+        {
+            return Message.GetHashCode() * 901283 + Note.GetHashCode() * 17283;
+        }
     }
     
     [Display("Read-Only List Example", "Demonstrates how to use a list where items cannot be added or removed." +
