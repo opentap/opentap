@@ -53,7 +53,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
                     var act = DescribeBytes(r.Answer);
                     log.Info($"Expected: {exp}");
                     log.Info($"  Actual: {act}");
-                    if (r.Answer.Equals(ExpectedAnswers[i], StringComparison.Ordinal) == false)
+                    if (r.Answer.Equals(ExpectedAnswers[i], StringComparison.InvariantCulture) == false)
                     {
                         log.Error($"Input {i + 1} did not match the expected input:");
                         log.Error($"Expected '{ExpectedAnswers[i]}', got '{r.Answer}'");
