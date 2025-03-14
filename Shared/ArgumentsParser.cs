@@ -32,7 +32,7 @@ namespace OpenTap.Cli
             {
                 len = 2;
             }
-            else if (st.StartsWith("-")) // Removed check for starting with '\'. It breaks installing a pacakge from network drive because it starts with \\.
+            else if (st.StartsWith("-")) // Removed check for starting with '\'. It breaks installing a package from network drive because it starts with \\.
             {
                 len = 1;
             }

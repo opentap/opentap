@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Xml.Serialization;
 
 namespace OpenTap
 {
@@ -39,6 +40,8 @@ namespace OpenTap
         public IMemberData InnerMember => innerMember;
         readonly IMemberData ownerMember;
         readonly IMemberData innerMember;
+        private readonly IEnumerable<object> additionalAttributes;
+
         public ITypeData DeclaringType => ownerMember.DeclaringType;
         public ITypeData TypeDescriptor => innerMember.TypeDescriptor;
         public bool Writable => innerMember.Writable;
@@ -60,10 +63,11 @@ namespace OpenTap
             if (target == null) throw new NullReferenceException($"Embedded property object owner ('{ownerMember.Name}') is null.");
             innerMember.SetValue(target, value);   
         }
-        public EmbeddedMemberData(IMemberData ownerMember, IMemberData innerMember)
+        public EmbeddedMemberData(IMemberData ownerMember, IMemberData innerMember, IEnumerable<object> additionalAttributes)
         {
             this.ownerMember = ownerMember;
             this.innerMember = innerMember;
+            this.additionalAttributes = additionalAttributes;
             var embed = ownerMember.GetAttribute<EmbedPropertiesAttribute>();
             if (embed.PrefixPropertyName)
             {
@@ -193,7 +197,7 @@ namespace OpenTap
                 }
             }
 
-            return attributes = list.ToArray();
+            return attributes = list.Concat(additionalAttributes ?? []).ToArray();
         }
 
         bool IDynamicMemberData.IsDisposed => OwnerMember is IDynamicMemberData dyn && dyn.IsDisposed;
@@ -246,20 +250,24 @@ namespace OpenTap
 
             foreach (var member in BaseType.GetMembers())
             {
-                if (member.GetAttribute<EmbedPropertiesAttribute>() is EmbedPropertiesAttribute)
+                if (member.HasAttribute<EmbedPropertiesAttribute>())
                 {
+                    var xmlIgnore = member.HasAttribute<XmlIgnoreAttribute>();
                     var members = member.TypeDescriptor.GetMembers();
                     foreach(var m in members)
                     {
                         if (m.HasAttribute<EmbedPropertiesAttribute>())
                         {
+                            if (xmlIgnore == false)
+                                xmlIgnore = m.HasAttribute<XmlIgnoreAttribute>();
                             members = EmbeddedTypeDataProvider.FromTypeData(member.TypeDescriptor).GetMembers();
                             break;
                         }
                     }
 
+                    object[] additionalAttributes = xmlIgnore ? [new XmlIgnoreAttribute()] : [];
                     foreach (var innermember in members)
-                        embeddedMembers.Add(new EmbeddedMemberData(member, innermember));
+                        embeddedMembers.Add(new EmbeddedMemberData(member, innermember, additionalAttributes));
                 }
             }
             currentlyListing.Remove(this);

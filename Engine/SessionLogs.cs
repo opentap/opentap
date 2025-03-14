@@ -283,8 +283,15 @@ namespace OpenTap
             {
                 if (!recentFilesValid) 
                     return Array.Empty<string>();
-                
-                recentLock.WaitOne();
+
+                try
+                {
+                    recentLock.WaitOne();
+                }
+                catch (AbandonedMutexException)
+                {
+                    // recover from abandoned mutex
+                }
                 try
                 {
                     return ensureFileExistsAndReadLines();
@@ -303,7 +310,14 @@ namespace OpenTap
                 
                 // Important to lock the file and to re-read if the file was changed since last checked.
                 // otherwise there is a risk that a log file will be forgotten and never cleaned up.
-                recentLock.WaitOne();
+                try
+                {
+                    recentLock.WaitOne();
+                }
+                catch (AbandonedMutexException)
+                {
+                    // recover from abandoned mutex
+                }
                 try
                 {
                     var currentFiles = ensureFileExistsAndReadLines().Append(newname).DistinctLast();

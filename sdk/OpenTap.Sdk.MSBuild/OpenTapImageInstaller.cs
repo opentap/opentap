@@ -74,6 +74,14 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         }
 
         /// <summary>
+        /// UserInputInterface implementation which returns immediately. Intended for non-interactive use.
+        /// </summary>
+        class NonInteractiveUserInputInterface : IUserInputInterface
+        {
+            void IUserInputInterface.RequestUserInput(object dataObject, TimeSpan timeout, bool modal) { }
+        }
+
+        /// <summary>
         /// Creates a merged image of currently installed packages and the packages contained in ITaskItem[]
         /// and deploys it to the output directory.
         /// </summary>
@@ -86,6 +94,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
             try
             {
+                // This installation is happening during a C# compilation context. The user will not be able to respond to any user input requests.
+                // We should ensure a non-interactive user input is configured in case any user inputs are raised.
+                UserInput.SetInterface(new NonInteractiveUserInputInterface());
                 var install = new Installation(TapDir);
 
                 OpenTapNugetPackage = install.GetOpenTapPackage();

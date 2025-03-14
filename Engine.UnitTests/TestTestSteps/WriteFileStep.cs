@@ -120,7 +120,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
             }
 
             var nf = normalize(File);
-            var asm = s.Assemblies.FirstOrDefault(a => normalize(a.Location).Equals(nf, StringComparison.InvariantCultureIgnoreCase));
+            var asm = s.Assemblies.FirstOrDefault(a => normalize(a.Location).Equals(nf, StringComparison.OrdinalIgnoreCase));
 
             if (asm == null)
             {

@@ -755,8 +755,8 @@ namespace OpenTap.Package.UnitTests
             var plugins = Directory.EnumerateFiles(".");
 
             Assert.IsTrue(plugins.Any(package =>
-                Path.GetFileName(package).StartsWith("Test", System.StringComparison.InvariantCultureIgnoreCase) &&
-                Path.GetExtension(package).EndsWith("TapPackage", System.StringComparison.InvariantCultureIgnoreCase)
+                Path.GetFileName(package).StartsWith("Test", System.StringComparison.OrdinalIgnoreCase) &&
+                Path.GetExtension(package).EndsWith("TapPackage", System.StringComparison.OrdinalIgnoreCase)
             ), "Generated OpenTAP package file not found");
         }
 

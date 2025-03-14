@@ -376,7 +376,7 @@ jobs:
             NewProj*/**
 
   TestLinuxPlan:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs: 
     - Build-Linux

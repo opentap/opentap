@@ -363,7 +363,7 @@ namespace OpenTap.Package
                 // but this causes issues in scenarios where merge commits are fast-forwarded onto e.g. the main branch.
                 // See here: https://github.com/opentap/opentap/pull/1384
                 // And here: https://github.com/opentap/opentap/issues/1321#issuecomment-1895749385
-                bool isRc = preRelease.StartsWith("rc", StringComparison.InvariantCultureIgnoreCase);
+                bool isRc = preRelease.StartsWith("rc", StringComparison.OrdinalIgnoreCase);
                 Commit cfgCommit = getLatestConfigVersionChange(targetCommit);
                 Commit commonAncestor = findFirstCommonAncestor(defaultBranch, targetCommit);
                 int commitsFromDefaultBranch = countCommitsBetween(commonAncestor, targetCommit, firstParentOnly: isRc);
@@ -478,9 +478,12 @@ namespace OpenTap.Package
                 {
                     // be careful to return the remote branch instead of any local one. On build runners the local branch might be behind, as they usually just checkout a sha not the actual branch
                     var branch = repo.Branches.FirstOrDefault(b => b.CanonicalName == defaultRef.TargetIdentifier);
-                    log.Debug("Determined beta branch to be '{0}' by looking at the HEAD of the remote '{1}'.", branch.GetShortName(), remote.Name);
                     if (branch != null)
+                    {
+                        log.Debug("Determined beta branch to be '{0}' by looking at the HEAD of the remote '{1}'.",
+                            branch.GetShortName(), remote.Name);
                         return branch;
+                    }
                 }
             }
 

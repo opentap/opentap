@@ -46,5 +46,10 @@ namespace OpenTap.Package
         /// </summary>
         [Display("Invalid Archive Error", "Error occurred while creating package")]
         InvalidPackageArchive = 37,
+        /// <summary>
+        /// EULA not accepted.
+        /// </summary>
+        [Display("EULA Not Accepted", "User did not accept the End User License Agreement")]
+        EulaNotAccepted = 38,
     }
 }
