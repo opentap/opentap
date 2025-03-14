@@ -316,9 +316,9 @@ namespace OpenTap.Package
         private static readonly TraceSource log = Log.CreateSource("EULA");
         
         [Browsable(true)]
-        [Layout(LayoutMode.FullRow)]
+        [Layout(LayoutMode.FullRow | LayoutMode.WrapText)]
         [Display("Message", Order: 1)]
-        public string Message => $"Please review the end user license agreement at: {_eula.Source}";
+        public string Message => $"Please review the end user license agreement at {_eula.Source}";
 
         [Browsable(true)]
         [Layout(LayoutMode.FullRow)]
