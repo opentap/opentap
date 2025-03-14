@@ -311,8 +311,6 @@ namespace OpenTap.Package
 
         private static bool EulaAccept(PackageDef package)
         {
-            if (package.EULA == null)
-                log.Warning($"Package {package.Name} does not have a EULA.");
             if (string.IsNullOrWhiteSpace(package?.EULA?.Identifier)) return true;
 
             string accept = $"{package.EULA.Identifier}: Yes";
