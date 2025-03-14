@@ -313,12 +313,75 @@ namespace OpenTap.Package
             Decline,
         }
         private readonly EULA _eula; 
+        private static readonly TraceSource log = Log.CreateSource("EULA");
+        
         [Browsable(true)]
         [Layout(LayoutMode.FullRow)]
-        public string Message => _eula.Source;
+        [Display("Message", Order: 1)]
+        public string Message => $"Please review the end user license agreement at: {_eula.Source}";
+
+        [Browsable(true)]
+        [Layout(LayoutMode.FullRow)]
+        [Display("View License Agreement", Order: 2)]
+        public void OpenEula()
+        {
+            if (!Uri.TryCreate(_eula.Source, UriKind.RelativeOrAbsolute, out var uri))
+            {
+                log.Error($"Cannot determine resource type '{_eula.Source}'. Please review it manually, if possible.");
+                return;
+            }
+
+            string path = null;
+            if (uri.IsAbsoluteUri && !uri.IsFile)
+            {
+                // Assume some Uri scheme which can be opened (most likely http)
+                path = uri.AbsoluteUri;
+            }
+            else
+            {
+                // Assume either a relative or absolute file path
+                if (uri.IsAbsoluteUri && uri.IsFile)
+                {
+                    path = uri.LocalPath;
+                }
+                else
+                {
+                    try
+                    {
+                        path = Path.GetFullPath(_eula.Source);
+                    }
+                    catch (Exception)
+                    {
+                        log.Error($"Cannot determine resource type '{_eula.Source}'. Please review it manually, if possible.");
+                        return;
+                    }
+                }
+
+                if (!File.Exists(path))
+                {
+                    log.Error($"EULA file '{path}' does not exist.");
+                    return;
+                }
+            }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo()
+                {
+                    FileName = path,
+                    UseShellExecute = true,
+                });
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Error opening EULA '{path}': {ex.Message}");
+                log.Debug(ex);
+            }
+        }
 
         [Submit]
         [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+        [Display("Answer", Order: 3)]
         public Acceptance Answer { get; set; } = Acceptance.Accept;
 
         public EulaAcceptanceDialog(EULA eula)
