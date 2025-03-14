@@ -129,11 +129,11 @@ namespace OpenTap
             return false;
         }
 
-        static void checkRelations(ITestStepParent target)
+        static bool checkRelations(ITestStepParent target)
         {
             Action defer = null;
-
-            foreach (var connection in getOutputRelations(target))
+            var outputRelations = getOutputRelations(target);
+            foreach (var connection in outputRelations)
             {
                 if (connection.OutputObject is ITestStep otherStep)
                 {
@@ -154,7 +154,8 @@ namespace OpenTap
                 }
             }
 
-            foreach (var connection in getInputRelations(target))
+            var inputRelations = getInputRelations(target);
+            foreach (var connection in inputRelations)
             {
                 if (connection.InputMember is IDynamicMemberData dyn && dyn.IsDisposed)
                 {
@@ -167,6 +168,7 @@ namespace OpenTap
             }
 
             defer?.Invoke();
+            return inputRelations.Length != 0 || outputRelations.Length != 0;
         }
 
         static TestStepRun ResolveStepRun(ITestStep step, Guid waiterStep)
@@ -205,7 +207,8 @@ namespace OpenTap
     /// <summary> Updates the input of 'target' by reading the value of the source output.  </summary>
         public static void UpdateInputs(ITestStepParent target)
         {
-            checkRelations(target);
+            if (checkRelations(target) == false)
+                return;
             var outputs = getOutputRelations(target);
             if (outputs.Length == 0) return;
             

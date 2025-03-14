@@ -59,9 +59,14 @@ namespace OpenTap
                         return Verdict.NotSet; // unexpected, but let's not fail.
                 }
             }
-            protected internal set => Parameters.SetIndexed((nameof(Verdict), GROUP), ref verdictIndex, value);
+            protected internal set
+            {
+                if (value == Verdict.NotSet && verdictIndex == -1)
+                    return;
+                Parameters.SetIndexed((nameof(Verdict), GROUP), ref verdictIndex, value);
+            }
         }
-        
+
         /// <summary> Exception causing the Verdict to be 'Error'. </summary>
         public Exception Exception { get; internal set; }
         

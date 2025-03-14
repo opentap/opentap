@@ -20,9 +20,18 @@ using System.Runtime.ExceptionServices;
 
 namespace OpenTap
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public interface IAdvancedStep : ITestStep
     {
+        /// <summary>
+        /// 
+        /// </summary>
         bool NoResults { get; }
+        /// <summary>
+        /// 
+        /// </summary>
         bool NoLog { get; }
     
     }
@@ -110,9 +119,15 @@ namespace OpenTap
             }
         }
         
+        /// <summary>
+        /// 
+        /// </summary>
         [DefaultValue(true)]
         public bool NoResults { get; set; }
         
+        /// <summary>
+        /// 
+        /// </summary>
         [DefaultValue(true)]
         public bool NoLog { get; set; }
 

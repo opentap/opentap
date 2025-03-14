@@ -2577,6 +2577,7 @@ namespace OpenTap.Engine.UnitTests
             plan.ChildTestSteps.Add(repeat);
             var r =plan.Execute();
             var elapsed = r.Duration;
+            Trace.WriteLine(elapsed);
         }
     }
 
