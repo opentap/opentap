@@ -52,7 +52,7 @@ namespace OpenTap
                 var process = Process.Start(startInfo);
                 process.WaitForExit(1000);
                 var uname = process.StandardOutput.ReadToEnd();
-                return uname.ToLowerInvariant().Contains("darwin");
+                return uname.ToUpperInvariant().Contains("DARWIN");
             }
             catch
             {

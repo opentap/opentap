@@ -331,11 +331,11 @@ namespace OpenTap
         /// <returns></returns>
         internal static object Parse(string value, IFormatProvider format = null)
         {
-            if (string.Equals(value, "infinity", StringComparison.InvariantCultureIgnoreCase))
+            if (string.Equals(value, "infinity", StringComparison.OrdinalIgnoreCase))
                 return Infinity;
-            if (string.Equals(value, "-infinity", StringComparison.InvariantCultureIgnoreCase))
+            if (string.Equals(value, "-infinity", StringComparison.OrdinalIgnoreCase))
                 return NegativeInfinity;
-            if (string.Equals(value, "nan", StringComparison.InvariantCultureIgnoreCase))
+            if (string.Equals(value, "nan", StringComparison.OrdinalIgnoreCase))
                 return NaN;
             if (value.Contains("/"))
             {

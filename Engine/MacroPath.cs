@@ -165,7 +165,7 @@ namespace OpenTap
         /// <returns>A string with macros expanded.</returns>
         internal static string ReplaceMacros(string userString, IEnumerable<(string,string)> keyvaluepairs, string macroDefault = "TBD")
         {
-            var cmp = StringComparer.InvariantCultureIgnoreCase;
+            var cmp = StringComparer.OrdinalIgnoreCase;
             Dictionary<string, string> cache = new Dictionary<string, string>(cmp);
             IEnumerator<(string, string)> valueiterator = keyvaluepairs.GetEnumerator();
             string getMacroDef(string key)

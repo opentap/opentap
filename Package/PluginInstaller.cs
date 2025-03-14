@@ -84,11 +84,11 @@ namespace OpenTap.Package
                 if (isSystemWide)
                 {
                     yield return Path.Combine(systemWideDir, file);
-                    if(!file.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
+                    if(!file.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                         yield return Path.Combine(systemWideDir,file + ".exe");
                 }
                 yield return Path.Combine(workingDirectory, file);
-                if(!file.EndsWith(".exe", StringComparison.InvariantCultureIgnoreCase))
+                if(!file.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                     yield return Path.Combine(workingDirectory, file + ".exe");
             }
 
@@ -609,8 +609,8 @@ namespace OpenTap.Package
                 .Where(p => p.Name != package.Name)
                 .SelectMany(p => p.Files)
                 .Select(f => f.RelativeDestinationPath)
-                .Distinct(StringComparer.InvariantCultureIgnoreCase)
-                .ToHashSet(StringComparer.InvariantCultureIgnoreCase);
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             try
             {

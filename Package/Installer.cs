@@ -279,8 +279,8 @@ namespace OpenTap.Package
             // Check if the files that are in use are used by any other package
             var packages = packagePaths.Select(p => p.EndsWith("TapPackage") ? PackageDef.FromPackage(p) : PackageDef.FromXml(p));
             var remainingInstalledPlugins = new Installation(tapDir).GetPackages().Where(i => packages.Any(p => p.Name == i.Name) == false);
-            var filesToRemain = remainingInstalledPlugins.SelectMany(p => p.Files).Select(f => f.RelativeDestinationPath).Distinct(StringComparer.InvariantCultureIgnoreCase);
-            filesInUse = filesInUse.Where(f => filesToRemain.Contains(f.Name, StringComparer.InvariantCultureIgnoreCase) == false).ToList();
+            var filesToRemain = remainingInstalledPlugins.SelectMany(p => p.Files).Select(f => f.RelativeDestinationPath).Distinct(StringComparer.OrdinalIgnoreCase);
+            filesInUse = filesInUse.Where(f => filesToRemain.Contains(f.Name, StringComparer.OrdinalIgnoreCase) == false).ToList();
 
             return filesInUse.ToArray();
         }

@@ -363,7 +363,7 @@ namespace OpenTap.Package
                 // but this causes issues in scenarios where merge commits are fast-forwarded onto e.g. the main branch.
                 // See here: https://github.com/opentap/opentap/pull/1384
                 // And here: https://github.com/opentap/opentap/issues/1321#issuecomment-1895749385
-                bool isRc = preRelease.StartsWith("rc", StringComparison.InvariantCultureIgnoreCase);
+                bool isRc = preRelease.StartsWith("rc", StringComparison.OrdinalIgnoreCase);
                 Commit cfgCommit = getLatestConfigVersionChange(targetCommit);
                 Commit commonAncestor = findFirstCommonAncestor(defaultBranch, targetCommit);
                 int commitsFromDefaultBranch = countCommitsBetween(commonAncestor, targetCommit, firstParentOnly: isRc);

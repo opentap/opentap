@@ -160,8 +160,8 @@ namespace OpenTap.Package
             // Path case sensitivity is file system dependent. Typically Windows and MacOS will be case-insensitive,
             // and Linux will be case-sensitive, but not always. TODO: check if path file system is case sensitive
             var stringComparer = OperatingSystem.Current == OperatingSystem.Linux
-                ? StringComparison.InvariantCulture
-                : StringComparison.InvariantCultureIgnoreCase;
+                ? StringComparison.Ordinal
+                : StringComparison.OrdinalIgnoreCase;
             // Ensure the file is in a subdirectory of the installation. Otherwise it is not contained in a package.
             if (!abs.StartsWith(installDir, stringComparer))
                 return null;
