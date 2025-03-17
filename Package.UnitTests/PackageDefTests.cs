@@ -252,7 +252,7 @@ namespace OpenTap.Package.UnitTests
                     File.Delete(outputFilename);
             }
         }
-#if NET6_0
+
         [Test]
         public void CreatePackageVersioningMono()
         {
@@ -277,7 +277,7 @@ namespace OpenTap.Package.UnitTests
             Assert.AreEqual("0.1.2", FileVersionInfo.GetVersionInfo(tmpFile).ProductVersion, "GetVersionInfo().ProductVersion");
             Assert.AreEqual("0.1.2", FileSystemHelper.GetAssemblyVersion(tmpFile), "FileSystemHelper.GetAssemblyVersion");
         }
-#endif
+
         [Test]
         public void CreatePackageDepVersions()
         {
@@ -591,7 +591,7 @@ namespace OpenTap.Package.UnitTests
             string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
 <Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
   <Files>
-    <File Path='System.Reflection.Metadata.dll'/>
+    <File Path='System.Reflection.MetadataLoadContext.dll'/>
   </Files>
 </Package>
 ";

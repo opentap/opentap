@@ -27,6 +27,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     internal class OpenTapImageInstaller : IDisposable
     {
         public string TapDir { get; set; }
+        public string RuntimeDir { get; set; }
         public CancellationToken CancellationToken { get; set; }
         public PackageDef OpenTapNugetPackage { get; set; }
         public IImageDeployer ImageDeployer { get; set; }
@@ -66,10 +67,11 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             Log.AddListener(traceListener);
         }
 
-        public OpenTapImageInstaller(string tapDir, CancellationToken cancellationToken)
+        public OpenTapImageInstaller(string tapDir, string runtimeDir, CancellationToken cancellationToken)
         {
             CancellationToken = cancellationToken;
             TapDir = tapDir;
+            RuntimeDir = runtimeDir; 
             attachTraceListener();
         }
 

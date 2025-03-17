@@ -209,7 +209,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
       - name: Copy Debug Package 
@@ -236,6 +236,11 @@ jobs:
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
+      - name: Check .NET SDKS 
+        run: dotnet --list-sdks     
+      - name: Check .NET info 
+        run: dotnet --info     
+
       - name: Stamp Version
         run: |
           $AssemblyVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}.0`""
@@ -256,7 +261,7 @@ jobs:
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
-          name: win-${{ matrix.Architecture }}-bin
+          name: win-${{ matrix.architecture }}-bin
           retention-days: 5
           path: |
             bin/Release/*
@@ -274,7 +279,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
       - name: Copy Debug Package 
@@ -334,8 +339,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
-          cd bin/Release                                                                                                                            # Timeout: 10 minutes (normally takes 5 minutes to run)
-          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=600000 RunConfiguration.TreatNoTestsAsError=true
+          cd bin/Release                                                                       # Timeout: 10 minutes (normally takes 5 minutes to run)
+          dotnet vstest OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=600000 RunConfiguration.TreatNoTestsAsError=true
 
   TestWindowsPlan:
     runs-on: windows-2022
@@ -390,7 +395,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
@@ -420,7 +425,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
@@ -540,6 +545,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
@@ -740,11 +749,21 @@ jobs:
           path: .
       - name: Package
         run: |
-          #cp bin\Release\runtimes\win-x64\native\git2-b7bad55.dll bin\Release
           $content=(Get-Content ./nuget/OpenTAP.nuspec).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Set-Content ./nuget/OpenTAP.nuspec $content
           New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
+
+
+          Copy-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
+          Copy-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
+
+          Copy-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
+          Copy-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
+          Copy-Item ./bin/Release/OpenTap.Package.dll ./nuget/build/payload
+          Copy-Item ./bin/Release/OpenTap.dll ./nuget/build/payload
+
           # Expand-Archive will only extract .zip extensions    
+          echo "Rename Archives"
           Move-Item OpenTAP.*.x86.Windows.TapPackage OpenTAP.x86.zip 
           Move-Item OpenTAP.*.x64.Windows.TapPackage OpenTAP.x64.zip
           Move-Item OpenTAP.*.Linux.x64.TapPackage OpenTAP.Linux.x64.zip
@@ -752,33 +771,14 @@ jobs:
           Move-Item OpenTAP.*.MacOS.x64.TapPackage OpenTAP.MacOS.x64.zip
           Move-Item OpenTAP.*.MacOS.arm64.TapPackage OpenTAP.MacOS.arm64.zip
 
-          Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
-          Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
-          echo "Install opentap"    
-          ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f -v --no-isolation
-          # package.xml, tap.dll, and tap.runtimeconfig.json of an installation should always come from 
-          # one of the Runtime directories. Delete it from the payload directory.
-          Remove-Item ./nuget/build/payload/Packages/OpenTAP/package.xml
-          # these files only exists when building for net6.0.
-          #Remove-Item ./nuget/build/payload/tap.dll
-          #Remove-Item ./nuget/build/payload/tap.runtimeconfig.json
+          echo "Expand Archives"
+          Expand-Archive OpenTAP.x64.zip -DestinationPath ./nuget/build/runtimes/win-x64 -Force
+          Expand-Archive OpenTAP.x86.zip -DestinationPath ./nuget/build/runtimes/win-x86 -Force
+          Expand-Archive OpenTAP.Linux.x64.zip -DestinationPath ./nuget/build/runtimes/linux-x64 -Force
+          Expand-Archive OpenTAP.Linux.arm64.zip -DestinationPath ./nuget/build/runtimes/linux-arm64 -Force
+          Expand-Archive OpenTAP.MacOS.x64.zip -DestinationPath ./nuget/build/runtimes/macos-x64 -Force
+          Expand-Archive OpenTAP.MacOS.arm64.zip -DestinationPath ./nuget/build/runtimes/macos-arm64 -Force
 
-          Move-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
-          Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
-          Push-Location ./nuget/build/payload
-          Remove-Item tap.exe
-          Remove-Item ./Dependencies/LibGit2Sharp.0.27.0.0/git2*.dll
-          Pop-Location
-          echo "Expand archive"
-
-          Expand-Archive OpenTAP.x64.zip win-x64 -Verbose
-          Expand-Archive OpenTAP.x86.zip win-x86 -Verbose
-          Expand-Archive OpenTAP.Linux.x64.zip linux-x64 -Verbose
-          Expand-Archive OpenTAP.Linux.arm64.zip linux-arm64 -Verbose
-          Expand-Archive OpenTAP.MacOS.x64.zip macos-x64 -Verbose
-          Expand-Archive OpenTAP.MacOS.arm64.zip macos-arm64 -Verbose
-
-          ./nuget/NugetPackager.ps1
           cd ./nuget    
           Invoke-WebRequest -Method Get -Uri "https://dist.nuget.org/win-x86-commandline/v5.7.1/nuget.exe" -OutFile nuget.exe
           echo "Pack nuget"
@@ -987,7 +987,7 @@ jobs:
   ### Publish ###
   ###############
   Publish-NuGet:
-    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    # if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
     runs-on: [self-hosted, windows]
     needs:
@@ -1017,7 +1017,7 @@ jobs:
         run: dotnet nuget push OpenTAP.Templates*.nupkg -k ${{ secrets.NUGET_KEY }} -s https://api.nuget.org/v3/index.json # --skip-duplicate --no-symbols
 
   Publish-TapPackages:
-    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    # if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: packages.opentap.io
     runs-on:
       group: OpenTAP-SpokeVPC
