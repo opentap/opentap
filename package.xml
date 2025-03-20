@@ -90,6 +90,18 @@
 <!--        <File Path="tap"/>-->
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.$(Architecture)"/>
     </Files>
+    <!-- .NET runtime entrypoints -->
+    <Files>
+      <!-- net7.0 -->
+      <File Condition="$(Platform) == Windows" Path="Packages/OpenTAP/net7/tap.dll" SourcePath="tap.exe" />
+      <File Condition="$(Platform) != Windows" Path="Packages/OpenTAP/net7/tap.dll" SourcePath="tap.dll" />
+      <File Path="Packages/OpenTAP/net7/tap.runtimeconfig.json" SourcePath="tap.net7.runtimeconfig.json"/>
+
+      <!-- net6.0 -->
+      <File Condition="$(Platform) == Windows" Path="Packages/OpenTAP/net6/tap.dll" SourcePath="tap.exe" />
+      <File Condition="$(Platform) != Windows" Path="Packages/OpenTAP/net6/tap.dll" SourcePath="tap.dll" />
+      <File Path="Packages/OpenTAP/net6/tap.runtimeconfig.json" SourcePath="tap.runtimeconfig.json"/>
+    </Files>
     <!-- License Texts -->
     <Files>
         <File Path="LICENSE.txt" />
@@ -115,6 +127,17 @@
         <!-- Manually added Newtonsoft dll since it is not being picked up automatically -->
         <File Path="Dependencies/Newtonsoft.Json.13.0.0.0/Newtonsoft.Json.dll" SourcePath="Newtonsoft.Json.dll"/>
     </Files>
+    <ExternalCliActions>
+      <ExternalCliAction Condition="$(Debug) == true" Name="ls" Groups="system \ action" ExeFile="ls">
+        <Description>This is an example command which runs ls with some predefined arguments. Additional arguments will be appended.</Description>
+      </ExternalCliAction>
+      <ExternalCliAction Name="net7" Groups="runtime" ExeFile="dotnet" Arguments="./Packages/OpenTAP/net7/tap.dll">
+        <Description>Start OpenTAP explicitly with the .NET 7 Runtime</Description>
+      </ExternalCliAction>
+      <ExternalCliAction Name="net6" Groups="runtime" ExeFile="dotnet" Arguments="./Packages/OpenTAP/net6/tap.dll">
+        <Description>Start OpenTAP explicitly with the .NET 6 Runtime</Description>
+      </ExternalCliAction>
+    </ExternalCliActions>
     <PackageActionExtensions Condition="$(Platform) != Windows">
       <!-- An exit code of '1' means we failed to set the permission.
         This happens when the user has read/write/execute permissions,
