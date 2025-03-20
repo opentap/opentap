@@ -15,11 +15,11 @@
         A list of valid platform targets can be found here:
         https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/compiler-options/output#platformtarget
         -->
-    <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(PlatformTarget).ToUpper()' == 'X64'">$(PlatformEnv)-x64</PayloadDir>
-    <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(PlatformTarget).ToUpper()' == 'X86'">$(PlatformEnv)-x86</PayloadDir>
-    <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(PlatformTarget).ToUpper()' == 'ARM'">$(PlatformEnv)-arm64</PayloadDir>
-    <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(PlatformTarget).ToUpper()' == 'ARM64'">$(PlatformEnv)-arm64</PayloadDir>
-    <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(PlatformTarget).ToUpper()' == 'ANYCPU32BITPREFERRED'">$(PlatformEnv)-x86</PayloadDir>
+    <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(PlatformTarget)' == 'x64'">$(PlatformEnv)-x64</PayloadDir>
+    <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(PlatformTarget)' == 'x86'">$(PlatformEnv)-x86</PayloadDir>
+    <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(PlatformTarget)' == 'ARM'">$(PlatformEnv)-arm64</PayloadDir>
+    <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(PlatformTarget)' == 'ARM64'">$(PlatformEnv)-arm64</PayloadDir>
+    <PayloadDir Condition="'$(PayloadDir)' == '' AND '$(PlatformTarget)' == 'anycpu32bitpreferred'">$(PlatformEnv)-x86</PayloadDir>
     <!-- If no PlatformTarget was recognized, fall back to the arcitecture of the machine -->
     <PayloadDir Condition="'$(PayloadDir)' == ''">$(PlatformEnv)-$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLower())</PayloadDir>
   </PropertyGroup>
