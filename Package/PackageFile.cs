@@ -539,6 +539,8 @@ namespace OpenTap.Package
         [DefaultValue("package")]
         public string Class { get; set; }
 
+        public List<Validation> Validation { get; set; }
+
         internal bool IsBundle()
         {
             return Class.ToLower() == "bundle" || Class.ToLower() == "solution";
@@ -1041,9 +1043,41 @@ namespace OpenTap.Package
         }
 
         internal PackageSpecifier GetSpecifier() => new PackageSpecifier(Name, Version.AsExactSpecifier(), Architecture, OS);
+
+        internal bool IsValid()
+        {
+            if (Validation != null)
+            {
+                foreach (var marker in Validation)
+                {
+                    if (!marker.IsSatisfied())
+                        return false;
+
+                }
+            }
+            return true;
+        }
     }
 
-    
+    public abstract class Validation
+    {
+        public abstract bool IsSatisfied();
+    }
+
+    public class FileExists : Validation
+    {
+        [XmlAttribute]
+        public string Path { get; set; }
+
+        public override bool IsSatisfied()
+        {
+            var file = Environment.ExpandEnvironmentVariables(Path);
+            return System.IO.File.Exists(file);
+        }
+    }
+
+
+
     // helper class to ignore namespaces when de-serializing
     internal class NamespaceIgnorantXmlTextReader : XmlTextReader
     {
