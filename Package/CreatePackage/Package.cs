@@ -66,6 +66,8 @@ namespace OpenTap.Package
                                     {
                                         if (type.TypeAttributes.HasFlag(TypeAttributes.Interface) || type.TypeAttributes.HasFlag(TypeAttributes.Abstract))
                                             continue;
+                                        var supportedModels = type.GetAttributes<SupportedManufacturerModelsAttribute>()
+                                            ?.ToArray() ?? [];
                                         PluginFile plugin = new PluginFile
                                         {
                                             BaseType = string.Join(" | ", type.PluginTypes.Select(t => t.GetBestName())),
@@ -76,6 +78,7 @@ namespace OpenTap.Package
                                             Collapsed = type.Display != null ? type.Display.Collapsed : false,
                                             Order = type.Display != null ? type.Display.Order : -10000,
                                             Browsable = type.IsBrowsable,
+                                            SupportedManufacturerModels = supportedModels,
                                         };
                                         def.Plugins.Add(plugin);
                                     }
@@ -198,6 +201,8 @@ namespace OpenTap.Package
                             addTypeDataDependencies(td.BaseType);
                             var display = td.GetDisplayAttribute();
                             var pluginTypes = tdPluginTypes(td);
+                            var supportedModels = td.GetAttributes<SupportedManufacturerModelsAttribute>()?.ToArray() ??
+                                                  [];
                             var plug = new PluginFile()
                             {
                                 BaseType = string.Join(" | ", pluginTypes.Select(t => bestName(t))),
@@ -208,6 +213,7 @@ namespace OpenTap.Package
                                 Collapsed = display?.Collapsed ?? false,
                                 Order = display?.Order ?? -10000,
                                 Browsable = td.GetAttribute<BrowsableAttribute>()?.Browsable ?? true,
+                                SupportedManufacturerModels = supportedModels,
                             };
                             file.Plugins.Add(plug);
                         }
