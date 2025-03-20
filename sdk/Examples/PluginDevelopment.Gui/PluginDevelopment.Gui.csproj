@@ -7,6 +7,7 @@
     <!-- If your plugin should be cross platform but does not build in release mode, please verify that all API's you used are available. You might need references or nuget packages for API's that are available in NET framework, but not in NetStandard -->
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
     <TargetFramework>net472</TargetFramework>
+    <UseWpf>true</UseWpf>
     <Configurations>Debug;Release;Debug CE</Configurations>
     <Platforms>AnyCPU</Platforms>
   </PropertyGroup>
@@ -25,6 +26,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="Keysight.Ccl.Wsl">
+      <HintPath>$(OutputPath)\Dependencies\Keysight.Ccl.Wsl.4.0.1.9\Keysight.Ccl.Wsl.dll</HintPath>
+    </Reference>
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
     <Reference Include="System.Windows.Forms" />
