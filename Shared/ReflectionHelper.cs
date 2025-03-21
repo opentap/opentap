@@ -1017,6 +1017,19 @@ namespace OpenTap
         }
 
         /// <summary>
+        /// Returns true if the generic IEnumerable is empty
+        /// </summary>
+        /// <param name="enu"></param>
+        /// <returns></returns>
+        public static bool IsEnumerableEmpty(this IEnumerable enu)
+        {
+            var e = enu.GetEnumerator();
+            bool empty = e.MoveNext() == false;
+            (e as IDisposable)?.Dispose();
+            return empty;
+        }
+
+        /// <summary>
         /// Returns true if the source is longer than count elements.
         /// </summary>
         /// <typeparam name="T"></typeparam>

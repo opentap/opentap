@@ -53,6 +53,11 @@ namespace OpenTap.Package
         public bool Collapsed { get; set; }
         /// <summary> The array of display groups of the plugin type as specified by its <see cref="DisplayAttribute"/>.</summary>
         public string[] Groups { get; set; }
+        
+        /// <summary>
+        /// The hardware models supported by this plugin. Specified by <see cref="SupportedModelsAttribute"/>
+        /// </summary>
+        public SupportedModelsAttribute[] SupportedModels { get; set; }
 
         /// <summary>
         /// Creates a new PluginFile.

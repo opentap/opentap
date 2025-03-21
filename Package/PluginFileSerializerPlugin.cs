@@ -1,0 +1,135 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Linq;
+using System.Xml.Linq;
+using System.Xml.Serialization;
+
+namespace OpenTap.Package;
+
+internal class PluginFileSerializerPlugin : TapSerializerPlugin
+{
+    public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
+    {
+        if (!(node.Name.LocalName == "Plugin" && t.IsA(typeof(PluginFile))))
+            return false;
+        var plugin = new PluginFile();
+        foreach (var attr in node.Attributes())
+        {
+            switch (attr.Name.LocalName)
+            {
+                case "Type": plugin.Type = attr.Value; break;
+                case "BaseType": plugin.BaseType = attr.Value; break;
+            }
+        }
+
+        var manufacturersModels = new Dictionary<string, List<string>>();
+        foreach (var elm in node.Elements())
+        {
+            switch (elm.Name.LocalName)
+            {
+                case "Name": plugin.Name = elm.Value; break;
+                case "Order": plugin.Order = double.Parse(elm.Value); break;
+                case "Browsable": plugin.Browsable = bool.Parse(elm.Value); break;
+                case "Description": plugin.Description = elm.Value; break;
+                case "Collapsed": plugin.Collapsed = bool.Parse(elm.Value); break;
+                case "Groups":
+                    if (elm.HasElements)
+                        Serializer.Deserialize(elm, o => plugin.Groups = o as string[], typeof(string[]));
+                    else plugin.Groups = [];
+                    break;
+                case "Manufacturer":
+                    var manufacturerName = elm.Attribute("Name").Value;
+                    var models = elm.Elements().Select(x => x.Value).ToArray();
+                    var lst = manufacturersModels.GetOrCreateValue(manufacturerName, _ => new());
+                    lst.AddRange(models);
+                    break;
+            } 
+        }
+        plugin.SupportedModels =
+            manufacturersModels.Select(kvp => new SupportedModelsAttribute(kvp.Key, kvp.Value.ToArray())).ToArray();
+
+        setter.Invoke(plugin);
+        return true;
+    }
+
+    public override bool Serialize(XElement node, object obj, ITypeData expectedType)
+    {
+        if (expectedType.IsA(typeof(PluginFile)) == false) return false;
+        foreach (IMemberData prop in expectedType.GetMembers().Where(s => !s.HasAttribute<XmlIgnoreAttribute>()))
+        {
+            object val = prop.GetValue(obj);
+            string name = prop.Name;
+            var defaultValueAttr = prop.GetAttribute<DefaultValueAttribute>();
+            if (defaultValueAttr != null)
+            {
+                if (Object.Equals(defaultValueAttr.Value, val))
+                    continue;
+                if (defaultValueAttr.Value == null)
+                {
+                    if (val is IEnumerable enu && enu.IsEnumerableEmpty()) // the value is an empty IEnumerable
+                    {
+                        continue; // We take an empty IEnumerable to be the same as null
+                    }
+                }
+            }
+
+            switch (name)
+            {
+                case nameof(PluginFile.Type):
+                case nameof(PluginFile.BaseType):
+                    node.SetAttributeValue(name, val);
+                    break;
+                case nameof(PluginFile.Name):
+                case nameof(PluginFile.Order):
+                case nameof(PluginFile.Browsable):
+                case nameof(PluginFile.Description):
+                case nameof(PluginFile.Collapsed):
+                    node.Add(new XElement(name)
+                    {
+                        Value = val?.ToString() ?? ""
+                    });
+                    break;
+                case nameof(PluginFile.Groups):
+                    var lst = new XElement("Groups");
+                    if (val is string[] strs)
+                    {
+                        foreach (var str in strs)
+                        {
+                            lst.Add(new XElement("String")
+                            {
+                                Value = str
+                            });
+                        }
+                    }
+                    node.Add(lst);
+                    break;
+                case nameof(PluginFile.SupportedModels):
+                    if (val is SupportedModelsAttribute[] attrs)
+                    {
+                        var grp = attrs.GroupBy(x => x.Manufacturer);
+                        foreach (var g in grp)
+                        {
+                            var man = new XElement("Manufacturer");
+                            man.SetAttributeValue("Name", g.Key);
+                            foreach (var model in g.SelectMany(x => x.Models))
+                            {
+                                var elm = new XElement("Model")
+                                {
+                                    Value = model
+                                };
+                                man.Add(elm);
+                            }
+
+                            node.Add(man);
+                        }
+                    }
+
+                    break;
+            }
+        }
+
+        return true;
+    }
+}
