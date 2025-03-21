@@ -25,6 +25,15 @@ namespace OpenTap.Package
 
         static TraceSource log =  Log.CreateSource("Package");
 
+        private static IEnumerable<SupportedModelsAttribute> GetSupportedModels(ITypeData td)
+        {
+            var attrs = td.GetAttributes<SupportedModelsAttribute>().GroupBy(x => x.Manufacturer);
+            foreach (var grp in attrs)
+            {
+                var models = grp.SelectMany(x => x.Models);
+                yield return new SupportedModelsAttribute(grp.Key, models.ToArray());
+            }
+        }
         private static void EnumeratePlugins(PackageDef pkg, List<AssemblyData> searchedAssemblies)
         {
             foreach (PackageFile def in pkg.Files)
@@ -66,8 +75,7 @@ namespace OpenTap.Package
                                     {
                                         if (type.TypeAttributes.HasFlag(TypeAttributes.Interface) || type.TypeAttributes.HasFlag(TypeAttributes.Abstract))
                                             continue;
-                                        var supportedModels = type.GetAttributes<SupportedModelsAttribute>()
-                                            ?.ToArray() ?? [];
+                                        var supportedModels = GetSupportedModels(type).ToArray();
                                         PluginFile plugin = new PluginFile
                                         {
                                             BaseType = string.Join(" | ", type.PluginTypes.Select(t => t.GetBestName())),
@@ -201,8 +209,7 @@ namespace OpenTap.Package
                             addTypeDataDependencies(td.BaseType);
                             var display = td.GetDisplayAttribute();
                             var pluginTypes = tdPluginTypes(td);
-                            var supportedModels = td.GetAttributes<SupportedModelsAttribute>()?.ToArray() ??
-                                                  [];
+                            var supportedModels = GetSupportedModels(td).ToArray();
                             var plug = new PluginFile()
                             {
                                 BaseType = string.Join(" | ", pluginTypes.Select(t => bestName(t))),
