@@ -12,6 +12,7 @@ using OpenTap.Plugins.BasicSteps;
 using System.Reflection;
 using System;
 using System.Runtime.Loader;
+using System.Text;
 using System.Xml;
 using OpenTap.Cli;
 using OpenTap.Engine.UnitTests.TestTestSteps;
@@ -917,6 +918,58 @@ namespace OpenTap.Package.UnitTests
                     // ignored
                 }
             }
+        }
+
+        [Test]
+        public void ValidationMarkerTest()
+        {
+            var pkgDef = @"<?xml version=""1.0"" encoding=""utf-8"" ?>
+<Package Name=""MarkerTest"" Version=""1.2.3+4""  xmlns=""http://opentap.io/schemas/package"">
+  <Files>
+    <File Path=""testfile.txt"">
+    </File>
+  </Files>
+  <Validation>
+      <FileExists Path=""markerfile.txt""/>
+  </Validation>
+</Package>";
+            var pkg = PackageDef.FromXml(new MemoryStream(Encoding.UTF8.GetBytes(pkgDef)));
+
+            File.WriteAllText("markerfile.txt", "123");
+            bool isValid = pkg.IsValid();
+            Assert.IsTrue(isValid);
+            var stream = new MemoryStream();
+            pkg.SaveTo(stream);
+            var pkg2 = PackageDef.FromXml(new MemoryStream(stream.ToArray()));
+            bool isValid2 = pkg.IsValid();
+            Assert.IsTrue(isValid2);
+            Assert.AreEqual(1, pkg2.Validation.Count);
+            File.Delete("markerfile.txt");
+            Assert.IsFalse(pkg2.IsValid());
+        }
+
+        /// <summary>
+        /// Using an unknown validation tag should be the same as not having it.
+        /// </summary>
+        [Test]
+        public void UnknownValidationTest()
+        {
+            var pkgDef = @"<?xml version=""1.0"" encoding=""utf-8"" ?>
+<Package Name=""MarkerTest"" Version=""1.2.3+4""  xmlns=""http://opentap.io/schemas/package"">
+  <Files>
+    <File Path=""testfile.txt"">
+    </File>
+  </Files>
+  <Validation>
+      <UnknownValidation Path=""markerfile.txt""/>
+      <FileExists Path=""markerfile.txt""/>
+  </Validation>
+</Package>";
+            var pkg = PackageDef.FromXml(new MemoryStream(Encoding.UTF8.GetBytes(pkgDef)));
+            File.WriteAllText("markerfile.txt", "123");
+            Assert.IsTrue(pkg.IsValid());
+            File.Delete("markerfile.txt");
+            Assert.IsFalse(pkg.IsValid());
         }
     }
 }

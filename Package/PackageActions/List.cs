@@ -197,7 +197,7 @@ namespace OpenTap.Package
                 var installedPackage = installed.FirstOrDefault(p => p.Name == plugin.Name);
                 var latestPackage = packages.Where(p => p.Name == plugin.Name).OrderByDescending(p => p.Version).FirstOrDefault();
 
-                var installedString = installedPackage == null ? "" : " - installed";
+                var installedString = installedPackage == null ? "" : installedPackage.IsValid() ? " - installed" : " - needs reinstall";
                 
                 if (installedPackage != null && installedPackage.IsSystemWide())
                     installedString += " system-wide";

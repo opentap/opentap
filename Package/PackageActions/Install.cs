@@ -148,7 +148,7 @@ namespace OpenTap.Package
                             break;
 
                         PackageIdentifier pid = new PackageIdentifier(pkg, vs, Architecture, OS);
-                        var installedPackage = targetInstallation.GetPackages().FirstOrDefault(p => p.Name == pid.Name);
+                        var installedPackage = targetInstallation.GetPackages(validOnly: true).FirstOrDefault(p => p.Name == pid.Name);
                         if (installedPackage != null && pid.Version.Equals(installedPackage.Version))
                         {
                             Log.Info($"Package '{pid.Name}' '{installedPackage.Version}' is already installed.");
@@ -286,7 +286,7 @@ namespace OpenTap.Package
                     }
                 }
 
-                var installationPackages = targetInstallation.GetPackages();
+                var installationPackages = targetInstallation.GetPackages(validOnly: true);
 
                 var overWriteCheckExitCode = CheckForOverwrittenPackages(installationPackages, packagesToInstall,
                     Force || Overwrite, !(NonInteractive || Overwrite));

@@ -143,7 +143,7 @@ namespace OpenTap.Package
             if (cancellationToken.IsCancellationRequested)
                 throw new OperationCanceledException("Deployment operation cancelled by user");
 
-            var currentPackages = currentInstallation.GetPackages();
+            var currentPackages = currentInstallation.GetPackages(validOnly: true);
 
             var skippedPackages = dependencies.Where(s => currentPackages.Any(p => p.Name == s.Name && p.Version.ToString() == s.Version.ToString())).ToHashSet();
             var modifyOrAdd = dependencies.Where(s => !skippedPackages.Contains(s)).ToList();
