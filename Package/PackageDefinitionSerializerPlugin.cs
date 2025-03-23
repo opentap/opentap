@@ -183,6 +183,9 @@ namespace OpenTap.Package
 
                                 if (prop.Name == "Validation")
                                 {
+                                    if (val == null)
+                                        continue;
+
                                     foreach (var elem in elm.Elements())
                                     {
                                         elem.Attribute("type").Remove();
