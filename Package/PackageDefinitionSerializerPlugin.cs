@@ -68,6 +68,27 @@ namespace OpenTap.Package
                             pkg.Location = elm.Value;
 #pragma warning restore 618
                             break;
+                        case "Validation":
+                            foreach (var e in elm.Elements())
+                            {
+                                Validation marker = null;
+                                if (e.Name.LocalName == "FileExists")
+                                {
+                                    marker = new FileExists()
+                                    {
+                                        Path = e.Attribute("Path").Value
+                                    };
+                                }
+                                if (marker != null)
+                                {
+                                    if (pkg.Validation == null)
+                                        pkg.Validation = new();
+                                    pkg.Validation.Add(marker);
+                                }
+
+                            }
+
+                            break;
                         default:
                             var prop = pkg.GetType().GetProperty(elm.Name.LocalName);
                             if (prop != null)
@@ -159,6 +180,17 @@ namespace OpenTap.Package
                             if (obj != null)
                             {
                                 Serializer.Serialize(elm, val, expectedType: prop.TypeDescriptor);
+
+                                if (prop.Name == "Validation")
+                                {
+                                    if (val == null)
+                                        continue;
+
+                                    foreach (var elem in elm.Elements())
+                                    {
+                                        elem.Attribute("type").Remove();
+                                    }
+                                }
                             }
                             SetAllNamespaces(elm, ns);
                             node.Add(elm);

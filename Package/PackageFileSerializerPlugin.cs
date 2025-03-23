@@ -95,8 +95,7 @@ namespace OpenTap.Package
                         continue;
                     if (defaultValueAttr.Value == null)
                     {
-                        var enu = val as IEnumerable;
-                        if (enu != null && enu.GetEnumerator().MoveNext() == false) // the value is an empty IEnumerable
+                        if (val is IEnumerable enu && enu.IsEnumerableEmpty()) // the value is an empty IEnumerable
                         {
                             continue; // We take an empty IEnumerable to be the same as null
                         }
