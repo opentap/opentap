@@ -197,10 +197,24 @@ namespace OpenTap.Package
                 var installedPackage = installed.FirstOrDefault(p => p.Name == plugin.Name);
                 var latestPackage = packages.Where(p => p.Name == plugin.Name).OrderByDescending(p => p.Version).FirstOrDefault();
 
-                var installedString = installedPackage == null ? "" : installedPackage.IsValid() ? " - installed" : " - needs reinstall";
-                
-                if (installedPackage != null && installedPackage.IsSystemWide())
-                    installedString += " system-wide";
+                bool isInstalled = installedPackage != null;
+                bool isSystemWide = installedPackage?.IsSystemWide() ?? false;
+                bool isValid = installedPackage?.IsValid() ?? false;
+                string installedString = "";
+                if (isInstalled)
+                {
+                    installedString = "-";
+                    if (isValid)
+                        installedString += " installed";
+                    if(isSystemWide)
+                        installedString += " system-wide";
+                    if (!isValid)
+                    {
+                        if (installedString != "-")
+                            installedString += " -";
+                        installedString += " needs reinstall";
+                    }
+                }
 
                 // string interpolate + format complex to add padding.
                 string logMessage = string.Format($"{{0,-{nameLen}}} - {{1,-{verLen}}}{{2}}", plugin.Name, (installedPackage ?? plugin).Version, installedString);
