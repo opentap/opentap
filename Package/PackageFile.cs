@@ -544,6 +544,11 @@ namespace OpenTap.Package
         [DefaultValue("package")]
         public string Class { get; set; }
 
+        /// <summary>
+        /// Validation objects for validating that the package is correctly installed.
+        /// </summary>
+        public List<Validation> Validation { get; set; }
+
         internal bool IsBundle()
         {
             return Class.ToLower() == "bundle" || Class.ToLower() == "solution";
@@ -1046,9 +1051,58 @@ namespace OpenTap.Package
         }
 
         internal PackageSpecifier GetSpecifier() => new PackageSpecifier(Name, Version.AsExactSpecifier(), Architecture, OS);
+
+        internal bool IsValid()
+        {
+            if (Validation != null)
+            {
+                foreach (var marker in Validation)
+                {
+                    if (!marker.IsValid())
+                        return false;
+
+                }
+            }
+            return true;
+        }
     }
 
-    
+    /// <summary>
+    /// Base class for package validation objects.
+    /// </summary>
+    public abstract class Validation
+    {
+        /// <summary>
+        /// Return true if the package installation is valid.
+        /// </summary>
+        /// <returns>true if the package is correctly installed.</returns>
+        public abstract bool IsValid();
+    }
+
+    /// <summary>
+    /// This package validation checks if a file exists.
+    /// </summary>
+    public class FileExists : Validation
+    {
+        /// <summary>
+        /// The path to the file that have to exist for the package to be correctly installed.
+        /// </summary>
+        [XmlAttribute]
+        public string Path { get; set; }
+
+        /// <summary>
+        /// Returns true if the file pointed to by Path exists.
+        /// </summary>
+        /// <returns></returns>
+        public override bool IsValid()
+        {
+            var file = Environment.ExpandEnvironmentVariables(Path);
+            return System.IO.File.Exists(file);
+        }
+    }
+
+
+
     // helper class to ignore namespaces when de-serializing
     internal class NamespaceIgnorantXmlTextReader : XmlTextReader
     {
