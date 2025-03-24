@@ -287,7 +287,12 @@ namespace OpenTap.Package
 
         private void WaitForPackageFilesFreeWindows(List<string> packagePaths)
         {
-            var allfiles = packagePaths.SelectMany(PluginInstaller.FilesInPackage).ToArray();
+            var allfiles = packagePaths.SelectMany(PluginInstaller.FilesInPackage)
+                .Except(x =>
+                    Path.GetFileName(x).Equals("tap.exe", StringComparison.OrdinalIgnoreCase) ||
+                    Path.GetFileName(x).Equals("tap.dll", StringComparison.OrdinalIgnoreCase)
+                )
+                .ToArray();
 
             retry:
             var procs = RestartManager.GetProcessesUsingFiles(allfiles);
