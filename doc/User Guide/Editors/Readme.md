@@ -28,7 +28,7 @@ and run it with `tap editor` or `tap editorx` or launch from the app menu.
 As mentioned in the previous section, `tap package install` installs the latest stable version of OpenTAP and other packages. 
 Use the following command to install the latest available version of TUI:
 
-> tap package install TUI --version any
+> tap package install TUI
 
 and run the program with `tap tui`.
 
