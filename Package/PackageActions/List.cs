@@ -217,7 +217,7 @@ namespace OpenTap.Package
                 }
 
                 // string interpolate + format complex to add padding.
-                string logMessage = string.Format($"{{0,-{nameLen}}} - {{1,-{verLen}}}{{2}}", plugin.Name, (installedPackage ?? plugin).Version, installedString);
+                string logMessage = string.Format($"{{0,-{nameLen}}} - {{1,-{verLen}}} {{2}}", plugin.Name, (installedPackage ?? plugin).Version, installedString);
 
                 if (installedPackage != null && installedPackage?.Version?.CompareTo(latestPackage.Version) < 0)
                     logMessage += $" - update available ({latestPackage.Version})";
