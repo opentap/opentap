@@ -78,7 +78,7 @@ verdict of its child steps. A verdict has one of 6 severities, detailed in the f
 This hierarchy determines that, for a test plan to output a *Pass* verdict, at least one step must set its verdict to *Pass*, and
 the rest must either set their verdict to *Pass* or *NotSet*. This choice represents the most typical behavior for parent steps
 containing child steps; a *Sequential* step passes if all of its children pass. However, this is not a hard and fast rule: parent
-steps decide overide the verdicts of their children and set their own verdict conditions.
+steps decide whether to override the verdicts of their children and set their own verdict conditions.
 
 *Break Conditions* operate based on step verdicts. The default *engine setting* is to abort the test plan if an *Error*
 verdict is encountered, and continue otherwise. The following break conditions can be toggled independently:
