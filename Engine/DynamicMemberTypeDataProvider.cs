@@ -320,6 +320,8 @@ namespace OpenTap
             {
                 DynamicMember.UnregisterParameter(member.Item2, member.Item1, this);
             }
+
+            DynamicMember.RemoveDynamicMember(Target, this);
         }
 
         bool IDynamicMemberData.IsDisposed => source == null;
