@@ -2208,7 +2208,8 @@ namespace OpenTap
             {
                 get
                 {
-                    var x = ComponentSettingsList.GetContainers(baseType).Select(x => x.Cast<object>())
+                    // We need all items (from any container) which can be assigned to a property of type baseType.
+                    var x = ComponentSettingsList.GetAllContainers().Select(x => x.Cast<object>())
                         .SelectMany(x => x);
                     var cv = a.Get<IObjectValueAnnotation>()?.Value as IResource;
                     var result = x.Where(y => y.GetType().DescendsTo(baseType)).ToList();
