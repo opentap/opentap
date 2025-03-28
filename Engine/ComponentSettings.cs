@@ -116,11 +116,22 @@ namespace OpenTap
                 {
 
                     Type compSetType = typeHandlers[key];
-                    PropertyInfo prop = compSetType.GetProperty("Current", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
-                    if (prop != null)
+                    if (GetCurrentProp(compSetType) is { } prop)
                         yield return prop;
                 }
             }
+        }
+
+        private static PropertyInfo GetCurrentProp(Type compSetType)
+        {
+            return compSetType.GetProperty("Current", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy); 
+        }
+        
+        private static IList GetCurrent(Type compSetType)
+        {
+            if (GetCurrentProp(compSetType) is {} prop)
+                return (IList)prop.GetValue(null, null);
+            return null;
         }
         
         /// <summary>
@@ -135,14 +146,14 @@ namespace OpenTap
             return (IList)m.GetValue(null, null);
         }
 
-        internal static IEnumerable<IList> GetAllContainers()
+        internal static IEnumerable<IList> GetResourceContainers()
         {
             foreach (Type key in typeHandlers.Keys)
             {
+                if (!key.DescendsTo(typeof(IResource))) continue;
                 Type compSetType = typeHandlers[key];
-                PropertyInfo prop = compSetType.GetProperty("Current", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
-                if (prop != null)
-                    yield return (IList)prop.GetValue(null, null);
+                if (GetCurrent(compSetType) is IList lst) 
+                    yield return lst;
             }
         }
 
