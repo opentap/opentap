@@ -27,5 +27,23 @@ public class ParameterTests
         Assert.IsTrue(TypeData.GetTypeData(seq).GetMember("A") != null);
 
     }
+
+    [Test]
+    public void TestRemoveParameter()
+    {
+        var seq = new SequenceStep();
+        var delay = new DelayStep();
+        seq.ChildTestSteps.Add(delay);
+        var plan = new TestPlan();
+        plan.ChildTestSteps.Add(seq);
+
+        var td = TypeData.GetTypeData(delay);
+        var mem = td.GetMember(nameof(delay.DelaySecs));
+        var aMember = mem.Parameterize(seq, delay, "A 1");
+            
+        Assert.IsNotNull(TypeData.GetTypeData(seq).GetMember("A 1"));
+        aMember.Remove();
+        Assert.IsNull(TypeData.GetTypeData(seq).GetMember("A 1")); 
+    }
     
 }
