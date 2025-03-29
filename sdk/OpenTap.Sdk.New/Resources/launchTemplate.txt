@@ -27,6 +27,30 @@
             "stopAtEntry": false,
             "console": "integratedTerminal",
 			"internalConsoleOptions": "neverOpen"
+        },
+		{
+            "name": "Debug in Editor X (Windows)",
+            "type": "clr",
+            "request": "launch",
+            "preLaunchTask": "Build",
+            "program": "${workspaceFolder}/bin/Debug/tap",
+            "args": ["editorx"],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen"
+        },
+		{
+            "name": "Debug in Editor X (Linux)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "Build",
+            "program": "${workspaceFolder}/bin/Debug/tap.dll",
+            "args": ["editorx"],
+            "cwd": "${workspaceFolder}",
+            "stopAtEntry": false,
+            "console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen"
         }
     ]
 }
