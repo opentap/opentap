@@ -35,6 +35,11 @@ namespace OpenTap.Cli
         /// </summary>
         [Obsolete("Please use the 'Browsable' attribute.")]
         public bool Visible { get; set; } = true;
+        
+        /// <summary>
+        /// Indicates whether this argument is required or optional.
+        /// </summary>
+        public bool Required { get; set; }
 
         /// <summary>
         /// Primary constructor.
