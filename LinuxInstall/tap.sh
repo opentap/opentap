@@ -47,7 +47,7 @@ fi
 # -w checks if TapDllDir exists and is writable by the current user.
 if [ -w "$TapDllDir" ]; then
   # use exec to replace the current process instead of starting a child process
-  exec dotnet "$TapDllPath" "$@"
+  exec dotnet "$TapDllDir/tap.dll" "$@"
 else
   # If the user cannot write to the installation, OpenTAP will not work correctly.
   # Instead, we should give a hint about how to resolve the issue.
