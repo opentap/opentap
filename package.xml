@@ -18,33 +18,26 @@
     <Owner>OpenTAP</Owner>
     <!-- Common files  -->
     <Files Condition="$(Debug) == false">
-        <File  Condition="$(Platform) != Windows" Path="tap.runtimeconfig.json"/>
-        <File Condition="$(Platform) != Windows" Path="tap.dll">
+        <File Path="tap.dll" Condition="$(Platform) != Windows">
             <SetAssemblyInfo Attributes="Version" />
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="OpenTap.dll">
             <SetAssemblyInfo Attributes="Version" />
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="OpenTap.Package.dll">
             <SetAssemblyInfo Attributes="Version" />
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
             <SetAssemblyInfo Attributes="Version"/>
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="Packages/OpenTAP/OpenTap.Cli.dll" SourcePath="OpenTap.Cli.dll">
             <SetAssemblyInfo Attributes="Version"/>
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
     </Files>
     <!-- For debug builds. Includes debugging symbols and puts all the DLLs in the OpenTAP root directory.  -->
     <Files Condition="$(Debug) == true">
-        <File Condition="$(Platform) != Windows" Path="tap.runtimeconfig.json"/>
-        <File Condition="$(Platform) != Windows" Path="tap.dll"/>
-        <File Path="tap.pdb"/>  
+        <File Path="tap.dll"/>
+        <File Path="tap.pdb" Condition="$(Platform) != Windows" />
         <File Path="OpenTap.dll"/>
         <File Path="OpenTap.pdb"/>
         <File Path="OpenTap.Package.dll"/>
@@ -81,13 +74,14 @@
     </Files>
     <!-- Linux files -->
     <Files Condition="$(Platform) == Linux">
+        <File Path="tap.runtimeconfig.json"/>
         <File Path="tap" SourcePath="tap.sh"/>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so.$(Architecture)"/>
     </Files>
     <!-- MacOS files -->
     <Files Condition="$(Platform) == MacOS">
+        <File Path="tap.runtimeconfig.json"/>
         <File Path="tap" SourcePath="tap.sh"/>
-<!--        <File Path="tap"/>-->
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.$(Architecture)"/>
     </Files>
     <!-- License Texts -->
