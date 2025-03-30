@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 
 namespace OpenTap
@@ -2768,6 +2769,32 @@ namespace OpenTap
             public void Read(object source) => forwarded?.ForEach(elem => elem.Read());
             public void Write(object source) => forwarded?.ForEach(elem => elem.Write());
         }
+
+        static class Translator
+        {
+            private delegate CultureInfo GetCulture(ComponentSettings settings);
+            private delegate DisplayAttribute GetTranslation(ComponentSettings settings, IReflectionData mem, CultureInfo culture);
+            private static GetCulture _cultureGetter = null;
+            private static GetTranslation _translationGetter = null;
+            private static Type tp = null;
+            public static DisplayAttribute GetDisplayAttribute(IReflectionData mem)
+            {
+                tp ??= Type.GetType("OpenTap.Package.Translation.LanguageSettings, OpenTap.Package");
+                var languageSettings = ComponentSettings.GetCurrent(tp);
+                if (_cultureGetter == null)
+                {
+                    var langGetter = tp.GetProperty("Language", BindingFlags.Public | BindingFlags.Instance);
+                    _cultureGetter = (settings) => langGetter.GetValue(settings) as CultureInfo;
+                }
+                if (_translationGetter == null)
+                {
+                    var method = tp.GetMethod("GetTranslatedDisplayAttribute", BindingFlags.Public | BindingFlags.Instance);
+                    _translationGetter = (settings, mem, culture) => method.Invoke(settings, [mem, culture]) as DisplayAttribute;
+                }
+                return _translationGetter(languageSettings, mem, _cultureGetter(languageSettings));
+            }
+        }
+
         void IAnnotator.Annotate(AnnotationCollection annotation)
         {
             var reflect = annotation.Get<IReflectionAnnotation>();
@@ -2777,7 +2804,7 @@ namespace OpenTap
                 if (reflect.ReflectionInfo.DescendsTo(typeof(IDisplayAnnotation)))
                     annotation.Add(new DisplayAnnotationWrapper());
                 else
-                    annotation.Add(reflect.ReflectionInfo.GetDisplayAttribute());
+                    annotation.Add(Translator.GetDisplayAttribute(reflect.ReflectionInfo));
             }
 
             bool rd_only = annotation.Get<ReadOnlyMemberAnnotation>() != null;
@@ -2819,18 +2846,13 @@ namespace OpenTap
                     annotation.Add(new MemberValueAnnotation(annotation));
 
                 var attributes = mem.Member.Attributes;
-                bool displayFound = false;
                 Sequence.ProcessPattern(attributes,
                     (SuggestedValuesAttribute suggested) => annotation.Add(new SuggestedValueAnnotation(annotation, suggested.PropertyName)),
                     (DeviceAddressAttribute x) => annotation.Add(new DeviceAddressAnnotation(annotation)),
-                    (PluginTypeSelectorAttribute x) => annotation.Add(new PluginTypeSelectAnnotation(annotation)),
-                    (DisplayAttribute x) =>
-                    {
-                        displayFound = true;
-                        annotation.Add(x);
-                    });
-                if(!displayFound)
-                    annotation.Add(mem.Member.GetDisplayAttribute());
+                    (PluginTypeSelectorAttribute x) => annotation.Add(new PluginTypeSelectAnnotation(annotation)));
+                
+                var translatedDisplay = Translator.GetDisplayAttribute(mem.Member);
+                annotation.Add(translatedDisplay);
 
                 var browsable = mem.Member.GetAttribute<BrowsableAttribute>();
                 if(mem.Member.Writable == false || browsable != null)

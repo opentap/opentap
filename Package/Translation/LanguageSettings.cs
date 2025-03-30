@@ -50,49 +50,25 @@ public class LanguageSettings : ComponentSettings<LanguageSettings>
 
     /// <summary>
     /// Get a display attribute for the provided member in the requested language.
-    /// <param name="type">The type to get a translated display attribute for.</param>
+    /// <param name="i">The type or property a translated display attribute for.</param>
     /// <param name="language">The desired language of the output attribute. Defaults to the currently selected language
     /// if not specified.</param>
     /// <returns>A display attribute in the requested language. If no translation could be provided,
     /// the default DisplayAttribute is returned instead. Check the Language property of the returned attribute.</returns>
     /// </summary>
-    public DisplayAttribute GetTranslatedDisplayAttribute(ITypeData type, CultureInfo language = null)
+    public DisplayAttribute GetTranslatedDisplayAttribute(IReflectionData i, CultureInfo language = null)
     {
-        if (type == null) return null;
+        if (i == null) return null;
         language ??= Language;
         if (_lookup.TryGetValue(language, out var providers))
         {
             foreach (var prov in providers)
             {
-                if (prov.GetDisplayAttribute(type, language) is { } result)
+                if (prov.GetDisplayAttribute(i, language) is { } result)
                     return result;
             }
         }
-        return type.GetDisplayAttribute();
-    }
-
-
-    /// <summary>
-    /// Get a display attribute for the provided member in the requested language.
-    /// <param name="member">The member to get a translated display attribute for.</param>
-    /// <param name="language">The desired language of the output attribute. Defaults to the currently selected language
-    /// if not specified.</param>
-    /// <returns>A display attribute in the requested language. If no translation could be provided,
-    /// the default DisplayAttribute is returned instead. Check the Language property of the returned attribute.</returns>
-    /// </summary>
-    public DisplayAttribute GetTranslatedDisplayAttribute(IMemberData member, CultureInfo language = null)
-    {
-        if (member == null) return null;
-        language ??= Language;
-        if (_lookup.TryGetValue(language, out var providers))
-        {
-            foreach (var prov in providers)
-            {
-                if (prov.GetDisplayAttribute(member, language) is { } result)
-                    return result;
-            }
-        }
-        return member.GetDisplayAttribute();
+        return DefaultDisplayAttribute.GetUntranslatedDisplayAttribute(i);
     }
 
     /// <summary>

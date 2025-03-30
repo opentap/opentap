@@ -14,8 +14,7 @@ namespace OpenTap.Package.Translation;
 internal interface ITranslationProvider
 {
     public IEnumerable<CultureInfo> SupportedLanguages();
-    public DisplayAttribute GetDisplayAttribute(IMemberData mem, CultureInfo culture);
-    public DisplayAttribute GetDisplayAttribute(ITypeData mem, CultureInfo culture);
+    public DisplayAttribute GetDisplayAttribute(IReflectionData mem, CultureInfo culture);
     public string Name { get; }
 }
 
@@ -68,10 +67,11 @@ class TranslationFile : ITranslationProvider
 
         if (propertyElement == null) return null;
 
-        var defaultDisplay = mem.GetDisplayAttribute();
+        var defaultDisplay = DefaultDisplayAttribute.GetUntranslatedDisplayAttribute(mem);
         return MergeAttributes(propertyElement, defaultDisplay);
     }
-    public DisplayAttribute GetDisplayAttribute(IMemberData mem, CultureInfo culture)
+
+    private DisplayAttribute GetDisplayAttribute(IMemberData mem, CultureInfo culture)
     {
         if (!culture.Equals(_culture)) return null;
         if (_memberLookup.TryGetValue(mem, out var disp))
@@ -109,8 +109,8 @@ class TranslationFile : ITranslationProvider
 
     private DisplayAttribute MergeAttributes(XElement elem, DisplayAttribute defaultDisplay)
     {
-        var name = elem.Attribute("Name")?.Value ?? defaultDisplay.Name;
-        var description = elem.Attribute("Description").Value ?? defaultDisplay.Description;
+        var name = elem.Attributes("Name")?.FirstOrDefault()?.Value ?? defaultDisplay.Name;
+        var description = elem.Attributes("Description")?.FirstOrDefault()?.Value ?? defaultDisplay.Description;
         var disp = new DisplayAttribute(_culture, name, description, null, defaultDisplay.Order, defaultDisplay.Collapsed, defaultDisplay.Group);
         return disp;
     }
@@ -121,11 +121,11 @@ class TranslationFile : ITranslationProvider
         if (classElement == null) return null;
 
         // Found! Return a new display attribute 
-        var defaultDisplay = type.GetDisplayAttribute();
+        var defaultDisplay = DefaultDisplayAttribute.GetUntranslatedDisplayAttribute(type);
         return MergeAttributes(classElement, defaultDisplay);
     }
 
-    public DisplayAttribute GetDisplayAttribute(ITypeData type, CultureInfo culture)
+    private DisplayAttribute GetDisplayAttribute(ITypeData type, CultureInfo culture)
     {
         if (!culture.Equals(_culture)) return null;
         if (_typeLookup.TryGetValue(type, out var disp))
@@ -134,5 +134,48 @@ class TranslationFile : ITranslationProvider
         lock (_typeLock)
             _typeLookup = _typeLookup.SetItem(type, disp);
         return disp;
+    }
+
+    public DisplayAttribute GetDisplayAttribute(IReflectionData i, CultureInfo culture)
+    {
+        if (i is ITypeData td) return GetDisplayAttribute(td, culture);
+        if (i is IMemberData mem) return GetDisplayAttribute(mem, culture);
+        return null;
+    }
+}
+
+class DefaultDisplayAttribute : DisplayAttribute
+{
+    internal static DisplayAttribute GetUntranslatedDisplayAttribute(IReflectionData mem)
+    {
+        DisplayAttribute attr;
+        if (mem is TypeData td)
+            attr = td.Display;
+        else
+            attr = mem.GetAttribute<DisplayAttribute>();
+        if (attr != null) return attr;
+        // auto-generate a display attribute.
+        return new DefaultDisplayAttribute(mem);
+    }
+
+    static string getMemberName(IReflectionData mem)
+    {
+        // mem.Name has to be something fully qualifiable, but the display attribute name should be something more human friendly.
+        var name = mem.Name;
+        if (name.EndsWith("]]"))
+        {
+            // This is probably a generic C# type. These have the format Namespace.TypeName`N[[assemblyQualifiedNameOfFirstGenericArgument][assemblyQualifiedNameOfSecondGenericArgument]...]
+            var idx = name.LastIndexOf("[[");
+            if (idx >= 0)
+                name = name.Substring(0, idx);
+        }
+        return name.Split('.').Last().Split('+').Last();
+    }
+
+    /// <summary> Always true for this class. </summary>
+    public override bool IsDefaultAttribute() => true;
+
+    public DefaultDisplayAttribute(IReflectionData mem) : base(getMemberName(mem))
+    {
     }
 }
