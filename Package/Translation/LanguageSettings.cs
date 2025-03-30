@@ -49,6 +49,13 @@ public class LanguageSettings : ComponentSettings<LanguageSettings>
     }
 
     /// <summary>
+    /// Whether or not to enable live reloading mode
+    /// </summary>
+    [Display("Live Reload", "When enabled, translation files will be reloaded if a change is detected. " +
+            "This is useful to get real-time feedback during translation.", Group: "Debug", Collapsed: true)]
+    public bool LiveReload { get; set; }
+
+    /// <summary>
     /// Get a display attribute for the provided member in the requested language.
     /// <param name="i">The type or property a translated display attribute for.</param>
     /// <param name="language">The desired language of the output attribute. Defaults to the currently selected language
@@ -64,6 +71,10 @@ public class LanguageSettings : ComponentSettings<LanguageSettings>
         {
             foreach (var prov in providers)
             {
+                if (LiveReload && prov is TranslationFile f)
+                {
+                    f.ReloadIfFileChanged();
+                }
                 if (prov.GetDisplayAttribute(i, language) is { } result)
                     return result;
             }

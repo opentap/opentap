@@ -9,6 +9,7 @@ using System.Xml.Linq;
 using System.IO;
 using System.Collections.Immutable;
 using System.Linq;
+using System;
 namespace OpenTap.Package.Translation;
 
 internal interface ITranslationProvider
@@ -25,15 +26,43 @@ class TranslationFile : ITranslationProvider
         packageName ??= _root.Attribute(TranslationHelpers.PackageNameAttribute).Value;
 
     public string Name => Path.GetFileName(File);
+    private DateTime lastWrite = DateTime.MinValue;
+
+    internal void ReloadIfFileChanged()
+    {
+        try
+        {
+            var write = new FileInfo(File).LastWriteTime;
+            if (write != lastWrite)
+            {
+                var doc = XDocument.Load(File, LoadOptions.None);
+                if (doc.Element(TranslationHelpers.RootElementName) is XElement translationElement)
+                {
+                    lock (_lookupLock)
+                    {
+                        lastWrite = write;
+                        _lookup = ImmutableDictionary<IReflectionData, DisplayAttribute>.Empty;
+                        _root = translationElement;
+                    }
+                }
+            }
+        }
+        catch (Exception)
+        {
+            // ignore -- the file could be missing. Just try to reload it later, but keep caches.
+        }
+    }
+
     private TranslationFile(string file, XElement elem, CultureInfo culture)
     {
         File = file;
         _root = elem;
         _culture = culture;
+        lastWrite = new FileInfo(File).LastWriteTime;
     }
 
     public string File { get; }
-    private readonly XElement _root;
+    private XElement _root;
     private readonly CultureInfo _culture;
 
     public static TranslationFile CreateFromFile(string file)
@@ -54,9 +83,6 @@ class TranslationFile : ITranslationProvider
         return null;
     }
 
-    private ImmutableDictionary<IMemberData, DisplayAttribute> _memberLookup = ImmutableDictionary<IMemberData, DisplayAttribute>.Empty;
-    private readonly object _memLock = new();
-
     private DisplayAttribute ComputeDisplayAttribute(IMemberData mem)
     {
         var classElement = GetElementForType(mem.DeclaringType);
@@ -74,11 +100,11 @@ class TranslationFile : ITranslationProvider
     private DisplayAttribute GetDisplayAttribute(IMemberData mem, CultureInfo culture)
     {
         if (!culture.Equals(_culture)) return null;
-        if (_memberLookup.TryGetValue(mem, out var disp))
+        if (_lookup.TryGetValue(mem, out var disp))
             return disp;
         disp = ComputeDisplayAttribute(mem);
-        lock (_memLock)
-            _memberLookup = _memberLookup.SetItem(mem, disp);
+        lock (_lookupLock)
+            _lookup = _lookup.SetItem(mem, disp);
         return disp;
     }
 
@@ -87,8 +113,8 @@ class TranslationFile : ITranslationProvider
         yield return _culture;
     }
 
-    private ImmutableDictionary<ITypeData, DisplayAttribute> _typeLookup = ImmutableDictionary<ITypeData, DisplayAttribute>.Empty;
-    private readonly object _typeLock = new();
+    private ImmutableDictionary<IReflectionData, DisplayAttribute> _lookup = ImmutableDictionary<IReflectionData, DisplayAttribute>.Empty;
+    private readonly object _lookupLock = new();
 
     private XElement GetElementForType(ITypeData type)
     {
@@ -128,11 +154,11 @@ class TranslationFile : ITranslationProvider
     private DisplayAttribute GetDisplayAttribute(ITypeData type, CultureInfo culture)
     {
         if (!culture.Equals(_culture)) return null;
-        if (_typeLookup.TryGetValue(type, out var disp))
+        if (_lookup.TryGetValue(type, out var disp))
             return disp;
         disp = ComputeDisplayAttribute(type);
-        lock (_typeLock)
-            _typeLookup = _typeLookup.SetItem(type, disp);
+        lock (_lookupLock)
+            _lookup = _lookup.SetItem(type, disp);
         return disp;
     }
 
@@ -158,7 +184,7 @@ class DefaultDisplayAttribute : DisplayAttribute
         return new DefaultDisplayAttribute(mem);
     }
 
-    static string getMemberName(IReflectionData mem)
+    static string GetMemberName(IReflectionData mem)
     {
         // mem.Name has to be something fully qualifiable, but the display attribute name should be something more human friendly.
         var name = mem.Name;
@@ -175,7 +201,7 @@ class DefaultDisplayAttribute : DisplayAttribute
     /// <summary> Always true for this class. </summary>
     public override bool IsDefaultAttribute() => true;
 
-    public DefaultDisplayAttribute(IReflectionData mem) : base(getMemberName(mem))
+    public DefaultDisplayAttribute(IReflectionData mem) : base(GetMemberName(mem))
     {
     }
 }

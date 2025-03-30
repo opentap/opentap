@@ -38,6 +38,12 @@ public class TranslateAction : ICliAction
     [CommandLineArgument("out", ShortName = "o", Description = "Output file name")]
     public string OutputFileName { get; set; }
 
+    /// <summary>
+    /// Whether or not to overwrite existing files
+    /// </summary>
+    [CommandLineArgument("overwrite", ShortName = "f", Description = "Overwrite existing translation file")]
+    public bool Overwrite { get; set; } = false;
+
     private static readonly TraceSource log = Log.CreateSource("Translate");
 
     /// <inheritdoc/>
@@ -67,7 +73,7 @@ public class TranslateAction : ICliAction
             return 1;
         }
 
-        log.Info($"Creating translation template for package '{Package}' to language '{culture.TwoLetterISOLanguageName}' ({culture.NativeName}).");
+        log.Info($"Creating {culture.EnglishName} translation template for package '{Package}'.");
         var install = Installation.Current;
         var pkg = install.FindPackage(Package);
         if (pkg == null)
@@ -78,7 +84,12 @@ public class TranslateAction : ICliAction
 
         if (string.IsNullOrWhiteSpace(OutputFileName))
         {
-            OutputFileName = $"{pkg.Name}_{culture.TwoLetterISOLanguageName}.xml";
+            OutputFileName = Path.Combine(install.Directory, "translations", $"{pkg.Name}_{culture.TwoLetterISOLanguageName}.xml");
+        }
+
+        if (File.Exists(OutputFileName) && Overwrite == false)
+        {
+            log.Error($"Output file '{OutputFileName}' exists. Please use the '--overwrite' option if you really want to overwrite it.");
         }
 
         var packageTypes = TypeData.GetDerivedTypes<ITapPlugin>()
@@ -160,6 +171,8 @@ public class TranslateAction : ICliAction
 
         try
         {
+            var outdir = Path.GetDirectoryName(OutputFileName);
+            Directory.CreateDirectory(outdir);
             using (var fs = File.Open(OutputFileName, FileMode.Create, FileAccess.Write))
                 doc.Save(fs);
             log.Info($"Wrote template to '{OutputFileName}'.");
@@ -174,11 +187,3 @@ public class TranslateAction : ICliAction
     }
 }
 
-/// <inheritdoc/>
-public class SomeStep : TestStep
-{
-    /// <inheritdoc/>
-    public override void Run()
-    {
-    }
-}
