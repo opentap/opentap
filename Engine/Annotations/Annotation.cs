@@ -2772,26 +2772,12 @@ namespace OpenTap
 
         static class Translator
         {
-            private delegate CultureInfo GetCulture(ComponentSettings settings);
-            private delegate DisplayAttribute GetTranslation(ComponentSettings settings, IReflectionData mem, CultureInfo culture);
-            private static GetCulture _cultureGetter = null;
-            private static GetTranslation _translationGetter = null;
             private static Type tp = null;
             public static DisplayAttribute GetDisplayAttribute(IReflectionData mem)
             {
                 tp ??= Type.GetType("OpenTap.Package.Translation.LanguageSettings, OpenTap.Package");
-                var languageSettings = ComponentSettings.GetCurrent(tp);
-                if (_cultureGetter == null)
-                {
-                    var langGetter = tp.GetProperty("Language", BindingFlags.Public | BindingFlags.Instance);
-                    _cultureGetter = (settings) => langGetter.GetValue(settings) as CultureInfo;
-                }
-                if (_translationGetter == null)
-                {
-                    var method = tp.GetMethod("GetTranslatedDisplayAttribute", BindingFlags.Public | BindingFlags.Instance);
-                    _translationGetter = (settings, mem, culture) => method.Invoke(settings, [mem, culture]) as DisplayAttribute;
-                }
-                return _translationGetter(languageSettings, mem, _cultureGetter(languageSettings));
+                dynamic languageSettings = ComponentSettings.GetCurrent(tp);
+                return languageSettings.GetTranslatedDisplayAttribute(mem, null);
             }
         }
 

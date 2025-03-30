@@ -128,13 +128,6 @@ public class LanguageSettings : ComponentSettings<LanguageSettings>
             .OrderBy(x => CultureAsString(x))
             .ToImmutableArray();
         _lookup = dict;
-
-        foreach (var kvp in _lookup)
-        {
-            var cult = kvp.Key;
-            var providedBy = string.Join(", ", kvp.Value.Select(x => x.Name));
-            log.Info($"Culture {cult} provided by: {providedBy}");
-        }
     }
 
     private readonly ImmutableArray<ITranslationProvider> _translationProviders;
