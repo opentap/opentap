@@ -8,6 +8,11 @@ namespace OpenTap.Package;
 
 internal static class TranslationHelpers
 {
+    // Update this if the schema is changed.
+    // We probably need to maintain different parsers to maintain backward compatibility if we need to make major changes.
+    public static readonly SemanticVersion SchemaVersion = new SemanticVersion(1, 0, 0, null, null);
+    public const string OpenTapVersionAttributeName = "GeneratedByOpenTapVersion";
+    public const string SchemaVersionAttributeName = "SchemaVersion";
     public const string IsoLanguageAttributename = "ISO";
     public const string LanguageAttributename = "Language";
     public const string PropertyIdAttributeName = "ID";

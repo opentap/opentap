@@ -118,15 +118,17 @@ public class TranslateAction : ICliAction
 
 ";
         doc.Add(new XComment(header));
-        XElement translationElement = new(TranslationHelpers.TranslationElementName);
-        doc.Add(translationElement);
-        translationElement.SetAttributeValue(TranslationHelpers.LanguageAttributename, culture.NativeName);
-        translationElement.SetAttributeValue(TranslationHelpers.IsoLanguageAttributename, culture.TwoLetterISOLanguageName);
+        XElement rootElement = new(TranslationHelpers.TranslationElementName);
+        doc.Add(rootElement);
+        rootElement.SetAttributeValue(TranslationHelpers.LanguageAttributename, culture.NativeName);
+        rootElement.SetAttributeValue(TranslationHelpers.IsoLanguageAttributename, culture.TwoLetterISOLanguageName);
+        rootElement.SetAttributeValue(TranslationHelpers.SchemaVersionAttributeName, TranslationHelpers.SchemaVersion.ToString());
+        rootElement.SetAttributeValue(TranslationHelpers.OpenTapVersionAttributeName, opentapPackage.RawVersion);
 
         foreach (var pkg in packages)
         {
             var packageElement = new XElement(TranslationHelpers.PackageElementName);
-            translationElement.Add(packageElement);
+            rootElement.Add(packageElement);
             packageElement.SetAttributeValue(TranslationHelpers.PackageNameAttributeName, pkg.Name);
             packageElement.SetAttributeValue(TranslationHelpers.PackageVersionAttributeName, pkg.RawVersion);
             packageElement.SetAttributeValue(TranslationHelpers.DisplayDescriptionAttributeName, pkg.Description);
