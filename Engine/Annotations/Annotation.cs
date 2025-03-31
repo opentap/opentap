@@ -2769,14 +2769,6 @@ namespace OpenTap
             public void Write(object source) => forwarded?.ForEach(elem => elem.Write());
         }
 
-        static class Translator
-        {
-            public static DisplayAttribute GetDisplayAttribute(IReflectionData mem)
-            {
-                return EngineSettings.Current.TranslateMember(mem);
-            }
-        }
-
         void IAnnotator.Annotate(AnnotationCollection annotation)
         {
             var reflect = annotation.Get<IReflectionAnnotation>();
@@ -2786,7 +2778,7 @@ namespace OpenTap
                 if (reflect.ReflectionInfo.DescendsTo(typeof(IDisplayAnnotation)))
                     annotation.Add(new DisplayAnnotationWrapper());
                 else
-                    annotation.Add(Translator.GetDisplayAttribute(reflect.ReflectionInfo));
+                    annotation.Add(reflect.ReflectionInfo.GetTranslatedDisplayAttribute());
             }
 
             bool rd_only = annotation.Get<ReadOnlyMemberAnnotation>() != null;
@@ -2832,8 +2824,8 @@ namespace OpenTap
                     (SuggestedValuesAttribute suggested) => annotation.Add(new SuggestedValueAnnotation(annotation, suggested.PropertyName)),
                     (DeviceAddressAttribute x) => annotation.Add(new DeviceAddressAnnotation(annotation)),
                     (PluginTypeSelectorAttribute x) => annotation.Add(new PluginTypeSelectAnnotation(annotation)));
-                
-                var translatedDisplay = Translator.GetDisplayAttribute(mem.Member);
+
+                var translatedDisplay = mem.Member.GetTranslatedDisplayAttribute();
                 annotation.Add(translatedDisplay);
 
                 var browsable = mem.Member.GetAttribute<BrowsableAttribute>();

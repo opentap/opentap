@@ -157,7 +157,7 @@ namespace OpenTap
 
         private ITranslator translator;
         private ITranslator Translator => translator ??= new Translator();
-        public DisplayAttribute TranslateMember(IReflectionData mem, CultureInfo language = null)
+        internal DisplayAttribute TranslateMember(IReflectionData mem, CultureInfo language = null)
         {
             language ??= Language;
             return Translator.Translate(mem, language);
