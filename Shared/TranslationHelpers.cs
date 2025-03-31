@@ -30,19 +30,23 @@ internal static class TranslationHelpers
     public const string FileElementName = "File";
     public const string SourceAttributeName = "Path";
 
-    internal static string GetRelativeFilePathNormalized(string from, ITypeData tp)
+    internal static string GetRelativeFilePathNormalized(string relativeFrom, string path)
+    { 
+        var fullPath = Path.GetFullPath(path);
+        var installPath = Path.GetFullPath(relativeFrom);
+
+        // The assembly must be rooted in the installation
+        if (fullPath.StartsWith(installPath) == false)
+            return null;
+        string relativePath = fullPath.Substring(installPath.Length).Replace('\\', '/').TrimStart('/', '\\');
+        return relativePath;
+    }
+    internal static string GetRelativeFilePathNormalized(string relativeFrom, ITypeData tp)
     {
         var sourceFile = TypeData.GetTypeDataSource(tp).Location;
         if (string.IsNullOrWhiteSpace(sourceFile)) return null;
 
-        var assemblyPath = Path.GetFullPath(sourceFile);
-        var installPath = Path.GetFullPath(from);
-
-        // The assembly must be rooted in the installation
-        if (assemblyPath.StartsWith(installPath) == false)
-            return null;
-        string relativePath = assemblyPath.Substring(installPath.Length).Replace('\\', '/').TrimStart('/', '\\');
-        return relativePath;
+        return GetRelativeFilePathNormalized(relativeFrom, sourceFile);
     }
 }
 

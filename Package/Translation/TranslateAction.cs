@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -98,6 +99,7 @@ public class TranslateAction : ICliAction
         if (File.Exists(OutputFileName) && Overwrite == false)
         {
             log.Error($"Output file '{OutputFileName}' exists. Please use the '--overwrite' option if you really want to overwrite it.");
+            return 1;
         } 
 
         var opentapPackage = Installation.Current.GetOpenTapPackage();
@@ -125,79 +127,77 @@ public class TranslateAction : ICliAction
         rootElement.SetAttributeValue(TranslationHelpers.SchemaVersionAttributeName, TranslationHelpers.SchemaVersion.ToString());
         rootElement.SetAttributeValue(TranslationHelpers.OpenTapVersionAttributeName, opentapPackage.RawVersion);
 
+        var types = new List<ITypeData>();
+        // first add all plugins
+        types.AddRange(TypeData.GetDerivedTypes<ITapPlugin>());
+        var pluginTypes = TypeData.GetDerivedTypes<ITapPlugin>();
+
+        // BUG: Enums not correctly discovered
+        // BUG: Enum members not correctly discovered
+        // TODO: string AvailableValues cannot be supported
+        // BUG: Embedded member lookup not working (although embedding works fine)
+
+        static void AddEmbeddedMembers(ITypeData td, HashSet<ITypeData> added)
+        {
+            try
+            { 
+                foreach (var mem in td.GetMembers())
+                {
+                    if (mem.HasAttribute<EmbedPropertiesAttribute>())
+                    {
+                        // If this type was already added, we are in a recursive loop.
+                        // This is okay, we can safely terminate the loop now.
+                        if (!added.Add(mem.TypeDescriptor))
+                            return;
+                        // Embedded members can be recursive
+                        AddEmbeddedMembers(mem.TypeDescriptor, added);
+                    }
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+        // Embedded types are not necessarily plugins. Those must also be added.
+        var embeddedTypes = new HashSet<ITypeData>();
+        foreach (var plug in pluginTypes)
+        {
+            AddEmbeddedMembers(plug, embeddedTypes);
+        }
+        
+        types.AddRange(embeddedTypes); 
+        // enumTypes are not considered plugins, but should be included.
+        types.AddRange(TypeData.GetDerivedTypes<Enum>());
+
+        types = types.Distinct().ToList();
+
+        var typesSources = types.Select(x => TranslationHelpers.GetRelativeFilePathNormalized(install.Directory, x))
+            .ToArray();
+        
         foreach (var pkg in packages)
         {
+            var packageFiles = pkg.Files.Select(x => x.FileName).ToHashSet();
             var packageElement = new XElement(TranslationHelpers.PackageElementName);
             rootElement.Add(packageElement);
             packageElement.SetAttributeValue(TranslationHelpers.PackageNameAttributeName, pkg.Name);
             packageElement.SetAttributeValue(TranslationHelpers.PackageVersionAttributeName, pkg.RawVersion);
             packageElement.SetAttributeValue(TranslationHelpers.DisplayDescriptionAttributeName, pkg.Description);
-            var packageTypes = TypeData.GetDerivedTypes<ITapPlugin>()
-                .Where(x => install.FindPackageContainingType(x) == pkg).ToArray();
+            List<ITypeData> packageTypes = new();
+            {
+                for (int i = 0; i < typesSources.Length; i++)
+                {
+                    if (typesSources[i] == null) continue;
+                    if (packageFiles.Contains(typesSources[i]))
+                    { 
+                        packageTypes.Add(types[i]);
+                    }
+                }
+            }
 
             var typesBySource =
-                packageTypes.GroupBy(tp => TranslationHelpers.GetRelativeFilePathNormalized(install.Directory, tp));
-
-            static bool skipType(ITypeData type)
-            {
-                // Skip types that cannot be instantiated if they do not have any members.
-                if (!type.CanCreateInstance && !type.GetMembers().Any(mem => !skipMem(type, mem)))
-                    return true;
-                return false;
-            }
-
-            static bool skipMem(ITypeData type, IMemberData mem)
-            {
-                // If this member is inherited, the translation should happen in the base class.
-                if (mem.DeclaringType != type) return true;
-                return false;
-            }
-
-            static void AddDisplayAttributes(XElement element, DisplayAttribute disp)
-            { 
-                element.SetAttributeValue(TranslationHelpers.DisplayNameAttributeName, disp.Name);
-                element.SetAttributeValue(TranslationHelpers.DisplayDescriptionAttributeName, disp.Description);
-                if (Math.Abs(disp.Order - DisplayAttribute.DefaultOrder) > 0.1)
-                    element.SetAttributeValue(TranslationHelpers.DisplayOrderAttributeName, disp.Order);
-            }
-
-            static XElement EncapsulateInGroup(XElement element, DisplayAttribute disp)
-            {
-                var root = element;
-                foreach (var grp in disp.Group.Reverse())
-                {
-                    var elm = new XElement(TranslationHelpers.DisplayGroupElementName);
-                    elm.SetAttributeValue(TranslationHelpers.DisplayNameAttributeName, grp); 
-                    elm.Add(root);
-                    root = elm;
-                }
-
-                return root;
-            }
-
-            static void MergeGroupElements(XElement root)
-            {
-                var groups = root.Elements(TranslationHelpers.DisplayGroupElementName)
-                    .GroupBy(g => g.Attribute(TranslationHelpers.DisplayNameAttributeName).Value);
-
-                foreach (var g in groups)
-                {
-                    var elems = g.ToArray();
-                    if (elems.Length < 2) continue;
-                    var fst = elems.First();
-                    // Transplant children of other elements into this one
-                    foreach (var e in elems.Skip(1))
-                    { 
-                        foreach (var sub in e.Elements())
-                        {
-                            fst.Add(sub); 
-                        }
-                        e.Remove();
-                    }
-                    // Merge subgroups in the new super element
-                    MergeGroupElements(fst);
-                }
-            }
+                packageTypes.GroupBy(tp => TranslationHelpers.GetRelativeFilePathNormalized(install.Directory, tp)); 
             
             foreach (var grp in typesBySource)
             {
@@ -250,6 +250,66 @@ public class TranslateAction : ICliAction
         }
 
         return 0;
+    }
+    static bool skipType(ITypeData type)
+    {
+        // Skip types that cannot be instantiated if they do not have any members.
+        if (!type.CanCreateInstance && !type.GetMembers().Any(mem => !skipMem(type, mem)))
+            return true;
+        return false;
+    }
+
+    static bool skipMem(ITypeData type, IMemberData mem)
+    {
+        // If this member is inherited, the translation should happen in the base class.
+        if (mem.DeclaringType != type) return true;
+        return false;
+    }
+
+    static void AddDisplayAttributes(XElement element, DisplayAttribute disp)
+    { 
+        element.SetAttributeValue(TranslationHelpers.DisplayNameAttributeName, disp.Name);
+        element.SetAttributeValue(TranslationHelpers.DisplayDescriptionAttributeName, disp.Description);
+        if (Math.Abs(disp.Order - DisplayAttribute.DefaultOrder) > 0.1)
+            element.SetAttributeValue(TranslationHelpers.DisplayOrderAttributeName, disp.Order);
+    }
+
+    static XElement EncapsulateInGroup(XElement element, DisplayAttribute disp)
+    {
+        var root = element;
+        foreach (var grp in disp.Group.Reverse())
+        {
+            var elm = new XElement(TranslationHelpers.DisplayGroupElementName);
+            elm.SetAttributeValue(TranslationHelpers.DisplayNameAttributeName, grp); 
+            elm.Add(root);
+            root = elm;
+        }
+
+        return root;
+    }
+
+    static void MergeGroupElements(XElement root)
+    {
+        var groups = root.Elements(TranslationHelpers.DisplayGroupElementName)
+            .GroupBy(g => g.Attribute(TranslationHelpers.DisplayNameAttributeName).Value);
+
+        foreach (var g in groups)
+        {
+            var elems = g.ToArray();
+            if (elems.Length < 2) continue;
+            var fst = elems.First();
+            // Transplant children of other elements into this one
+            foreach (var e in elems.Skip(1))
+            { 
+                foreach (var sub in e.Elements())
+                {
+                    fst.Add(sub); 
+                }
+                e.Remove();
+            }
+            // Merge subgroups in the new super element
+            MergeGroupElements(fst);
+        }
     }
 }
 
