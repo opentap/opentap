@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 
 namespace OpenTap
@@ -2772,12 +2771,9 @@ namespace OpenTap
 
         static class Translator
         {
-            private static Type tp = null;
             public static DisplayAttribute GetDisplayAttribute(IReflectionData mem)
             {
-                tp ??= Type.GetType("OpenTap.Package.Translation.LanguageSettings, OpenTap.Package");
-                dynamic languageSettings = ComponentSettings.GetCurrent(tp);
-                return languageSettings.GetTranslatedDisplayAttribute(mem, null);
+                return EngineSettings.Current.TranslateMember(mem);
             }
         }
 

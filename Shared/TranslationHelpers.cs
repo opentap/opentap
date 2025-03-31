@@ -12,22 +12,26 @@ internal static class TranslationHelpers
     public const string LanguageAttributename = "Language";
     public const string PropertyIdAttributeName = "ID";
     public const string DisplayNameAttributeName = "Name";
+    public const string DisplayGroupElementName = "Group";
+    public const string DisplayOrderAttributeName = "Order";
     public const string DisplayDescriptionAttributeName = "Description";
     public const string TypeIdPropertyName = "ID";
     public const string MemberElementName = "Property";
-    public const string RootElementName = "Translation";
+    public const string TranslationElementName = "Translation";
     public const string TypeElementName = "Class";
-    public const string PackageNameAttribute = "Package";
+    public const string PackageElementName = "Package";
+    public const string PackageNameAttributeName = "Name";
+    public const string PackageVersionAttributeName = "Version";
     public const string FileElementName = "File";
     public const string SourceAttributeName = "Path";
 
-    internal static string GetRelativeFilePathNormalized(Installation install, ITypeData tp)
+    internal static string GetRelativeFilePathNormalized(string from, ITypeData tp)
     {
         var sourceFile = TypeData.GetTypeDataSource(tp).Location;
         if (string.IsNullOrWhiteSpace(sourceFile)) return null;
 
         var assemblyPath = Path.GetFullPath(sourceFile);
-        var installPath = Path.GetFullPath(install.Directory);
+        var installPath = Path.GetFullPath(from);
 
         // The assembly must be rooted in the installation
         if (assemblyPath.StartsWith(installPath) == false)

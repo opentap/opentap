@@ -3,7 +3,6 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
-using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -20,10 +19,11 @@ namespace OpenTap.Package.Translation;
 public class TranslateAction : ICliAction
 {
     /// <summary>
-    /// The package to translate
+    /// The packages to translate
     /// </summary>
-    [UnnamedCommandLineArgument(nameof(Package), Description = "The package to translate.")]
-    public string Package { get; set; }
+    [UnnamedCommandLineArgument(nameof(Package), Description = "The packages to translate.")]
+    [Display("Packages", "The packages to translate")]
+    public string[] Packages { get; set; }
 
     /// <summary>
     /// The language of the translation
@@ -73,29 +73,32 @@ public class TranslateAction : ICliAction
             return 1;
         }
 
-        log.Info($"Creating {culture.EnglishName} translation template for package '{Package}'.");
+        log.Info($"Creating {culture.EnglishName} translation template for packages {string.Join(",", Packages)}.");
         var install = Installation.Current;
-        var pkg = install.FindPackage(Package);
-        if (pkg == null)
+        var packages = Packages.Select(x => install.FindPackage(x)).ToArray();
+        if (packages.Contains(null))
         {
-            log.Error($"Package {Package} is not installed.");
+            for (int i = 0; i < packages.Length; i++)
+            {
+                if (packages[i] == null)
+                {
+                    log.Error($"Package '{packages[i]}' is not installed.");
+                }
+            }
+
             return 1;
         }
 
         if (string.IsNullOrWhiteSpace(OutputFileName))
         {
-            OutputFileName = Path.Combine(install.Directory, "translations", $"{pkg.Name}_{culture.TwoLetterISOLanguageName}.xml");
+            var name = string.Join("-", Packages);
+            OutputFileName = Path.Combine(install.Directory, "translations", $"{name}_{culture.TwoLetterISOLanguageName}.xml");
         }
 
         if (File.Exists(OutputFileName) && Overwrite == false)
         {
             log.Error($"Output file '{OutputFileName}' exists. Please use the '--overwrite' option if you really want to overwrite it.");
-        }
-
-        var packageTypes = TypeData.GetDerivedTypes<ITapPlugin>()
-            .Where(x => install.FindPackageContainingType(x) == pkg).ToArray();
-
-        var typesBySource = packageTypes.GroupBy(tp => TranslationHelpers.GetRelativeFilePathNormalized(install, tp));
+        } 
 
         var opentapPackage = Installation.Current.GetOpenTapPackage();
         var doc = new XDocument();
@@ -115,64 +118,125 @@ public class TranslateAction : ICliAction
 
 ";
         doc.Add(new XComment(header));
-        XElement rootElement = new(TranslationHelpers.RootElementName);
-        doc.Add(rootElement);
-        rootElement.SetAttributeValue(TranslationHelpers.PackageNameAttribute, pkg.Name);
-        rootElement.SetAttributeValue(TranslationHelpers.LanguageAttributename, culture.NativeName);
-        rootElement.SetAttributeValue(TranslationHelpers.IsoLanguageAttributename, culture.TwoLetterISOLanguageName);
-        rootElement.SetAttributeValue(TranslationHelpers.DisplayDescriptionAttributeName, pkg.Description);
+        XElement translationElement = new(TranslationHelpers.TranslationElementName);
+        doc.Add(translationElement);
+        translationElement.SetAttributeValue(TranslationHelpers.LanguageAttributename, culture.NativeName);
+        translationElement.SetAttributeValue(TranslationHelpers.IsoLanguageAttributename, culture.TwoLetterISOLanguageName);
 
-        static bool skipType(ITypeData type)
+        foreach (var pkg in packages)
         {
-            // Skip types that cannot be instantiated if they do not have any members.
-            if (!type.CanCreateInstance && !type.GetMembers().Any(mem => !skipMem(type, mem)))
-                return true;
-            return false;
-        }
-        static bool skipMem(ITypeData type, IMemberData mem)
-        {
-            // If this member is inherited, the translation should happen in the base class.
-            if (mem.DeclaringType != type) return true;
-            return false;
-        }
+            var packageElement = new XElement(TranslationHelpers.PackageElementName);
+            translationElement.Add(packageElement);
+            packageElement.SetAttributeValue(TranslationHelpers.PackageNameAttributeName, pkg.Name);
+            packageElement.SetAttributeValue(TranslationHelpers.PackageVersionAttributeName, pkg.RawVersion);
+            packageElement.SetAttributeValue(TranslationHelpers.DisplayDescriptionAttributeName, pkg.Description);
+            var packageTypes = TypeData.GetDerivedTypes<ITapPlugin>()
+                .Where(x => install.FindPackageContainingType(x) == pkg).ToArray();
 
-        var sw = Stopwatch.StartNew();
-        foreach (var grp in typesBySource)
-        {
-            var sourceFile = grp.Key;
-            var elem = new XElement(TranslationHelpers.FileElementName);
-            elem.SetAttributeValue(TranslationHelpers.SourceAttributeName, sourceFile);
-            foreach (var type in grp)
+            var typesBySource =
+                packageTypes.GroupBy(tp => TranslationHelpers.GetRelativeFilePathNormalized(install.Directory, tp));
+
+            static bool skipType(ITypeData type)
             {
-                if (skipType(type))
-                    continue;
-                var members = type.GetMembers().ToArray();
-                var typename = type.Name;
-                var display = type.GetDisplayAttribute();
-                var typeElem = new XElement(TranslationHelpers.TypeElementName);
-                typeElem.SetAttributeValue(TranslationHelpers.DisplayNameAttributeName, display.Name);
-                typeElem.SetAttributeValue(TranslationHelpers.DisplayDescriptionAttributeName, display.Description);
-                typeElem.SetAttributeValue(TranslationHelpers.TypeIdPropertyName, typename);
-                foreach (var mem in members)
-                {
-                    if (skipMem(type, mem))
-                        continue;
-                    var memDisplay = mem.GetDisplayAttribute();
-                    var memElem = new XElement(TranslationHelpers.MemberElementName);
-                    memElem.SetAttributeValue(TranslationHelpers.DisplayNameAttributeName, memDisplay.Name);
-                    memElem.SetAttributeValue(TranslationHelpers.DisplayDescriptionAttributeName, memDisplay.Description);
-                    memElem.SetAttributeValue(TranslationHelpers.PropertyIdAttributeName, mem.Name);
-                    typeElem.Add(memElem);
-                }
-                elem.Add(typeElem);
+                // Skip types that cannot be instantiated if they do not have any members.
+                if (!type.CanCreateInstance && !type.GetMembers().Any(mem => !skipMem(type, mem)))
+                    return true;
+                return false;
             }
-            rootElement.Add(elem);
+
+            static bool skipMem(ITypeData type, IMemberData mem)
+            {
+                // If this member is inherited, the translation should happen in the base class.
+                if (mem.DeclaringType != type) return true;
+                return false;
+            }
+
+            static void AddDisplayAttributes(XElement element, DisplayAttribute disp)
+            { 
+                element.SetAttributeValue(TranslationHelpers.DisplayNameAttributeName, disp.Name);
+                element.SetAttributeValue(TranslationHelpers.DisplayDescriptionAttributeName, disp.Description);
+                if (Math.Abs(disp.Order - DisplayAttribute.DefaultOrder) > 0.1)
+                    element.SetAttributeValue(TranslationHelpers.DisplayOrderAttributeName, disp.Order);
+            }
+
+            static XElement EncapsulateInGroup(XElement element, DisplayAttribute disp)
+            {
+                var root = element;
+                foreach (var grp in disp.Group.Reverse())
+                {
+                    var elm = new XElement(TranslationHelpers.DisplayGroupElementName);
+                    elm.SetAttributeValue(TranslationHelpers.DisplayNameAttributeName, grp); 
+                    elm.Add(root);
+                    root = elm;
+                }
+
+                return root;
+            }
+
+            static void MergeGroupElements(XElement root)
+            {
+                var groups = root.Elements(TranslationHelpers.DisplayGroupElementName)
+                    .GroupBy(g => g.Attribute(TranslationHelpers.DisplayNameAttributeName).Value);
+
+                foreach (var g in groups)
+                {
+                    var elems = g.ToArray();
+                    if (elems.Length < 2) continue;
+                    var fst = elems.First();
+                    // Transplant children of other elements into this one
+                    foreach (var e in elems.Skip(1))
+                    { 
+                        foreach (var sub in e.Elements())
+                        {
+                            fst.Add(sub); 
+                        }
+                        e.Remove();
+                    }
+                    // Merge subgroups in the new super element
+                    MergeGroupElements(fst);
+                }
+            }
+            
+            foreach (var grp in typesBySource)
+            {
+                var sourceFile = grp.Key;
+                var fileElem = new XElement(TranslationHelpers.FileElementName);
+                fileElem.SetAttributeValue(TranslationHelpers.SourceAttributeName, sourceFile);
+                foreach (var type in grp)
+                {
+                    if (skipType(type))
+                        continue;
+                    var members = type.GetMembers().ToArray();
+                    var typename = type.Name;
+                    var typeDisplay = type.GetDisplayAttribute();
+                    var typeElem = new XElement(TranslationHelpers.TypeElementName);
+                    AddDisplayAttributes(typeElem, typeDisplay);
+                    typeElem.SetAttributeValue(TranslationHelpers.TypeIdPropertyName, typename);
+                    foreach (var mem in members)
+                    {
+                        if (skipMem(type, mem))
+                            continue;
+                        var memDisplay = mem.GetDisplayAttribute();
+                        var memElem = new XElement(TranslationHelpers.MemberElementName);
+                        AddDisplayAttributes(memElem, memDisplay);
+                        memElem.SetAttributeValue(TranslationHelpers.PropertyIdAttributeName, mem.Name);
+                        var memContainer = EncapsulateInGroup(memElem, memDisplay);
+                        typeElem.Add(memContainer);
+                    }
+                    MergeGroupElements(typeElem); 
+                    var typeContainer = EncapsulateInGroup(typeElem, typeDisplay); 
+                    fileElem.Add(typeContainer);
+                } 
+                MergeGroupElements(fileElem);
+                packageElement.Add(fileElem);
+            }
         }
 
         try
         {
             var outdir = Path.GetDirectoryName(OutputFileName);
-            Directory.CreateDirectory(outdir);
+            if (!string.IsNullOrWhiteSpace(outdir))
+                Directory.CreateDirectory(outdir);
             using (var fs = File.Open(OutputFileName, FileMode.Create, FileAccess.Write))
                 doc.Save(fs);
             log.Info($"Wrote template to '{OutputFileName}'.");

@@ -21,27 +21,37 @@ internal interface ITranslationProvider
 
 class TranslationFile : ITranslationProvider
 {
-    private string packageName;
-    private string PackageName =>
-        packageName ??= _root.Attribute(TranslationHelpers.PackageNameAttribute).Value;
+    static string AttributeValue(XElement x, string name) => x.Attributes(name).FirstOrDefault()?.Value;
+    private string[] packageNames; 
+    private string[] PackageNames =>
+        packageNames ??= _root.Elements(TranslationHelpers.PackageElementName)
+            .Select(x => AttributeValue(x, TranslationHelpers.PackageNameAttributeName))
+            .Where(x => x != null)
+            .ToArray();
 
     public string Name => Path.GetFileName(File);
-    private DateTime lastWrite = DateTime.MinValue;
+    private DateTime lastWrite; 
+    private DateTime lastReloadCheck;
 
     internal void ReloadIfFileChanged()
     {
+        if (DateTime.Now - lastReloadCheck < TimeSpan.FromSeconds(1))
+            return;
         try
         {
+            if (!System.IO.File.Exists(File))
+                return;
             var write = new FileInfo(File).LastWriteTime;
             if (write != lastWrite)
             {
                 var doc = XDocument.Load(File, LoadOptions.None);
-                if (doc.Element(TranslationHelpers.RootElementName) is XElement translationElement)
+                if (doc.Element(TranslationHelpers.TranslationElementName) is XElement translationElement)
                 {
                     lock (_lookupLock)
                     {
                         lastWrite = write;
                         _lookup = ImmutableDictionary<IReflectionData, DisplayAttribute>.Empty;
+                        packageNames = null;
                         _root = translationElement;
                     }
                 }
@@ -51,6 +61,10 @@ class TranslationFile : ITranslationProvider
         {
             // ignore -- the file could be missing. Just try to reload it later, but keep caches.
         }
+        finally
+        {
+            lastReloadCheck = DateTime.Now; 
+        }
     }
 
     private TranslationFile(string file, XElement elem, CultureInfo culture)
@@ -58,7 +72,8 @@ class TranslationFile : ITranslationProvider
         File = file;
         _root = elem;
         _culture = culture;
-        lastWrite = new FileInfo(File).LastWriteTime;
+        lastWrite = new FileInfo(File).LastWriteTime; 
+        lastReloadCheck = DateTime.Now;
     }
 
     public string File { get; }
@@ -70,9 +85,10 @@ class TranslationFile : ITranslationProvider
         if (System.IO.File.Exists(file))
         {
             var xml = XDocument.Load(file, LoadOptions.None);
-            if (xml.Element(TranslationHelpers.RootElementName) is XElement translationElement)
+            if (xml.Element(TranslationHelpers.TranslationElementName) is XElement translationElement)
             {
-                if (translationElement.Attribute(TranslationHelpers.IsoLanguageAttributename)?.Value is string iso)
+                
+                if (AttributeValue(translationElement, TranslationHelpers.IsoLanguageAttributename) is string iso)
                 {
                     var culture = new CultureInfo(iso);
                     if (culture.CultureTypes.HasFlag(CultureTypes.UserCustomCulture) == false)
@@ -83,13 +99,33 @@ class TranslationFile : ITranslationProvider
         return null;
     }
 
+    private IEnumerable<XElement> GetElementsRecursive(XElement classElement, XName name)
+    {
+        if (classElement == null) yield break;
+        var queue = new Queue<XElement>();
+        queue.Enqueue(classElement);
+        while (queue.Any())
+        {
+            var elem = queue.Dequeue();
+            foreach (var prop in elem.Elements(name))
+            {
+                yield return prop;
+            }
+
+            foreach (var grp in elem.Elements(TranslationHelpers.DisplayGroupElementName))
+            { 
+                queue.Enqueue(grp);
+            }
+        }
+    }
+
     private DisplayAttribute ComputeDisplayAttribute(IMemberData mem)
     {
         var classElement = GetElementForType(mem.DeclaringType);
         if (classElement == null) return null;
-
-        var propertyElement = classElement.Elements(TranslationHelpers.MemberElementName)
-            .FirstOrDefault(elem => elem.Attribute(TranslationHelpers.PropertyIdAttributeName)?.Value == mem.Name);
+        
+        var propertyElement = GetElementsRecursive(classElement, TranslationHelpers.MemberElementName)
+            .FirstOrDefault(elem => AttributeValue(elem, TranslationHelpers.PropertyIdAttributeName) == mem.Name);
 
         if (propertyElement == null) return null;
 
@@ -100,6 +136,7 @@ class TranslationFile : ITranslationProvider
     private DisplayAttribute GetDisplayAttribute(IMemberData mem, CultureInfo culture)
     {
         if (!culture.Equals(_culture)) return null;
+        ReloadIfFileChanged();
         if (_lookup.TryGetValue(mem, out var disp))
             return disp;
         disp = ComputeDisplayAttribute(mem);
@@ -118,26 +155,35 @@ class TranslationFile : ITranslationProvider
 
     private XElement GetElementForType(ITypeData type)
     {
-        var pkg = Installation.Current.FindPackageContainingType(type);
-        if (pkg?.Name != PackageName) return null;
-        var src = TypeData.GetTypeDataSource(type);
-        if (src == null) return null;
-        var location = TranslationHelpers.GetRelativeFilePathNormalized(Installation.Current, type);
-        var fileElement = _root.Elements(TranslationHelpers.FileElementName)
+        var location = TranslationHelpers.GetRelativeFilePathNormalized(ExecutorClient.ExeDir, type);
+        var pkgElements = _root.Elements(TranslationHelpers.PackageElementName);
+        
+        var fileElement = pkgElements.SelectMany(x => x.Elements(TranslationHelpers.FileElementName))
             .FirstOrDefault(file =>
-                    file.Attribute(TranslationHelpers.SourceAttributeName)?.Value == location);
-        if (fileElement == null) return null;
+                AttributeValue(file, TranslationHelpers.SourceAttributeName) == location);
 
-        var classElement = fileElement.Elements(TranslationHelpers.TypeElementName)
-            .FirstOrDefault(elem => elem.Attribute(TranslationHelpers.TypeIdPropertyName)?.Value == type.Name);
-        return classElement;
+        var typeElement = GetElementsRecursive(fileElement, TranslationHelpers.TypeElementName)
+            .FirstOrDefault(elem => AttributeValue(elem, TranslationHelpers.TypeIdPropertyName) == type.Name);
+        
+        return typeElement;
     }
 
-    private DisplayAttribute MergeAttributes(XElement elem, DisplayAttribute defaultDisplay)
+    private DisplayAttribute MergeAttributes(XElement element, DisplayAttribute defaultDisplay)
     {
-        var name = elem.Attributes("Name")?.FirstOrDefault()?.Value ?? defaultDisplay.Name;
-        var description = elem.Attributes("Description")?.FirstOrDefault()?.Value ?? defaultDisplay.Description;
-        var disp = new DisplayAttribute(_culture, name, description, null, defaultDisplay.Order, defaultDisplay.Collapsed, defaultDisplay.Group);
+        var groups2 = new List<string>();
+        {
+            var grp = element.Parent;
+            while (grp?.Name == TranslationHelpers.DisplayGroupElementName)
+            {
+                groups2.Insert(0, AttributeValue(grp, TranslationHelpers.DisplayNameAttributeName));
+                grp = grp.Parent;
+            }
+        }
+        var name = AttributeValue(element, TranslationHelpers.DisplayNameAttributeName) ?? defaultDisplay.Name;
+        var description = AttributeValue(element, TranslationHelpers.DisplayDescriptionAttributeName) ?? defaultDisplay.Description;
+        var orderString = AttributeValue(element, TranslationHelpers.DisplayOrderAttributeName);
+        var order = orderString == null ? defaultDisplay.Order : double.Parse(orderString);
+        var disp = new DisplayAttribute(_culture, name, description, null, order, defaultDisplay.Collapsed, groups2.ToArray());
         return disp;
     }
 
@@ -160,48 +206,12 @@ class TranslationFile : ITranslationProvider
         lock (_lookupLock)
             _lookup = _lookup.SetItem(type, disp);
         return disp;
-    }
-
+    } 
+    
     public DisplayAttribute GetDisplayAttribute(IReflectionData i, CultureInfo culture)
     {
         if (i is ITypeData td) return GetDisplayAttribute(td, culture);
         if (i is IMemberData mem) return GetDisplayAttribute(mem, culture);
         return null;
     }
-}
-
-class DefaultDisplayAttribute : DisplayAttribute
-{
-    internal static DisplayAttribute GetUntranslatedDisplayAttribute(IReflectionData mem)
-    {
-        DisplayAttribute attr;
-        if (mem is TypeData td)
-            attr = td.Display;
-        else
-            attr = mem.GetAttribute<DisplayAttribute>();
-        if (attr != null) return attr;
-        // auto-generate a display attribute.
-        return new DefaultDisplayAttribute(mem);
-    }
-
-    static string GetMemberName(IReflectionData mem)
-    {
-        // mem.Name has to be something fully qualifiable, but the display attribute name should be something more human friendly.
-        var name = mem.Name;
-        if (name.EndsWith("]]"))
-        {
-            // This is probably a generic C# type. These have the format Namespace.TypeName`N[[assemblyQualifiedNameOfFirstGenericArgument][assemblyQualifiedNameOfSecondGenericArgument]...]
-            var idx = name.LastIndexOf("[[");
-            if (idx >= 0)
-                name = name.Substring(0, idx);
-        }
-        return name.Split('.').Last().Split('+').Last();
-    }
-
-    /// <summary> Always true for this class. </summary>
-    public override bool IsDefaultAttribute() => true;
-
-    public DefaultDisplayAttribute(IReflectionData mem) : base(GetMemberName(mem))
-    {
-    }
-}
+}  
