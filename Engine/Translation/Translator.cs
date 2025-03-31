@@ -50,7 +50,9 @@ internal class Translator : ITranslator
     public Translator()
     {
         var translationDir = Path.Combine(ExecutorClient.ExeDir, "translations");
-        var translationFiles = Directory.GetFiles(translationDir, "*.xml", SearchOption.AllDirectories);
+        var translationFiles = Directory.Exists(translationDir)
+            ? Directory.GetFiles(translationDir, "*.xml", SearchOption.AllDirectories)
+            : [];
 
         var _translationProviders = translationFiles.Select(TranslationFile.CreateFromFile)
             .Where(x => x != null).ToImmutableArray<ITranslationProvider>();
