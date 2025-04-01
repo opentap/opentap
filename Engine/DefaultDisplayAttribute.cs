@@ -24,6 +24,18 @@ namespace OpenTap
 
         /// <summary> Always true for this class. </summary>
         public override bool IsDefaultAttribute() => true;
+        
+        internal static DisplayAttribute GetUntranslatedDisplayAttribute(IReflectionData mem)
+        {
+            DisplayAttribute attr;
+            if (mem is TypeData td)
+                attr = td.Display;
+            else
+                attr = mem.GetAttribute<DisplayAttribute>();
+            if (attr != null) return attr;
+            // auto-generate a display attribute.
+            return new DefaultDisplayAttribute(mem);
+        }
 
         public DefaultDisplayAttribute(IReflectionData mem) : base(getMemberName(mem))
         {

@@ -21,6 +21,7 @@
     <Compile Include="..\Shared\SubProcessHost.cs" Link="Shared\SubProcessHost.cs" />
     <Compile Include="..\Shared\SudoHelper.cs" Link="Shared\SudoHelper.cs" />
     <Compile Include="..\Shared\ZipUtils.cs" Link="Shared\ZipUtils.cs" />
+    <Compile Include="..\Shared\TranslationHelpers.cs" Link="Shared\TranslationHelpers.cs" />
     <None Update="libgit2-b7bad55.source">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
