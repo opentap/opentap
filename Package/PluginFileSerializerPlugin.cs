@@ -10,7 +10,7 @@ namespace OpenTap.Package;
 
 internal class PluginFileSerializerPlugin : TapSerializerPlugin
 {
-    public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
+    private bool Deserialize2(XElement node, ITypeData t, Action<object> setter)
     {
         if (!(node.Name.LocalName == "Plugin" && t.IsA(typeof(PluginFile))))
             return false;
@@ -51,7 +51,24 @@ internal class PluginFileSerializerPlugin : TapSerializerPlugin
             manufacturersModels.Select(kvp => new SupportedModelsAttribute(kvp.Key, kvp.Value.ToArray())).ToArray();
 
         setter.Invoke(plugin);
-        return true;
+        return true; 
+    }
+    public override bool Deserialize(XElement node, ITypeData t, Action<object> setter)
+    {
+        // This is a workaround for a bug in older versions of OpenTAP which causes issues in upgrade scenarios.
+        // When updating OpenTAP itself while running isolated, older versions of OpenTAP will detect that
+        // the new version contains a new serializer plugin, which it will attempt to load. However,
+        // this new serializer plugin depends on a newer version of `OpenTap.dll`, so using it will cause type load exceptions at runtime.
+        try
+        {
+            return Deserialize2(node, t, setter);
+        }
+        catch (TypeLoadException)
+        {
+            // Fall back to the previous serializer logic. This should not cause issues since it will only happen
+            // when this dll was loaded by an older version of OpenTAP
+            return false;
+        }
     }
 
     public override bool Serialize(XElement node, object obj, ITypeData expectedType)
