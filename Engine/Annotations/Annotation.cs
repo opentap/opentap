@@ -1186,7 +1186,7 @@ namespace OpenTap
             error = null;
             try
             {
-                if (object.Equals(currentValue, m.Member.GetValue(source)) == false || isParameter)
+                if (object.Equals(Value, m.Member.GetValue(source)) == false || isParameter)
                     m.Member.SetValue(source, currentValue);
             }
             catch (Exception e)
