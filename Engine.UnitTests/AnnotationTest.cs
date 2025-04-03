@@ -2203,11 +2203,13 @@ namespace OpenTap.UnitTests
             var availableDuts = getAvailable(nameof(step.DUT));
             var availableBoth = getAvailable(nameof(step.Both)); 
             
-            Assert.AreEqual(1, availableInstruments.Length);
-            CollectionAssert.Contains(availableInstruments, ins);
+            Assert.AreEqual(2, availableInstruments.Length);
+            CollectionAssert.Contains(availableBoth, ins);
+            CollectionAssert.Contains(availableBoth, dut);
             
-            Assert.AreEqual(1, availableDuts.Length);
-            CollectionAssert.Contains(availableDuts, dut);
+            Assert.AreEqual(2, availableDuts.Length);
+            CollectionAssert.Contains(availableBoth, ins);
+            CollectionAssert.Contains(availableBoth, dut);
             
             Assert.AreEqual(2, availableBoth.Length);
             CollectionAssert.Contains(availableBoth, ins);
