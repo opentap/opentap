@@ -1172,6 +1172,7 @@ namespace OpenTap
         public void Read(object source)
         {
             wasRead = false;
+            wasSet = false;
         }
 
         public void Write(object source)
@@ -1186,7 +1187,7 @@ namespace OpenTap
             error = null;
             try
             {
-                if (object.Equals(currentValue, m.Member.GetValue(source)) == false || isParameter)
+                if (isParameter || object.Equals(currentValue, m.Member.GetValue(source)) == false)
                     m.Member.SetValue(source, currentValue);
             }
             catch (Exception e)
