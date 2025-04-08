@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Globalization;
@@ -11,7 +12,8 @@ internal interface ITranslator
 { 
     public IEnumerable<CultureInfo> SupportedLanguages { get; }
     public DisplayAttribute Translate(IReflectionData i, CultureInfo language);
-}
+    public T GetLocalizer<T>(CultureInfo culture) where T : StringLocalizer, new();
+} 
 
 internal class Translator : ITranslator
 {
@@ -42,7 +44,13 @@ internal class Translator : ITranslator
             }
         }
         return DefaultDisplayAttribute.GetUntranslatedDisplayAttribute(i);
-    } 
+    }
+
+    public T GetLocalizer<T>(CultureInfo culture) where T : StringLocalizer, new()
+    {
+        var t = Activator.CreateInstance<T>();
+        return t;
+    }
 
     private readonly ImmutableArray<CultureInfo> _cultures; 
     private readonly ImmutableDictionary<CultureInfo, ImmutableArray<ITranslationProvider>> _lookup;
@@ -51,11 +59,27 @@ internal class Translator : ITranslator
     {
         var translationDir = Path.Combine(ExecutorClient.ExeDir, "translations");
         var translationFiles = Directory.Exists(translationDir)
-            ? Directory.GetFiles(translationDir, "*.xml", SearchOption.AllDirectories)
+            ? Directory.GetFiles(translationDir, "*.resx", SearchOption.AllDirectories)
             : [];
 
-        var _translationProviders = translationFiles.Select(TranslationFile.CreateFromFile)
-            .Where(x => x != null).ToImmutableArray<ITranslationProvider>();
+        var locales = translationFiles.Select(x => Path.GetFileName(x)).ToArray();
+        var supported = new HashSet<CultureInfo>();
+        foreach (var loc in locales)
+        {
+            try
+            {
+                var iso = Path.GetExtension(Path.GetFileNameWithoutExtension(loc));
+                var culture = new CultureInfo(iso);
+                if (culture.CultureTypes.HasFlag(CultureTypes.UserCustomCulture))
+                    continue;
+                supported.Add(culture);
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
 
         // English is assumed to be the default when no culture is specified. (e.g. all strings defined in source code)
         var english = new CultureInfo("en");

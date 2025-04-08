@@ -163,6 +163,9 @@ namespace OpenTap
             return Translator.Translate(mem, language);
         }
 
+        internal T GetLocalizer<T>(CultureInfo culture = null) where T : StringLocalizer, new() =>
+            Translator.GetLocalizer<T>(culture);
+
         private static string CultureAsString(CultureInfo culture) =>
             OpenTap.Translation.Translator.CultureAsString(culture);
 

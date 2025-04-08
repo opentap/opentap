@@ -21,7 +21,6 @@
     <Compile Include="..\Shared\OperatingSystem.cs" Link="Shared\OperatingSystem.cs" />
     <Compile Include="..\Shared\PathUtils.cs" Link="Shared\PathUtils.cs" />
     <Compile Include="..\Shared\ReflectionHelper.cs" Link="Shared\ReflectionHelper.cs" />
-    <Compile Include="..\Shared\TranslationHelpers.cs" Link="Shared\TranslationHelpers.cs" />
   </ItemGroup>
 
   <ItemGroup>
