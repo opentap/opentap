@@ -202,7 +202,7 @@ namespace OpenTap.Package
             if (string.IsNullOrWhiteSpace(sourceFile)) return null;
 
             var assemblyPath = Path.GetFullPath(sourceFile);
-            var installPath = Path.GetFullPath(ExecutorClient.ExeDir);
+            var installPath = Path.GetFullPath(Directory);
 
             // The assembly must be rooted in the installation
             if (assemblyPath.StartsWith(installPath) == false)

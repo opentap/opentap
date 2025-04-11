@@ -775,7 +775,8 @@ namespace OpenTap
             internal static DynamicMember DescriptionMember(ITypeData target)
             {
                 // TestPlan Description should not be in the Common group.
-                var displayAttribute = target.DescendsTo(typeof(TestPlan)) ?
+                bool isTestPlan = target.DescendsTo(typeof(TestPlan));
+                var displayAttribute = isTestPlan ?
                     new DisplayAttribute("Description", "A short description of this item.", null, 20001.2) :
                     new DisplayAttribute("Description", "A short description of this item.", "Common", 20001.2);
 
@@ -787,7 +788,7 @@ namespace OpenTap
                     {
                         displayAttribute, new LayoutAttribute(LayoutMode.Normal, 3, 3), new UnsweepableAttribute(), new UnparameterizableAttribute(), new DefaultValueAttribute(target.GetDisplayAttribute().Description), new NonMetaDataAttribute()
                     },
-                    DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
+                    DeclaringType = isTestPlan ? TypeData.FromType(typeof(TestPlan)) : TypeData.FromType(typeof(ITestStep)),
                     Readable = true,
                     Writable = true,
                     TypeDescriptor = TypeData.FromType(typeof(string))

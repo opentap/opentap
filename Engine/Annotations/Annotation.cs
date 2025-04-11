@@ -2769,6 +2769,7 @@ namespace OpenTap
             public void Read(object source) => forwarded?.ForEach(elem => elem.Read());
             public void Write(object source) => forwarded?.ForEach(elem => elem.Write());
         }
+
         void IAnnotator.Annotate(AnnotationCollection annotation)
         {
             var reflect = annotation.Get<IReflectionAnnotation>();
@@ -2778,7 +2779,7 @@ namespace OpenTap
                 if (reflect.ReflectionInfo.DescendsTo(typeof(IDisplayAnnotation)))
                     annotation.Add(new DisplayAnnotationWrapper());
                 else
-                    annotation.Add(reflect.ReflectionInfo.GetDisplayAttribute());
+                    annotation.Add(reflect.ReflectionInfo.GetTranslatedDisplayAttribute());
             }
 
             bool rd_only = annotation.Get<ReadOnlyMemberAnnotation>() != null;
@@ -2820,18 +2821,13 @@ namespace OpenTap
                     annotation.Add(new MemberValueAnnotation(annotation));
 
                 var attributes = mem.Member.Attributes;
-                bool displayFound = false;
                 Sequence.ProcessPattern(attributes,
                     (SuggestedValuesAttribute suggested) => annotation.Add(new SuggestedValueAnnotation(annotation, suggested.PropertyName)),
                     (DeviceAddressAttribute x) => annotation.Add(new DeviceAddressAnnotation(annotation)),
-                    (PluginTypeSelectorAttribute x) => annotation.Add(new PluginTypeSelectAnnotation(annotation)),
-                    (DisplayAttribute x) =>
-                    {
-                        displayFound = true;
-                        annotation.Add(x);
-                    });
-                if(!displayFound)
-                    annotation.Add(mem.Member.GetDisplayAttribute());
+                    (PluginTypeSelectorAttribute x) => annotation.Add(new PluginTypeSelectAnnotation(annotation)));
+
+                var translatedDisplay = mem.Member.GetTranslatedDisplayAttribute();
+                annotation.Add(translatedDisplay);
 
                 var browsable = mem.Member.GetAttribute<BrowsableAttribute>();
                 if(mem.Member.Writable == false || browsable != null)
