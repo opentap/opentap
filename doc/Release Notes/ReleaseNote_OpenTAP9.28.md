@@ -5,7 +5,7 @@ New Features
  ------- 
 
 - Support for custom EULA in packages [#1902](https://github.com/opentap/opentap/issues/1902)
-- Support Nullable<T> in test steps [#1852](https://github.com/opentap/opentap/issues/1852)
+- Support Nullable&lt;T&gt; in test steps [#1852](https://github.com/opentap/opentap/issues/1852)
 - Modify Mixin: Use Display Name instead of type name if no name is specified [#1847](https://github.com/opentap/opentap/issues/1847)
 - Improve performance when resolving images from multiple http repositories [#1716](https://github.com/opentap/opentap/issues/1716)
 - Allow XmlIgnore on EmbedProperties [#1327](https://github.com/opentap/opentap/issues/1327)
