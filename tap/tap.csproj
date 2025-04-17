@@ -16,6 +16,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="..\Shared\tap.net7.runtimeconfig.json">
+      <Link>tap.net7.runtimeconfig.json</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+
     <Content Include="..\Shared\tap.runtimeconfig.json">
       <Link>tap.runtimeconfig.json</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

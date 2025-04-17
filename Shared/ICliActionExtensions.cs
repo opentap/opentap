@@ -28,6 +28,11 @@ namespace OpenTap.Cli
             var td = TypeData.GetTypeData(action);
             if (td == null)
                 throw new Exception("Type data is null for action: " + action.GetType().Name);
+            
+            // If this is an external cli action, we should cut all argument parsing short and forward them directly
+            if (td.Name == "OpenTap.Package.ExternalCommandCliAction")
+                return action.Execute(TapThread.Current.AbortToken);
+            
             var props = td.GetMembers();
 
             ap.AllOptions.Add("help", 'h', false, "Write help information.");
@@ -224,7 +229,7 @@ namespace OpenTap.Cli
                     Console.WriteLine("Missing argument: " + string.Join(" ",
                         requiredArgs.Select(p => p.GetAttribute<UnnamedCommandLineArgument>().Name)));
 
-                printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
+                printOptions(td.GetDisplayAttribute().Name, ap.AllOptions, unnamedArgToProp);
                 return (int)ExitCodes.ArgumentParseError;
             }
 
