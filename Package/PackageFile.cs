@@ -317,7 +317,8 @@ namespace OpenTap.Package
             [Display("I do not accept the agreement")]
             Decline,
         }
-        private readonly EULA _eula; 
+        private readonly EULA _eula;
+        private PackageDef _packageDef;
         private static readonly TraceSource log = Log.CreateSource("EULA");
         
         [Browsable(true)]
@@ -364,6 +365,30 @@ namespace OpenTap.Package
 
                 if (!File.Exists(path))
                 {
+                    string norm(string x) => x.Trim().Replace('\\', '/');
+                    // If the file does not exist, it is likely part of the packagedef, and has not been extracted yet.
+                    // Try to extract it to a temporary location and open that instead.
+#pragma warning disable CS0618 // Type or member is obsolete
+                    using var packageStream = File.OpenRead(_packageDef.Location);
+#pragma warning restore CS0618 // Type or member is obsolete
+                    using var zip = new ZipArchive(packageStream, ZipArchiveMode.Read);
+                    foreach (var part in zip.Entries)
+                    {
+                        if (norm(part.FullName).Equals(norm(_eula.Source), StringComparison.OrdinalIgnoreCase))
+                        {
+                            var ext = Path.GetExtension(part.Name);
+                            var tmp = Path.GetTempFileName() + ext;
+                            path = tmp;
+                            var ifs = part.Open();
+                            using var ofs = File.Create(path);
+                            ifs.CopyTo(ofs);
+                            break;
+                        }
+                    }
+                }
+
+                if (!File.Exists(path))
+                {
                     log.Error($"EULA file '{path}' does not exist.");
                     return;
                 }
@@ -389,9 +414,10 @@ namespace OpenTap.Package
         [Display("Answer", Order: 3)]
         public Acceptance Answer { get; set; } = Acceptance.Accept;
 
-        public EulaAcceptanceDialog(EULA eula)
+        public EulaAcceptanceDialog(PackageDef package)
         {
-            _eula = eula;
+            _packageDef = package;
+            _eula = package.EULA;
         }
     }
 
