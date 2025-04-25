@@ -319,7 +319,7 @@ namespace OpenTap.Package
             if (acceptedEulas.Contains(accept))
                 return true;
 
-            var EulaDialog = new EulaAcceptanceDialog(package.EULA);
+            var EulaDialog = new EulaAcceptanceDialog(package);
             UserInput.Request(EulaDialog);
             if (EulaDialog.Answer == EulaAcceptanceDialog.Acceptance.Accept)
             {
