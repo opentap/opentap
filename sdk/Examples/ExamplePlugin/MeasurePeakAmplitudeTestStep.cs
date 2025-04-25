@@ -16,24 +16,20 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using System.Xml.Serialization;
-using OpenTap;
 
+// This example contains a TAP plugin with simulated instrument and DUT. It shows 
+// the basic interaction between Test Steps, DUTs, and Instruments. More detail 
+// on the features found in the example can be found in the PluginDevelopment directory.
 
-/// <summary>
-/// This example contains a TAP plugin with simulated instrument and DUT. It shows 
-/// the basic interaction between Test Steps, DUTs, and Instruments. More detail 
-/// on the features found in the example can be found in the PluginDevelopment directory.
+// The project includes a SIMULATED: 
+// -   GeneratorInstrument (TAP Instrument).
+// -   LowPassFilterDut (TAP DUT).
 
-/// The project includes a SIMULATED: 
-/// -   GeneratorInstrument (TAP Instrument).
-/// -   LowPassFilterDut (TAP DUT).
-
-/// MeasurePeakAmplitudeTestStep (this file) is a TAP Test Step that:
-/// 1.	Programs the generator.
-/// 2.	Configures the low pass filter.
-/// 3.	Collects the results from the low pass filter.  
-/// 4.  Publishes results to any configured result listeners. 
-/// </summary>
+// MeasurePeakAmplitudeTestStep (this file) is a TAP Test Step that:
+// 1.	Programs the generator.
+// 2.	Configures the low pass filter.
+// 3.	Collects the results from the low pass filter.  
+// 4.  Publishes results to any configured result listeners. 
 
 namespace OpenTap.Plugins.ExamplePlugin
 {
