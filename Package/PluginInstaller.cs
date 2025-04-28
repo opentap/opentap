@@ -313,7 +313,9 @@ namespace OpenTap.Package
         {
             if (string.IsNullOrWhiteSpace(package?.EULA?.Identifier)) return true;
 
-            string accept = $"{package.EULA.Identifier}: Yes";
+            string accept = $"{package.Name} - {package.EULA.Identifier}: Yes";
+            // These special characters should not occur, but let's not take any chances
+            accept = accept.Replace(":", "").Replace("\r", "").Replace("\n", "");
             var EulaAcceptanceFile = Path.Combine(PackageCacheHelper.PackageCacheDirectory, "EulaAcceptance.txt");
             var acceptedEulas = File.Exists(EulaAcceptanceFile) ? File.ReadLines(EulaAcceptanceFile) : [];
             if (acceptedEulas.Contains(accept))
@@ -323,7 +325,7 @@ namespace OpenTap.Package
             UserInput.Request(EulaDialog);
             if (EulaDialog.Answer == EulaAcceptanceDialog.Acceptance.Accept)
             {
-                log.Debug($"Accepted Eula {package.EULA.Identifier}");
+                log.Info($"Accepted Eula {package.EULA.Identifier}");
                 File.AppendAllLines(EulaAcceptanceFile, [accept]);
                 return true;
             }
