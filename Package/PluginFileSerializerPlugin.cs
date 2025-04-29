@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using System.Xml.Linq;
 using System.Xml.Serialization;
@@ -70,6 +71,22 @@ internal class PluginFileSerializerPlugin : TapSerializerPlugin
             return false;
         }
     }
+    
+    public static string SerializeDoubleWithRoundtrip(double d)
+    {
+        // It was decided to use R instead of G17 for readability, although G17 is slightly faster.
+        // however, there is a bug in "R" formatting on some .NET versions, that means that 
+        // roundtrip actually does not work.
+        // See section "Note to Callers:" at https://msdn.microsoft.com/en-us/library/kfsatb94(v=vs.110).aspx
+        // so here we format and then parse back to see if it can actually roundtrip.
+        // if not, we format with G17.
+        var d_str = d.ToString("R", CultureInfo.InvariantCulture);
+        var d_re = double.Parse(d_str, CultureInfo.InvariantCulture);
+        if (d_re != d) 
+            // round trip not possible with R, use G17 instead.
+            d_str = d.ToString("G17", CultureInfo.InvariantCulture);
+        return d_str;
+    }
 
     public override bool Serialize(XElement node, object obj, ITypeData expectedType)
     {
@@ -98,8 +115,13 @@ internal class PluginFileSerializerPlugin : TapSerializerPlugin
                 case nameof(PluginFile.BaseType):
                     node.SetAttributeValue(name, val);
                     break;
-                case nameof(PluginFile.Name):
                 case nameof(PluginFile.Order):
+                    node.Add(new XElement(name)
+                    {
+                        Value = SerializeDoubleWithRoundtrip((double)val),
+                    });
+                    break;
+                case nameof(PluginFile.Name):
                 case nameof(PluginFile.Browsable):
                 case nameof(PluginFile.Description):
                 case nameof(PluginFile.Collapsed):
