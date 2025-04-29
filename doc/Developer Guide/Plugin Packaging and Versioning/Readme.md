@@ -122,9 +122,8 @@ included in the package, such as a PDF file.
 
 ```xml
 <Package Name="MyPackage">
-  <EULA Identifier="Keysight End User License Agreement" 
+  <EULA Identifier="End User License Agreement" 
         Source="Packages/MyPackage/EULA.pdf"
-        <!-- Source="https://example.com" -->
   />
   <Files>
     <File Path="Packages/MyPackage/EULA.pdf"/>
