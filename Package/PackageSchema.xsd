@@ -84,6 +84,13 @@
           </xs:complexType>
         </xs:element>
 
+        <xs:element name="EULA" minOccurs="0" maxOccurs="1">
+          <xs:complexType>
+            <xs:attribute name="Identifier" type="xs:string" use="required" />
+            <xs:attribute name="Source" type="xs:string" use="required" />
+          </xs:complexType>
+        </xs:element>
+
         <xs:element name="PackageActionExtensions" minOccurs="0" maxOccurs="1">
           <xs:complexType>
             <xs:sequence>
