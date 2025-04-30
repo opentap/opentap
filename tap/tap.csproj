@@ -5,6 +5,7 @@
     <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
     <ApplicationIcon>../Installer/Assets/opentap.ico</ApplicationIcon>
     <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
+    <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
   </PropertyGroup>
 
   <ItemGroup>
