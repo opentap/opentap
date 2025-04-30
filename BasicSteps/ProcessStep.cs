@@ -49,7 +49,7 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Application", Order: -2.5,
             Description:
             "The path to the program. It should contain either a relative path to OpenTAP installation folder or an absolute path to the program.")]
-        [FilePath(FilePathAttribute.BehaviorChoice.Open, "exe")]
+        [FilePath(FilePathAttribute.BehaviorChoice.Open)]
         public string Application { get; set; } = "";
 
         [Display("Command Line Arguments", Order: -2.4, Description: "The arguments passed to the program.")]
