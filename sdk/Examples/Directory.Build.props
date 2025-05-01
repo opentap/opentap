@@ -37,4 +37,12 @@
 		<DevelopersSystem Condition="'$(Configuration)' == 'Debug CE'">Editor X</DevelopersSystem>
 		<DevelopersSystem Condition="'$(Configuration)' != 'Debug CE'">Developer's System</DevelopersSystem>
 	</PropertyGroup>
+
+  <!-- We need to override the default runtimeconfig used by OpenTAP because it cannot otherwise resolve some Windows Desktop references -->
+  <ItemGroup Condition="'$(IsWindows)'=='True'">
+    <Content Include="$(MSBuildThisFileDirectory)Custom.runtimeconfig.json">
+      <Link>tap.runtimeconfig.json</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 </Project>
