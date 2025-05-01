@@ -201,23 +201,6 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
-        [Ignore("This is not supported in dotnet core")]
-        public void SameAssemblyDifferentVersions2()
-        {
-            Directory.CreateDirectory("Test1");
-            Directory.CreateDirectory("Test2");
-            Directory.CreateDirectory("Test3");
-            GenerateAssemblyWithVersion("Test1/SameAssemblyDifferentVersions2.dll", "MyStep1", version: "1.0.0", "UnitTesting.snk");
-            GenerateAssemblyWithVersion("Test2/SameAssemblyDifferentVersions2.dll", "MyStep1", version: "1.2.0", "UnitTesting.snk");
-            GenerateAssemblyWithVersion("Test3/SameAssemblyDifferentVersions2.dll", "MyStep1", version: "1.1.0", "UnitTesting.snk");
-            PluginManager.SearchAsync().Wait();
-            var asm1 = Assembly.Load("SameAssemblyDifferentVersions2, Version=1.1.0.0, Culture=neutral, PublicKeyToken=d2d56962f113dd94");
-            Assert.AreEqual(1, asm1.GetName().Version.Minor);
-            var asm2 = Assembly.Load("SameAssemblyDifferentVersions2, Version=1.0.0.0"); // here we load 1.0 even though 1.1 is already loaded, because the assemblies are strong named (even if we don't ask for the strong name).
-            Assert.AreEqual(0, asm2.GetName().Version.Minor); 
-        }
-
-        [Test]
         public void SameAssemblyDifferentVersions3()
         {
             Directory.CreateDirectory("Test1");

@@ -1,0 +1,18 @@
+{
+  "runtimeOptions": {
+    "frameworks": [
+      {
+        "name": "Microsoft.NETCore.App",
+        "version": "9.0.0"
+      },
+      {
+        "name": "Microsoft.WindowsDesktop.App",
+        "version": "9.0.0"
+      }
+    ],
+    
+    "applyPatches": true,
+    "rollForwardOnNoCandidateFx": 2 
+  }
+}
+
