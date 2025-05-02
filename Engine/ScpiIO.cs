@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace OpenTap
@@ -28,15 +30,14 @@ namespace OpenTap
                     try
                     {
                         srqListeners.Add(value);
-                        srqListenerCount++;
-                        if ((srqListenerCount == 1) && IsConnected)
+                        if ((srqListeners.Count == 1) && IsConnected)
                             EnableSRQ();
                     }
                     catch
                     {
                         srqListeners.Remove(value);
-                        srqListenerCount--;
-                        RaiseError(Visa.viUninstallHandler(instrument, Visa.VI_EVENT_SERVICE_REQ, null, 0));
+                        if (srqListeners.Count == 0)
+                            DisableSRQ();
                         throw;
                     }
                 }
@@ -46,9 +47,8 @@ namespace OpenTap
             {
                 lock (srqLock)
                 {
-                    srqListeners.Add(value);
-                    srqListenerCount--;
-                    if ((srqListenerCount == 0) && IsConnected)
+                    srqListeners.Remove(value);
+                    if ((srqListeners.Count == 0) && IsConnected)
                         DisableSRQ();
                 }
             }
@@ -60,39 +60,78 @@ namespace OpenTap
         }
         private void invokeSrqListeners()
         {
-            var listeners = srqListeners;
-            foreach(var l in listeners)
-                l.Invoke(this);
+            var listeners = srqListeners.ToList();
+            foreach (var l in listeners)
+            {
+                try
+                {
+                    l.Invoke(this);
+                }
+                catch (Exception ex)
+                {
+                    log.Error($"Unhandled exception in SRQ listener '{l.GetType().FullName}': {ex.Message}");
+                    log.Debug(ex);
+                }
+            }
         }
 
+        private GCHandle srqDelegateHandle; 
+        private static readonly TraceSource log = Log.CreateSource("SCPI");
         void EnableSRQ()
         {
-            RaiseError(Visa.viInstallHandler(instrument, Visa.VI_EVENT_SERVICE_REQ, new IVisa.viEventHandler((vi, evt, context, handle) => { invokeSrqListeners(); return Visa.VI_SUCCESS; }), 0));
+            // We pass this delegate into unmanaged code, so we need to ensure it will not be garbage collected.
+            // This use of GCAlloc is in line with Microsoft recommendations when passing references to unmanaged libraries.
+            // See the description of `GCHandleType.Normal' here:
+            // https://learn.microsoft.com/en-us/dotnet/api/system.runtime.interopservices.gchandletype?view=net-9.0
+            // ... This enumeration member is useful when an unmanaged client holds the only reference,
+            // which is undetectable from the garbage collector, to a managed object.
+
+            if (!srqDelegateHandle.IsAllocated)
+            {
+                srqDelegateHandle = GCHandle.Alloc(new IVisa.viEventHandler((_, _, _, _) =>
+                {
+                    try
+                    {
+                        invokeSrqListeners();
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Error($"Unhandled exception during SRQ event: {ex.Message}");
+                        log.Debug(ex);
+                    }
+                    return Visa.VI_SUCCESS;
+                }), GCHandleType.Normal);
+            }
+            RaiseError(Visa.viInstallHandler(instrument, Visa.VI_EVENT_SERVICE_REQ, (IVisa.viEventHandler)srqDelegateHandle.Target, 0));
             RaiseError(Visa.viEnableEvent(instrument, Visa.VI_EVENT_SERVICE_REQ, Visa.VI_HNDLR, Visa.VI_NULL));
         }
 
         void DisableSRQ()
-        {
-            RaiseError(Visa.viDisableEvent(instrument, Visa.VI_EVENT_SERVICE_REQ, Visa.VI_ALL_MECH));
-            RaiseError(Visa.viUninstallHandler(instrument, Visa.VI_EVENT_SERVICE_REQ, null, 0));
+        { 
+            if (srqDelegateHandle.IsAllocated)
+            {
+                RaiseError(Visa.viDisableEvent(instrument, Visa.VI_EVENT_SERVICE_REQ, Visa.VI_ALL_MECH));
+                RaiseError(Visa.viUninstallHandler(instrument, Visa.VI_EVENT_SERVICE_REQ, null, 0));
+                
+                srqDelegateHandle.Free();
+                srqDelegateHandle = default;
+            }
         }
 
         public void OpenSRQ()
         {
             lock (srqLock)
-                if (srqListenerCount > 0)
+                if (srqListeners.Count > 0)
                     EnableSRQ();
         }
 
         public void CloseSRQ()
         {
             lock (srqLock)
-                if (srqListenerCount > 0)
-                    DisableSRQ();
+                DisableSRQ();
         }
             
         private List<ScpiIOSrqDelegate> srqListeners = new List<ScpiIOSrqDelegate>();
-        private int srqListenerCount = 0;
         private object srqLock = new object();
 
         private ScpiIOResult MakeError(int result)
