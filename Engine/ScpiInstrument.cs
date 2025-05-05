@@ -387,9 +387,10 @@ namespace OpenTap
                         {
                             scpiIO.OpenSRQ();
                         }
-                        catch
+                        catch (Exception ex)
                         {
-                            Log.Error("Unable to attach SRQ handler.");
+                            Log.Error($"Unable to attach SRQ handler: {ex.Message}");
+                            Log.Debug(ex);
                             throw;
                         }
 
