@@ -934,7 +934,11 @@ namespace OpenTap
                     }
                     
                     newa.Add(manyAccess);
-
+                    
+                    var manyError = new ManyErrorAnnotation(mergething.SelectValues(x => x.Get<IErrorAnnotation>()).ToArray());
+                    newa.RemoveType<IErrorAnnotation>();
+                    newa.Add(manyError);
+                    
                     var enabledAnnotations = mergething.SelectMany(x => x.GetAll<IEnabledAnnotation>()).ToArray();
                     if (enabledAnnotations.Length > 0)
                     {
@@ -1101,6 +1105,20 @@ namespace OpenTap
         IAvailableValuesAnnotation[] others;
 
         public ManyToOneAvailableValuesAnnotation(IAvailableValuesAnnotation[] others)
+        {
+            this.others = others;
+        }
+    }
+
+    /// <summary>
+    /// This error annotation enables showing errors when multi select is being used. It sums up all the errors and distincts them.
+    /// </summary>
+    class ManyErrorAnnotation : IErrorAnnotation
+    {
+        readonly IErrorAnnotation[] others;
+
+        public IEnumerable<string> Errors => others.SelectMany(x => x.Errors).Distinct();
+        public ManyErrorAnnotation(IErrorAnnotation[] others)
         {
             this.others = others;
         }
