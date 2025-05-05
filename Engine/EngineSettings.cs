@@ -57,6 +57,13 @@ namespace OpenTap
         public AbortTestPlanType AbortTestPlan { get; set; }
 
         /// <summary>
+        /// Gets or sets the limit for step runs to be added to the summary.
+        /// </summary>
+        [Display("Summary Step Limit", Group: "General", Order: 0,
+            Description: "The maximum number of steps to include in the test summary")]
+        public int SummaryStepLimit { get; set; } = 10_000;
+
+        /// <summary>
         /// Name of the operator. This name will be saved along with the results.
         /// </summary>
         [Display("Name", Group: "Operator", Order: 20, Description: "Name of the operator. This name will be saved along with the results.")]

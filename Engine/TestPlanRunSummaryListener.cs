@@ -15,7 +15,7 @@ namespace OpenTap
     [Browsable(false)]
     class TestPlanRunSummaryListener : ResultListener, IArtifactListener
     {
-        const int stepRunLimit = 10000;
+        private int stepRunLimit => EngineSettings.Current.SummaryStepLimit;
 
         // Avoid holding on to references to TestStepRuns (fat objects) and only store the information 
         // we need.
