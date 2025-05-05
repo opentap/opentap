@@ -27,7 +27,27 @@ namespace tap
 
                 Assembly load(string file)
                 {
-                    file = Path.Combine(appDir, file);
+                    var originalFile = file;
+                    string GetParent(string path, int level)
+                    {
+                        var dir = new DirectoryInfo(path);
+                        for (var i = 0; i < level; i++)
+                        {
+                            dir = dir.Parent;
+                        }
+                        return dir.FullName;
+                    }
+                    file = Path.Combine(appDir, originalFile);
+                    if (File.Exists(file) == false)
+                    {
+                        var baseDir = GetParent(appDir, 1);
+                        file = Path.Combine(baseDir, originalFile);
+                    }
+                    if (File.Exists(file) == false)
+                    {
+                        var baseDir = GetParent(appDir, 3);
+                        file = Path.Combine(baseDir, originalFile);
+                    }
                     if (File.Exists(file) == false)
                         return null;
                     return Assembly.Load(File.ReadAllBytes(file));

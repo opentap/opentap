@@ -142,7 +142,7 @@ namespace OpenTap.Package
                     {
                         foreach (var pkgfile in package.Files)
                         {
-                            var filePath = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), pkgfile.FileName);
+                            var filePath = Path.Combine(ExecutorClient.ExeDir, pkgfile.FileName);
 
                             if (string.Equals(NormalizePath(filePath), NormalizePath(file), StringComparison.OrdinalIgnoreCase))
                             {

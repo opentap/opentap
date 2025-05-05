@@ -24,11 +24,24 @@ namespace OpenTap
             public static readonly InitTraceListener Instance = new InitTraceListener();  
         }
 
+        private static string GetParent(string path, int level)
+        {
+            var dir = new DirectoryInfo(path);
+            for (var i = 0; i < level; i++)
+            {
+                dir = dir.Parent;
+            }
+            return dir.FullName;
+        }
+
         static string OpenTapLocation
         {
             get
             {
                 var loc = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+                var file = Path.Combine(loc, "OpenTap.dll");
+                if (File.Exists(file)) return file;
+                loc = GetParent(loc, 3);
                 return Path.Combine(loc, "OpenTap.dll");
             }
         }
