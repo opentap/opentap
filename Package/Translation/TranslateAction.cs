@@ -4,7 +4,6 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -31,12 +30,6 @@ public class TranslateAction : ICliAction
     public string Package { get; set; }
 
     /// <summary>
-    /// Test mode
-    /// </summary>
-    [CommandLineArgument("test", Description = "Display test dialogs")]
-    public bool Test { get; set; } = false;
-
-    /// <summary>
     /// Whether or not to overwrite existing files
     /// </summary>
     [CommandLineArgument("overwrite", ShortName = "f", Description = "Overwrite existing translation file")]
@@ -50,20 +43,6 @@ public class TranslateAction : ICliAction
         // Ensure translations are generated for the default language (english)
         using var session = Session.Create(SessionOptions.OverlayComponentSettings);
         EngineSettings.Current.Language = new CultureInfo("en");
-        if (Test)
-        {
-            DisplayTestOutput();
-            return 0;
-        }
-        Type[] PluginTypes = [
-            typeof(ITypeData),
-            typeof(IComponentSettings),
-            /* TODO: Doesn't work. Enums are needed because they may be used as AvailableValues in other plugins,
-             so it is not really possible to know if they are required or not. By default, we add all enums
-             */
-            typeof(Enum),
-            typeof(ICliAction),
-        ];
 
         var install = Installation.Current;
         var pkg = install.FindPackage(Package);
@@ -80,11 +59,7 @@ public class TranslateAction : ICliAction
 
         var types = new List<ITypeData>();
         // first add all plugins
-        types.AddRange(TypeData.GetDerivedTypes<ITapPlugin>());
-
-        // TODO: We only discover types which are ITapPlugin, or referenced by an ITapPlugin
-        // BUG: Enum members not correctly discovered
-
+        types.AddRange(TypeData.GetDerivedTypes<ITapPlugin>()); 
         types = [.. types.Distinct()];
 
         void recursivelyAddReferencedTypes(ITypeData td, HashSet<ITypeData> seen)
@@ -183,8 +158,6 @@ public class TranslateAction : ICliAction
     private static void WriteEnumMembers(IResourceWriter writer, Type enumType)
     {
         var names = Enum.GetNames(enumType);
-        var values = Enum.GetValues(enumType);
-        var displayAttributes = names.Select(x => enumType.GetMember(x).FirstOrDefault().GetDisplayAttribute());
         foreach (var name in names)
         {
             var disp = enumType.GetMember(name).FirstOrDefault().GetDisplayAttribute();
@@ -230,7 +203,6 @@ public class TranslateAction : ICliAction
     static bool skipMem(ITypeData type, IMemberData mem)
     {
         // If this member is inherited, the translation should happen in the base class.
-        if (mem.DeclaringType != type) return true;
-        return false;
+        return !Equals(mem.DeclaringType, type);
     }
 }

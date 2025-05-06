@@ -133,7 +133,7 @@ namespace OpenTap
     /// <summary> Standard implementation of UserInputInterface for Command Line interfaces</summary>
     public class CliUserInputInterface : IUserInputInterface
     {
-        public class Strings : StringLocalizer<Strings>
+        class Strings : StringLocalizer<Strings>
         {
             public readonly string PleaseEnterNumberOrName = "Please enter a number or name ";
             public readonly string PleaseEnter = "Please enter ";

@@ -157,10 +157,22 @@ namespace OpenTap
 
         private ITranslator translator;
         private ITranslator Translator => translator ??= new Translator();
+        /// <summary>
+        /// Get an appropriate DisplayAttribute for the specified reflection data in the requested language.
+        /// </summary>
+        /// <param name="mem"></param>
+        /// <param name="language"></param>
+        /// <returns></returns>
         public DisplayAttribute TranslateMember(IReflectionData mem, CultureInfo language = null)
         {
             return Translator.Translate(mem, language ?? Language);
         }
+        /// <summary>
+        /// Get an appropriate DisplayAttribute for the specified enum in the requested language.
+        /// </summary>
+        /// <param name="e"></param>
+        /// <param name="language"></param>
+        /// <returns></returns>
         public DisplayAttribute TranslateMember(Enum e, CultureInfo language = null)
         {
             return Translator.Translate(e, language ?? Language);
