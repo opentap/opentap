@@ -54,7 +54,6 @@
     <PackageReference Include="System.ValueTuple" Version="4.5.0" />
     <PackageReference Include="System.Text.Json" Version="4.7.2" />
     <PackageReference Include="OpenTAP.Repository.Client" Version="4.17.0-beta.9" />
-    <PackageReference Include="ResXResourceReader.NetStandard" Version="1.3.0"/>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
