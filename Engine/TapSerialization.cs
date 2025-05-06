@@ -130,7 +130,7 @@ namespace OpenTap
             ClearErrors();
             // We set the language to english during serialization / deserialization to ensure nothing culture-specific
             // is written / loaded from files.
-            using var _ = withEnglishContext();
+            using var _ = withNeutralLanguageContext();
             using var sanity = ParameterManager.WithSanityCheckDelayed();
             try
             {
@@ -476,18 +476,23 @@ namespace OpenTap
         }
 
         private static ThreadLocal<bool> sessionSentinel = new ThreadLocal<bool>() { Value = false };
-        private IDisposable withEnglishContext()
+        private IDisposable withNeutralLanguageContext()
         {
+            // TODO: Setting the language to neutral while translating should be the safest
+            // way to avoid serializing language-specific strings, but the below implementation causes
+            // serialization errors. We should figure out why this doesn't work and implement it.
+            return Utils.WithDisposable(() => { });
+
             // We need to do a bit of extra work here because Session.Create(...) invokes the serializer
-            if (sessionSentinel.Value == true) return new EmptyDisposable();
-            sessionSentinel.Value = true;
-            var session = Session.Create(SessionOptions.OverlayComponentSettings);
-            EngineSettings.Current.Language = EngineSettings.DefaultLanguage;
-            return Utils.WithDisposable(() =>
-            {
-                sessionSentinel.Value = false;
-                session.Dispose();
-            });
+            // if (sessionSentinel.Value == true) return new EmptyDisposable();
+            // sessionSentinel.Value = true;
+            // var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            // // EngineSettings.Current.Language = EngineSettings.DefaultLanguage;
+            // return Utils.WithDisposable(() =>
+            // {
+            //     sessionSentinel.Value = false;
+            //     session.Dispose();
+            // });
         }
 
         /// <summary> Serializes an object to XML. Includes an argument whether the serializer should be notified about the type being used.</summary>
@@ -495,7 +500,7 @@ namespace OpenTap
         {
             // We set the language to english during serialization / deserialization to ensure nothing culture-specific
             // is written / loaded from files.
-            using var _ = withEnglishContext();
+            using var _ = withNeutralLanguageContext();
              
             ITypeData type = null;
             if(obj != null)
