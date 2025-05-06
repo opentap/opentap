@@ -154,16 +154,68 @@ internal class ResXTranslationProvider : ITranslationProvider
         return null;
     }
 
+    private readonly static TraceSource log = Log.CreateSource("Translation");
     StringLocalizer ComputeStringLocalizer<T>() where T : StringLocalizer, new()
     {
         var t = Activator.CreateInstance<T>();
         foreach (var fld in typeof(T).GetFields(BindingFlags.Public | BindingFlags.Instance))
-        { 
-            if (_stringLookup.TryGetValue($"{typeof(T).FullName}.{fld.Name}", out var fieldValue))
-                fld.SetValue(t, fieldValue);
+        {
+            if (fld.FieldType != typeof(string)) 
+                continue;
+            
+            if (_stringLookup.TryGetValue($"{typeof(T).FullName}.{fld.Name}", out var newValue))
+            {
+                var sourceValue = (string)fld.GetValue(t);
+                var sourceCount = CountTemplates(sourceValue);
+                var newCount = CountTemplates(newValue);
+                // Count the number of template parameters in a format string.
+                // If there is a parameter count mismatch, a runtime error will occur
+                // when the string is used in a string.Format call.
+                // Of course, this assumes that all strings are format strings,
+                // which is likely going to be the exception rather than the norm,
+                // but strings containing balanced curly braces is probably also going to be rare,
+                // and in cases where they are, the braces are likely also going to match in translated strings,
+                // so I consider this an acceptable trade-off since the alternative would be treating changes to
+                // format strings as breaking changes. With this check, it becomes a missing translation instead,
+                // which is probably preferable.
+                if (newCount != sourceCount)
+                {
+                    log.ErrorOnce(fld, $"Template parameter count mismatch detected.\n" +
+                                       $"'{sourceValue}' has {sourceCount} template parameters.\n" +
+                                       $"'{newValue}' has {newCount} template parameters.\n" +
+                                       $"The first string will be preferred over the second string.");
+                    continue;
+                }
+                fld.SetValue(t, newValue);
+            }
         }
 
         return t;
+
+        static int CountTemplates(string s)
+        {
+            var chars = s.ToArray();
+            int n = 0;
+            bool bracketOpen = false;
+            for (int i = 0; i < chars.Length; i++)
+            {
+                if (!bracketOpen && chars[i] == '{')
+                {
+                    bracketOpen = true;
+                }
+                else if (bracketOpen && chars[i] == '{')
+                {
+                    /* double bracket escapes */ 
+                    bracketOpen = false;
+                }
+                else if (bracketOpen && chars[i] == '}')
+                {
+                    bracketOpen = false;
+                    n++;
+                }
+            }
+            return n;
+        }
     }
     public T GetTranslation<T>() where T : StringLocalizer, new()
     {
