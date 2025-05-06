@@ -1234,7 +1234,10 @@ namespace OpenTap
             if (value == null) return null;
             var enumType = value.GetType();
             var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
-            if (mem != null) return mem.GetDisplayAttribute().Name;
+            if (mem != null) 
+            { 
+                return EngineSettings.Current.TranslateMember(value).Name;
+            }
             if (false == enumType.HasAttribute<FlagsAttribute>())
                 return value.ToString();
             var zeroValue = Enum.ToObject(enumType, 0);

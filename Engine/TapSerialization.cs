@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
@@ -127,41 +128,42 @@ namespace OpenTap
             var prevSer = currentSerializer.Value;
             currentSerializer.Value = this;
             ClearErrors();
-            using (ParameterManager.WithSanityCheckDelayed())
+            // We set the language to english during serialization / deserialization to ensure nothing culture-specific
+            // is written / loaded from files.
+            using var _ = withEnglishContext();
+            using var sanity = ParameterManager.WithSanityCheckDelayed();
+            try
             {
                 try
                 {
-                    try
-                    {
 
-                        Deserialize(node1, x => serialized = x, type);
-                    }
-                    finally
-                    {
-                        currentSerializer.Value = prevSer;
-                    }
-
-                    if (autoFlush)
-                        Flush();
+                    Deserialize(node1, x => serialized = x, type);
                 }
                 finally
                 {
-                    if(ThrowOnErrors){
-                        if (messages.Count > 0)
-                        {
-                            throw new Exception("Error during reading XML: " + string.Join("\n", messages));
-                        }
-                    }
-                    if (IgnoreErrors == false)
-                    {
-                        LogMessages();
+                    currentSerializer.Value = prevSer;
+                }
 
-                        var rs = GetSerializer<ResourceSerializer>();
-                        if (rs.TestPlanChanged)
-                        {
-                            log.Warning("Test Plan changed due to resources missing from Bench settings.");
-                            log.Warning("Please review these changes before saving or running the Test Plan.");
-                        }
+                if (autoFlush)
+                    Flush();
+            }
+            finally
+            {
+                if(ThrowOnErrors){
+                    if (messages.Count > 0)
+                    {
+                        throw new Exception("Error during reading XML: " + string.Join("\n", messages));
+                    }
+                }
+                if (IgnoreErrors == false)
+                {
+                    LogMessages();
+
+                    var rs = GetSerializer<ResourceSerializer>();
+                    if (rs.TestPlanChanged)
+                    {
+                        log.Warning("Test Plan changed due to resources missing from Bench settings.");
+                        log.Warning("Please review these changes before saving or running the Test Plan.");
                     }
                 }
             }
@@ -466,9 +468,35 @@ namespace OpenTap
         public bool Serialize(XElement elem, object obj, ITypeData expectedType = null) => 
             Serialize(elem, obj, expectedType, true);
 
+        class EmptyDisposable : IDisposable
+        {
+            public void Dispose()
+            {
+            }
+        }
+
+        private static ThreadLocal<bool> sessionSentinel = new ThreadLocal<bool>() { Value = false };
+        private IDisposable withEnglishContext()
+        {
+            // We need to do a bit of extra work here because Session.Create(...) invokes the serializer
+            if (sessionSentinel.Value == true) return new EmptyDisposable();
+            sessionSentinel.Value = true;
+            var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            EngineSettings.Current.Language = EngineSettings.DefaultLanguage;
+            return Utils.WithDisposable(() =>
+            {
+                sessionSentinel.Value = false;
+                session.Dispose();
+            });
+        }
+
         /// <summary> Serializes an object to XML. Includes an argument whether the serializer should be notified about the type being used.</summary>
         internal bool Serialize(XElement elem, object obj, ITypeData expectedType, bool notifyTypeUsed)
         {
+            // We set the language to english during serialization / deserialization to ensure nothing culture-specific
+            // is written / loaded from files.
+            using var _ = withEnglishContext();
+             
             ITypeData type = null;
             if(obj != null)
             {

@@ -9,6 +9,7 @@ using System.Linq;
 using System.Security;
 using System.Text;
 using System.Threading;
+using OpenTap.Translation;
 
 namespace OpenTap
 {
@@ -132,6 +133,13 @@ namespace OpenTap
     /// <summary> Standard implementation of UserInputInterface for Command Line interfaces</summary>
     public class CliUserInputInterface : IUserInputInterface
     {
+        public class Strings : StringLocalizer<Strings>
+        {
+            public readonly string PleaseEnterNumberOrName = "Please enter a number or name ";
+            public readonly string PleaseEnter = "Please enter ";
+            public readonly string Default = " (default)";
+        }
+        
         /// <summary>
         /// Thrown when userinput is requested when reading input from stdin and EOF is reached
         /// </summary>
@@ -361,7 +369,7 @@ namespace OpenTap
                                 Console.Write("{1}: '{0}'", v.Value, index);
                                 if (value == current_value)
                                 {
-                                    Console.WriteLine(" (default)");
+                                    Console.WriteLine(Strings.Current.Default);
                                 }
                                 else
                                 {
@@ -371,14 +379,14 @@ namespace OpenTap
                             options.Add(v?.Value);
                             index++;
                         }
-                        Console.Write("Please enter a number or name ");
+                        Console.Write(Strings.Current.PleaseEnterNumberOrName);
                     }
 
                     var layout = _message.Get<IMemberAnnotation>()?.Member.GetAttribute<LayoutAttribute>();
                     bool showName = layout?.Mode.HasFlag(LayoutMode.FullRow) == true ? false : true;
                     if (pleaseEnter)
                     {
-                        Console.Write("Please enter ");
+                        Console.Write(Strings.Current.PleaseEnter);
                     }
 
                     if (secure && showName)

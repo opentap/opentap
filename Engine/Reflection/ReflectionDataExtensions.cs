@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 
 namespace OpenTap
@@ -189,8 +190,17 @@ namespace OpenTap
             return Array.Empty<T>();
         }
 
+        /// <summary> Gets a display attribute of mem in the selected language, if available. Otherwise the default display attribute is returned. </summary>
+        /// <param name="mem">The member to translate</param>
+        /// <param name="language">The desired language of the translation. If not specified, the language from EngineSettings is used.</param>
+        /// <returns></returns>
+        public static DisplayAttribute GetTranslatedDisplayAttribute(this IReflectionData mem, CultureInfo language = null)
+        {
+            return EngineSettings.Current.TranslateMember(mem, language);
+        }
+
         /// <summary> Gets the display attribute of mem. </summary>
-        /// <param name="mem"></param>
+        /// <param name="mem">The member to translate</param>
         /// <returns></returns>
         public static DisplayAttribute GetDisplayAttribute(this IReflectionData mem)
         {

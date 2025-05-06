@@ -3,8 +3,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
+using System.Linq;
 using System.Xml.Serialization;
+using OpenTap.Translation;
 
 namespace OpenTap
 {
@@ -150,5 +154,56 @@ namespace OpenTap
             StartupDir = System.IO.Directory.GetCurrentDirectory();
             Environment.SetEnvironmentVariable("ENGINE_DIR", System.IO.Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
         }
-    }
+
+        private ITranslator translator;
+        private ITranslator Translator => translator ??= new Translator();
+        public DisplayAttribute TranslateMember(IReflectionData mem, CultureInfo language = null)
+        {
+            return Translator.Translate(mem, language ?? Language);
+        }
+        public DisplayAttribute TranslateMember(Enum e, CultureInfo language = null)
+        {
+            return Translator.Translate(e, language ?? Language);
+        }
+        internal T GetLocalizer<T>(CultureInfo culture = null) where T : StringLocalizer, new() =>
+            Translator.GetTranslation<T>(culture ?? Language);
+
+        private static string CultureAsString(CultureInfo culture) => Translation.Translator.CultureAsString(culture);
+
+        /// <summary>
+        /// The currently selected language. Defaults to English.
+        /// </summary>
+        [Browsable(false)]
+        [XmlIgnore]
+        public CultureInfo Language { get; set; } = DefaultLanguage;
+        
+        /// <summary>
+        /// The default language.
+        /// </summary>
+        [Browsable(false)]
+        [XmlIgnore]
+        internal static CultureInfo DefaultLanguage { get; } = new CultureInfo("en");
+
+        /// <summary>
+        /// The list of available languages. This is based on the currently installed language packs.
+        /// </summary>
+        [Browsable(false)]
+        [XmlIgnore]
+        public IEnumerable<string> AvailableLanguages => Translator.SupportedLanguages.Select(CultureAsString);
+        
+        /// <summary>
+        /// The currently selected language. Defaults to English.
+        /// </summary>
+        [Display("Language", "The currently selected language.", Group: "Language", Order: 1000)]
+        [AvailableValues(nameof(AvailableLanguages))]
+        public string LanguageString
+        {
+            get => CultureAsString(Language);
+            set
+            {
+                if (Translator.SupportedLanguages.FirstOrDefault(x => CultureAsString(x) == value) is { } newLanguage)
+                    Language = newLanguage;
+            }
+        } 
+    } 
 }
