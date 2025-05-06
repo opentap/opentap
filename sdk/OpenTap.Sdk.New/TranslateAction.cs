@@ -2,6 +2,7 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
+
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -12,9 +13,10 @@ using System.Resources;
 using System.Resources.NetStandard;
 using System.Threading;
 using OpenTap.Cli;
+using OpenTap.Package;
 using OpenTap.Translation;
 
-namespace OpenTap.Package.Translation;
+namespace OpenTap.Sdk.New;
 
 /// <summary>
 /// This class contains helpful utilities for creating translations of packages.
@@ -92,8 +94,8 @@ public class TranslateAction : ICliAction
         types = seen.ToList();
 
         var typesSources = types.Select(x => Path.GetFullPath(TypeData.GetTypeDataSource(x).Location))
-            .Where(x => x.StartsWith(ExecutorClient.ExeDir, StringComparison.OrdinalIgnoreCase))
-            .Select(x => x.Substring(ExecutorClient.ExeDir.Length + 1))
+            .Where(x => x.StartsWith(install.Directory, StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.Substring(install.Directory.Length + 1))
             .ToArray();
 
         var outdir = Path.GetDirectoryName(outputFileName);
@@ -102,7 +104,7 @@ public class TranslateAction : ICliAction
 
         var OutputFileNameEng = Path.Combine(install.Directory, "translations", $"{pkg.Name}.resx");
         using var writer = new ResXResourceWriter(OutputFileNameEng);
-        var packageFiles = pkg.Files.Select(x => x.FileName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var packageFiles = new HashSet<string>(pkg.Files.Select(x => x.FileName), StringComparer.OrdinalIgnoreCase);
         List<ITypeData> packageTypes = new();
         for (int i = 0; i < typesSources.Length; i++)
         {
@@ -132,7 +134,7 @@ public class TranslateAction : ICliAction
                     continue;
                 }
 
-                if (type.DescendsTo(typeof(Enum)) && type.AsTypeData()?.Type is Type enumType)
+                if (type.DescendsTo(typeof(Enum)) && AsTypeData(type)?.Type is Type enumType)
                 {
                     // Special handling for enums. We need to write each enum variant
                     WriteEnumMembers(writer, enumType);
@@ -155,13 +157,29 @@ public class TranslateAction : ICliAction
         return 0;
     }
 
+    private static TypeData AsTypeData(ITypeData type)
+    {
+        do
+        {
+            if (type is TypeData td)
+                return td;
+            type = type?.BaseType;
+        } while (type != null);
+        return null; 
+    }
+
     private static void WriteEnumMembers(IResourceWriter writer, Type enumType)
     {
         var names = Enum.GetNames(enumType);
         foreach (var name in names)
         {
-            var disp = enumType.GetMember(name).FirstOrDefault().GetDisplayAttribute();
-            WriteAttribute(writer, $"{enumType.FullName}.{name}", disp);
+            MemberInfo type = enumType.GetMember(name).FirstOrDefault();
+            DisplayAttribute attr = type.GetCustomAttribute<DisplayAttribute>();
+            if (attr == null)
+            {
+                attr = new DisplayAttribute(type.Name, null, Order: -10000, Collapsed: false);
+            }
+            WriteAttribute(writer, $"{enumType.FullName}.{name}", attr);
         }
     }
 
