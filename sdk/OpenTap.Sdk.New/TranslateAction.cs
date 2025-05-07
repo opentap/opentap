@@ -44,7 +44,7 @@ public class TranslateAction : ICliAction
     {
         // Ensure translations are generated for the default language (english)
         using var session = Session.Create(SessionOptions.OverlayComponentSettings);
-        EngineSettings.Current.Language = new CultureInfo("en");
+        EngineSettings.Current.Language = CultureInfo.InvariantCulture;
 
         var install = Installation.Current;
         var pkg = install.FindPackage(Package);
@@ -61,10 +61,10 @@ public class TranslateAction : ICliAction
 
         var types = new List<ITypeData>();
         // first add all plugins
-        types.AddRange(TypeData.GetDerivedTypes<ITapPlugin>()); 
+        types.AddRange(TypeData.GetDerivedTypes<ITapPlugin>());
         types = [.. types.Distinct()];
 
-        void recursivelyAddReferencedTypes(ITypeData td, HashSet<ITypeData> seen)
+        static void recursivelyAddReferencedTypes(ITypeData td, HashSet<ITypeData> seen)
         {
             try
             {
@@ -91,7 +91,7 @@ public class TranslateAction : ICliAction
             recursivelyAddReferencedTypes(td, seen);
         }
 
-        types = seen.ToList();
+        types = [.. seen];
 
         var typesSources = types.Select(x => Path.GetFullPath(TypeData.GetTypeDataSource(x).Location))
             .Where(x => x.StartsWith(install.Directory, StringComparison.OrdinalIgnoreCase))
@@ -105,7 +105,7 @@ public class TranslateAction : ICliAction
         var OutputFileNameEng = Path.Combine(install.Directory, "translations", $"{pkg.Name}.resx");
         using var writer = new ResXResourceWriter(OutputFileNameEng);
         var packageFiles = new HashSet<string>(pkg.Files.Select(x => x.FileName), StringComparer.OrdinalIgnoreCase);
-        List<ITypeData> packageTypes = new();
+        List<ITypeData> packageTypes = [];
         for (int i = 0; i < typesSources.Length; i++)
         {
             if (typesSources[i] == null) continue;
@@ -123,10 +123,10 @@ public class TranslateAction : ICliAction
         {
             foreach (var type in grp)
             {
-                if (skipType(type))
+                if (SkipType(type))
                     continue;
 
-                if (type.DescendsTo(typeof(StringLocalizer)) && type.CanCreateInstance && type.CreateInstance() is { } t)
+                if (type.DescendsTo(typeof(StringLocalizer)) && type.CanCreateInstance && type.CreateInstance() is StringLocalizer t)
                 {
                     // special handling for string localizers
                     // We need to write all fields
@@ -146,7 +146,7 @@ public class TranslateAction : ICliAction
                 WriteAttribute(writer, type.Name, typeDisplay);
                 foreach (var mem in members)
                 {
-                    if (skipMem(type, mem))
+                    if (SkipMem(type, mem))
                         continue;
                     var memDisplay = mem.GetDisplayAttribute();
                     WriteAttribute(writer, $"{type.Name}.{mem.Name}", memDisplay);
@@ -165,7 +165,7 @@ public class TranslateAction : ICliAction
                 return td;
             type = type?.BaseType;
         } while (type != null);
-        return null; 
+        return null;
     }
 
     private static void WriteEnumMembers(IResourceWriter writer, Type enumType)
@@ -175,20 +175,30 @@ public class TranslateAction : ICliAction
         {
             MemberInfo type = enumType.GetMember(name).FirstOrDefault();
             DisplayAttribute attr = type.GetCustomAttribute<DisplayAttribute>();
-            if (attr == null)
-            {
-                attr = new DisplayAttribute(type.Name, null, Order: -10000, Collapsed: false);
-            }
+            attr ??= new DisplayAttribute(type.Name, null, Order: -10000, Collapsed: false);
             WriteAttribute(writer, $"{enumType.FullName}.{name}", attr);
         }
     }
 
-    private static void WriteClassFields(IResourceWriter writer, object obj)
+    private static void WriteClassFields(IResourceWriter writer, StringLocalizer obj)
     {
         var t = obj.GetType();
-        foreach (var fld in t.GetFields(BindingFlags.Public | BindingFlags.Instance))
+        obj.RecordKeys = true;
+        foreach (var prop in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
-            writer.AddResource($"{t.FullName}.{fld.Name}", fld.GetValue(obj));
+            if (prop.PropertyType != typeof(string)) continue;
+            try 
+            {
+                prop.GetValue(obj);
+            }
+            catch 
+            {
+                // ignore
+            }
+        }
+        foreach (var kvp in obj.RecordedKeys)
+        {
+            writer.AddResource(kvp.Key, kvp.Value);
         }
     }
 
@@ -208,17 +218,17 @@ public class TranslateAction : ICliAction
         }
     }
 
-    static bool skipType(ITypeData type)
+    static bool SkipType(ITypeData type)
     {
         if (type.DescendsTo(typeof(StringLocalizer))) return false;
         if (type.DescendsTo(typeof(Enum))) return false;
         // Skip types that cannot be instantiated if they do not have any members.
-        if (!type.CanCreateInstance && !type.GetMembers().Any(mem => !skipMem(type, mem)))
+        if (!type.CanCreateInstance && !type.GetMembers().Any(mem => !SkipMem(type, mem)))
             return true;
         return false;
     }
 
-    static bool skipMem(ITypeData type, IMemberData mem)
+    static bool SkipMem(ITypeData type, IMemberData mem)
     {
         // If this member is inherited, the translation should happen in the base class.
         return !Equals(mem.DeclaringType, type);

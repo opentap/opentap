@@ -10,15 +10,16 @@ namespace OpenTap.Translation;
 internal interface ITranslator
 {
     public IEnumerable<CultureInfo> SupportedLanguages { get; }
-    public DisplayAttribute Translate(IReflectionData i, CultureInfo language);
-    public DisplayAttribute Translate(Enum e, CultureInfo language);
-    public T GetTranslation<T>(CultureInfo culture) where T : StringLocalizer, new();
+    public DisplayAttribute TranslateMember(IReflectionData i, CultureInfo language);
+    public string TranslateString(string key, CultureInfo language);
+    public DisplayAttribute TranslateEnum(Enum e, CultureInfo language);
 }
 
 internal class Translator : ITranslator
 {
     internal static string CultureAsString(CultureInfo culture)
     {
+        if (CultureInfo.InvariantCulture.Equals(culture)) return "Neutral";
         return $"{culture.NativeName} ({culture.EnglishName})";
     }
 
@@ -32,7 +33,7 @@ internal class Translator : ITranslator
     /// <returns>A display attribute in the requested language. If no translation could be provided,
     /// the default DisplayAttribute is returned instead. Check the Language property of the returned attribute.</returns>
     /// </summary>
-    public DisplayAttribute Translate(IReflectionData i, CultureInfo language)
+    public DisplayAttribute TranslateMember(IReflectionData i, CultureInfo language)
     {
         if (i == null) return null;
         if (_lookup.TryGetValue(language, out var prov))
@@ -43,14 +44,7 @@ internal class Translator : ITranslator
         return DefaultDisplayAttribute.GetUntranslatedDisplayAttribute(i);
     }
 
-    public T GetTranslation<T>(CultureInfo culture) where T : StringLocalizer, new()
-    {
-        if (_lookup.TryGetValue(culture, out var prov))
-            return prov.GetTranslation<T>();
-        return Activator.CreateInstance<T>();
-    }
-
-    public DisplayAttribute Translate(Enum e, CultureInfo language)
+    public DisplayAttribute TranslateEnum(Enum e, CultureInfo language)
     {
         var enumType = e.GetType();
         var name = enumType.GetEnumName(e);
@@ -66,9 +60,17 @@ internal class Translator : ITranslator
         return memberInfo.GetDisplayAttribute();
     }
 
-    private readonly ImmutableArray<CultureInfo> _cultures;
-    private readonly ImmutableDictionary<CultureInfo, ITranslationProvider> _lookup;
+    public string TranslateString(string key, CultureInfo language)
+    {
+        if (_lookup.TryGetValue(language, out var prov))
+            return prov.GetString(key);
+        return null;
+    }
 
+    private readonly ImmutableArray<CultureInfo> _cultures;
+    private ImmutableDictionary<CultureInfo, ITranslationProvider> _lookup;
+
+    public void AddTranslationProvider(CultureInfo language, ITranslationProvider provider) => _lookup = _lookup.SetItem(language, provider);
     public Translator()
     {
         var translationDir = Path.Combine(ExecutorClient.ExeDir, "translations");

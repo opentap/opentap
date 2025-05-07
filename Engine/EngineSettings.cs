@@ -165,7 +165,7 @@ namespace OpenTap
         /// <returns></returns>
         public DisplayAttribute TranslateMember(IReflectionData mem, CultureInfo language = null)
         {
-            return Translator.Translate(mem, language ?? Language);
+            return Translator.TranslateMember(mem, language ?? Language);
         }
         /// <summary>
         /// Get an appropriate DisplayAttribute for the specified enum in the requested language.
@@ -173,17 +173,26 @@ namespace OpenTap
         /// <param name="e"></param>
         /// <param name="language"></param>
         /// <returns></returns>
-        public DisplayAttribute TranslateMember(Enum e, CultureInfo language = null)
+        public DisplayAttribute TranslateEnum(Enum e, CultureInfo language = null)
         {
-            return Translator.Translate(e, language ?? Language);
+            return Translator.TranslateEnum(e, language ?? Language);
         }
-        internal T GetLocalizer<T>(CultureInfo culture = null) where T : StringLocalizer, new() =>
-            Translator.GetTranslation<T>(culture ?? Language);
+
+        /// <summary>
+        /// Get an appropriate DisplayAttribute for the specified enum in the requested language.
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="language"></param>
+        /// <returns></returns>
+        public string TranslateKey(string key, CultureInfo language = null)
+        {
+            return Translator.TranslateString(key, language ?? Language);
+        }
 
         private static string CultureAsString(CultureInfo culture) => Translation.Translator.CultureAsString(culture);
 
         /// <summary>
-        /// The currently selected language. Defaults to English.
+        /// The currently selected language. Defaults to Invariant.
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
@@ -194,20 +203,28 @@ namespace OpenTap
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
-        internal static CultureInfo DefaultLanguage { get; } = new CultureInfo("en");
+        internal static CultureInfo DefaultLanguage { get; } = CultureInfo.InvariantCulture;
 
         /// <summary>
-        /// The list of available languages. This is based on the currently installed language packs.
+        /// The list of available languages. This is based on the currently installed .resx files.
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
         public IEnumerable<string> AvailableLanguages => Translator.SupportedLanguages.Select(CultureAsString);
+
+        /// <summary>
+        /// Whether or not the language selector should be visible.
+        /// </summary>
+        [Browsable(false)]
+        [XmlIgnore]
+        public bool LanguageSelectorEnabled => Translator.SupportedLanguages.Any(x => !DefaultLanguage.Equals(x));
         
         /// <summary>
-        /// The currently selected language. Defaults to English.
+        /// The currently selected language. Defaults to Invariant.
         /// </summary>
         [Display("Language", "The currently selected language.", Group: "Language", Order: 1000)]
         [AvailableValues(nameof(AvailableLanguages))]
+        [EnabledIf(nameof(LanguageSelectorEnabled), HideIfDisabled = true)]
         public string LanguageString
         {
             get => CultureAsString(Language);

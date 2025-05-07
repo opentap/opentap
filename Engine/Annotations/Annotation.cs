@@ -1319,10 +1319,10 @@ namespace OpenTap
 
         class InputStepAnnotation : IAvailableValuesSelectedAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
         {
-            public class Strings : StringLocalizer<Strings>
+            public class Strings : StringLocalizer
             {
-                public readonly string None = "None";
-                public readonly string InputFormatString = "{0} from {1}";
+                public string None => Translate("None");
+                public string InputFormatString => TranslateFormat("{0} from {1}");
             }
             struct InputThing
             {
@@ -1330,8 +1330,9 @@ namespace OpenTap
                 public IMemberData Member { get; set; }
                 public override string ToString()
                 {
-                    if (Step == null) return Strings.Current.None;
-                    return string.Format(Strings.Current.InputFormatString, Member.GetTranslatedDisplayAttribute().Name,
+                    var strings = new Strings();
+                    if (Step == null) return strings.None;
+                    return string.Format(strings.InputFormatString, Member.GetTranslatedDisplayAttribute().Name,
                         Step.GetFormattedName());
                 }
 
@@ -1533,7 +1534,7 @@ namespace OpenTap
                         var orders = names.Select((x, i) =>
                         {
                             var enumValue = values.GetValue(i) as Enum;
-                            var disp = eng.TranslateMember(enumValue);
+                            var disp = eng.TranslateEnum(enumValue);
                             var memberInfo = enumType.GetMember(x).FirstOrDefault();
                             return (Display: disp, IsBrowsable: memberInfo.IsBrowsable());
                         }).ToArray();
