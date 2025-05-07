@@ -134,7 +134,7 @@ the pattern from the other entries in your translation file.
 ## Translating UserInput
 
 UserInput is crucial to translate because it is *always* user-facing.
-Unfortunately, the signature of user inputs is `UserInput.Request(object)`, so
+Unfortunately, the signature of user inputs is `void UserInput.Request(object obj)`, so
 there is no way for OpenTAP to detect what might get passed into this function
 via reflection. Unfortunately, this makes it difficult to make translations of
 UserInput from an old plugin package. But if you can create a new version of
