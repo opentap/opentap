@@ -7,10 +7,10 @@ language-neutral strings, based on the strings in the source code. The neutral
 file will usually be in English, as this was the recommended plugin language
 before localization support was introduced.
 
-To generate a translation template, use the `tap sdk translate` CLI action. For
-example, to generate a translation template for OpenTAP, run the CLI action
-`tap sdk translate OpenTAP`. This creates the file `translations/OpenTAP.resx`
-in the installation folder.
+To generate a translation template, use the `tap sdk translate` CLI action from
+the SDK package. For example, to generate a translation template for OpenTAP,
+run the CLI action `tap sdk translate OpenTAP`. This creates the file
+`Resources/OpenTAP.resx` in the installation folder.
 
 The currently selected language can be viewed and changed in the `Engine`
 settings. OpenTAP detects the available languages by scanning the
@@ -20,7 +20,9 @@ hand, but we recommend using tools such as
 [ResXManager](https://marketplace.visualstudio.com/items?itemName=TomEnglert.ResXManager).
 ResXManager is convenient to use because it highlights potential errors such as
 missing translations, inconsistent casing, inconsistent punctuation, missing
-argumnents to format strings, and so on.
+arguments to format strings, and so on.
+
+> NOTE: The language selector will be hidden if no language files are available.
 
 The language of a translation file is determined by parsing the [ISO 639
 language code](https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes) in
@@ -28,6 +30,11 @@ the filename before the `.resx` file extension. For example, the file
 `OpenTAP.de.resx` would be treated as a German translation file, and
 `OpenTAP.resx` would be treated as a neutral language file, due to the missing
 extension.
+
+> NOTE: Even if the Neutral language is selected, OpenTAP will not perform
+> string lookups in neutral .resx files. The content of neutral resx files is
+> derived from the source code, but it is possible for resx files and binaries
+> to go out of sync, so the binary files are assumed to be authoritative.
 
 OpenTAP generates the neutral translation file based on compiled DLL files by
 using reflection. This is convenient because it makes it possible to create 3rd
@@ -38,10 +45,10 @@ algorithm:
 
 1. Scan all DLLs belonging to a package, and gather all plugin types. (Types
    which inherit from `ITapPlugin`. This is the case for all OpenTAP plugin
-types, such as TestStep, ICliAction, Custom Settings, and many others.)
+types, such as TestStep, ICliAction, Custom Settings,, IStringLocalizer, and many others.)
 2. Scan all properties of each type. If the property is visible to the user,
-   add it to the translation file. 2a. If the property has a DisplayAttribute
-specified, add this display information to the translation file. 2b. If the
+   add it to the translation file. If the property has a DisplayAttribute
+specified, add this display information to the translation file. If the
 property does *not* have a DisplayAttribute, derive a display attribute and add
 this information to the translation file.
 3. If a property is visible and references a non-plugin type (an Enum, or a
@@ -74,35 +81,66 @@ By non-static string, we mean all strings which are not hard-coded in a
 
 Because these strings can be dynamically generated at runtime, it is not
 possible to automatically generate translation stubs for them. Instead, we have
-added the `StringLocalizer` class. The `StringLocalizer` system is designed to
-be similar to the existing `ComponentSettings` system.
+added the `IStringLocalizer` interface.
 
-Because `StringLocalizer` inherits from `ITapPlugin`, the translation generator
-can create entries for all the strings defined in the `StringLocalizer` class.
-Accessing the `Current` property on a `StringLocalizer` instance goes through
-the OpenTAP translation system and returns an instance with translation strings
-appropriate for the currently selected language.
+Because `IStringLocalizer` inherits from `ITapPlugin`, the translation
+generator can create entries for strings defined in classes inheriting
+`IStringLocalizer`. Strings provided by an `IStringLocalizer` must either call
+the `this.Translate()`, or `this.TranslateFormat()` methods from a property
+getter.
 
 See the example below of a test step using language-aware logging:
 
 
 ```csharp
-public class MyTestStep : TestStep
+public class MyTestStep : TestStep, IStringLocalizer
 {
-    public class Strings : StringLocalizer<Strings>
-    {
-        public readonly string StringFormatTemplateExample = "Hello, {0}"; 
-        public readonly string RunningTestStep = "Running test step!"; 
-    }
+    // Some configurable step option
+    public int StepSetting { get; set; } = 123;
+    // Translate a fixed string.
+    public string InfoMessageExample => this.Translate("Hello Translations");
+    // Translate a string with format parameters. This is recommended over manually calling string.Format() because
+    // TranslateFormat validates the template parameters in the translated string.
+    public string StringFormatExample => this.TranslateFormat("StepSetting is '{0}'", arguments: [StepSetting]);
+
     public override void Run()
     {
-        Log.Info(Strings.Current.RunningTestStep);
-        Log.Info(string.Format(Strings.Current.StringFormatTemplateExample, "World"));
+        Log.Info(InfoMessageExample);
+        Log.Info(StringFormatExample);
     }
 }
 ```
 
-We recommend using the same strategy when locale-sensitive UserInput is required.
+We recommend using the same strategy for UserInput implementations.
+
+> NOTE: The resx template generator must be able to instantiate
+> `IStringLocalizer` implementations in order to detect the required
+> translation strings. This requires the implementation to have an empty
+> constructor. This is also a requirement for `TestStep` plugins, and is
+> generally the case for all OpenTAP plugin types.
+
+### How does it work?
+
+The syntax is a bit magical, and is designed to make common translation
+scenarios as simple as possible. OpenTAP defines an extension method on the
+interface `IStringLocalizer`, and makes use of the `[CallerMemberName]`
+attribute. The real signature of the `Translate()` method is this:
+
+```csharp 
+public static string Translate(this IStringLocalizer stringLocalizer, string neutral, [CallerMemberName] string key = null, CultureInfo language = null)
+```
+
+So the line `this.Translate("Hello Translations")` is really a shorthand for
+`OpenTap.Translations.Translations.Translate(this, "Hello Translations",
+nameof(InfoMessageExample))`. The template generator works by creating an
+instance of the `IStringLocalizer`, and looping through all of its public
+properties and calling the getter function. This causes the `Translate()`
+function to be called, which the template generator can use to derive the full
+lookup key (`stringLocalizer.GetType().FullName + "." + key`).
+
+This implementation detail is not crucial to understand to use the system, but
+explains why the `Translate` call must be used from a property getter.
+
 
 ## Manually adding types
 
@@ -134,13 +172,12 @@ the pattern from the other entries in your translation file.
 ## Translating UserInput
 
 UserInput is crucial to translate because it is *always* user-facing.
-Unfortunately, the signature of user inputs is `void UserInput.Request(object obj)`, so
-there is no way for OpenTAP to detect what might get passed into this function
-via reflection. Unfortunately, this makes it difficult to make translations of
-UserInput from an old plugin package. But if you can create a new version of
-the plugin, it is simple to add translation support by using a mix of
-`StringLocalizer` and turning the request object into an `ITapPlugin` type by
-manually inheriting the interface.
+Unfortunately, the signature of user inputs is `void UserInput.Request(object
+obj)`, so there is no way for OpenTAP to detect what might get passed into this
+function via reflection. Unfortunately, this makes it difficult to make
+translations of UserInput from an old plugin package. But if you can create a
+new version of the plugin, it is simple to add translation support by making
+the request object inherit the `IStringLocalizer` interface.
 
 Here is an example of a translatable request object:
 
@@ -148,7 +185,7 @@ Here is an example of a translatable request object:
 // Inheriting from ITapPlugin causes the automatic translation template generator to create entries for this object.
 // Note that the type must be public.
 [Display("This is the title of the dialog")]
-public class MyTranslatableRequestObject : ITapPlugin
+public class MyTranslatableRequestObject : IStringLocalizer
 {
     // This enum is automatically added to the translation table because it is referenced by `MyTranslatableRequestObject`, which is a plugin type
     public enum UserResponse
@@ -159,15 +196,11 @@ public class MyTranslatableRequestObject : ITapPlugin
         [Display("Cancel", Description: "Cancel the dialog.")]
         Cancel
     }
-    public class RequestStrings : StringLocalizer<RequestStrings>
-    {
-        public readonly string Message = "Here is my dialog text";
-    }
 
     // Strings used in this dialog can be defined in a string localizer. This is a convenient way to
     // provide translations for visible, readonly strings, such as this message.
     [Layout(LayoutMode.FullRow)]
-    [Browsable(true)] public string Message => RequestStrings.Current.Message;
+    [Browsable(true)] public string Message => this.Translate("Here is my dialog text");
 
     // Because the response object is an Enum, it is automatically added to the translation file.
     [Submit]
