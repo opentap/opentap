@@ -133,11 +133,11 @@ namespace OpenTap
     /// <summary> Standard implementation of UserInputInterface for Command Line interfaces</summary>
     public class CliUserInputInterface : IUserInputInterface
     {
-        class Strings : StringLocalizer
+        class Strings : IStringLocalizer
         {
-            public string PleaseEnterNumberOrName => Translate("Please enter a number or name ");
-            public string PleaseEnter => Translate("Please enter ");
-            public string Default => Translate(" (default)");
+            public string PleaseEnterNumberOrName => this.Translate("Please enter a number or name ");
+            public string PleaseEnter => this.Translate("Please enter ");
+            public string Default => this.Translate(" (default)");
         }
 
         /// <summary>

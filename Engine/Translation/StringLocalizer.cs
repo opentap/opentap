@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -6,55 +7,35 @@ using System.Runtime.CompilerServices;
 namespace OpenTap.Translation;
 
 /// <summary>
-/// A string localizer can define localizable strings by calling the Translate() method from a public property.
+/// An IStringLocalizer can define localizable strings by calling the Translate() or TranslateFormat() method from a public computed property.
+/// Example: public string MyString => Translate("Neutral string") // returns "Translated string" if available
 /// A localizable string defaults to the neutral string, unless, OpenTAP is configured to display in a different
 /// language in which a translation is available.
 /// </summary>
-public abstract class StringLocalizer : ITapPlugin
+public interface IStringLocalizer : ITapPlugin
 {
-    public bool RecordKeys { get; set; } = false;
-    public Dictionary<string, string> RecordedKeys { get; } = [];
-    protected CultureInfo Language { get; }
-    private EngineSettings Engine { get; }
+}
 
-    protected StringLocalizer()
-    {
-        Engine = EngineSettings.Current;
-        Language = Engine.Language;
-    }
-
-    protected StringLocalizer(CultureInfo language) : this()
-    {
-        Language = language;
-    }
-
-    /// <summary>
-    /// Look for a translated version of the input member. If no translation is found, return the neutral string.
-    /// </summary>
-    /// <param name="neutral">The language-neutral string</param>
-    /// <param name="member">The member name</param>
-    /// <returns></returns>
-    protected string Translate(string neutral, [CallerMemberName] string member = null)
-    {
-        if (string.IsNullOrWhiteSpace(member))
-            return neutral;
-        var key = GetType().FullName + $".{member}";
-        if (RecordKeys) RecordedKeys.Add(key, neutral);
-        if (Equals(Language, EngineSettings.DefaultLanguage))
-            return neutral;
-        return Engine.TranslateKey(key, Language) ?? neutral;
-    }
-
+/// <summary>
+/// Extension methods for working with translations
+/// </summary>
+public static class Translation
+{
     /// <summary>
     /// Look for a translated version of the input member and validate the format parameters.
     /// If no translation is found, or the parameter count does not match, return the neutral string.
     /// </summary>
-    /// <param name="neutral">The language-neutral string</param>
-    /// <param name="member">The member name</param>
-    /// <returns></returns>
-    protected string TranslateFormat(string neutral, [CallerMemberName] string member = null)
+    /// <param name="stringLocalizer">The string localizer which owns the translated string.</param>
+    /// <param name="neutral">The neutral (non-translated) string.</param>
+    /// <param name="key">Lookup key for finding the translation.</param>
+    /// <param name="language">The desired translation language</param>
+    /// <param name="arguments">Format arguments passed to String.Format</param>
+    /// <returns>The translated string, if a translation exists, and the string format parameters in the translated string matches the source string. Otherwise, returns the neutral string.</returns>
+    public static string TranslateFormat(this IStringLocalizer stringLocalizer, string neutral, [CallerMemberName] string key = null,
+        CultureInfo language = null, IEnumerable<object> arguments = null)
     {
-        var translated = Translate(neutral, member);
+        object[] args = arguments?.ToArray() ?? [];
+        var translated = Translate(stringLocalizer, neutral, key, language);
         if (!ReferenceEquals(neutral, translated))
         {
             var c1 = CountTemplates(neutral);
@@ -65,14 +46,42 @@ public abstract class StringLocalizer : ITapPlugin
                                    $"'{neutral}' has {c1} template parameters.\n" +
                                    $"'{translated}' has {c2} template parameters.\n" +
                                    $"The first string will be preferred over the second string.");
-                return neutral;
+                // Use neutral string instead
+                translated = neutral;
             }
-            return translated;
         }
-        return neutral;
+        return string.Format(translated, args);
     }
 
-    private static readonly TraceSource log = Log.CreateSource("String Localizer");
+    
+    
+    /// <summary>
+    /// Look for a translated version of the input member. If no translation is found, return the neutral string.
+    /// </summary>
+    /// <param name="stringLocalizer">The string localizer which owns the translated string.</param>
+    /// <param name="neutral">The neutral (non-translated) string.</param>
+    /// <param name="key">Lookup key for finding the translation.</param>
+    /// <param name="language">The desired translation language</param>
+    /// <returns>The translated string, if a translation exists. Otherwise, returns the neutral string.</returns>
+    public static string Translate(this IStringLocalizer stringLocalizer, string neutral, [CallerMemberName] string key = null, CultureInfo language = null)
+    {
+        return Translator(stringLocalizer, neutral, key, language);
+    }
+
+    // We add this small level of indirection in order to inject a hook to automatically
+    // populate a list of lookup keys and strings for creating translations.
+    // Do not rename this field or change the delegate!!
+    private static Func<IStringLocalizer, string, string, CultureInfo, string> Translator = _translate;
+    private static string _translate(this IStringLocalizer stringLocalizer, string neutral, [CallerMemberName] string key = null, CultureInfo language = null)
+    {
+        var eng = EngineSettings.Current;
+        language ??= eng.Language;
+        if (language.Equals(EngineSettings.NeutralLanguage) || string.IsNullOrWhiteSpace(key))
+            return neutral;
+        var fullKey = stringLocalizer.GetType().FullName + $".{key}";
+        return eng.TranslateKey(fullKey, language) ?? neutral;
+    }
+    
     static int CountTemplates(string s)
     {
         var chars = s.ToArray();
@@ -97,6 +106,6 @@ public abstract class StringLocalizer : ITapPlugin
         }
         return n;
     }
-
+    
+    private static readonly TraceSource log = Log.CreateSource("String Localizer"); 
 }
-

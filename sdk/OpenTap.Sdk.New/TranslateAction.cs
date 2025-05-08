@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -75,7 +76,9 @@ public class TranslateAction : ICliAction
                         || mem.TypeDescriptor.Name.StartsWith("Microsoft."))
                         continue;
                     if (seen.Add(mem.TypeDescriptor))
+                    {
                         recursivelyAddReferencedTypes(mem.TypeDescriptor, seen);
+                    }
                 }
             }
             catch
@@ -92,6 +95,28 @@ public class TranslateAction : ICliAction
         }
 
         types = [.. seen];
+
+        var genericTypes = types.Where(x => AsTypeData(x)?.Type?.IsGenericType == true);
+
+        {
+            // We are not interested in creating a different translation for each 
+            // variant of a generic type we use. 
+            // Remove all instances of generic types, and add a single reference to the generic variant.
+            // TODO: The translation implementation needs to support this. (add test)
+            HashSet<TypeData> add = [];
+            HashSet<TypeData> remove = [];
+            foreach (var type in types)
+            {
+                if (AsTypeData(type) is { } td && td.Type.IsGenericType)
+                {
+                    remove.Add(td);
+                    var gen = TypeData.FromType(td.Type.GetGenericTypeDefinition());
+                    add.Add(gen);
+                }
+            }
+            types.RemoveAll(remove.Contains);
+            types.AddRange(add);
+        }
 
         var typesSources = types.Select(x => Path.GetFullPath(TypeData.GetTypeDataSource(x).Location))
             .Where(x => x.StartsWith(install.Directory, StringComparison.OrdinalIgnoreCase))
@@ -126,20 +151,19 @@ public class TranslateAction : ICliAction
                 if (SkipType(type))
                     continue;
 
-                if (type.DescendsTo(typeof(StringLocalizer)) && type.CanCreateInstance && type.CreateInstance() is StringLocalizer t)
-                {
-                    // special handling for string localizers
-                    // We need to write all fields
-                    WriteClassFields(writer, t);
-                    continue;
-                }
-
                 if (type.DescendsTo(typeof(Enum)) && AsTypeData(type)?.Type is Type enumType)
                 {
                     // Special handling for enums. We need to write each enum variant
                     WriteEnumMembers(writer, enumType);
                     continue;
                 }
+
+                if (type.DescendsTo(typeof(IStringLocalizer)) && type.CanCreateInstance && type.CreateInstance() is IStringLocalizer t)
+                {
+                    WriteStringLocalizerStrings(writer, t);
+                }
+
+
                 var members = type.GetMembers().ToArray();
                 var typeDisplay = type.GetDisplayAttribute();
 
@@ -180,25 +204,31 @@ public class TranslateAction : ICliAction
         }
     }
 
-    private static void WriteClassFields(IResourceWriter writer, StringLocalizer obj)
+    private static void WriteStringLocalizerStrings(IResourceWriter writer, IStringLocalizer obj)
     {
         var t = obj.GetType();
-        obj.RecordKeys = true;
+        Func<IStringLocalizer, string, string, CultureInfo, string> hook = (localizer, neutral, key, language) =>
+        {
+            var fullkey = $"{t.FullName}.{key}";
+            writer.AddResource(fullkey, neutral);
+            return neutral;
+        };
+        // inject hook
+        var trns = typeof(Translation.Translation);
+        trns.GetField("Translator", BindingFlags.Static | BindingFlags.NonPublic)?.SetValue(null, hook);
+
+        // we need to call the property getter for all properties to trigger all calls to Translate()
         foreach (var prop in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
             if (prop.PropertyType != typeof(string)) continue;
-            try 
+            try
             {
                 prop.GetValue(obj);
             }
-            catch 
+            catch
             {
                 // ignore
             }
-        }
-        foreach (var kvp in obj.RecordedKeys)
-        {
-            writer.AddResource(kvp.Key, kvp.Value);
         }
     }
 
@@ -220,7 +250,7 @@ public class TranslateAction : ICliAction
 
     static bool SkipType(ITypeData type)
     {
-        if (type.DescendsTo(typeof(StringLocalizer))) return false;
+        if (type.DescendsTo(typeof(IStringLocalizer))) return false;
         if (type.DescendsTo(typeof(Enum))) return false;
         // Skip types that cannot be instantiated if they do not have any members.
         if (!type.CanCreateInstance && !type.GetMembers().Any(mem => !SkipMem(type, mem)))
@@ -231,6 +261,13 @@ public class TranslateAction : ICliAction
     static bool SkipMem(ITypeData type, IMemberData mem)
     {
         // If this member is inherited, the translation should happen in the base class.
-        return !Equals(mem.DeclaringType, type);
+        if (!Equals(mem.DeclaringType, type))
+            return true;
+        // Skip the member if it is unbrowsable
+        var browsable = mem.GetAttribute<BrowsableAttribute>()?.Browsable;
+        if (browsable != null) return !browsable.Value;
+        // Otherwise skip the member if it is not writable.
+        // This is the primary factor determining whether or not something is visible in most UIs.
+        return !mem.Writable;
     }
 }

@@ -79,8 +79,7 @@ internal class Translator : ITranslator
             : [];
 
         var lut = new Dictionary<CultureInfo, List<string>>();
-        // English is assumed to be the default when no culture is specified. (e.g. all strings defined in source code)
-        var defaultLanguage = EngineSettings.DefaultLanguage;
+        var defaultLanguage = EngineSettings.NeutralLanguage;
 
         foreach (var f in translationFiles)
         {

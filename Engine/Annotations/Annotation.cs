@@ -1319,10 +1319,10 @@ namespace OpenTap
 
         class InputStepAnnotation : IAvailableValuesSelectedAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
         {
-            public class Strings : StringLocalizer
+            public class Strings : IStringLocalizer
             {
-                public string None => Translate("None");
-                public string InputFormatString => TranslateFormat("{0} from {1}");
+                public string None => this.Translate("None");
+                public string InputFormatString => this.TranslateFormat("{0} from {1}");
             }
             struct InputThing
             {

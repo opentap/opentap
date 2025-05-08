@@ -43,11 +43,11 @@ namespace OpenTap
         /// <summary>
         /// Where the session logs are saved. Must be a valid path.
         /// </summary>
-        [Display("Log Path", Group: "General", Order:1, Description: "Where to save the session log file. This setting only takes effect after restart.")]
+        [Display("Log Path", Group: "General", Order: 1, Description: "Where to save the session log file. This setting only takes effect after restart.")]
         [FilePath(FilePathAttribute.BehaviorChoice.Save)]
         [HelpLink(@"EditorHelp.chm::/Configurations/Using Tags and Variables in File Names.html")]
         public MacroString SessionLogPath { get; set; }
-        
+
         /// <summary>
         /// Controls whether the engine should propagate a request for metadata.
         /// </summary>
@@ -78,7 +78,7 @@ namespace OpenTap
         /// Gets or sets the maximum allowed latency for result propagation. When the limit is reached, the test plan run pauses while the results are propagated to the Result Listeners. 
         /// Result processing time is an estimated value based on previous processing delays.
         /// </summary>
-        [Display("Result Latency Limit", Group:"Advanced", Collapsed:true, Order:100.1, Description: "The maximum allowed latency for result propagation.  Reaching this limit will result in a temporary pause in the test plan while the results are being propagated to the ResultListeners. Result processing time is an estimated value based on previous processing delays.")]
+        [Display("Result Latency Limit", Group: "Advanced", Collapsed: true, Order: 100.1, Description: "The maximum allowed latency for result propagation.  Reaching this limit will result in a temporary pause in the test plan while the results are being propagated to the ResultListeners. Result processing time is an estimated value based on previous processing delays.")]
         [Unit("s")]
         [Browsable(false)]
         public double ResultLatencyLimit { get; set; }
@@ -196,14 +196,19 @@ namespace OpenTap
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
-        public CultureInfo Language { get; set; } = DefaultLanguage;
-        
+        public CultureInfo Language
+        {
+            get => language;
+            set => language = value ?? throw new ArgumentNullException(nameof(value));
+        }
+        private CultureInfo language = NeutralLanguage;
+
         /// <summary>
         /// The default language.
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
-        internal static CultureInfo DefaultLanguage { get; } = CultureInfo.InvariantCulture;
+        internal static CultureInfo NeutralLanguage { get; } = CultureInfo.InvariantCulture;
 
         /// <summary>
         /// The list of available languages. This is based on the currently installed .resx files.
@@ -217,8 +222,8 @@ namespace OpenTap
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
-        public bool LanguageSelectorEnabled => Translator.SupportedLanguages.Any(x => !DefaultLanguage.Equals(x));
-        
+        public bool LanguageSelectorEnabled => Translator.SupportedLanguages.Any(x => !NeutralLanguage.Equals(x));
+
         /// <summary>
         /// The currently selected language. Defaults to Invariant.
         /// </summary>
@@ -233,6 +238,6 @@ namespace OpenTap
                 if (Translator.SupportedLanguages.FirstOrDefault(x => CultureAsString(x) == value) is { } newLanguage)
                     Language = newLanguage;
             }
-        } 
-    } 
+        }
+    }
 }

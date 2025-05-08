@@ -87,7 +87,7 @@ namespace OpenTap
             else this.Group = Array.Empty<string>();
             this.Order = Order;
             this.Collapsed = Collapsed;
-            this.Language = EngineSettings.DefaultLanguage;
+            this.Language = EngineSettings.NeutralLanguage;
         }
 
         /// <summary>

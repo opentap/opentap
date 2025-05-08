@@ -62,6 +62,9 @@ internal class ResXTranslationProvider : ITranslationProvider
         var key = mem switch
         {
             IMemberData imem => $"{imem.DeclaringType.Name}.{imem.Name}",
+            // If the type is generic, the lookup key should not include the generic type parameter
+            ITypeData td2 when td2.AsTypeData()?.Type is { } tp && tp.IsGenericType
+                => TypeData.FromType(tp.GetGenericTypeDefinition()).Name,
             ITypeData tmem => tmem.Name,
             _ => mem.Name
         };
