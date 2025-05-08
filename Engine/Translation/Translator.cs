@@ -79,7 +79,7 @@ internal class Translator : ITranslator
             : [];
 
         var lut = new Dictionary<CultureInfo, List<string>>();
-        var defaultLanguage = EngineSettings.NeutralLanguage;
+        var neutralLanguage = EngineSettings.NeutralLanguage;
 
         foreach (var f in translationFiles)
         {
@@ -100,15 +100,19 @@ internal class Translator : ITranslator
                 // MyPackage.de.resx, and the german resource file would be named MyPackage.de.de.resx
                 // But let's ignore this edge case for now.
                 if (culture.CultureTypes.HasFlag(CultureTypes.UserCustomCulture) || string.IsNullOrWhiteSpace(cultureString))
-                    culture = defaultLanguage;
+                    culture = neutralLanguage;
             }
             catch
             {
                 // If there was a parser error, also assume english
                 // This normally happens when the culture contains illegal characters, but not if the culture 
                 // is not recognized. E.g. the culture 'asdkjasheoiqwje' would be parsed successfully as a UserCustomCulture
-                culture = defaultLanguage;
+                culture = neutralLanguage;
             }
+
+            // Ignore neutral language files. Assume the source code is authoritative.
+            if (culture.Equals(neutralLanguage))
+                continue;
 
             if (!lut.TryGetValue(culture, out var lst)) lst = [];
             lst.Add(f);
@@ -116,7 +120,7 @@ internal class Translator : ITranslator
         }
 
         _cultures = lut.Keys
-            .Concat([defaultLanguage])
+            .Concat([neutralLanguage])
             .Distinct()
             .OrderBy(CultureAsString)
             .ToImmutableArray();
