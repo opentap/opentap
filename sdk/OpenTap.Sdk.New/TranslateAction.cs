@@ -55,7 +55,7 @@ public class TranslateAction : ICliAction
             return 1;
         }
 
-        var outputdir = Path.Combine(install.Directory, "translations");
+        var outputdir = Path.Combine(install.Directory, "Resources");
         var outputFileName = Path.Combine(outputdir, pkg.Name + ".resx");
         if (!Directory.Exists(outputdir))
             Directory.CreateDirectory(outputdir);
@@ -127,7 +127,7 @@ public class TranslateAction : ICliAction
         if (!string.IsNullOrWhiteSpace(outdir))
             Directory.CreateDirectory(outdir);
 
-        var OutputFileNameEng = Path.Combine(install.Directory, "translations", $"{pkg.Name}.resx");
+        var OutputFileNameEng = Path.Combine(install.Directory, "Resources", $"{pkg.Name}.resx");
         using var writer = new ResXResourceWriter(OutputFileNameEng);
         var packageFiles = new HashSet<string>(pkg.Files.Select(x => x.FileName), StringComparer.OrdinalIgnoreCase);
         List<ITypeData> packageTypes = [];

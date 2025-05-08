@@ -73,7 +73,7 @@ internal class Translator : ITranslator
     public void AddTranslationProvider(CultureInfo language, ITranslationProvider provider) => _lookup = _lookup.SetItem(language, provider);
     public Translator()
     {
-        var translationDir = Path.Combine(ExecutorClient.ExeDir, "translations");
+        var translationDir = Path.Combine(ExecutorClient.ExeDir, "Resources");
         var translationFiles = Directory.Exists(translationDir)
             ? Directory.GetFiles(translationDir, "*.resx", SearchOption.AllDirectories)
             : [];
