@@ -32,6 +32,25 @@ internal class ResXTranslationProvider : ITranslationProvider
             // Mark all files as 
             UpdateTime[file] = DateTime.MinValue;
         }
+
+        TapThread.WithNewContext(() =>
+        {
+            TapThread.Start(() =>
+            {
+                while (true)
+                {
+                    try
+                    {
+                        MaybeUpdateMappings();
+                    }
+                    catch
+                    {
+                        // ignore
+                    }
+                    TapThread.Sleep(TimeSpan.FromSeconds(5));
+                }
+            });
+        });
     }
 
     static string AttributeValue(XElement x, string name) => x.Attributes(name).FirstOrDefault()?.Value;
@@ -73,66 +92,60 @@ internal class ResXTranslationProvider : ITranslationProvider
         return ComputeDisplayAttribute(key, fallback);
     }
 
-    private readonly object updateLock = new();
-
     private ImmutableDictionary<IReflectionData, DisplayAttribute> _displayLookup = ImmutableDictionary<IReflectionData, DisplayAttribute>.Empty;
     private ImmutableDictionary<Enum, DisplayAttribute> _enumDisplayLookup = ImmutableDictionary<Enum, DisplayAttribute>.Empty;
     private ImmutableDictionary<string, string> _stringLookup = ImmutableDictionary<string, string>.Empty;
 
     bool NeedsUpdate(string key)
     {
-        if (!File.Exists(key)) return false;
         if (!UpdateTime.TryGetValue(key, out var lastUpdate)) return false;
         if (DateTime.Now - lastUpdate < TimeSpan.FromSeconds(1)) return false;
+        if (!File.Exists(key)) return false;
         if (lastUpdate == DateTime.MinValue) return true;
         var lastWrite = new FileInfo(key).LastWriteTime;
         if (lastWrite > lastUpdate) return true;
         return false;
     }
+
     void MaybeUpdateMappings()
     {
-        lock (updateLock)
+        var updates = new Dictionary<string, DateTime>();
+        var newDict = new Dictionary<string, string>();
+        foreach (var kvp in UpdateTime)
         {
-            var updates = new Dictionary<string, DateTime>();
-            var newDict = new Dictionary<string, string>();
-            foreach (var kvp in UpdateTime)
+            if (NeedsUpdate(kvp.Key))
             {
-                if (NeedsUpdate(kvp.Key))
+                updates[kvp.Key] = new FileInfo(kvp.Key).LastWriteTime;
+                try
                 {
-                    updates[kvp.Key] = new FileInfo(kvp.Key).LastWriteTime;
-                    try
+                    var doc = XDocument.Load(kvp.Key);
+                    foreach (var ele in doc?.Root?.Elements("data")?.ToArray() ?? [])
                     {
-                        var doc = XDocument.Load(kvp.Key);
-                        foreach (var ele in doc?.Root?.Elements("data")?.ToArray() ?? [])
-                        {
-                            if (AttributeValue(ele, "name") is { } key
+                        if (AttributeValue(ele, "name") is { } key
                                 && ElementValue(ele, "value") is { } value)
-                            {
-                                newDict[key] = value;
-                            }
+                        {
+                            newDict[key] = value;
                         }
                     }
-                    catch
-                    {
-                        // ignore
-                    }
-
                 }
-
+                catch
+                {
+                    // ignore
+                }
                 _stringLookup = _stringLookup.SetItems(newDict);
                 _displayLookup = ImmutableDictionary<IReflectionData, DisplayAttribute>.Empty;
                 _enumDisplayLookup = ImmutableDictionary<Enum, DisplayAttribute>.Empty;
             }
-            foreach (var u in updates)
-            {
-                UpdateTime[u.Key] = u.Value;
-            }
+        }
+
+        foreach (var u in updates)
+        {
+            UpdateTime[u.Key] = u.Value;
         }
     }
 
     public DisplayAttribute GetDisplayAttribute(IReflectionData mem)
     {
-        MaybeUpdateMappings();
         if (_displayLookup.TryGetValue(mem, out var disp)) return disp;
         disp = ComputeDisplayAttribute(mem);
         _displayLookup = _displayLookup.SetItem(mem, disp);
@@ -141,7 +154,6 @@ internal class ResXTranslationProvider : ITranslationProvider
 
     public DisplayAttribute GetDisplayAttribute(Enum e, string name)
     {
-        MaybeUpdateMappings();
         if (_enumDisplayLookup.TryGetValue(e, out var disp)) return disp;
         disp = ComputeDisplayAttribute(e, name);
         _enumDisplayLookup = _enumDisplayLookup.SetItem(e, disp);
@@ -156,7 +168,6 @@ internal class ResXTranslationProvider : ITranslationProvider
 
     public string GetString(string key)
     {
-        MaybeUpdateMappings();
         return _stringLookup.TryGetValue(key, out var val) ? val : null;
     }
 }
