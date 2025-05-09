@@ -994,7 +994,7 @@ jobs:
           name: nuget-package
           path: .
       - name: Package
-        run: nuget push OpenTAP.*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json
+        run: nuget push OpenTAP.*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json -SkipDuplicate
 
   Publish-Templates:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
