@@ -23,14 +23,14 @@ internal interface ITranslationProvider
 internal class ResXTranslationProvider : ITranslationProvider
 {
     public CultureInfo Culture { get; }
-    private readonly Dictionary<string, DateTime> UpdateTime = [];
+    private readonly Dictionary<string, string> CacheFileInvalidationTable = [];
     public ResXTranslationProvider(CultureInfo culture, IEnumerable<string> files)
     {
         Culture = culture;
         foreach (var file in files)
         {
-            // Mark all files as 
-            UpdateTime[file] = DateTime.MinValue;
+            // Set the initial invalidation key for all files
+            CacheFileInvalidationTable[file] = string.Empty;
         }
 
         TapThread.WithNewContext(() =>
@@ -96,26 +96,16 @@ internal class ResXTranslationProvider : ITranslationProvider
     private ImmutableDictionary<Enum, DisplayAttribute> _enumDisplayLookup = ImmutableDictionary<Enum, DisplayAttribute>.Empty;
     private ImmutableDictionary<string, string> _stringLookup = ImmutableDictionary<string, string>.Empty;
 
-    bool NeedsUpdate(string key)
-    {
-        if (!UpdateTime.TryGetValue(key, out var lastUpdate)) return false;
-        if (DateTime.Now - lastUpdate < TimeSpan.FromSeconds(1)) return false;
-        if (!File.Exists(key)) return false;
-        if (lastUpdate == DateTime.MinValue) return true;
-        var lastWrite = new FileInfo(key).LastWriteTime;
-        if (lastWrite > lastUpdate) return true;
-        return false;
-    }
-
+    private static readonly TraceSource log = Log.CreateSource("Translation");
     void MaybeUpdateMappings()
     {
-        var updates = new Dictionary<string, DateTime>();
         var newDict = new Dictionary<string, string>();
-        foreach (var kvp in UpdateTime)
+        foreach (var kvp in CacheFileInvalidationTable.ToArray())
         {
-            if (NeedsUpdate(kvp.Key))
+            var invalidationKey = GetCacheMarker(kvp.Key);
+            if (CacheFileInvalidationTable[kvp.Key] != invalidationKey)
             {
-                updates[kvp.Key] = new FileInfo(kvp.Key).LastWriteTime;
+                CacheFileInvalidationTable[kvp.Key] = invalidationKey;
                 try
                 {
                     var doc = XDocument.Load(kvp.Key);
@@ -127,6 +117,7 @@ internal class ResXTranslationProvider : ITranslationProvider
                             newDict[key] = value;
                         }
                     }
+                    log.Debug($"Reloaded translation file '{kvp.Key}'.");
                 }
                 catch
                 {
@@ -138,9 +129,15 @@ internal class ResXTranslationProvider : ITranslationProvider
             }
         }
 
-        foreach (var u in updates)
+        static string GetCacheMarker(string file)
         {
-            UpdateTime[u.Key] = u.Value;
+            string key = string.Empty;
+            if (File.Exists(file))
+            {
+                var fi = new FileInfo(file);
+                key = $"{fi.LastWriteTimeUtc}.{fi.Length}";
+            }
+            return key;
         }
     }
 

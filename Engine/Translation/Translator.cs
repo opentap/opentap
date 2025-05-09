@@ -93,7 +93,7 @@ internal class Translator : ITranslator
                 culture = new CultureInfo(cultureString);
                 // If the culture is a custom culture, this likely means that no culture was specified at all.
                 // This is a bit hard to determine unambiguously because the pattern used by resx files will be e.g:
-                // foo.resx -> english
+                // foo.resx -> neutral
                 // foo.de.resx -> german
                 // But the OpenTAP resx generator will name the resource file based on the package name,
                 // so in the edge case where a package is named "MyPackage.de", the english resource file would be named
