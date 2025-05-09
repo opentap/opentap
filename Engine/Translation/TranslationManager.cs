@@ -14,8 +14,7 @@ namespace OpenTap.Translation;
 /// </summary>
 public static class TranslationManager
 {
-    private static ITranslator translator;
-    private static ITranslator Translator => translator ??= new Translator();
+    private static readonly ITranslator Translator = new Translator();
 
     internal static string CultureAsString(CultureInfo culture)
     {
@@ -28,7 +27,7 @@ public static class TranslationManager
     /// </summary>
     [Browsable(false)]
     [XmlIgnore]
-    internal static CultureInfo NeutralLanguage { get; } = CultureInfo.InvariantCulture;
+    internal static CultureInfo NeutralLanguage => CultureInfo.InvariantCulture;
 
     /// <summary>
     /// The list of languages supported by installed resource files.
