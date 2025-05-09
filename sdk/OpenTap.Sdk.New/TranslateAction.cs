@@ -210,8 +210,8 @@ public class TranslateAction : ICliAction
             return neutral;
         };
         // inject hook
-        var trns = typeof(Translation.Translation);
-        trns.GetField("Translator", BindingFlags.Static | BindingFlags.NonPublic)?.SetValue(null, hook);
+        var mgr = typeof(TranslationManager);
+        mgr.GetField("TranslateFunction", BindingFlags.Static | BindingFlags.NonPublic)?.SetValue(null, hook);
 
         // we need to call the property getter for all properties to trigger all calls to Translate()
         foreach (var prop in t.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
