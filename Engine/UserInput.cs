@@ -9,6 +9,7 @@ using System.Linq;
 using System.Security;
 using System.Text;
 using System.Threading;
+using OpenTap.Translation;
 
 namespace OpenTap
 {
@@ -78,7 +79,7 @@ namespace OpenTap
         /// <param name="dataObject">The object the user should fill out with data.</param>
         /// <param name="Timeout">How long the user should have.</param>
         /// <param name="modal"> True if a modal request is wanted</param>
-        void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal);   
+        void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal);
     }
 
     /// <summary> The supported layout modes. </summary>
@@ -100,7 +101,7 @@ namespace OpenTap
     {
         /// <summary> Specifies the mode of layout.</summary>
         public LayoutMode Mode { get; }
-        
+
         /// <summary> How much height should the input take.  </summary>
         public int RowHeight { get; }
 
@@ -118,11 +119,11 @@ namespace OpenTap
             RowHeight = rowHeight;
             MaxRowHeight = maxRowHeight;
         }
-        
+
         /// <summary> Creates a new instance of layout attribute. </summary>
         public LayoutAttribute() : this(0)
         {
-            
+
         }
     }
 
@@ -132,6 +133,14 @@ namespace OpenTap
     /// <summary> Standard implementation of UserInputInterface for Command Line interfaces</summary>
     public class CliUserInputInterface : IUserInputInterface
     {
+        class Strings : IStringLocalizer
+        {
+            public static readonly Strings strings = new();
+            public static string PleaseEnterNumberOrName => strings.Translate("Please enter a number or name ");
+            public static string PleaseEnter => strings.Translate("Please enter ");
+            public static string Default => strings.Translate(" (default)");
+        }
+
         /// <summary>
         /// Thrown when userinput is requested when reading input from stdin and EOF is reached
         /// </summary>
@@ -230,7 +239,7 @@ namespace OpenTap
                             buf.Add((byte)b);
                             break;
                     }
-                } while (b != EOF); 
+                } while (b != EOF);
                 EOFReached = true;
             }, "Pipe Reader");
         }
@@ -290,9 +299,9 @@ namespace OpenTap
                 string title = null;
                 if (display is DisplayAttribute attr && attr.IsDefaultAttribute() == false)
                     title = display.Name;
-                
+
                 // flush and make sure that there is no new log messages coming in before starting to message the user.
-                Log.Flush();    
+                Log.Flush();
                 if (string.IsNullOrWhiteSpace(title))
                     // fallback magic
                     title = TypeData.GetTypeData(dataObject)?.GetMember("Name")?.GetValue(dataObject) as string;
@@ -324,13 +333,13 @@ namespace OpenTap
                     {
                         if (!isBrowsable(mem)) continue;
                     }
-                    
+
                     bool secure = _message.Get<IReflectionAnnotation>()?.ReflectionInfo.DescendsTo(typeof(SecureString)) ?? false;
                     var str = _message.Get<IStringValueAnnotation>();
                     if (str == null && !secure) continue;
                     var name = _message.Get<DisplayAttribute>()?.Name;
 
-                    start:
+                start:
                     var isVisible = _message.Get<IAccessAnnotation>()?.IsVisible ?? true;
                     if (!isVisible) continue;
 
@@ -361,7 +370,7 @@ namespace OpenTap
                                 Console.Write("{1}: '{0}'", v.Value, index);
                                 if (value == current_value)
                                 {
-                                    Console.WriteLine(" (default)");
+                                    Console.WriteLine(Strings.Default);
                                 }
                                 else
                                 {
@@ -371,28 +380,29 @@ namespace OpenTap
                             options.Add(v?.Value);
                             index++;
                         }
-                        Console.Write("Please enter a number or name ");
+                        Console.Write(Strings.PleaseEnterNumberOrName);
                     }
 
                     var layout = _message.Get<IMemberAnnotation>()?.Member.GetAttribute<LayoutAttribute>();
                     bool showName = layout?.Mode.HasFlag(LayoutMode.FullRow) == true ? false : true;
                     if (pleaseEnter)
                     {
-                        Console.Write("Please enter ");
+                        Console.Write(Strings.PleaseEnter);
                     }
 
                     if (secure && showName)
                     {
                         Console.Write($"{name}: ");
-                    }else if (showName)
-                        if(string.IsNullOrEmpty(str.Value))
+                    }
+                    else if (showName)
+                        if (string.IsNullOrEmpty(str.Value))
                             Console.Write($"{name}: ");
                         else
                             Console.Write($"{name} ({str.Value}): ");
-                    else if(string.IsNullOrEmpty(str.Value) == false)
+                    else if (string.IsNullOrEmpty(str.Value) == false)
                         Console.Write($"({str.Value}): ");
                     else Console.WriteLine(":");
-                    
+
                     if (secure)
                     {
                         var read2 = (awaitReadLine(timeoutAt, true)).Trim();
@@ -417,7 +427,7 @@ namespace OpenTap
                             else goto start;
                         }
                         str.Value = read;
-                        
+
                         var err = a.Get<IErrorAnnotation>();
                         IEnumerable<string> errors = err?.Errors;
 

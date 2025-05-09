@@ -1,7 +1,7 @@
 {
   "runtimeOptions": {
     "framework": {
-      "name": "Microsoft.NETCore.App",
+      "name": "Microsoft.WindowsDesktop.App",
       "version": "9.0.0"
     },
     

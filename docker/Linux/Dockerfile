@@ -1,21 +1,14 @@
-FROM mcr.microsoft.com/dotnet/sdk:6.0-focal as development
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS development
 
 # Update ubuntu
 RUN apt update
 RUN apt upgrade -y
 
-# Install dotnet core 2.1
-RUN apt install -y wget
-RUN apt install apt-transport-https -y
-
-# TAP dotnet core 2.1 dependency
-RUN apt install libc6-dev libunwind8 curl git locales -y
+RUN apt install -y wget apt-transport-https libc6-dev libunwind8 curl git locales unzip
 
 # .NET SDK MSBuild requires US.UTF-8 locale to execute tasks (see https://github.com/Microsoft/msbuild/issues/4194)
 RUN locale-gen en_US.UTF-8 
 
-# Install TAP
-RUN apt install unzip -y
 COPY OpenTAP.Linux.TapPackage OpenTAP.Linux.TapPackage
 RUN unzip OpenTAP.Linux.TapPackage -d /opt/tap
 RUN chmod -R +w /opt/tap
@@ -30,7 +23,7 @@ RUN tap -h
 RUN tap package list -v
 
 ################## DOTNET CORE RUNTIME #########################################
-FROM mcr.microsoft.com/dotnet/runtime:6.0-focal as production
+FROM mcr.microsoft.com/dotnet/runtime:9.0 AS production
 
 
 COPY --from=development /opt/tap /opt/tap
@@ -38,7 +31,9 @@ COPY --from=development /opt/tap /opt/tap
 RUN chmod -R +w /opt/tap
 RUN chmod +x /opt/tap/tap
 
-RUN apt-get update && apt-get install -y --no-install-recommends libunwind8 curl git && rm -rf /var/lib/apt/lists/*
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends libunwind8 curl git 
+RUN rm -rf /var/lib/apt/lists/*
 
 ENV PATH="/opt/tap:${PATH}"
 ENV TAP_PATH="/opt/tap"

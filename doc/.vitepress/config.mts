@@ -55,6 +55,7 @@ export default defineConfig({
             { link: "Developer Guide/Result Listener/Readme.md", text: "Result Listener" },
             { link: "Developer Guide/Component Setting/Readme.md", text: "Component Setting" },
             { link: "Developer Guide/Annotations/Readme.md", text: "Annotations" },
+            { link: "Developer Guide/Translating/Readme.md", text: "Translating Packages" },
             { link: "Developer Guide/Plugin Packaging and Versioning/Readme.md", text: "Plugin Packaging and Versioning" },
             { link: "Developer Guide/Package Publishing/Readme.md", text: "Package Publishing" },
             { link: "Developer Guide/Continuous Integration/Readme.md", text: "Continuous Integration (CI/CD)" },

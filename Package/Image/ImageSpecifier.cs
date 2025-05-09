@@ -45,6 +45,16 @@ namespace OpenTap.Package
             
         } 
         
+        private static bool IsZipFile(string path)
+        {
+            using var fs = File.OpenRead(path);
+            byte[] fileSignature = new byte[4];
+            int read = fs.Read(fileSignature, 0, 4);
+            if (read != 4) return false;
+            // Check for presence of magic header
+            var zipSignature = "PK\x03\x04"u8.ToArray();
+            return fileSignature.SequenceEqual(zipSignature);
+        }
         internal static ImageSpecifier FromAddedPackages(Installation installation, IEnumerable<PackageSpecifier> newPackages)
         {
             var toInstall = new List<PackageSpecifier>();
@@ -62,7 +72,7 @@ namespace OpenTap.Package
 
                 // IsZipFile handles the special case where there exists a file on disk
                 // with the same name as a package which is not a zip file.
-                if (File.Exists(package.Name))
+                if (File.Exists(package.Name) && IsZipFile(package.Name))
                 {
                     if (PackageDef.TryFromPackage(package.Name, out var package2))
                     {

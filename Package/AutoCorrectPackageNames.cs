@@ -3,14 +3,15 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using OpenTap.Translation;
 
 namespace OpenTap.Package
 {
-    internal class AutoCorrectException : Exception 
+    internal class AutoCorrectException : Exception
     {
         public AutoCorrectException(string message) : base(message)
         {
-            
+
         }
     }
     internal static class AutoCorrectPackageNames
@@ -27,14 +28,14 @@ namespace OpenTap.Package
             if (names == null || names.Length == 0) return names;
             // Copy the input array to use as return value
             var result = names.ToArray();
-            
+
             var repos = repositories.ToArray();
             List<string> onlinePackages = null;
 
             var packageCache = PackageRepositoryHelpers.DetermineRepositoryType(new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri);
             var knownPackages = Installation.Current.GetPackages().Select(p => p.Name)
                 .Concat(packageCache.GetPackageNames()).ToHashSet();
-            
+
 
             for (int i = 0; i < names.Length; i++)
             {
@@ -42,7 +43,7 @@ namespace OpenTap.Package
                 if (File.Exists(name)) continue;
 
                 var notFoundMessage = $"Package '{name}' not found.";
-                
+
                 if (string.IsNullOrWhiteSpace(name) || knownPackages.Contains(name))
                 {
                     result[i] = name;
@@ -69,7 +70,7 @@ namespace OpenTap.Package
                 var matchThreshold = 3;
                 var matcher = new FuzzyMatcher(name, matchThreshold);
                 var matchList = knownPackages.Select(matcher.Score).Where(m => m.Score <= matchThreshold).ToArray();
-                
+
                 // If any match is almost a perfect match, only consider perfect matches
                 if (matchList.Any(m => m.Score == 0))
                     matchList = matchList.Where(m => m.Score == 0).ToArray();
@@ -81,64 +82,57 @@ namespace OpenTap.Package
                     // There are no packages 
                     throw new AutoCorrectException(notFoundMessage);
                 }
-                
-                // If there is only one option, provide a yes/no dialog
-                if (scores.Length == 1)
-                {
-                    const string cancelChoice = "No";
-                    var options = new List<string>() { "Yes", cancelChoice };
-                    var req = new AutoCorrectRequest(
-                        $"Package '{name}' not found. Did you mean '{scores[0].Candidate}'?", options)
-                    {
-                        Choice = options[0]
-                    };
-                    UserInput.Request(req);
-                    if (req.Choice == cancelChoice)
-                        throw new AutoCorrectException(notFoundMessage);
-                    result[i] = scores[0].Candidate;
-                }
-                // If there are more options, provide a numbered list
-                else if (scores.Length > 1)
-                {
-                    const string cancelChoice = "Cancel";
-                    var options = scores.Select(s => s.Candidate).ToList();
-                    options.Add(cancelChoice);
 
-                    var req = new AutoCorrectRequest(
-                        $"Package '{name}' not found. Did you mean:",
-                        options)
-                    {
-                        Choice = options[0]
-                    };
-                    UserInput.Request(req);
-                    if (req.Choice == cancelChoice)
-                        throw new AutoCorrectException(notFoundMessage);
-                    
-                    result[i] = req.Choice;
-                }
+                var options = scores.Select(s => s.Candidate).ToList();
+
+                var req = new AutoCorrectRequest(name, options);
+                UserInput.Request(req);
+                if (req.Choice == req.NegativeAnswer)
+                    throw new AutoCorrectException(notFoundMessage);
+                if (req.Choice == req.Yes)
+                    result[i] = options[0];
+                else result[i] = req.Choice;
             }
 
             return result;
         }
     }
-    
-    // [Display("Correct the provided package name?")]
-    class AutoCorrectRequest
+
+    [Display("Correct package name?")]
+    class AutoCorrectRequest : IStringLocalizer
     {
+        public string NegativeAnswer => Options.Length == 1 ? No : Cancel;
+        public string Yes => this.Translate("Yes");
+        public string No => this.Translate("No");
+        public string Cancel => this.Translate("Cancel");
+
+        public string SingleOptionMessage => this.TranslateFormat("Package '{0}' not found. Did you mean '{1}'?").Format(Package, Options.FirstOrDefault());
+        public string MultipleOptionsMessage => this.TranslateFormat("Package '{0}' not found. Did you mean:").Format(Package);
+
         [Layout(LayoutMode.FullRow)]
         [Browsable(true)]
-        public string Message { get; }
-        public List<string> Corrections { get; }
-        
+        public string Message => Options.Length == 1 ? SingleOptionMessage : MultipleOptionsMessage;
+
+        // If there is only one option, provide a yes/no dialog
+        // Otherwise, provide a ranked list
+        public string[] Choices => Options.Length == 1 ? [Yes, No] : [.. Options, Cancel];
         [Submit]
-        [Layout(LayoutMode.FullRow| LayoutMode.FloatBottom)]
-        [AvailableValues(nameof(Corrections))]
+        [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+        [AvailableValues(nameof(Choices))]
         public string Choice { get; set; }
 
-        public AutoCorrectRequest(string message, List<string> corrections)
+        private readonly string Package;
+        private readonly string[] Options = [];
+        public AutoCorrectRequest(string package, IEnumerable<string> options)
         {
-            Message = message;
-            Corrections = corrections;
+            Package = package;
+            Options = [.. options];
+            Choice = Choices[0];
+        }
+
+        public AutoCorrectRequest()
+        {
+            // default constructor needed so the type can be instantiated without parameters
         }
     }
 }

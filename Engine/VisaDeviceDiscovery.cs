@@ -154,7 +154,8 @@ namespace OpenTap
         static bool visa_tried_load;
 
 
-        [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] // Required by .NET to catch AccessViolationException.
+        // Required by .NET to catch AccessViolationException.
+        [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] 
         internal static int GetResourceManager()
         {
             try
