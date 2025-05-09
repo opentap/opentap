@@ -20,24 +20,16 @@ internal interface ITranslationProvider
     string GetString(string key);
 }
 
-internal class ResXTranslationProvider : ITranslationProvider
+internal class ResXTranslationProvider : ITranslationProvider, IDisposable
 {
-    public CultureInfo Culture { get; }
-    private readonly Dictionary<string, string> CacheFileInvalidationTable = [];
-    public ResXTranslationProvider(CultureInfo culture, IEnumerable<string> files)
+    private TapThread _updateThread = null;
+    private void StartUpdateThread()
     {
-        Culture = culture;
-        foreach (var file in files)
-        {
-            // Set the initial invalidation key for all files
-            CacheFileInvalidationTable[file] = string.Empty;
-        }
-
         TapThread.WithNewContext(() =>
         {
-            TapThread.Start(() =>
+            _updateThread = TapThread.Start(() =>
             {
-                while (true)
+                while (!TapThread.Current.AbortToken.IsCancellationRequested)
                 {
                     try
                     {
@@ -51,6 +43,24 @@ internal class ResXTranslationProvider : ITranslationProvider
                 }
             });
         });
+    }
+
+    public void Dispose()
+    {
+        _updateThread?.Abort();
+    }
+
+    public CultureInfo Culture { get; }
+    private readonly Dictionary<string, string> CacheFileInvalidationTable = [];
+    public ResXTranslationProvider(CultureInfo culture, IEnumerable<string> files)
+    {
+        Culture = culture;
+        foreach (var file in files)
+        {
+            // Set the initial invalidation key for all files
+            CacheFileInvalidationTable[file] = string.Empty;
+        }
+        StartUpdateThread();
     }
 
     static string AttributeValue(XElement x, string name) => x.Attributes(name).FirstOrDefault()?.Value;
