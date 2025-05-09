@@ -65,7 +65,7 @@ internal class Translator : ITranslator, IDisposable
     private readonly ImmutableDictionary<CultureInfo, ITranslationProvider> _lookup;
     public Translator()
     {
-        var translationDir = Path.Combine(ExecutorClient.ExeDir, "Resources");
+        var translationDir = TranslationManager.TranslationDirectory;
         var translationFiles = Directory.Exists(translationDir)
             ? Directory.GetFiles(translationDir, "*.resx", SearchOption.AllDirectories)
             : [];

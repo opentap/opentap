@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Xml.Serialization;
 
 namespace OpenTap.Translation;
@@ -45,6 +46,11 @@ public static class TranslationManager
     {
         return Translator.TranslateEnum(e, language ?? EngineSettings.Current.Language);
     }
+
+    /// <summary>
+    /// The directory containing translation resource files.
+    /// </summary>
+    public static string TranslationDirectory => Path.Combine(ExecutorClient.ExeDir, "Languages");
 
     /// <summary>
     /// Get an appropriate DisplayAttribute for the specified enum in the requested language.
