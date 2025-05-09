@@ -3,8 +3,12 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
+using System.Linq;
 using System.Xml.Serialization;
+using OpenTap.Translation;
 
 namespace OpenTap
 {
@@ -39,11 +43,11 @@ namespace OpenTap
         /// <summary>
         /// Where the session logs are saved. Must be a valid path.
         /// </summary>
-        [Display("Log Path", Group: "General", Order:1, Description: "Where to save the session log file. This setting only takes effect after restart.")]
+        [Display("Log Path", Group: "General", Order: 1, Description: "Where to save the session log file. This setting only takes effect after restart.")]
         [FilePath(FilePathAttribute.BehaviorChoice.Save)]
         [HelpLink(@"EditorHelp.chm::/Configurations/Using Tags and Variables in File Names.html")]
         public MacroString SessionLogPath { get; set; }
-        
+
         /// <summary>
         /// Controls whether the engine should propagate a request for metadata.
         /// </summary>
@@ -74,7 +78,7 @@ namespace OpenTap
         /// Gets or sets the maximum allowed latency for result propagation. When the limit is reached, the test plan run pauses while the results are propagated to the Result Listeners. 
         /// Result processing time is an estimated value based on previous processing delays.
         /// </summary>
-        [Display("Result Latency Limit", Group:"Advanced", Collapsed:true, Order:100.1, Description: "The maximum allowed latency for result propagation.  Reaching this limit will result in a temporary pause in the test plan while the results are being propagated to the ResultListeners. Result processing time is an estimated value based on previous processing delays.")]
+        [Display("Result Latency Limit", Group: "Advanced", Collapsed: true, Order: 100.1, Description: "The maximum allowed latency for result propagation.  Reaching this limit will result in a temporary pause in the test plan while the results are being propagated to the ResultListeners. Result processing time is an estimated value based on previous processing delays.")]
         [Unit("s")]
         [Browsable(false)]
         public double ResultLatencyLimit { get; set; }
@@ -149,6 +153,49 @@ namespace OpenTap
         {
             StartupDir = System.IO.Directory.GetCurrentDirectory();
             Environment.SetEnvironmentVariable("ENGINE_DIR", System.IO.Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
+        }
+
+        /// <summary>
+        /// The currently selected language. Defaults to Invariant.
+        /// </summary>
+        [Browsable(false)]
+        [XmlIgnore]
+        public CultureInfo Language
+        {
+            get => language;
+            set => language = value ?? throw new ArgumentNullException(nameof(value));
+        }
+        
+        private CultureInfo language = TranslationManager.NeutralLanguage;
+
+        /// <summary>
+        /// The list of available languages. This is based on the currently installed .resx files.
+        /// </summary>
+        [Browsable(false)]
+        [XmlIgnore]
+        public IEnumerable<string> AvailableLanguages => TranslationManager.SupportedLanguages.Select(TranslationManager.CultureAsString);
+
+        /// <summary>
+        /// Whether or not the language selector should be visible.
+        /// </summary>
+        [Browsable(false)]
+        [XmlIgnore]
+        public bool LanguageSelectorEnabled => TranslationManager.SupportedLanguages.Any(x => !TranslationManager.NeutralLanguage.Equals(x));
+
+        /// <summary>
+        /// The currently selected language. Defaults to Invariant.
+        /// </summary>
+        [Display("Language", "The currently selected language.", Group: "Language", Order: 1000)]
+        [AvailableValues(nameof(AvailableLanguages))]
+        [EnabledIf(nameof(LanguageSelectorEnabled), HideIfDisabled = true)]
+        public string LanguageString
+        {
+            get => TranslationManager.CultureAsString(Language);
+            set
+            {
+                if (TranslationManager.SupportedLanguages.FirstOrDefault(x => TranslationManager.CultureAsString(x) == value) is { } newLanguage)
+                    Language = newLanguage;
+            }
         }
     }
 }

@@ -3,7 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Globalization;
 using System.Linq;
+using OpenTap.Translation;
 
 namespace OpenTap
 {
@@ -26,6 +28,9 @@ namespace OpenTap
 
         /// <summary> Name displayed by the UI.</summary>
         public string Name { get; }
+
+        /// <summary> The language of this attribute..</summary>
+        public CultureInfo Language { get; }
 
         /// <summary> Optional integer that ranks items and groups in ascending order relative to other items/groups. 
         /// Default is -10000. For a group, the order is the average order of the elements inside the group. 
@@ -83,6 +88,23 @@ namespace OpenTap
             else this.Group = Array.Empty<string>();
             this.Order = Order;
             this.Collapsed = Collapsed;
+            this.Language = TranslationManager.NeutralLanguage;
+        }
+
+        /// <summary>
+        /// Creates a new instance of <see cref="DisplayAttribute"/>.  Ensures that Name is never null.
+        /// </summary>
+        /// <param name="Name">Name displayed by the UI.</param>
+        /// <param name="Description"> Optional text that provides a description of the item. Consider using HelpLinkAttribute if a link to documentation is needed. </param>
+        /// <param name="Group"> Optional text used to group displayed items. Use 'Groups' if more than one level of grouping is needed. </param>
+        /// <param name="Order"> Optional integer that ranks items and groups in ascending order relative to other items/groups. Default is defined by DisplayAttribute.DefaultOrder. 
+        /// For a group, the order is the average order of the elements inside the group. Any double value is allowed. Items with same order are ranked alphabetically. </param>
+        /// <param name="Collapsed"> Boolean setting that indicates whether a group's default appearance is collapsed. Default is 'false' (group is expanded). </param>
+        /// <param name="Groups"> Optional array of text strings to specify multiple levels of grouping. Use 'Group' if only one level of grouping is needed. </param>
+        /// <param name="Language"> The language of this attribute. </param>
+        public DisplayAttribute(CultureInfo Language, string Name, string Description = null, string Group = null, double Order = DefaultOrder, bool Collapsed = false, string[] Groups = null) : this(Name, Description, Group, Order, Collapsed, Groups)
+        {
+            this.Language = Language;
         }
 
         /// <summary> Overriding Equals to fix strange equality issues between instances of DisplayAttribute. </summary>

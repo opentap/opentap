@@ -10,6 +10,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using OpenTap.Translation;
 
 namespace OpenTap
 {
@@ -1316,17 +1317,25 @@ namespace OpenTap
             }
         }
 
-
         class InputStepAnnotation : IAvailableValuesSelectedAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
         {
+            class Strings : IStringLocalizer
+            {
+                // this should always be private.
+                static readonly Strings strings = new();
+
+                public static string NoSteps => strings.Translate("None");
+                public static FormatString InputFormat => strings.TranslateFormat("{0} from {1}");
+            }
+
             struct InputThing
             {
                 public ITestStep Step { get; set; }
                 public IMemberData Member { get; set; }
                 public override string ToString()
                 {
-                    if (Step == null) return "None";
-                    return $"{Member.GetDisplayAttribute().Name} from {Step.GetFormattedName()}";
+                    if (Step == null) return Strings.NoSteps;
+                    return Strings.InputFormat.Format(Member.GetTranslatedDisplayAttribute().Name, Step.GetFormattedName());
                 }
 
                 public static InputThing FromInput(IInput inp)
@@ -1512,19 +1521,26 @@ namespace OpenTap
             {
                 get
                 {
-                    if (availableValues == null)
+                    // This cache is disabled for two reasons:
+                    // 1. Changing language requires invalidating this cache. Otherwise weird issues can occur.
+                    // 2. Translations are automatically reloaded on change. This also requires invalidating this cache.
+                    // There is currently no good mechanism to handle these scenarios.
+                    // TODO: Find the golden path to language based cache invalidation.
+                    // if (availableValues == null)
                     {
                         var names = Enum.GetNames(enumType);
                         var values = Enum.GetValues(enumType);
                         
-                        var orders = names.Select(x =>
+                        var orders = names.Select((x, i) =>
                         {
+                            var enumValue = values.GetValue(i) as Enum;
+                            var disp = TranslationManager.TranslateEnum(enumValue);
                             var memberInfo = enumType.GetMember(x).FirstOrDefault();
-                            return (memberInfo.GetDisplayAttribute(), memberInfo.IsBrowsable());
+                            return (Display: disp, IsBrowsable: memberInfo.IsBrowsable());
                         }).ToArray();
                         availableValues = Enumerable.Range(0, names.Length)
-                            .Where(i => orders[i].Item2)
-                            .OrderBy(i => orders[i].Item1.Order)
+                            .Where(i => orders[i].IsBrowsable)
+                            .OrderBy(i => orders[i].Display.Order)
                             .Select(i => values.GetValue(i))
                             .ToArray();
                     }
@@ -2769,6 +2785,7 @@ namespace OpenTap
             public void Read(object source) => forwarded?.ForEach(elem => elem.Read());
             public void Write(object source) => forwarded?.ForEach(elem => elem.Write());
         }
+
         void IAnnotator.Annotate(AnnotationCollection annotation)
         {
             var reflect = annotation.Get<IReflectionAnnotation>();
@@ -2778,7 +2795,7 @@ namespace OpenTap
                 if (reflect.ReflectionInfo.DescendsTo(typeof(IDisplayAnnotation)))
                     annotation.Add(new DisplayAnnotationWrapper());
                 else
-                    annotation.Add(reflect.ReflectionInfo.GetDisplayAttribute());
+                    annotation.Add(reflect.ReflectionInfo.GetTranslatedDisplayAttribute());
             }
 
             bool rd_only = annotation.Get<ReadOnlyMemberAnnotation>() != null;
@@ -2820,18 +2837,13 @@ namespace OpenTap
                     annotation.Add(new MemberValueAnnotation(annotation));
 
                 var attributes = mem.Member.Attributes;
-                bool displayFound = false;
                 Sequence.ProcessPattern(attributes,
                     (SuggestedValuesAttribute suggested) => annotation.Add(new SuggestedValueAnnotation(annotation, suggested.PropertyName)),
                     (DeviceAddressAttribute x) => annotation.Add(new DeviceAddressAnnotation(annotation)),
-                    (PluginTypeSelectorAttribute x) => annotation.Add(new PluginTypeSelectAnnotation(annotation)),
-                    (DisplayAttribute x) =>
-                    {
-                        displayFound = true;
-                        annotation.Add(x);
-                    });
-                if(!displayFound)
-                    annotation.Add(mem.Member.GetDisplayAttribute());
+                    (PluginTypeSelectorAttribute x) => annotation.Add(new PluginTypeSelectAnnotation(annotation)));
+
+                var translatedDisplay = mem.Member.GetTranslatedDisplayAttribute();
+                annotation.Add(translatedDisplay);
 
                 var browsable = mem.Member.GetAttribute<BrowsableAttribute>();
                 if(mem.Member.Writable == false || browsable != null)
