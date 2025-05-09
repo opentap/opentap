@@ -34,7 +34,7 @@ internal class ResXTranslationProvider : ITranslationProvider, IDisposable
             if (_updateThread != null) return;
             
             // If we are starting the update thread for the first time, we should block while initializing translations.
-            MaybeUpdateMappings();
+            UpdateInvalidatedMappings();
             
             TapThread.WithNewContext(() =>
             {
@@ -45,7 +45,7 @@ internal class ResXTranslationProvider : ITranslationProvider, IDisposable
                         try
                         {
                             Thread.Sleep(TimeSpan.FromSeconds(5));
-                            MaybeUpdateMappings();
+                            UpdateInvalidatedMappings();
                         }
                         catch
                         {
@@ -118,7 +118,7 @@ internal class ResXTranslationProvider : ITranslationProvider, IDisposable
     private ImmutableDictionary<string, string> _stringLookup = ImmutableDictionary<string, string>.Empty;
 
     private static readonly TraceSource log = Log.CreateSource("Translation");
-    void MaybeUpdateMappings()
+    void UpdateInvalidatedMappings()
     {
         var newDict = new Dictionary<string, string>();
         foreach (var file in CacheFileInvalidationTable.Keys.ToArray())
