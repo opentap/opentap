@@ -1322,8 +1322,12 @@ namespace OpenTap
             public class Strings : IStringLocalizer
             {
                 public string None => this.Translate("None");
-                public string InputFormatString => this.TranslateFormat("{0} from {1}");
+
+                private static readonly string _formatString = "{0} from {1}";
+                public string FormatString => this.Translate(_formatString);
+                public string GetFormatString(string member, string step) => this.TranslateFormat(_formatString, nameof(FormatString), arguments: [member, step]);
             }
+
             struct InputThing
             {
                 public ITestStep Step { get; set; }
@@ -1332,8 +1336,7 @@ namespace OpenTap
                 {
                     var strings = new Strings();
                     if (Step == null) return strings.None;
-                    return string.Format(strings.InputFormatString, Member.GetTranslatedDisplayAttribute().Name,
-                        Step.GetFormattedName());
+                    return strings.GetFormatString(Member.GetTranslatedDisplayAttribute().Name, Step.GetFormattedName());
                 }
 
                 public static InputThing FromInput(IInput inp)
