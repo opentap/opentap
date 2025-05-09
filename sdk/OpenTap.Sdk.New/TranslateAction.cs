@@ -32,12 +32,6 @@ public class TranslateAction : ICliAction
     [Display("Package", "The packages to translate")]
     public string Package { get; set; }
 
-    /// <summary>
-    /// Whether or not to overwrite existing files
-    /// </summary>
-    [CommandLineArgument("overwrite", ShortName = "f", Description = "Overwrite existing translation file")]
-    public bool Overwrite { get; set; } = false;
-
     private static readonly TraceSource log = Log.CreateSource("Translate");
 
     /// <inheritdoc/>
