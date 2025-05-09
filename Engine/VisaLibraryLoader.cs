@@ -13,7 +13,7 @@ namespace OpenTap
     /// <summary>
     /// Attempt to load VISA libraries from the system
     /// </summary>
-    internal class VisaLibraryLoader : IVisa, IVisaProvider
+    internal class VisaLibraryLoader : IVisa, IVisaProvider, IVisaSym
     {
         private bool _loaded = false;
         #region IVisaProvider
@@ -92,7 +92,10 @@ namespace OpenTap
             return Marshal.GetDelegateForFunctionPointer<T>(s);
         }
         static TraceSource staticLog = OpenTap.Log.CreateSource("VisaLibraryLoader");
-        
+
+        Func<IntPtr> LoadLib;
+        Func<IntPtr, string, int, IntPtr> LoadSym;
+        IntPtr lib;
         // Required by .NET to catch AccessViolationException.
         [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions] 
         private void Load()
@@ -103,8 +106,6 @@ namespace OpenTap
                 bool IsLinux = OpenTap.OperatingSystem.Current == OpenTap.OperatingSystem.Linux;
                 bool IsMacOS = OpenTap.OperatingSystem.Current == OpenTap.OperatingSystem.MacOS;
 
-                Func<IntPtr> LoadLib;
-                Func<IntPtr, string, int, IntPtr> LoadSym;
                 
                 if (IsWin32)
                 {
@@ -137,7 +138,7 @@ namespace OpenTap
                     return;
                 }
 
-                var lib = LoadLib();
+                lib = LoadLib();
 
                 viOpenDefaultRMRef = GetSymbol<viOpenDefaultRMDelegate>(LoadSym(lib, "viOpenDefaultRM", 141));
 
@@ -253,5 +254,9 @@ namespace OpenTap
         public int viLock(int vi, int lockType, int timeout, string requestedKey, StringBuilder accessKey) { return viLockRef(vi, lockType, timeout, requestedKey, accessKey); }
         /// <summary>Unlock resource</summary>
         public int viUnlock(int vi) { return viUnlockRef(vi); }
+        public T GetSymbol<T>(string name)
+        {
+            return  Marshal.GetDelegateForFunctionPointer<T>(LoadSym(lib, name, 100));
+        }
     }
 }

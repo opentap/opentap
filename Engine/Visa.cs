@@ -49,6 +49,9 @@ namespace OpenTap
         private delegate int viClearDelegate(int vi);
         private delegate int viLockDelegate(int vi, int lockType, int timeout, string requestedKey, StringBuilder accessKey);
         private delegate int viUnlockDelegate(int vi);
+        // ViStatus viWaitOnEvent(ViSession vi, ViEventType inEventType, ViUInt32 timeout, ViPEventType outEventType, ViPEvent outContext)
+
+        private delegate int viWaitOnEventDelegate(int vi, int viEventType, uint timeout, out int vipEventType, out IntPtr context);
 
         private static viOpenDefaultRMDelegate viOpenDefaultRMRef;
         private static viFindRsrcDelegate viFindRsrcRef;
@@ -73,6 +76,7 @@ namespace OpenTap
         private static viClearDelegate viClearRef;
         private static viLockDelegate viLockRef;
         private static viUnlockDelegate viUnlockRef;
+        static viWaitOnEventDelegate viWaitOnEventRef;
         
         static TraceSource staticLog = OpenTap.Log.CreateSource("Visa");
         static Visa()
@@ -115,6 +119,8 @@ namespace OpenTap
             viDisableEventRef = visa.viDisableEvent;
             viInstallHandlerRef = visa.viInstallHandler;
             viUninstallHandlerRef = visa.viUninstallHandler;
+            if(visa is IVisaSym visaSym)
+                viWaitOnEventRef
             
         }
         #endregion

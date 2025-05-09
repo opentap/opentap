@@ -62,4 +62,9 @@ namespace OpenTap
         /// <summary>Event handler prototype</summary>
         delegate int viEventHandler(int vi, int eventType, int context, int userHandle);
     }
+
+    public interface IVisaSym : IVisa
+    {
+        T GetSymbol<T>(string name);
+    }
 }
