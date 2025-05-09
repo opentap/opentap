@@ -220,12 +220,13 @@ public class TranslateAction : ICliAction
         trns.GetField("Translator", BindingFlags.Static | BindingFlags.NonPublic)?.SetValue(null, hook);
 
         // we need to call the property getter for all properties to trigger all calls to Translate()
-        foreach (var prop in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+        foreach (var prop in t.GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
         {
             if (prop.PropertyType != typeof(string) && prop.PropertyType != typeof(FormatString)) continue;
             try
             {
-                prop.GetValue(obj);
+                object owner = prop.GetGetMethod().IsStatic ? null : obj;
+                prop.GetValue(owner);
             }
             catch
             {

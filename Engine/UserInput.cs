@@ -135,9 +135,10 @@ namespace OpenTap
     {
         class Strings : IStringLocalizer
         {
-            public string PleaseEnterNumberOrName => this.Translate("Please enter a number or name ");
-            public string PleaseEnter => this.Translate("Please enter ");
-            public string Default => this.Translate(" (default)");
+            public static readonly Strings strings = new();
+            public static string PleaseEnterNumberOrName => strings.Translate("Please enter a number or name ");
+            public static string PleaseEnter => strings.Translate("Please enter ");
+            public static string Default => strings.Translate(" (default)");
         }
 
         /// <summary>
@@ -281,7 +282,6 @@ namespace OpenTap
 
             try
             {
-                var strings = new Strings();
                 var a = AnnotationCollection.Annotate(dataObject);
                 var members = a.Get<IMembersAnnotation>()?.Members;
 
@@ -370,7 +370,7 @@ namespace OpenTap
                                 Console.Write("{1}: '{0}'", v.Value, index);
                                 if (value == current_value)
                                 {
-                                    Console.WriteLine(strings.Default);
+                                    Console.WriteLine(Strings.Default);
                                 }
                                 else
                                 {
@@ -380,14 +380,14 @@ namespace OpenTap
                             options.Add(v?.Value);
                             index++;
                         }
-                        Console.Write(strings.PleaseEnterNumberOrName);
+                        Console.Write(Strings.PleaseEnterNumberOrName);
                     }
 
                     var layout = _message.Get<IMemberAnnotation>()?.Member.GetAttribute<LayoutAttribute>();
                     bool showName = layout?.Mode.HasFlag(LayoutMode.FullRow) == true ? false : true;
                     if (pleaseEnter)
                     {
-                        Console.Write(strings.PleaseEnter);
+                        Console.Write(Strings.PleaseEnter);
                     }
 
                     if (secure && showName)
