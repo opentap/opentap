@@ -1319,9 +1319,11 @@ namespace OpenTap
 
         class InputStepAnnotation : IAvailableValuesSelectedAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
         {
-            public class Strings : IStringLocalizer
+            class Strings : IStringLocalizer
             {
-                public static readonly Strings strings = new();
+                // this should always be private.
+                static readonly Strings strings = new();
+
                 public static string NoSteps => strings.Translate("None");
                 public static FormatString InputFormat => strings.TranslateFormat("{0} from {1}");
             }

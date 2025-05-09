@@ -110,28 +110,33 @@ internal class ResXTranslationProvider : ITranslationProvider, IDisposable
     void MaybeUpdateMappings()
     {
         var newDict = new Dictionary<string, string>();
-        foreach (var kvp in CacheFileInvalidationTable.ToArray())
+        foreach (var file in CacheFileInvalidationTable.Keys.ToArray())
         {
-            var invalidationKey = GetCacheMarker(kvp.Key);
-            if (CacheFileInvalidationTable[kvp.Key] != invalidationKey)
+            var invalidationKey = GetCacheMarker(file);
+            if (CacheFileInvalidationTable[file] != invalidationKey)
             {
-                CacheFileInvalidationTable[kvp.Key] = invalidationKey;
+                CacheFileInvalidationTable[file] = invalidationKey;
                 try
                 {
-                    var doc = XDocument.Load(kvp.Key);
-                    foreach (var ele in doc?.Root?.Elements("data")?.ToArray() ?? [])
+                    var resxDoc = XDocument.Load(file);
+
+                    if (resxDoc.Root == null)
+                        throw new Exception("Invalid XML");
+
+                    foreach (var ele in resxDoc.Root.Elements("data"))
                     {
-                        if (AttributeValue(ele, "name") is { } key
-                                && ElementValue(ele, "value") is { } value)
+                        if (AttributeValue(ele, "name") is { } translationKey
+                                && ElementValue(ele, "value") is { } translatedValue)
                         {
-                            newDict[key] = value;
+                            newDict[translationKey] = translatedValue;
                         }
                     }
-                    log.Debug($"Reloaded translation file '{kvp.Key}'.");
+                    log.Debug($"Reloaded translation file '{file}'.");
                 }
-                catch
+                catch(Exception e)
                 {
-                    // ignore
+                    log.Error($"Unable to load translation resource file {file}.");
+                    log.Debug(e);
                 }
                 _stringLookup = _stringLookup.SetItems(newDict);
                 _displayLookup = ImmutableDictionary<IReflectionData, DisplayAttribute>.Empty;
