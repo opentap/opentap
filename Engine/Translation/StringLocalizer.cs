@@ -17,6 +17,20 @@ public interface IStringLocalizer : ITapPlugin
 }
 
 /// <summary>
+/// A FormatString is a string which requires format parameters.
+/// </summary>
+public class FormatString(string format)
+{
+
+    /// <summary>
+    /// Creates a formatted string based on this instance and the provided format arguments.
+    /// </summary>
+    /// <param name="args">The format arguments</param>
+    /// <returns>The formatted string</returns>
+    public string Format(params object[] args) => string.Format(format, args);
+}
+
+/// <summary>
 /// Extension methods for working with translations
 /// </summary>
 public static class Translation
@@ -29,12 +43,10 @@ public static class Translation
     /// <param name="neutral">The neutral (non-translated) string.</param>
     /// <param name="key">Lookup key for finding the translation.</param>
     /// <param name="language">The desired translation language</param>
-    /// <param name="arguments">Format arguments passed to String.Format</param>
     /// <returns>The translated string, if a translation exists, and the string format parameters in the translated string matches the source string. Otherwise, returns the neutral string.</returns>
-    public static string TranslateFormat(this IStringLocalizer stringLocalizer, string neutral, [CallerMemberName] string key = null,
-        CultureInfo language = null, IEnumerable<object> arguments = null)
+    public static FormatString TranslateFormat(this IStringLocalizer stringLocalizer, string neutral, [CallerMemberName] string key = null,
+        CultureInfo language = null)
     {
-        object[] args = arguments?.ToArray() ?? [];
         var translated = Translate(stringLocalizer, neutral, key, language);
         if (!ReferenceEquals(neutral, translated))
         {
@@ -47,10 +59,10 @@ public static class Translation
                                    $"'{translated}' has {c2} template parameters.\n" +
                                    $"The first string will be preferred over the second string.");
                 // Use neutral string instead
-                translated = neutral;
+                return new FormatString(neutral);
             }
         }
-        return string.Format(translated, args);
+        return new FormatString(translated);
     }
 
     

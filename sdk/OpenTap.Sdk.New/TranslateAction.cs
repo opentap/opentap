@@ -207,10 +207,12 @@ public class TranslateAction : ICliAction
     private static void WriteStringLocalizerStrings(IResourceWriter writer, IStringLocalizer obj)
     {
         var t = obj.GetType();
+        HashSet<string> added = [];
         Func<IStringLocalizer, string, string, CultureInfo, string> hook = (localizer, neutral, key, language) =>
         {
             var fullkey = $"{t.FullName}.{key}";
-            writer.AddResource(fullkey, neutral);
+            if (added.Add(fullkey))
+                writer.AddResource(fullkey, neutral);
             return neutral;
         };
         // inject hook
@@ -220,7 +222,7 @@ public class TranslateAction : ICliAction
         // we need to call the property getter for all properties to trigger all calls to Translate()
         foreach (var prop in t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
-            if (prop.PropertyType != typeof(string)) continue;
+            if (prop.PropertyType != typeof(string) && prop.PropertyType != typeof(FormatString)) continue;
             try
             {
                 prop.GetValue(obj);

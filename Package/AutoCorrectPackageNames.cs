@@ -106,9 +106,8 @@ namespace OpenTap.Package
         public string No => this.Translate("No");
         public string Cancel => this.Translate("Cancel");
 
-
-        public string SingleOptionMessage => this.TranslateFormat("Package '{0}' not found. Did you mean '{1}'?", arguments: [Package, Options.FirstOrDefault()]);
-        public string MultipleOptionsMessage => this.TranslateFormat("Package '{0}' not found. Did you mean:", arguments: [Package]);
+        public string SingleOptionMessage => this.TranslateFormat("Package '{0}' not found. Did you mean '{1}'?").Format(Package, Options.FirstOrDefault());
+        public string MultipleOptionsMessage => this.TranslateFormat("Package '{0}' not found. Did you mean:").Format(Package);
 
         [Layout(LayoutMode.FullRow)]
         [Browsable(true)]
