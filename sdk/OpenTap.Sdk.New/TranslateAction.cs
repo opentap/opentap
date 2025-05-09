@@ -42,6 +42,11 @@ public class TranslateAction : ICliAction
         EngineSettings.Current.Language = CultureInfo.InvariantCulture;
 
         var install = Installation.Current;
+        if (string.IsNullOrWhiteSpace(Package))
+        {
+            log.Error($"Please specify a package name.");
+            return 1;
+        }
         var pkg = install.FindPackage(Package);
         if (pkg == null)
         {
@@ -90,8 +95,6 @@ public class TranslateAction : ICliAction
 
         types = [.. seen];
 
-        var genericTypes = types.Where(x => AsTypeData(x)?.Type?.IsGenericType == true);
-
         {
             // We are not interested in creating a different translation for each 
             // variant of a generic type we use. 
@@ -121,8 +124,7 @@ public class TranslateAction : ICliAction
         if (!string.IsNullOrWhiteSpace(outdir))
             Directory.CreateDirectory(outdir);
 
-        var OutputFileNameEng = Path.Combine(TranslationManager.TranslationDirectory, $"{pkg.Name}.resx");
-        using var writer = new ResXResourceWriter(OutputFileNameEng);
+        var writer = new ResXResourceWriter(outputFileName);
         var packageFiles = new HashSet<string>(pkg.Files.Select(x => x.FileName), StringComparer.OrdinalIgnoreCase);
         List<ITypeData> packageTypes = [];
         for (int i = 0; i < typesSources.Length; i++)
@@ -171,6 +173,10 @@ public class TranslateAction : ICliAction
                 }
             }
         }
+        
+        writer.Generate();
+        writer.Close();
+        log.Info($"Created translation template file at {outputFileName}");
 
         return 0;
     }
