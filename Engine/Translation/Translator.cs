@@ -15,14 +15,8 @@ internal interface ITranslator
     public DisplayAttribute TranslateEnum(Enum e, CultureInfo language);
 }
 
-internal class Translator : ITranslator
+internal class Translator : ITranslator, IDisposable
 {
-    internal static string CultureAsString(CultureInfo culture)
-    {
-        if (CultureInfo.InvariantCulture.Equals(culture)) return "Neutral";
-        return $"{culture.NativeName} ({culture.EnglishName})";
-    }
-
     public IEnumerable<CultureInfo> SupportedLanguages => _cultures;
 
     /// <summary>
@@ -68,9 +62,7 @@ internal class Translator : ITranslator
     }
 
     private readonly ImmutableArray<CultureInfo> _cultures;
-    private ImmutableDictionary<CultureInfo, ITranslationProvider> _lookup;
-
-    public void AddTranslationProvider(CultureInfo language, ITranslationProvider provider) => _lookup = _lookup.SetItem(language, provider);
+    private readonly ImmutableDictionary<CultureInfo, ITranslationProvider> _lookup;
     public Translator()
     {
         var translationDir = Path.Combine(ExecutorClient.ExeDir, "Resources");
@@ -79,7 +71,6 @@ internal class Translator : ITranslator
             : [];
 
         var lut = new Dictionary<CultureInfo, List<string>>();
-        var neutralLanguage = EngineSettings.NeutralLanguage;
 
         foreach (var f in translationFiles)
         {
@@ -100,18 +91,18 @@ internal class Translator : ITranslator
                 // MyPackage.de.resx, and the german resource file would be named MyPackage.de.de.resx
                 // But let's ignore this edge case for now.
                 if (culture.CultureTypes.HasFlag(CultureTypes.UserCustomCulture) || string.IsNullOrWhiteSpace(cultureString))
-                    culture = neutralLanguage;
+                    culture = TranslationManager.NeutralLanguage;
             }
             catch
             {
                 // If there was a parser error, also assume english
                 // This normally happens when the culture contains illegal characters, but not if the culture 
                 // is not recognized. E.g. the culture 'asdkjasheoiqwje' would be parsed successfully as a UserCustomCulture
-                culture = neutralLanguage;
+                culture = TranslationManager.NeutralLanguage;
             }
 
             // Ignore neutral language files. Assume the source code is authoritative.
-            if (culture.Equals(neutralLanguage))
+            if (culture.Equals(TranslationManager.NeutralLanguage))
                 continue;
 
             if (!lut.TryGetValue(culture, out var lst)) lst = [];
@@ -120,11 +111,19 @@ internal class Translator : ITranslator
         }
 
         _cultures = lut.Keys
-            .Concat([neutralLanguage])
+            .Concat([TranslationManager.NeutralLanguage])
             .Distinct()
-            .OrderBy(CultureAsString)
+            .OrderBy(TranslationManager.CultureAsString)
             .ToImmutableArray();
         _lookup = lut.ToImmutableDictionary(x => x.Key,
             ITranslationProvider (x) => new ResXTranslationProvider(x.Key, x.Value));
+    }
+
+    public void Dispose()
+    {
+        foreach (var l in _lookup)
+        {
+            (l.Value as IDisposable)?.Dispose();
+        }
     }
 }

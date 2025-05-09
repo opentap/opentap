@@ -5,6 +5,7 @@
 using System;
 using System.Globalization;
 using System.Linq;
+using OpenTap.Translation;
 
 namespace OpenTap
 {
@@ -87,7 +88,7 @@ namespace OpenTap
             else this.Group = Array.Empty<string>();
             this.Order = Order;
             this.Collapsed = Collapsed;
-            this.Language = EngineSettings.NeutralLanguage;
+            this.Language = TranslationManager.NeutralLanguage;
         }
 
         /// <summary>

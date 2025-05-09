@@ -9,6 +9,7 @@ using System.Collections.Immutable;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Xml.Linq;
 
 namespace OpenTap.Translation;
@@ -22,27 +23,38 @@ internal interface ITranslationProvider
 
 internal class ResXTranslationProvider : ITranslationProvider, IDisposable
 {
-    private TapThread _updateThread = null;
-    private void StartUpdateThread()
+    private TapThread _updateThread = null; 
+    private readonly object StartUpdateThreadLock = new();
+    void MaybeStartUpdateThread()
     {
-        TapThread.WithNewContext(() =>
+        if (_updateThread != null) return;
+        lock (StartUpdateThreadLock)
         {
-            _updateThread = TapThread.Start(() =>
+            // If we got the lock after the update thread was initialized, we shouldn't initialie it again
+            if (_updateThread != null) return;
+            
+            // If we are starting the update thread for the first time, we should block while initializing translations.
+            MaybeUpdateMappings();
+            
+            TapThread.WithNewContext(() =>
             {
-                while (!TapThread.Current.AbortToken.IsCancellationRequested)
+                _updateThread = TapThread.Start(() =>
                 {
-                    try
+                    while (!TapThread.Current.AbortToken.IsCancellationRequested)
                     {
-                        MaybeUpdateMappings();
+                        try
+                        {
+                            Thread.Sleep(TimeSpan.FromSeconds(5));
+                            MaybeUpdateMappings();
+                        }
+                        catch
+                        {
+                            // we don't need to handle exceptions here, but we should ensure the update thread doesn't die
+                        }
                     }
-                    catch
-                    {
-                        // ignore
-                    }
-                    TapThread.Sleep(TimeSpan.FromSeconds(5));
-                }
+                });
             });
-        });
+        }
     }
 
     public void Dispose()
@@ -60,7 +72,6 @@ internal class ResXTranslationProvider : ITranslationProvider, IDisposable
             // Set the initial invalidation key for all files
             CacheFileInvalidationTable[file] = string.Empty;
         }
-        StartUpdateThread();
     }
 
     static string AttributeValue(XElement x, string name) => x.Attributes(name).FirstOrDefault()?.Value;
@@ -68,11 +79,11 @@ internal class ResXTranslationProvider : ITranslationProvider, IDisposable
 
     DisplayAttribute ComputeDisplayAttribute(string key, DisplayAttribute fallback)
     {
-        var name = GetValue(_stringLookup, $"{key}.Name") ?? fallback.Name;
-        var description = GetValue(_stringLookup, $"{key}.Description") ?? fallback.Description;
-        var group = GetValue(_stringLookup, $"{key}.Group") ?? string.Join(" \\ ", fallback.Group);
+        var name = GetString($"{key}.Name") ?? fallback.Name;
+        var description = GetString($"{key}.Description") ?? fallback.Description;
+        var group = GetString($"{key}.Group") ?? string.Join(" \\ ", fallback.Group);
         double order = fallback.Order;
-        if (GetValue(_stringLookup, $"{key}.Order") is { } ord)
+        if (GetString($"{key}.Order") is { } ord)
             if (double.TryParse(ord, out var o))
                 order = o;
         return new DisplayAttribute(Culture, name, description, group, order, fallback.Collapsed);
@@ -172,14 +183,9 @@ internal class ResXTranslationProvider : ITranslationProvider, IDisposable
         return disp;
     }
 
-    static string GetValue(IDictionary<string, string> d, string key)
-    {
-        if (d.TryGetValue(key, out var value)) return value;
-        return null;
-    }
-
     public string GetString(string key)
     {
+        MaybeStartUpdateThread();
         return _stringLookup.TryGetValue(key, out var val) ? val : null;
     }
 }

@@ -64,8 +64,6 @@ public static class Translation
         }
         return new FormatString(translated);
     }
-
-    
     
     /// <summary>
     /// Look for a translated version of the input member. If no translation is found, return the neutral string.
@@ -86,12 +84,11 @@ public static class Translation
     private static Func<IStringLocalizer, string, string, CultureInfo, string> Translator = _translate;
     private static string _translate(this IStringLocalizer stringLocalizer, string neutral, [CallerMemberName] string key = null, CultureInfo language = null)
     {
-        var eng = EngineSettings.Current;
-        language ??= eng.Language;
-        if (language.Equals(EngineSettings.NeutralLanguage) || string.IsNullOrWhiteSpace(key))
+        language ??= EngineSettings.Current.Language;
+        if (language.Equals(TranslationManager.NeutralLanguage) || string.IsNullOrWhiteSpace(key))
             return neutral;
         var fullKey = stringLocalizer.GetType().FullName + $".{key}";
-        return eng.TranslateKey(fullKey, language) ?? neutral;
+        return TranslationManager.TranslateKey(fullKey, language) ?? neutral;
     }
     
     static int CountTemplates(string s)

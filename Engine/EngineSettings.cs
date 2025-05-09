@@ -155,42 +155,6 @@ namespace OpenTap
             Environment.SetEnvironmentVariable("ENGINE_DIR", System.IO.Path.GetDirectoryName(typeof(TestPlan).Assembly.Location));
         }
 
-        private ITranslator translator;
-        private ITranslator Translator => translator ??= new Translator();
-        /// <summary>
-        /// Get an appropriate DisplayAttribute for the specified reflection data in the requested language.
-        /// </summary>
-        /// <param name="mem"></param>
-        /// <param name="language"></param>
-        /// <returns></returns>
-        public DisplayAttribute TranslateMember(IReflectionData mem, CultureInfo language = null)
-        {
-            return Translator.TranslateMember(mem, language ?? Language);
-        }
-        /// <summary>
-        /// Get an appropriate DisplayAttribute for the specified enum in the requested language.
-        /// </summary>
-        /// <param name="e"></param>
-        /// <param name="language"></param>
-        /// <returns></returns>
-        public DisplayAttribute TranslateEnum(Enum e, CultureInfo language = null)
-        {
-            return Translator.TranslateEnum(e, language ?? Language);
-        }
-
-        /// <summary>
-        /// Get an appropriate DisplayAttribute for the specified enum in the requested language.
-        /// </summary>
-        /// <param name="key"></param>
-        /// <param name="language"></param>
-        /// <returns></returns>
-        public string TranslateKey(string key, CultureInfo language = null)
-        {
-            return Translator.TranslateString(key, language ?? Language);
-        }
-
-        private static string CultureAsString(CultureInfo culture) => Translation.Translator.CultureAsString(culture);
-
         /// <summary>
         /// The currently selected language. Defaults to Invariant.
         /// </summary>
@@ -201,28 +165,22 @@ namespace OpenTap
             get => language;
             set => language = value ?? throw new ArgumentNullException(nameof(value));
         }
-        private CultureInfo language = NeutralLanguage;
-
-        /// <summary>
-        /// The default language.
-        /// </summary>
-        [Browsable(false)]
-        [XmlIgnore]
-        internal static CultureInfo NeutralLanguage { get; } = CultureInfo.InvariantCulture;
+        
+        private CultureInfo language = TranslationManager.NeutralLanguage;
 
         /// <summary>
         /// The list of available languages. This is based on the currently installed .resx files.
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
-        public IEnumerable<string> AvailableLanguages => Translator.SupportedLanguages.Select(CultureAsString);
+        public IEnumerable<string> AvailableLanguages => TranslationManager.SupportedLanguages.Select(TranslationManager.CultureAsString);
 
         /// <summary>
         /// Whether or not the language selector should be visible.
         /// </summary>
         [Browsable(false)]
         [XmlIgnore]
-        public bool LanguageSelectorEnabled => Translator.SupportedLanguages.Any(x => !NeutralLanguage.Equals(x));
+        public bool LanguageSelectorEnabled => TranslationManager.SupportedLanguages.Any(x => !TranslationManager.NeutralLanguage.Equals(x));
 
         /// <summary>
         /// The currently selected language. Defaults to Invariant.
@@ -232,10 +190,10 @@ namespace OpenTap
         [EnabledIf(nameof(LanguageSelectorEnabled), HideIfDisabled = true)]
         public string LanguageString
         {
-            get => CultureAsString(Language);
+            get => TranslationManager.CultureAsString(Language);
             set
             {
-                if (Translator.SupportedLanguages.FirstOrDefault(x => CultureAsString(x) == value) is { } newLanguage)
+                if (TranslationManager.SupportedLanguages.FirstOrDefault(x => TranslationManager.CultureAsString(x) == value) is { } newLanguage)
                     Language = newLanguage;
             }
         }

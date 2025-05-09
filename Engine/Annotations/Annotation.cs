@@ -1530,13 +1530,11 @@ namespace OpenTap
                     {
                         var names = Enum.GetNames(enumType);
                         var values = Enum.GetValues(enumType);
-
-                        var eng = EngineSettings.Current;
                         
                         var orders = names.Select((x, i) =>
                         {
                             var enumValue = values.GetValue(i) as Enum;
-                            var disp = eng.TranslateEnum(enumValue);
+                            var disp = TranslationManager.TranslateEnum(enumValue);
                             var memberInfo = enumType.GetMember(x).FirstOrDefault();
                             return (Display: disp, IsBrowsable: memberInfo.IsBrowsable());
                         }).ToArray();

@@ -14,6 +14,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
+using OpenTap.Translation;
 
 //**** WARNING ****//
 // This file is used in many projects(link existing), but only with internal protection.
@@ -1236,7 +1237,7 @@ namespace OpenTap
             var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
             if (mem != null) 
             { 
-                return EngineSettings.Current.TranslateEnum(value).Name;
+                return TranslationManager.TranslateEnum(value).Name;
             }
             if (false == enumType.HasAttribute<FlagsAttribute>())
                 return value.ToString();

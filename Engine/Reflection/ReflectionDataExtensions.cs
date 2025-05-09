@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using OpenTap.Translation;
 
 namespace OpenTap
 {
@@ -196,7 +197,7 @@ namespace OpenTap
         /// <returns></returns>
         public static DisplayAttribute GetTranslatedDisplayAttribute(this IReflectionData mem, CultureInfo language = null)
         {
-            return EngineSettings.Current.TranslateMember(mem, language);
+            return TranslationManager.TranslateMember(mem, language);
         }
 
         /// <summary> Gets the display attribute of mem. </summary>
