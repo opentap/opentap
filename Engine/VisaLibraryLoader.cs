@@ -229,7 +229,7 @@ namespace OpenTap
 
         public int viWaitOnEvent(int vi, int eventtype, int timeout, out int outeventtype, out int outcontext)
         {
-            return viWaitOnEventAdRef(vi, eventtype, timeout, out outeventtype, out outcontext);
+            return viWaitOnEventRef(vi, eventtype, timeout, out outeventtype, out outcontext);
         }
 
         /// <summary>Read data from device</summary>
