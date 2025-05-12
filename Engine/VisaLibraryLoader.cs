@@ -44,6 +44,7 @@ namespace OpenTap
         private delegate int viUninstallHandlerDelegate(int vi, int eventType, IVisa.viEventHandler handler, int userHandle);
         private delegate int viInstallHandlerDelegate2(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle);
         private delegate int viUninstallHandlerDelegate2(int vi, int eventType, IVisa.viEventHandler handler, int userHandle);
+        private delegate int viWaitOnEventDelegate(int vi, int eventType, int timeout, out int outEventType, out int outContext);
         private unsafe delegate int viReadDelegate(int vi, byte* buffer, int count, out int retCount);
         private unsafe delegate int viWriteDelegate(int vi, byte* buffer, int count, out int retCount);
         private unsafe delegate int viReadDelegate2(int vi, ArraySegment<byte> buffer, int count, out int retCount);
@@ -70,6 +71,7 @@ namespace OpenTap
         private viDisableEventDelegate viDisableEventRef;
         private viInstallHandlerDelegate viInstallHandlerRef;
         private viUninstallHandlerDelegate viUninstallHandlerRef;
+        private viWaitOnEventDelegate viWaitOnEventRef;
         private viReadDelegate viReadRef;
         private viWriteDelegate viWriteRef;
         private viReadSTBDelegate viReadSTBRef;
@@ -169,6 +171,7 @@ namespace OpenTap
                 viDisableEventRef = GetSymbol<viDisableEventDelegate>(LoadSym(lib, "viDisableEvent", 136));
                 viInstallHandlerRef = GetSymbol<viInstallHandlerDelegate>(LoadSym(lib, "viInstallHandler", 139));
                 viUninstallHandlerRef = GetSymbol<viUninstallHandlerDelegate>(LoadSym(lib, "viUninstallHandler", 140));
+                viWaitOnEventRef = GetSymbol<viWaitOnEventDelegate>(LoadSym(lib, "viWaitOnEvent", 141));
                 _loaded = true;
             }
             catch (Exception ex)
@@ -223,6 +226,12 @@ namespace OpenTap
         public int viInstallHandler(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle) { return viInstallHandlerRef(vi, eventType, handler, UserHandle); }
         /// <summary>Uninstall handler</summary>
         public int viUninstallHandler(int vi, int eventType, IVisa.viEventHandler handler, int userHandle) { return viUninstallHandlerRef(vi, eventType, handler, userHandle); }
+
+        public int viWaitOnEvent(int vi, int eventtype, int timeout, out int outeventtype, out int outcontext)
+        {
+            return viWaitOnEventAdRef(vi, eventtype, timeout, out outeventtype, out outcontext);
+        }
+
         /// <summary>Read data from device</summary>
         public unsafe int viRead(int vi, ArraySegment<byte> buffer, int count, out int retCount)
         {
