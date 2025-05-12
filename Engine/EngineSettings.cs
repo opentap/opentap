@@ -59,8 +59,8 @@ namespace OpenTap
         /// <summary>
         /// Gets or sets the limit for step runs to be added to the summary.
         /// </summary>
-        [Display("Summary Step Limit", Group: "General", Order: 0,
-            Description: "The maximum number of steps to include in the test summary")]
+        [Display("Summary Test Step Limit", Group: "General", Order: 0,
+            Description: "The maximum number of steps to include in the test plan summary")]
         public int SummaryTestStepLimit { get; set; } = 10_000;
 
         /// <summary>
