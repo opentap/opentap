@@ -61,7 +61,7 @@ namespace OpenTap
         /// </summary>
         [Display("Summary Step Limit", Group: "General", Order: 0,
             Description: "The maximum number of steps to include in the test summary")]
-        public int SummaryStepLimit { get; set; } = 10_000;
+        public int SummaryTestStepLimit { get; set; } = 10_000;
 
         /// <summary>
         /// Name of the operator. This name will be saved along with the results.
