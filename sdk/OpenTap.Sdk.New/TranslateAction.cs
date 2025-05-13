@@ -11,7 +11,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Resources;
-using System.Resources.NetStandard;
 using System.Threading;
 using OpenTap.Cli;
 using OpenTap.Package;
@@ -124,7 +123,7 @@ public class TranslateAction : ICliAction
         if (!string.IsNullOrWhiteSpace(outdir))
             Directory.CreateDirectory(outdir);
 
-        var writer = new ResXResourceWriter(outputFileName);
+        var writer = new ResXWriter(outputFileName);
         var packageFiles = new HashSet<string>(pkg.Files.Select(x => x.FileName), StringComparer.OrdinalIgnoreCase);
         List<ITypeData> packageTypes = [];
         for (int i = 0; i < typesSources.Length; i++)
@@ -175,7 +174,6 @@ public class TranslateAction : ICliAction
         }
         
         writer.Generate();
-        writer.Close();
         log.Info($"Created translation template file at {outputFileName}");
 
         return 0;
@@ -192,7 +190,7 @@ public class TranslateAction : ICliAction
         return null;
     }
 
-    private static void WriteEnumMembers(IResourceWriter writer, Type enumType)
+    private static void WriteEnumMembers(ResXWriter writer, Type enumType)
     {
         var names = Enum.GetNames(enumType);
         foreach (var name in names)
@@ -204,7 +202,7 @@ public class TranslateAction : ICliAction
         }
     }
 
-    private static void WriteStringLocalizerStrings(IResourceWriter writer, IStringLocalizer obj)
+    private static void WriteStringLocalizerStrings(ResXWriter writer, IStringLocalizer obj)
     {
         var t = obj.GetType();
         HashSet<string> added = [];
@@ -235,7 +233,7 @@ public class TranslateAction : ICliAction
         }
     }
 
-    private static void WriteAttribute(IResourceWriter writer, string prefix, DisplayAttribute disp)
+    private static void WriteAttribute(ResXWriter writer, string prefix, DisplayAttribute disp)
     {
         writer.AddResource($"{prefix}.Name", disp.Name ?? "");
         if (!string.IsNullOrWhiteSpace(disp.Description))
