@@ -997,9 +997,10 @@ jobs:
         run: nuget push OpenTAP.*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json -SkipDuplicate
 
   Publish-Templates:
-    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    # if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
-    runs-on: [self-hosted, windows]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    container: ghcr.io/opentap/oci-images/build-dotnet:v9
     needs:
       - Package-Templates
     steps:
