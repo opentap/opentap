@@ -583,7 +583,8 @@ jobs:
             OpenTAP.*.TapPackage
 
   Package-Templates:
-    runs-on: [self-hosted, windows]
+    runs-on: codebuild-GitHubLinuxCodebuild-${{ github.run_id }}-${{ github.run_attempt }}
+    container: ghcr.io/opentap/oci-images/build-dotnet:v9
     needs:
       - GetVersion
     steps:
@@ -592,16 +593,14 @@ jobs:
         with:
           fetch-depth: 0
       - name: Update Version
-        run: |
-          Set-Content .\templates\Templates.csproj (Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
-          Set-Content .\templates\src\project\ProjectName.csproj (Get-Content .\templates\src\project\ProjectName.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+        run: sed -i 's/$(GitVersion)/${{needs.GetVersion.outputs.LongVersion}}/g' ./templates/Templates.csproj ./templates/src/project/ProjectName.csproj
       - name: Package
         run: dotnet pack ./templates/
       - uses: actions/upload-artifact@v4
         with:
           name: package-templates
           retention-days: 14
-          path: ./bin/Release/OpenTAP.Templates.*.nupkg
+          path: ./bin/Release/OpenTap.Templates.*.nupkg
 
   Package-SDK:
     runs-on: [self-hosted, windows]
@@ -1010,7 +1009,7 @@ jobs:
           name: package-templates
           path: .
       - name: Package
-        run: dotnet nuget push OpenTAP.Templates*.nupkg -k ${{ secrets.NUGET_KEY }} -s https://api.nuget.org/v3/index.json # --skip-duplicate --no-symbols
+        run: dotnet nuget push OpenTap.Templates*.nupkg -k ${{ secrets.NUGET_KEY }} -s https://api.nuget.org/v3/index.json # --skip-duplicate --no-symbols
 
   Publish-TapPackages:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
