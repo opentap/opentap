@@ -130,7 +130,6 @@
     "Editor": {
       "type": "parameter",
       "datatype": "choice",
-      "replaces": "TapEditor",
       "defaultValue": "Editor",
       "description": "The default editor to debug with.",
       "choices": [
@@ -145,6 +144,24 @@
           "description": "Set Keysight Test Automation as the debugging editor."
         }
       ]
+    },
+    "EditorSwitch": {
+      "type": "generated",
+      "generator": "switch",
+      "replaces": "TapEditor",
+      "parameters": {
+        "evaluator": "C++",
+        "cases": [
+          {
+            "condition": "(Editor == \"Editor\")",
+            "value": "Include=\"Editor\" version=\"9\""
+          },
+          {
+            "condition": "(Editor == \"TUI\")",
+            "value": "Include=\"TUI\" version=\"1\""
+          }
+        ]
+      }
     },
     "TUIRegex": {
       "type": "generated",

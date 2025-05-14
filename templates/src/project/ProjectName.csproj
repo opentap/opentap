@@ -7,7 +7,6 @@
     <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
     <TargetFrameworkVersion></TargetFrameworkVersion>
     <TargetFramework>net9</TargetFramework>
-    <DebugWith>TapEditor</DebugWith>
   </PropertyGroup>
     
   <PropertyGroup>
@@ -23,12 +22,8 @@
     <PackageReference Include="OpenTAP" Version="$(GitVersion)" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(DebugWith)' == 'TUI' AND '$(Configuration)' == 'Debug'">
-    <OpenTapPackageReference Include="TUI" version="1"/>
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(DebugWith)' == 'Editor' AND '$(Configuration)' == 'Debug'">
-    <OpenTapPackageReference Include="Editor" version="9"/>
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <OpenTapPackageReference TapEditor />
   </ItemGroup>
 
 </Project>
