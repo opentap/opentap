@@ -1019,6 +1019,12 @@ namespace OpenTap
                 Step.UpgradeVerdict(e.Verdict);
                 stepRun.Exception = e;
             }
+            catch (ExpectedException e)
+            {
+                e.Handle(Step.Name);
+                Step.Verdict = e.Verdict;
+                throw e;
+            }
             catch (Exception e)
             {
                 
