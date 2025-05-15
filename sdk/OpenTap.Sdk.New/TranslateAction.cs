@@ -114,9 +114,11 @@ public class TranslateAction : ICliAction
             types.AddRange(add);
         }
 
+        static string normalizePath(string path) => path.Replace('\\', '/');
         var typesSources = types.Select(x => Path.GetFullPath(TypeData.GetTypeDataSource(x).Location))
             .Where(x => x.StartsWith(install.Directory, StringComparison.OrdinalIgnoreCase))
             .Select(x => x.Substring(install.Directory.Length + 1))
+            .Select(normalizePath)
             .ToArray();
 
         var outdir = Path.GetDirectoryName(outputFileName);
@@ -124,7 +126,7 @@ public class TranslateAction : ICliAction
             Directory.CreateDirectory(outdir);
 
         var writer = new ResXWriter(outputFileName);
-        var packageFiles = new HashSet<string>(pkg.Files.Select(x => x.FileName), StringComparer.OrdinalIgnoreCase);
+        var packageFiles = new HashSet<string>(pkg.Files.Select(x => normalizePath(x.FileName)), StringComparer.OrdinalIgnoreCase);
         List<ITypeData> packageTypes = [];
         for (int i = 0; i < typesSources.Length; i++)
         {
@@ -137,8 +139,14 @@ public class TranslateAction : ICliAction
 
         var typesBySource =
             packageTypes.GroupBy(tp => Path.GetFullPath(TypeData.GetTypeDataSource(tp).Location),
-                StringComparer.OrdinalIgnoreCase);
+                StringComparer.OrdinalIgnoreCase).ToArray();
 
+        if (!typesBySource.Any())
+        { 
+            log.Error($"0 types discovered for package '{Package}'. This is likely a bug.");
+            return 1;
+        }
+        
         foreach (var grp in typesBySource)
         {
             foreach (var type in grp)
@@ -251,24 +259,57 @@ public class TranslateAction : ICliAction
 
     static bool SkipType(ITypeData type)
     {
-        if (type.DescendsTo(typeof(IStringLocalizer))) return false;
-        if (type.DescendsTo(typeof(Enum))) return false;
-        // Skip types that cannot be instantiated if they do not have any members.
-        if (!type.CanCreateInstance && !type.GetMembers().Any(mem => !SkipMem(type, mem)))
-            return true;
-        return false;
+        try
+        {
+            if (type.DescendsTo(typeof(IStringLocalizer)))
+            {
+                if (type.CanCreateInstance) return false;
+                // It is currently a requirement that IStringLocalizer can be instantiated.
+                // In the future, we can improve the string detection algorithm to relax this requirement,
+                // but for now we should warn the user that this will not work.
+                log.Error($"String localizer '{type.Name}' does not have an empty constructor, and will not be translated.");
+                return true;
+            }
+            if (type.DescendsTo(typeof(Enum))) return false; 
+            {
+                var members = type.GetMembers().ToArray();
+                foreach (var mem in members)
+                {
+                    // If at least one member should be translated, we can't skip the type.
+                    if (SkipMem(type, mem) == false)
+                        return false;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // ignore. This can happen for bad typedata implementations. We should just ignore the type in this case
+            // since we can't translate it if we can't enumerate the members.
+            log.Error($"Error reflecting type '{type.Name}'. This type will not be translated.");
+            log.Debug(ex);
+        } 
+        return true;
     }
 
     static bool SkipMem(ITypeData type, IMemberData mem)
     {
-        // If this member is inherited, the translation should happen in the base class.
-        if (!Equals(mem.DeclaringType, type))
+        try
+        {
+            // If this member is inherited, the translation should happen in the base class.
+            if (!Equals(mem.DeclaringType, type))
+                return true;
+            // Skip the member if it is unbrowsable
+            var browsable = mem.GetAttribute<BrowsableAttribute>()?.Browsable;
+            if (browsable != null) return !browsable.Value;
+            // Otherwise skip the member if it is not writable.
+            // This is the primary factor determining whether or not something is visible in most UIs.
+            return !mem.Writable;
+        }
+        catch (Exception ex)
+        { 
+            log.Error($"Error reflecting member '{type.Name}.{mem.Name}'. This member will not be translated.");
+            log.Debug(ex);
             return true;
-        // Skip the member if it is unbrowsable
-        var browsable = mem.GetAttribute<BrowsableAttribute>()?.Browsable;
-        if (browsable != null) return !browsable.Value;
-        // Otherwise skip the member if it is not writable.
-        // This is the primary factor determining whether or not something is visible in most UIs.
-        return !mem.Writable;
+        }
     }
 }
