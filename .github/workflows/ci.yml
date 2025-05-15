@@ -249,6 +249,7 @@ jobs:
           $AssemblyInfoFile | Set-Content AssemblyInfo.cs
           cat AssemblyInfo.cs
           Pop-Location
+          cp ./tap/Properties/AssemblyInfo.cs ./Tap.Upgrader/AssemblyInfo.cs
       - name: Build
         run: dotnet build -c Release /p:Platform=${{ matrix.Architecture }}
       - name: cat tap.runtimeconfig.json 
