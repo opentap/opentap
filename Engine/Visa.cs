@@ -43,6 +43,8 @@ namespace OpenTap
         private delegate int viUninstallHandlerDelegate(int vi, int eventType, IVisa.viEventHandler handler, int userHandle);
         private delegate int viInstallHandlerDelegate2(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle);
         private delegate int viUninstallHandlerDelegate2(int vi, int eventType, IVisa.viEventHandler handler, int userHandle);
+
+        private delegate int viWaitOnEventDelegate(int vi, int eventType, int timeout, out int outEventType, out int outContext);
         private unsafe delegate int viReadDelegate(int vi, ArraySegment<byte> buffer, int count, out int retCount);
         private unsafe delegate int viWriteDelegate(int vi, ArraySegment<byte> buffer, int count, out int retCount);
         private delegate int viReadSTBDelegate(int vi, ref short status);
@@ -67,6 +69,7 @@ namespace OpenTap
         private static viDisableEventDelegate viDisableEventRef;
         private static viInstallHandlerDelegate viInstallHandlerRef;
         private static viUninstallHandlerDelegate viUninstallHandlerRef;
+        private static viWaitOnEventDelegate viWaitOnEventref;
         private static viReadDelegate viReadRef;
         private static viWriteDelegate viWriteRef;
         private static viReadSTBDelegate viReadSTBRef;
@@ -115,7 +118,8 @@ namespace OpenTap
             viDisableEventRef = visa.viDisableEvent;
             viInstallHandlerRef = visa.viInstallHandler;
             viUninstallHandlerRef = visa.viUninstallHandler;
-            
+            viWaitOnEventref = visa.viWaitOnEvent;
+
         }
         #endregion
 
@@ -142,6 +146,8 @@ namespace OpenTap
         internal static int viDisableEvent(int vi, int eventType, short mechanism) { return viDisableEventRef(vi, eventType, mechanism); }
         internal static int viInstallHandler(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle) { return viInstallHandlerRef(vi, eventType, handler, UserHandle); }
         internal static int viUninstallHandler(int vi, int eventType, IVisa.viEventHandler handler, int userHandle) { return viUninstallHandlerRef(vi, eventType, handler, userHandle); }
+
+        internal static int viWaitOnEvent(int vi, int eventType, int timeout, out int outEventType, out int outContext) { return viWaitOnEventref(vi, eventType, timeout, out outEventType, out outContext);}
 
         internal unsafe static int viRead(int vi, ArraySegment<byte> buffer, int count, out int retCount) { return viReadRef(vi, buffer, count, out retCount); }
         internal unsafe static int viWrite(int vi, ArraySegment<byte> buffer, int count, out int retCount) { return viWriteRef(vi, buffer, count, out retCount); }

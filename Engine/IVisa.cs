@@ -47,6 +47,8 @@ namespace OpenTap
         int viInstallHandler(int vi, int eventType, viEventHandler handler, int UserHandle);
         /// <summary>Uninstall handler</summary>
         int viUninstallHandler(int vi, int eventType, viEventHandler handler, int userHandle);
+        /// <summary> Waits for an occurrence of the specified event for a given session. </summary>
+        int viWaitOnEvent(int vi, int eventtype, int timeout, out int outeventtype, out int outcontext);
         /// <summary>Read data from device</summary>
         unsafe int viRead(int vi, ArraySegment<Byte> buffer, int count, out int retCount);
         /// <summary>Write data to device</summary>
@@ -61,5 +63,6 @@ namespace OpenTap
         int viUnlock(int vi);
         /// <summary>Event handler prototype</summary>
         delegate int viEventHandler(int vi, int eventType, int context, int userHandle);
+
     }
 }
