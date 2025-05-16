@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 set -euo pipefail
 
@@ -27,12 +27,15 @@ has() {
 	which "$1" 2>/dev/null >/dev/null
 }
 
+EDITOR_APP="$HOME/Applications/Keysight Test Automation.app"
+PACKAGE_MANAGER_APP="$HOME/Applications/Keysight Package Manager.app"
+
 if [ "$OS" == "MacOS" ]; then
-  if [ -d Editor.app ]; then
-    echo "./Editor.app already exists."
+  if [ -d "$EDITOR_APP" ]; then
+    echo "$EDITOR_APP already exists."
     exit 0
   fi
-  DEST="./Editor.app/Contents/opentap"
+  DEST="$HOME/Library/opentap"
 fi
 
 
@@ -47,14 +50,8 @@ if ! (has unzip && has curl) ; then
 fi
 
 if [ -d "$DEST" ]; then
-  while true; do
-    read -p "Directory '$DEST' exists. Do you wish to install OpenTAP in this directory anyway? [y]es, [n]o: " yn < /dev/tty
-    case $yn in
-        [Yy]* ) break;;
-        [Nn]* ) exit 1;;
-        * ) echo "Please answer yes or no.";;
-    esac
-done
+  echo "OpenTAP install already exists at $DEST."
+  exit 0
 fi
 
 mkdir -p "$DEST"
@@ -76,10 +73,11 @@ popd > /dev/null
 
 # Create a MacOS app bundle
 if [ "$OS" == "MacOS" ]; then
-  mkdir -p Editor.app/Contents/MacOS
-  mkdir -p Editor.app/Contents/Resources
-  curl -s 'https://raw.githubusercontent.com/opentap/opentap/refs/heads/add-editor-install-script/doc/User%20Guide/Editors/Editor.ico' -o ./Editor.app/Contents/Resources/Editor.ico
-  cat > Editor.app/Contents/Info.plist << EOF
+  ############# CREATE EDITOR APP ######################3
+  mkdir -p "$EDITOR_APP/Contents/MacOS"
+  mkdir -p "$EDITOR_APP/Contents/Resources"
+  curl -s 'https://raw.githubusercontent.com/opentap/opentap/refs/heads/add-editor-install-script/doc/User%20Guide/Editors/Editor.ico' -o "$EDITOR_APP/Contents/Resources/Editor.ico"
+  cat > "$EDITOR_APP/Contents/Info.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -88,7 +86,7 @@ if [ "$OS" == "MacOS" ]; then
     <key>CFBundleName</key>
     <string>Editor</string>
     <key>CFBundleDisplayName</key>
-    <string>Editor</string>
+    <string>Keysight Test Automation</string>
     <key>CFBundleIdentifier</key>
     <string>com.keysight.editor</string>
     <key>CFBundleVersion</key>
@@ -103,13 +101,47 @@ if [ "$OS" == "MacOS" ]; then
 </plist>
 EOF
   
-  cat > Editor.app/Contents/MacOS/editor << EOF
-#!/usr/bin/env bash
-cd "\$(dirname "\$0")"
-cd ../opentap
+  cat > "$EDITOR_APP/Contents/MacOS/editor" << EOF
+#!/usr/bin/env sh
+cd ~/Library/opentap
 /usr/local/share/dotnet/dotnet ./Editor.dll
 EOF
-  chmod +x Editor.app/Contents/MacOS/editor
-  printf '\nCreated Editor App Bundle at ./Editor.app\n'
-  open ./Editor.app
+  chmod +x "$EDITOR_APP/Contents/MacOS/editor"
+  printf '\nCreated %s\n' "$EDITOR_APP"
+
+  ############# CREATE PACKAGE MANAGER APP ######################3
+  mkdir -p "$PACKAGE_MANAGER_APP/Contents/MacOS"
+  mkdir -p "$PACKAGE_MANAGER_APP/Contents/Resources"
+  curl -s 'https://raw.githubusercontent.com/opentap/opentap/refs/heads/add-editor-install-script/doc/User%20Guide/Editors/Editor.ico' -o "$PACKAGE_MANAGER_APP/Contents/Resources/PackageManager.ico"
+  cat > "$PACKAGE_MANAGER_APP/Contents/Info.plist" << EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+ "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>PackageManager</string>
+    <key>CFBundleDisplayName</key>
+    <string>Keysight Test Automation</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.keysight.packagemanager</string>
+    <key>CFBundleVersion</key>
+    <string>$EDITOR_VERSION</string>
+    <key>CFBundlePackageType</key>
+    <string>KEYS</string>
+    <key>CFBundleExecutable</key>
+    <string>packagemanager</string>
+    <key>CFBundleIconFile</key>
+    <string>PackageManager.ico</string>
+</dict>
+</plist>
+EOF
+  
+  cat > "$PACKAGE_MANAGER_APP/Contents/MacOS/packagemanager" << EOF
+#!/usr/bin/env sh
+cd ~/Library/opentap
+/usr/local/share/dotnet/dotnet ./PackageManager.dll
+EOF
+  chmod +x "$PACKAGE_MANAGER_APP/Contents/MacOS/packagemanager"
+  printf "Created %s\n" "$PACKAGE_MANAGER_APP"
 fi
