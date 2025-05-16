@@ -122,7 +122,7 @@ EOF
     <key>CFBundleName</key>
     <string>PackageManager</string>
     <key>CFBundleDisplayName</key>
-    <string>Keysight Test Automation</string>
+    <string>Keysight Package Manager</string>
     <key>CFBundleIdentifier</key>
     <string>com.keysight.packagemanager</string>
     <key>CFBundleVersion</key>
