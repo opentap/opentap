@@ -28,11 +28,13 @@ has() {
 }
 
 if [ "$OS" == "MacOS" ]; then
-  if [ -d ~/Applications/Editor.app ]; then
-    echo "Editor installation already exists at ~/Applications/Editor.app. To perform a clean install, completely remove it and run this script again."
+  if [ -d Editor.app ]; then
+    echo "./Editor.app already exists."
     exit 0
   fi
+  DEST="./Editor.app/Contents/opentap"
 fi
+
 
 if ! (has dotnet && dotnet --list-runtimes | grep -q 9.0) ; then
   echo "OpenTAP requires .NET 9.0 to run. Please install .NET 9.0: https://dotnet.microsoft.com/en-us/download/dotnet/9.0"
@@ -55,11 +57,13 @@ if [ -d "$DEST" ]; then
 done
 fi
 
+mkdir -p "$DEST"
+
 echo "Downloading OpenTAP..."
-curl -s "http://packages.opentap.io/4.0/Objects/Packages/OpenTAP?version=$OPENTAP_VERSION&os=$OS&architecture=$ARCH" -o opentap.zip > /dev/null
+curl -s "http://packages.opentap.io/4.0/Objects/Packages/OpenTAP?version=$OPENTAP_VERSION&os=$OS&architecture=$ARCH" -o /tmp/opentap.zip > /dev/null
 echo "Extracting OpenTAP to $DEST ..."
-unzip opentap.zip -d "$DEST" > /dev/null </dev/tty
-rm opentap.zip
+unzip /tmp/opentap.zip -d "$DEST" > /dev/null </dev/tty
+rm /tmp/opentap.zip
 
 pushd "$DEST" > /dev/null
 chmod +x tap
@@ -70,6 +74,7 @@ fi
 
 popd > /dev/null
 
+# Create a MacOS app bundle
 if [ "$OS" == "MacOS" ]; then
   mkdir -p Editor.app/Contents/MacOS
   mkdir -p Editor.app/Contents/Resources
@@ -105,7 +110,6 @@ cd ../opentap
 /usr/local/share/dotnet/dotnet ./Editor.dll
 EOF
   chmod +x Editor.app/Contents/MacOS/editor
-  mv opentap ./Editor.app/Contents/opentap
-  mv Editor.app ~/Applications/
-  open ~/Applications/Editor.app
+  printf '\nCreated Editor App Bundle at ./Editor.app\n'
+  open ./Editor.app
 fi
