@@ -4,7 +4,7 @@ set -euo pipefail
 
 DEST="./opentap"
 OPENTAP_VERSION="9.29.0-rc.3"
-EDITOR_VERSION="9.29.0-rc.3"
+EDITOR_VERSION="9.29.0-rc.4"
 
 OS="MacOS"
 ARCH="arm64"
@@ -64,7 +64,7 @@ rm /tmp/opentap.zip
 
 pushd "$DEST" > /dev/null
 chmod +x tap
-if ! ./tap image install "Editor:$EDITOR_VERSION,XPF Controls:$EDITOR_VERSION" --merge ; then
+if ! ./tap image install "Editor:$EDITOR_VERSION" --merge ; then
   echo "Installation failed. See the session log for details: $DEST/SessionLogs/Latest.txt"
   exit 1;
 fi
