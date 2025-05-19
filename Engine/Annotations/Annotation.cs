@@ -38,7 +38,7 @@ namespace OpenTap
         string[] Group { get; }
         /// <summary> Name displayed by the UI. </summary>
         string Name { get; }
-        /// <summary> Optional integer that ranks items and groups in ascending order relative to other items/groups. 
+        /// <summary> Optional double that ranks items and groups in ascending order relative to other items/groups. 
         /// Default is -10000. For a group, the order is the average order of the elements inside the group. 
         /// Any double value is allowed. Items with same order are ranked alphabetically.
         /// </summary>
