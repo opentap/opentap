@@ -4,7 +4,7 @@ set -euo pipefail
 
 DEST="./opentap"
 OPENTAP_VERSION="9.29.0-rc.3"
-EDITOR_VERSION="9.29.0-rc.4"
+EDITOR_VERSION="9.29.0-rc.6"
 
 OS="MacOS"
 ARCH="arm64"
