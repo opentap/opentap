@@ -989,8 +989,17 @@ namespace OpenTap
                         stepRun.StartStepRun(); // set verdict to running, set Timestamp.
                         parentRun.ChildStarted(stepRun);
                         planRun.AddTestStepRunStart(stepRun);
-                        Step.Run();
-                        
+                        try
+                        {
+                            Step.Run();
+                        }
+                        catch (Exception ex)
+                        {
+                            var args = TestStepUnhandledExceptionEvent.Invoke(Step, stepRun, ex);
+                            if (!args.CatchException)
+                                throw;
+                        }
+                        finally
                         {
                             // Evaluate post run mixins.
                             // This needs to be done before 'AfterRun' as that waits for defer and publishes results

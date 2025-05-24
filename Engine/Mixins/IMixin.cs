@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 
 namespace OpenTap
 {
@@ -31,7 +32,7 @@ namespace OpenTap
                         f(mixin, arg);
                     }
                 }
-                catch(Exception e)
+                catch(Exception e) when (e is not OperationCanceledException)
                 {
                     log.Error("Caught error in mixin: {0}", e.Message);
                     log.Debug(e);
@@ -50,6 +51,26 @@ namespace OpenTap
             Invoke(step, (v, arg) => v.OnPreRun(arg), eventArg, out bool anyInvoked);
             eventArg.AnyPrerunsInvoked = anyInvoked;
             return eventArg;
+        }
+    }
+    
+    /// <summary> Event args for ITestStepUnhandledExceptionMixin mixin. </summary>
+    public sealed class TestStepUnhandledExceptionEventArgs
+    {
+        /// <summary> The step run during which the exception happened. </summary>
+        public TestStepRun Run { get; } 
+        /// <summary> The step which caught the exception. </summary>
+        public ITestStep Step { get; }
+        /// <summary> The unhandled exception. </summary>
+        public Exception Exception { get; }
+        /// <summary> If true, the exception will be considered caught. </summary>
+        public bool CatchException { get; set; } = false;
+
+        internal TestStepUnhandledExceptionEventArgs(ITestStep step, TestStepRun run, Exception ex)
+        {
+            Step = step;
+            Run = run;
+            Exception = ex;
         }
     }
     
@@ -82,6 +103,13 @@ namespace OpenTap
         internal TestPlanPreRunEventArgs(TestPlan step) => TestPlan = step;
     }
     
+    class TestStepUnhandledExceptionEvent : MixinEvent<ITestStepUnhandledExceptionMixin>
+    {
+        public static TestStepUnhandledExceptionEventArgs Invoke(ITestStep step, TestStepRun run, Exception ex)
+        {
+            return Invoke(step, (v, args) => v.OnUnhandledException(args), new TestStepUnhandledExceptionEventArgs(step, run, ex));
+        }
+    }
     class TestStepPostRunEvent : MixinEvent<ITestStepPostRunMixin>
     {
         public static void Invoke(ITestStep step) => 
@@ -124,6 +152,13 @@ namespace OpenTap
     {
         /// <summary> Invoked before test step run.</summary>
         void OnPreRun(TestStepPreRunEventArgs eventArgs);
+    }
+    
+    /// <summary> This mixin is activated just before a step is executed. It allows modifying the test step run. </summary>
+    public interface ITestStepUnhandledExceptionMixin : IMixin
+    {
+        /// <summary> Invoked before test step run.</summary>
+        void OnUnhandledException(TestStepUnhandledExceptionEventArgs eventArgs);
     }
     
     /// <summary> This mixin is activated just before a resource opens. </summary>
