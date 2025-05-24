@@ -488,8 +488,35 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(i1 != -1);
             Assert.IsTrue(i2 == -1);
         }
-        
 
+        [Test]
+        [TestCase(HandleExceptionDialog.Options.Abort)]
+        [TestCase(HandleExceptionDialog.Options.Retry)]
+        [TestCase(HandleExceptionDialog.Options.Continue)]
+        public void TestUnhandledExceptionMixin(HandleExceptionDialog.Options behavior)
+        {
+            using var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            var userInput = new UnhandledMixinUserInputHandler(behavior);
+            UserInput.SetInterface(userInput);
+            var plan = new TestPlan();
+            var step = new ThrowingStep() { Throws = true };
+            plan.ChildTestSteps.Add(step);
+            var mixin = MixinFactory.LoadMixin(step, new TestUnhandledExceptionMixinBuilder());
+            var run = plan.Execute();
+
+            switch (behavior)
+            {
+                case HandleExceptionDialog.Options.Continue:
+                    Assert.That(run.Verdict, Is.EqualTo(Verdict.Error));
+                    break;
+                case HandleExceptionDialog.Options.Retry:
+                    Assert.That(run.Verdict, Is.EqualTo(Verdict.Pass));
+                    break;
+                case HandleExceptionDialog.Options.Abort:
+                    Assert.That(run.Verdict, Is.EqualTo(Verdict.Aborted));
+                    break;
+            }
+        }
     }
 
     public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin
@@ -592,6 +619,116 @@ namespace OpenTap.UnitTests
 
             if (IsOutput)
                 yield return new OutputAttribute();
+        }
+    }
+
+    [Display("Unhandled Exception")]
+    public class HandleExceptionDialog
+    {
+        public enum Options
+        {
+            [Display("Continue")]
+            Continue, 
+            [Display("Retry Failed Step")]
+            Retry,
+            [Display("Abort Sequence")]
+            Abort,
+        }
+
+        private readonly Exception ex;
+        private readonly string stepName;
+        public HandleExceptionDialog(string stepName, Exception ex)
+        {
+            this.ex = ex;
+            this.stepName = stepName;
+        }
+
+        [Browsable(true)]
+        [Layout(LayoutMode.FullRow)]
+        public string Message => $"Error in step {stepName}: {ex.Message}";
+
+        [Submit]
+        [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+        [Display("Continue Behavior")]
+        public Options HandlingOption { get; set; }
+    }
+
+
+    public class ThrowingStep : TestStep
+    {
+        public bool Throws { get; set; } = true;
+        public override void Run()
+        {
+            if (Throws)
+            {
+                throw new Exception("Something went wrong");
+            }
+            UpgradeVerdict(Verdict.Pass);
+        }
+    }
+
+    [MixinBuilder(typeof(ITestStepParent))]
+    [Display("Handle Exceptions")]
+    public class TestUnhandledExceptionMixinBuilder : IMixinBuilder
+    {
+        public void Initialize(ITypeData targetType)
+        {
+
+        }
+
+        public MixinMemberData ToDynamicMember(ITypeData targetType)
+        {
+            return new MixinMemberData(this, () => new UnhandledExceptionMixin())
+            {
+                TypeDescriptor = TypeData.FromType(typeof(UnhandledExceptionMixin)),
+                Writable = true,
+                Readable = true,
+                DeclaringType = targetType,
+                Attributes = [new EmbedPropertiesAttribute()],
+                Name = "On Exception", 
+            };
+        }
+    }
+
+    public class UnhandledMixinUserInputHandler(HandleExceptionDialog.Options behavior) : IUserInputInterface
+    {
+        public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+        {
+            if (dataObject is HandleExceptionDialog h)
+            {
+                h.HandlingOption = behavior;
+            }
+        }
+    }
+
+    [Display("On Exception")]
+    public class UnhandledExceptionMixin : IMixin, ITestStepUnhandledExceptionMixin
+    {
+        [Display("Handle Exception")] public bool HandleException { get; set; } = true;
+
+        public void OnUnhandledException(TestStepUnhandledExceptionEventArgs eventArgs)
+        {
+            if (!HandleException) return;
+            if (TapThread.Current.AbortToken.IsCancellationRequested)
+                return;
+
+            var handling = new HandleExceptionDialog(eventArgs.Step.GetFormattedName(), eventArgs.Exception);
+            UserInput.Request(handling, true);
+            switch (handling.HandlingOption)
+            {
+                case HandleExceptionDialog.Options.Abort:
+                    eventArgs.Step.PlanRun.MainThread.Abort();
+                    break;
+                case HandleExceptionDialog.Options.Continue:
+                    // do nothing
+                    break;
+                case HandleExceptionDialog.Options.Retry:
+                    // Ensure that the step will not throw after retry
+                    (eventArgs.Step as ThrowingStep).Throws = false;
+                    eventArgs.CatchException = true;
+                    eventArgs.Run.SuggestedNextStep = eventArgs.Run.TestStepId;
+                    break;
+            }
         }
     }
 }
