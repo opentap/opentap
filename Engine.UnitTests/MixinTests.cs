@@ -499,7 +499,7 @@ namespace OpenTap.UnitTests
             var userInput = new UnhandledMixinUserInputHandler(behavior);
             UserInput.SetInterface(userInput);
             var plan = new TestPlan();
-            var step = new ThrowingStep() { Throws = true };
+            var step = new ThrowingStep();
             plan.ChildTestSteps.Add(step);
             var mixin = MixinFactory.LoadMixin(step, new TestUnhandledExceptionMixinBuilder());
             var run = plan.Execute();
@@ -645,11 +645,17 @@ namespace OpenTap.UnitTests
 
     public class ThrowingStep : TestStep
     {
-        public bool Throws { get; set; } = true;
+        bool throws = true;
+        public override void PrePlanRun()
+        {
+            throws = true;
+            base.PrePlanRun();
+        }
         public override void Run()
         {
-            if (Throws)
+            if (throws)
             {
+                throws = false;
                 throw new Exception("Something went wrong");
             }
             UpgradeVerdict(Verdict.Pass);
@@ -717,8 +723,7 @@ namespace OpenTap.UnitTests
                     // do nothing
                     break;
                 case HandleExceptionDialog.Options.Retry:
-                    // Ensure that the step will not throw after retry
-                    (step as ThrowingStep).Throws = false;
+
                     run.Exception = null;
                     run.SuggestedNextStep = run.TestStepId;
                     break;
