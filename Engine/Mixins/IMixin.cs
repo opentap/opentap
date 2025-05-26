@@ -1,5 +1,4 @@
 using System;
-using System.ComponentModel;
 
 namespace OpenTap
 {
@@ -13,7 +12,7 @@ namespace OpenTap
 
     abstract class MixinEvent<T2> where T2: IMixin
     {
-        static TraceSource log = Log.CreateSource("Mixin");
+        static readonly TraceSource log = Log.CreateSource("Mixin");
         protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg) => Invoke(target, f, arg, out _);
         protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg, out bool anyInvoked)
         {
@@ -53,27 +52,7 @@ namespace OpenTap
             return eventArg;
         }
     }
-    
-    /// <summary> Event args for ITestStepUnhandledExceptionMixin mixin. </summary>
-    public sealed class TestStepUnhandledExceptionEventArgs
-    {
-        /// <summary> The step run during which the exception happened. </summary>
-        public TestStepRun Run { get; } 
-        /// <summary> The step which caught the exception. </summary>
-        public ITestStep Step { get; }
-        /// <summary> The unhandled exception. </summary>
-        public Exception Exception { get; }
-        /// <summary> If true, the exception will be considered caught. </summary>
-        public bool CatchException { get; set; } = false;
 
-        internal TestStepUnhandledExceptionEventArgs(ITestStep step, TestStepRun run, Exception ex)
-        {
-            Step = step;
-            Run = run;
-            Exception = ex;
-        }
-    }
-    
     /// <summary> Event args for ITestStepPreRun mixin. </summary>
     public sealed class TestStepPreRunEventArgs
     {
@@ -102,18 +81,11 @@ namespace OpenTap
 
         internal TestPlanPreRunEventArgs(TestPlan step) => TestPlan = step;
     }
-    
-    class TestStepUnhandledExceptionEvent : MixinEvent<ITestStepUnhandledExceptionMixin>
-    {
-        public static TestStepUnhandledExceptionEventArgs Invoke(ITestStep step, TestStepRun run, Exception ex)
-        {
-            return Invoke(step, (v, args) => v.OnUnhandledException(args), new TestStepUnhandledExceptionEventArgs(step, run, ex));
-        }
-    }
+
     class TestStepPostRunEvent : MixinEvent<ITestStepPostRunMixin>
     {
         public static void Invoke(ITestStep step) => 
-            Invoke(step, (v, args) => v.OnPostRun(args), new TestStepPostRunEventArgs(step));
+            Invoke(step, static (mixin, args) => mixin.OnPostRun(args), new TestStepPostRunEventArgs(step));
     }
     
     /// <summary> Event args for ITestStepPostRun mixin. </summary>
@@ -128,7 +100,7 @@ namespace OpenTap
     class ResourcePreOpenEvent: MixinEvent<IResourcePreOpenMixin>
     {
         public static void Invoke(IResource resource) => 
-            Invoke(resource, (v, args) => v.OnPreOpen(args), new ResourcePreOpenEventArgs(resource));
+            Invoke(resource, static (mixin, args) => mixin.OnPreOpen(args), new ResourcePreOpenEventArgs(resource));
     }
 
     /// <summary> Event args for IResourcePreOpenMixin mixin. </summary>
@@ -152,13 +124,6 @@ namespace OpenTap
     {
         /// <summary> Invoked before test step run.</summary>
         void OnPreRun(TestStepPreRunEventArgs eventArgs);
-    }
-    
-    /// <summary> This mixin is activated just before a step is executed. It allows modifying the test step run. </summary>
-    public interface ITestStepUnhandledExceptionMixin : IMixin
-    {
-        /// <summary> Invoked before test step run.</summary>
-        void OnUnhandledException(TestStepUnhandledExceptionEventArgs eventArgs);
     }
     
     /// <summary> This mixin is activated just before a resource opens. </summary>

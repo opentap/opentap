@@ -490,10 +490,10 @@ namespace OpenTap.UnitTests
         }
 
         [Test]
-        [TestCase(HandleExceptionDialog.Options.Abort)]
-        [TestCase(HandleExceptionDialog.Options.Retry)]
-        [TestCase(HandleExceptionDialog.Options.Continue)]
-        public void TestUnhandledExceptionMixin(HandleExceptionDialog.Options behavior)
+        [TestCase(HandleExceptionDialog.Options.Abort, Verdict.Aborted)]
+        [TestCase(HandleExceptionDialog.Options.Retry, Verdict.Pass)]
+        [TestCase(HandleExceptionDialog.Options.Continue, Verdict.Error)]
+        public void TestUnhandledExceptionMixin(HandleExceptionDialog.Options behavior, Verdict expectedVerdict)
         {
             using var session = Session.Create(SessionOptions.OverlayComponentSettings);
             var userInput = new UnhandledMixinUserInputHandler(behavior);
@@ -503,19 +503,8 @@ namespace OpenTap.UnitTests
             plan.ChildTestSteps.Add(step);
             var mixin = MixinFactory.LoadMixin(step, new TestUnhandledExceptionMixinBuilder());
             var run = plan.Execute();
+            Assert.That(run.Verdict, Is.EqualTo(expectedVerdict));
 
-            switch (behavior)
-            {
-                case HandleExceptionDialog.Options.Continue:
-                    Assert.That(run.Verdict, Is.EqualTo(Verdict.Error));
-                    break;
-                case HandleExceptionDialog.Options.Retry:
-                    Assert.That(run.Verdict, Is.EqualTo(Verdict.Pass));
-                    break;
-                case HandleExceptionDialog.Options.Abort:
-                    Assert.That(run.Verdict, Is.EqualTo(Verdict.Aborted));
-                    break;
-            }
         }
     }
 
@@ -678,9 +667,9 @@ namespace OpenTap.UnitTests
 
         public MixinMemberData ToDynamicMember(ITypeData targetType)
         {
-            return new MixinMemberData(this, () => new UnhandledExceptionMixin())
+            return new MixinMemberData(this, () => new ExceptionMixin())
             {
-                TypeDescriptor = TypeData.FromType(typeof(UnhandledExceptionMixin)),
+                TypeDescriptor = TypeData.FromType(typeof(ExceptionMixin)),
                 Writable = true,
                 Readable = true,
                 DeclaringType = targetType,
@@ -702,31 +691,36 @@ namespace OpenTap.UnitTests
     }
 
     [Display("On Exception")]
-    public class UnhandledExceptionMixin : IMixin, ITestStepUnhandledExceptionMixin
+    public class ExceptionMixin : IMixin, ITestStepPostRunMixin
     {
         [Display("Handle Exception")] public bool HandleException { get; set; } = true;
 
-        public void OnUnhandledException(TestStepUnhandledExceptionEventArgs eventArgs)
+        public void OnPostRun(TestStepPostRunEventArgs eventArgs)
         {
             if (!HandleException) return;
             if (TapThread.Current.AbortToken.IsCancellationRequested)
                 return;
+            var step = eventArgs.TestStep;
+            var run = step.StepRun;
+            var exception = run.Exception;
+            if (exception == null) return;
 
-            var handling = new HandleExceptionDialog(eventArgs.Step.GetFormattedName(), eventArgs.Exception);
+
+            var handling = new HandleExceptionDialog(step.GetFormattedName(),exception);
             UserInput.Request(handling, true);
             switch (handling.HandlingOption)
             {
                 case HandleExceptionDialog.Options.Abort:
-                    eventArgs.Step.PlanRun.MainThread.Abort();
+                    step.PlanRun.MainThread.Abort();
                     break;
                 case HandleExceptionDialog.Options.Continue:
                     // do nothing
                     break;
                 case HandleExceptionDialog.Options.Retry:
                     // Ensure that the step will not throw after retry
-                    (eventArgs.Step as ThrowingStep).Throws = false;
-                    eventArgs.CatchException = true;
-                    eventArgs.Run.SuggestedNextStep = eventArgs.Run.TestStepId;
+                    (step as ThrowingStep).Throws = false;
+                    run.Exception = null;
+                    run.SuggestedNextStep = run.TestStepId;
                     break;
             }
         }
