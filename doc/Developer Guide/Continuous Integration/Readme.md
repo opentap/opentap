@@ -139,7 +139,7 @@ jobs:
     steps:
       # Check out the files in this repository. 
       - name: Checkout
-        uses: actions/download-artifact@v4
+        uses: actions/checkout@v4
         with:
           # 'tap sdk gitversion' can fail if the version history is incomplete. 
           # A fetch-depth of 0 ensures we get a complete history.
