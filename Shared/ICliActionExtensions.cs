@@ -229,6 +229,14 @@ namespace OpenTap.Cli
             }
 
             var actionFullName = td.GetDisplayAttribute().GetFullName();
+            bool isUpdate = "package \\ check-updates" == actionFullName;
+
+            if (isUpdate)
+            { 
+                // Avoid logging debug information for check-updates, since this is potentially confusing.
+                return action.Execute(TapThread.Current.AbortToken);
+            }
+ 
             log.Debug($"Executing CLI action: {actionFullName}");
             var sw = Stopwatch.StartNew();
             int exitCode = action.Execute(TapThread.Current.AbortToken);
