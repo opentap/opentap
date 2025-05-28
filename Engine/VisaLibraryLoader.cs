@@ -34,16 +34,22 @@ namespace OpenTap
             Functions = Load();
         }
         
-        public unsafe int ViRead(int vi, ref byte buffer, int count, out int retCount)
+        public unsafe int viRead(int vi, ArraySegment<byte> buffer, int count, out int retCount)
         {
-            fixed (byte* p = &buffer)
+            if (buffer.Count < count)
+                throw new ArgumentException("Amount of bytes requested is larger than the space available in buffer.");
+            
+            fixed (byte* p = &buffer.Array[buffer.Offset])
             {
                 return viReadRef(vi, p, count, out retCount);
             }
         }
-        public unsafe int ViWrite(int vi, ref byte buffer, int count, out int retCount)
+        public unsafe int viWrite(int vi, ArraySegment<byte> buffer, int count, out int retCount)
         {
-            fixed (byte* p = &buffer)
+            if (buffer.Count < count)
+                throw new ArgumentException("Amount of bytes requested to be written is larger than the space present in buffer.");
+
+            fixed (byte* p = &buffer.Array[buffer.Offset])
             {
                 return viWriteRef(vi, p, count, out retCount);
             }
@@ -92,9 +98,9 @@ namespace OpenTap
                 functions.ViParseRsrcExRef = GetSymbol<VisaFunctions.ViParseRsrcExDelegate>("viParseRsrcEx");
                 functions.ViOpenRef = GetSymbol<VisaFunctions.ViOpenDelegate>("viOpen");
                 functions.ViCloseRef = GetSymbol<VisaFunctions.ViCloseDelegate>("viClose");
-                functions.ViReadRef = ViRead;
+                functions.ViReadRef = viRead;
                 viReadRef = GetSymbol<ViReadDelegate>("viRead");
-                functions.ViWriteRef = ViWrite;
+                functions.ViWriteRef = viWrite;
                 viWriteRef = GetSymbol<ViWriteDelegate>("viWrite");
                 functions.ViReadStbRef = GetSymbol<VisaFunctions.ViReadStbDelegate>("viReadSTB");
                 functions.ViClearRef = GetSymbol<VisaFunctions.ViClearDelegate>("viClear");

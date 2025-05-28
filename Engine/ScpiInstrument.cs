@@ -1181,6 +1181,39 @@ namespace OpenTap
                 }
             }
         }
+        
+        /// <inheritdoc cref="IScpiIO3.EnableEvent"/>
+        public ScpiIOResult EnableEvent(ScpiEvent eventType, ScpiEventMechanism mechanism)
+        {
+            if (scpiIO is IScpiIO3 scpiIO3)
+            {
+                return scpiIO3.EnableEvent(eventType, mechanism);
+            }
+
+            throw new NotImplementedException();
+        }
+
+        /// <inheritdoc cref="IScpiIO3.DisableEvent"/>
+        public ScpiIOResult DisableEvent(ScpiEvent eventType, ScpiEventMechanism mechanism)
+        {
+            if (scpiIO is IScpiIO3 scpiIO3)
+            {
+                return scpiIO3.DisableEvent(eventType, mechanism);
+            }
+
+            throw new NotImplementedException();
+        }
+        
+        /// <inheritdoc cref="IScpiIO3.WaitOnEvent"/>
+        public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType, out int outContext)
+        {
+            if (scpiIO is IScpiIO3 scpiIO3)
+            {
+                return scpiIO3.WaitOnEvent(eventType, timeout, out outEventType, out outContext);
+            }
+
+            throw new NotImplementedException();
+        }
 
         /// <summary>
         /// Polls the instrument for an event.

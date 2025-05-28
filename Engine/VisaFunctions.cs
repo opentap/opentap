@@ -3,8 +3,14 @@ using System.Text;
 
 namespace OpenTap;
 
+/// <summary>
+/// Collection of all visa functions.
+/// </summary>
 public struct VisaFunctions
 {
+    /// <summary>
+    /// Event handler for visa events.
+    /// </summary>
     public delegate int ViEventHandler(int vi, int eventType, int context, int userHandle);
     
     /// <summary>
@@ -265,7 +271,7 @@ public struct VisaFunctions
     /// <param name="count">Number of bytes to be read.</param>
     /// <param name="retCount">Represents the location of an integer that will be set to the number of bytes actually transferred.</param>
     /// <remarks>https://helpfiles.keysight.com/IO_Libraries_Suite/English/IOLS_Linux/VISA/Content/visa/viRead.htm</remarks>
-    public delegate int ViReadDelegate(int vi, ref byte buffer, int count, out int retCount);
+    public delegate int ViReadDelegate(int vi, ArraySegment<byte> arraySegment, int count, out int retCount);
     /// <inheritdoc cref="ViReadDelegate"/>
     public ViReadDelegate ViReadRef;
     
@@ -277,7 +283,7 @@ public struct VisaFunctions
     /// <param name="count">Specifies number of bytes to be written.</param>
     /// <param name="retCount">Represents the location of an integer that will be set to the number of bytes actually transferred.</param>
     /// <remarks>https://helpfiles.keysight.com/IO_Libraries_Suite/English/IOLS_Linux/VISA/Content/visa/viWrite.htm</remarks>
-    public delegate int ViWriteDelegate(int vi, ref byte buffer, int count, out int retCount);
+    public delegate int ViWriteDelegate(int vi, ArraySegment<byte> arraySegment, int count, out int retCount);
     /// <inheritdoc cref="ViWriteDelegate"/>
     public ViWriteDelegate ViWriteRef;
     

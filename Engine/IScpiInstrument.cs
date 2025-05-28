@@ -160,8 +160,13 @@ namespace OpenTap
         void CloseSRQ();
     }
 
+    /// <summary>
+    /// Events for scpi.
+    /// </summary>
     public enum ScpiEvent
     {
+        /// All enabled events.
+        EVENT_ALL_ENABLED_EVENTS = Visa.VI_ALL_ENABLED_EVENTS,
         /// Notification that an asynchronous operation has completed.
         EVENT_IO_COMPLETION = Visa.VI_EVENT_IO_COMPLETION,
         /// Notification that a hardware trigger was received from a device.
@@ -190,16 +195,31 @@ namespace OpenTap
         EVENT_VXI_VME_INTR = Visa.VI_EVENT_VXI_VME_INTR,
     }
 
+    [Flags]
+    public enum ScpiEventMechanism
+    {
+        QUEUE = Visa.VI_QUEUE,
+        HNDLR = Visa.VI_HNDLR,
+    }
+
     /// <summary>
-    /// Represents low-level IO primitives for a given SCPI instrument. IScpiIO2 is the full interface needed to specify a VISA connection.
+    /// Represents low-level IO primitives for a given SCPI instrument. IScpiIO3 is the full interface needed to specify a VISA connection.
     /// </summary>
     public interface IScpiIO3 : IScpiIO2
     {
+        /// <summary>
+        /// Enables an event.
+        /// </summary>
+        public ScpiIOResult EnableEvent(ScpiEvent eventType, ScpiEventMechanism mechanism);
 
-        public ScpiIOResult EnableEvent(ScpiEvent eventType);
+        /// <summary>
+        /// Disables an event.
+        /// </summary>
+        public ScpiIOResult DisableEvent(ScpiEvent eventType, ScpiEventMechanism mechanism);
 
-        public ScpiIOResult DisableEvent(ScpiEvent eventType);
-
+        /// <summary>
+        /// Waits on an event.
+        /// </summary>
         public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType,
             out int outContext);
     }

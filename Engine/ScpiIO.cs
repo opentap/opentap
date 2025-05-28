@@ -8,7 +8,7 @@ namespace OpenTap
 {
     
     /// <summary> Implements Visa SCPI IO. </summary>
-    class ScpiIO : IScpiIO2
+    class ScpiIO : IScpiIO3
     {
         private bool sendEnd = true;
         private int lockTimeout = 5000;
@@ -273,7 +273,7 @@ namespace OpenTap
 
         public ScpiIOResult Read(ArraySegment<byte> buffer, int count, ref bool eoi, ref int read)
         {
-            var res = Visa.viRead(instrument, ref buffer.Array[buffer.Offset], Math.Min(count, buffer.Offset), out read);
+            var res = Visa.viRead(instrument, buffer, count, out read);
             eoi = (res == Visa.VI_SUCCESS);
             return MakeError(res);
         }
@@ -293,18 +293,17 @@ namespace OpenTap
 
         public ScpiIOResult Write(ArraySegment<byte> buffer, int count, ref int written)
         {
-            return MakeError(Visa.viWrite(instrument, ref buffer.Array[buffer.Offset], Math.Min(count, buffer.Offset), out written));
+            return MakeError(Visa.viWrite(instrument, buffer, count, out written));
+        }
+        
+        public ScpiIOResult EnableEvent(ScpiEvent eventType, ScpiEventMechanism mechanism)
+        {
+            return MakeError(Visa.viEnableEvent(instrument, (int)eventType, (short)mechanism, Visa.VI_NULL));
         }
 
-
-        public ScpiIOResult EnableEvent(ScpiEvent eventType)
+        public ScpiIOResult DisableEvent(ScpiEvent eventType, ScpiEventMechanism mechanism)
         {
-            return MakeError(Visa.viEnableEvent(instrument, (int)eventType, Visa.VI_QUEUE, Visa.VI_NULL));
-        }
-
-        public ScpiIOResult DisableEvent(ScpiEvent eventType)
-        {
-            return MakeError(Visa.viDisableEvent(instrument, (int)eventType, Visa.VI_QUEUE));
+            return MakeError(Visa.viDisableEvent(instrument, (int)eventType, (short)mechanism));
         }
         
         public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType, out int outContext)

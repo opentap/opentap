@@ -113,28 +113,8 @@ namespace OpenTap
                 ViParseRsrcExRef = visa.viParseRsrcEx;
                 ViOpenRef = visa.viOpen;
                 ViCloseRef = visa.viClose;
-                ViReadRef = (int vi, ref byte buffer, int count, out int retCount) =>
-                {
-                    unsafe
-                    {
-                        fixed (byte* b = &buffer)
-                        {
-                            var span = new Span<byte>(b, count);
-                            return visa.viRead(vi, new ArraySegment<byte>(span.ToArray()), count, out retCount);
-                        }
-                    }
-                };
-                ViWriteRef = (int vi, ref byte buffer, int count, out int retCount) =>
-                {
-                    unsafe
-                    {
-                        fixed (byte* b = &buffer)
-                        {
-                            var span = new Span<byte>(b, count);
-                            return visa.viWrite(vi, new ArraySegment<byte>(span.ToArray()), count, out retCount);
-                        }
-                    }
-                };
+                ViReadRef = visa.viRead;
+                ViWriteRef = visa.viWrite;
                 ViReadStbRef = visa.viReadSTB;
                 ViClearRef = visa.viClear;
                 ViLockRef = visa.viLock;
@@ -179,8 +159,8 @@ namespace OpenTap
 
         internal static int viWaitOnEvent(int vi, int eventType, int timeout, out int outEventType, out int outContext) { return ViWaitOnEventRef(vi, eventType, timeout, out outEventType, out outContext);}
 
-        internal unsafe static int viRead(int vi, ref byte buffer, int count, out int retCount) { return ViReadRef(vi, ref buffer, count, out retCount); }
-        internal unsafe static int viWrite(int vi, ref byte buffer, int count, out int retCount) { return ViWriteRef(vi, ref buffer, count, out retCount); }
+        internal unsafe static int viRead(int vi, ArraySegment<byte> buffer, int count, out int retCount) { return ViReadRef(vi, buffer, count, out retCount); }
+        internal unsafe static int viWrite(int vi, ArraySegment<byte> buffer, int count, out int retCount) { return ViWriteRef(vi, buffer, count, out retCount); }
 
         internal static int viReadSTB(int vi, ref short status) { return ViReadStbRef(vi, ref status); }
 
