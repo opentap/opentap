@@ -747,16 +747,13 @@ jobs:
         run: |
           $content=(Get-Content ./nuget/OpenTAP.nuspec).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Set-Content ./nuget/OpenTAP.nuspec $content
-          New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
-
-
+          New-Item -Force ./nuget/build/docs/Packages/OpenTAP -ItemType Directory | Out-Null
+        
           Copy-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
           Copy-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
-
-          Copy-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
-          Copy-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
-          Copy-Item ./bin/Release/OpenTap.Package.dll ./nuget/build/payload
-          Copy-Item ./bin/Release/OpenTap.dll ./nuget/build/payload
+          Copy-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/docs
+          Copy-Item ./bin/Release/OpenTap.xml ./nuget/build/docs
+          Copy-Item ./bin/Release/OpenTap.Plugins.BasicSteps.xml ./nuget/build/docs/Packages/OpenTAP
 
           # Expand-Archive will only extract .zip extensions    
           echo "Rename Archives"
