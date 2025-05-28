@@ -212,6 +212,13 @@ jobs:
           dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
+      - name: Rebuild
+        run: |
+          # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          dotnet publish -c Release tap  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Engine  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Package  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release BasicSteps  /p:Platform=${{ matrix.Architecture }}
       - name: Copy Debug Package 
         run: cp ./bin/Release/OpenTap.Debug.TapPackage ./bin/Release/publish/dbg.zip
       - name: Upload binaries
@@ -252,6 +259,13 @@ jobs:
           cp ./tap/Properties/AssemblyInfo.cs ./Tap.Upgrader/AssemblyInfo.cs
       - name: Build
         run: dotnet build -c Release /p:Platform=${{ matrix.Architecture }}
+      - name: Rebuild
+        run: |
+          # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          dotnet build -c Release tap  /p:Platform=${{ matrix.Architecture }}
+          dotnet build -c Release Engine  /p:Platform=${{ matrix.Architecture }}
+          dotnet build -c Release Package  /p:Platform=${{ matrix.Architecture }}
+          dotnet build -c Release BasicSteps  /p:Platform=${{ matrix.Architecture }}
       - name: cat tap.runtimeconfig.json 
         run: get-content ./bin/Release/tap.runtimeconfig.json
       - name: Upload binaries
@@ -278,6 +292,13 @@ jobs:
           dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
+      - name: Rebuild
+        run: |
+          # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          dotnet publish -c Release tap  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Engine  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Package  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release BasicSteps  /p:Platform=${{ matrix.Architecture }}
       - name: Copy Debug Package 
         run: cp ./bin/Release/OpenTap.Debug.TapPackage ./bin/Release/publish/dbg.zip
       - name: Upload binaries
