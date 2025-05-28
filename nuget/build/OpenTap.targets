@@ -47,8 +47,9 @@
     <PackagePayloadFiles Include="$(OpenTapRuntimeDir)\**\*"/>
   </ItemGroup>
 
+  <!-- Documentation payload -->
   <ItemGroup>
-    <PackagePayloadFiles Include="$(OpenTapDocsDir)\*"/>
+    <PackagePayloadFiles Include="$(OpenTapDocsDir)\**\*"/>
   </ItemGroup>
 
   <ItemGroup>
