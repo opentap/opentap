@@ -134,7 +134,7 @@ namespace OpenTap
     }
     
     /// <summary>
-    /// Represents low-level IO primitives for a given SCPI instrument. IScpiIO2 is the full interface needed to specify a VISA connection.
+    /// Represents low-level IO primitives for a given SCPI instrument.
     /// </summary>
     public interface IScpiIO2 : IScpiIO
     {
@@ -158,6 +158,50 @@ namespace OpenTap
         
         /// <summary> Close SRQ Callback handling. </summary>
         void CloseSRQ();
+    }
+
+    public enum ScpiEvent
+    {
+        /// Notification that an asynchronous operation has completed.
+        EVENT_IO_COMPLETION = Visa.VI_EVENT_IO_COMPLETION,
+        /// Notification that a hardware trigger was received from a device.
+        EVENT_TRIG = Visa.VI_EVENT_TRIG,
+        /// Notification that a device is requesting service
+        EVENT_SERVICE_REQ = Visa.VI_EVENT_SERVICE_REQ,
+        /// Notification that the local controller has been sent a device clear message
+        EVENT_CLEAR = Visa.VI_EVENT_CLEAR,
+        /// Notification that an error condition has occurred during an operation invocation. (Note: the VI_QUEUE and VI_SUSPEND_HNDLR mechanisms cannot be used with this event.)
+        EVENT_EXCEPTION = Visa.VI_EVENT_EXCEPTION,
+        /// Notification that the GPIB controller has gained or lost CIC (controller in charge) status.
+        EVENT_GPIB_CIC = Visa.VI_EVENT_GPIB_CIC,
+        /// Notification that the GPIB controller has been addressed to talk.
+        EVENT_GPIB_TALK = Visa.VI_EVENT_GPIB_TALK,
+        /// Notification that the GPIB controller has been addressed to listen.
+        EVENT_GPIB_LISTEN = Visa.VI_EVENT_GPIB_LISTEN,
+        /// Notification that a vendor-specific PXI interrupt was received from the device. 
+        EVENT_PXI_INTR = Visa.VI_EVENT_PXI_INTR,
+        /// Notification that the VXI/VME SYSFAIL* line has been asserted. 
+        EVENT_VXI_VME_SYSFAIL = Visa.VI_EVENT_VXI_VME_SYSFAIL,
+        /// Notification that the VXI/VME SYSRESET* line has been asserted 
+        EVENT_VXI_VME_SYSRESET = Visa.VI_EVENT_VXI_VME_SYSRESET,
+        /// Notification that a VXI signal or VXI interrupt has been received from a device. 
+        EVENT_VXI_SIGP = Visa.VI_EVENT_VXI_SIGP,
+        /// Notification that a VXIbus interrupt was received from the device. 
+        EVENT_VXI_VME_INTR = Visa.VI_EVENT_VXI_VME_INTR,
+    }
+
+    /// <summary>
+    /// Represents low-level IO primitives for a given SCPI instrument. IScpiIO2 is the full interface needed to specify a VISA connection.
+    /// </summary>
+    public interface IScpiIO3 : IScpiIO2
+    {
+
+        public ScpiIOResult EnableEvent(ScpiEvent eventType);
+
+        public ScpiIOResult DisableEvent(ScpiEvent eventType);
+
+        public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType,
+            out int outContext);
     }
     
     /// <summary> SCPI IO SRQ Event Delegate </summary>

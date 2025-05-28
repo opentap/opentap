@@ -11,6 +11,7 @@ namespace OpenTap
     /// <summary>
     /// Interface implemented by VISA libraries
     /// </summary>
+    [Obsolete($"Use {nameof(IVisaFunctionLoader)} instead.")]
     public interface IVisa
     {
         /// <summary>Open default RM session</summary>
@@ -47,8 +48,6 @@ namespace OpenTap
         int viInstallHandler(int vi, int eventType, viEventHandler handler, int UserHandle);
         /// <summary>Uninstall handler</summary>
         int viUninstallHandler(int vi, int eventType, viEventHandler handler, int userHandle);
-        /// <summary> Waits for an occurrence of the specified event for a given session. </summary>
-        int viWaitOnEvent(int vi, int eventtype, int timeout, out int outeventtype, out int outcontext);
         /// <summary>Read data from device</summary>
         unsafe int viRead(int vi, ArraySegment<Byte> buffer, int count, out int retCount);
         /// <summary>Write data to device</summary>

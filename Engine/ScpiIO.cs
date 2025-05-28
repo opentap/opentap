@@ -88,7 +88,7 @@ namespace OpenTap
 
             if (!srqDelegateHandle.IsAllocated)
             {
-                srqDelegateHandle = GCHandle.Alloc(new IVisa.viEventHandler((_, _, _, _) =>
+                srqDelegateHandle = GCHandle.Alloc(new VisaFunctions.ViEventHandler((_, _, _, _) =>
                 {
                     try
                     {
@@ -102,7 +102,7 @@ namespace OpenTap
                     return Visa.VI_SUCCESS;
                 }), GCHandleType.Normal);
             }
-            RaiseError(Visa.viInstallHandler(instrument, Visa.VI_EVENT_SERVICE_REQ, (IVisa.viEventHandler)srqDelegateHandle.Target, 0));
+            RaiseError(Visa.viInstallHandler(instrument, Visa.VI_EVENT_SERVICE_REQ, (VisaFunctions.ViEventHandler)srqDelegateHandle.Target, 0));
             RaiseError(Visa.viEnableEvent(instrument, Visa.VI_EVENT_SERVICE_REQ, Visa.VI_HNDLR, Visa.VI_NULL));
         }
 
@@ -273,7 +273,7 @@ namespace OpenTap
 
         public ScpiIOResult Read(ArraySegment<byte> buffer, int count, ref bool eoi, ref int read)
         {
-            var res = Visa.viRead(instrument, buffer, count, out read);
+            var res = Visa.viRead(instrument, ref buffer.Array[buffer.Offset], Math.Min(count, buffer.Offset), out read);
             eoi = (res == Visa.VI_SUCCESS);
             return MakeError(res);
         }
@@ -293,7 +293,25 @@ namespace OpenTap
 
         public ScpiIOResult Write(ArraySegment<byte> buffer, int count, ref int written)
         {
-            return MakeError(Visa.viWrite(instrument, buffer, count, out written));
+            return MakeError(Visa.viWrite(instrument, ref buffer.Array[buffer.Offset], Math.Min(count, buffer.Offset), out written));
+        }
+
+
+        public ScpiIOResult EnableEvent(ScpiEvent eventType)
+        {
+            return MakeError(Visa.viEnableEvent(instrument, (int)eventType, Visa.VI_QUEUE, Visa.VI_NULL));
+        }
+
+        public ScpiIOResult DisableEvent(ScpiEvent eventType)
+        {
+            return MakeError(Visa.viDisableEvent(instrument, (int)eventType, Visa.VI_QUEUE));
+        }
+        
+        public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType, out int outContext)
+        {
+            var result = Visa.viWaitOnEvent(instrument, (int)eventType, timeout, out int outEvent, out outContext);
+            outEventType = (ScpiEvent)outEvent;
+            return MakeError(result);
         }
     }
 }

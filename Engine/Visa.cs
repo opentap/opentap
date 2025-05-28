@@ -21,143 +21,173 @@ namespace OpenTap
         // -------------------------------------------------------------------------
         public const int VI_SPEC_VERSION = 0x00500100;
 
-        public delegate int viEventHandler(int vi, int eventType, int context, int userHandle);
-
-        #region Delegates
-        private delegate int viOpenDefaultRMDelegate(out int sesn);
-        private delegate int viFindRsrcDelegate(int sesn, string expr, out int vi, out int retCount, StringBuilder desc);
-        private delegate int viFindNextDelegate(int vi, StringBuilder desc);
-        private delegate int viParseRsrcDelegate(int sesn, string desc, ref short intfType, ref short intfNum);
-        private delegate int viParseRsrcExDelegate(int sesn, string desc, ref short intfType, ref short intfNum, StringBuilder rsrcClass, StringBuilder expandedUnaliasedName, StringBuilder aliasIfExists);
-        private delegate int viOpenDelegate(int sesn, string viDesc, int mode, int timeout, out int vi);
-        private delegate int viCloseDelegate(int vi);
-        private delegate int viGetAttributeDelegate1(int vi, int attrName, out byte attrValue);
-        private delegate int viGetAttributeDelegate2(int vi, int attrName, StringBuilder attrValue);
-        private delegate int viGetAttributeDelegate3(int vi, int attrName, out int attrValue);
-        private delegate int viSetAttributeDelegate1(int vi, int attrName, byte attrValue);
-        private delegate int viSetAttributeDelegate2(int vi, int attrName, int attrValue);
-        private delegate int viStatusDescDelegate(int vi, int status, StringBuilder desc);
-        private delegate int viEnableEventDelegate(int vi, int eventType, short mechanism, int context);
-        private delegate int viDisableEventDelegate(int vi, int eventType, short mechanism);
-        private delegate int viInstallHandlerDelegate(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle);
-        private delegate int viUninstallHandlerDelegate(int vi, int eventType, IVisa.viEventHandler handler, int userHandle);
-        private delegate int viInstallHandlerDelegate2(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle);
-        private delegate int viUninstallHandlerDelegate2(int vi, int eventType, IVisa.viEventHandler handler, int userHandle);
-
-        private delegate int viWaitOnEventDelegate(int vi, int eventType, int timeout, out int outEventType, out int outContext);
-        private unsafe delegate int viReadDelegate(int vi, ArraySegment<byte> buffer, int count, out int retCount);
-        private unsafe delegate int viWriteDelegate(int vi, ArraySegment<byte> buffer, int count, out int retCount);
-        private delegate int viReadSTBDelegate(int vi, ref short status);
-        private delegate int viClearDelegate(int vi);
-        private delegate int viLockDelegate(int vi, int lockType, int timeout, string requestedKey, StringBuilder accessKey);
-        private delegate int viUnlockDelegate(int vi);
-
-        private static viOpenDefaultRMDelegate viOpenDefaultRMRef;
-        private static viFindRsrcDelegate viFindRsrcRef;
-        private static viFindNextDelegate viFindNextRef;
-        private static viParseRsrcDelegate viParseRsrcRef;
-        private static viParseRsrcExDelegate viParseRsrcExRef;
-        private static viOpenDelegate viOpenRef;
-        private static viCloseDelegate viCloseRef;
-        private static viGetAttributeDelegate1 viGetAttribute1Ref;
-        private static viGetAttributeDelegate2 viGetAttribute2Ref;
-        private static viGetAttributeDelegate3 viGetAttribute3Ref;
-        private static viSetAttributeDelegate1 viSetAttribute1Ref;
-        private static viSetAttributeDelegate2 viSetAttribute2Ref;
-        private static viStatusDescDelegate viStatusDescRef;
-        private static viEnableEventDelegate viEnableEventRef;
-        private static viDisableEventDelegate viDisableEventRef;
-        private static viInstallHandlerDelegate viInstallHandlerRef;
-        private static viUninstallHandlerDelegate viUninstallHandlerRef;
-        private static viWaitOnEventDelegate viWaitOnEventref;
-        private static viReadDelegate viReadRef;
-        private static viWriteDelegate viWriteRef;
-        private static viReadSTBDelegate viReadSTBRef;
-        private static viClearDelegate viClearRef;
-        private static viLockDelegate viLockRef;
-        private static viUnlockDelegate viUnlockRef;
+        private static readonly VisaFunctions.ViOpenDefaultRmDelegate ViOpenDefaultRmRef;
+        private static readonly VisaFunctions.ViFindRsrcDelegate ViFindRsrcRef;
+        private static readonly VisaFunctions.ViFindNextDelegate ViFindNextRef;
+        private static readonly VisaFunctions.ViParseRsrcDelegate ViParseRsrcRef;
+        private static readonly VisaFunctions.ViParseRsrcExDelegate ViParseRsrcExRef;
+        private static readonly VisaFunctions.ViOpenDelegate ViOpenRef;
+        private static readonly VisaFunctions.ViCloseDelegate ViCloseRef;
+        private static readonly VisaFunctions.ViGetAttributeBDelegate ViGetAttributeBRef;
+        private static readonly VisaFunctions.ViGetAttributeSbDelegate ViGetAttributeSbRef;
+        private static readonly VisaFunctions.ViGetAttributeIDelegate ViGetAttributeIRef;
+        private static readonly VisaFunctions.ViSetAttributeBDelegate ViSetAttributeBRef;
+        private static readonly VisaFunctions.ViSetAttributeIDelegate ViSetAttributeIRef;
+        private static readonly VisaFunctions.ViStatusDescDelegate ViStatusDescRef;
+        private static readonly VisaFunctions.ViEnableEventDelegate ViEnableEventRef;
+        private static readonly VisaFunctions.ViDisableEventDelegate ViDisableEventRef;
+        private static readonly VisaFunctions.ViInstallHandlerDelegate ViInstallHandlerRef;
+        private static readonly VisaFunctions.ViUninstallHandlerDelegate ViUninstallHandlerRef;
+        private static readonly VisaFunctions.ViWaitOnEventDelegate ViWaitOnEventRef;
+        private static readonly VisaFunctions.ViReadDelegate ViReadRef;
+        private static readonly VisaFunctions.ViWriteDelegate ViWriteRef;
+        private static readonly VisaFunctions.ViReadStbDelegate ViReadStbRef;
+        private static readonly VisaFunctions.ViClearDelegate ViClearRef;
+        private static readonly VisaFunctions.ViLockDelegate ViLockRef;
+        private static readonly VisaFunctions.ViUnlockDelegate ViUnlockRef;
         
-        static TraceSource staticLog = OpenTap.Log.CreateSource("Visa");
+        static readonly TraceSource staticLog = OpenTap.Log.CreateSource("Visa");
         static Visa()
         {
-            IVisa visa = TypeData.GetDerivedTypes<IVisaProvider>()
+            var symbolLoaders = TypeData.GetDerivedTypes<IVisaFunctionLoader>()
+                .Select(t => t.CreateInstanceSafe())
+                .OfType<IVisaFunctionLoader>()
+                .Select(l => (l.Order, (object)l));
+            
+            // Old way of doing visa provider, this is here for backwards compatibility.
+            #pragma warning disable CS0618 // Type or member is obsolete.
+            var visaProviders = TypeData.GetDerivedTypes<IVisaProvider>()
                 .Select(type => type.CreateInstanceSafe())
                 .OfType<IVisaProvider>()
-                .ToArray()
-                .OrderBy(provider => provider.Order)
-                .FirstOrDefault(x => x.Visa != null)?.Visa;
-
-            if (visa == null)
-                throw new Exception("IVisaProvider unable to load VISA");
+                .Select(p => (p.Order, (object)p));
+            #pragma warning disable CS0618 // Type or member is obsolete.
             
-            staticLog.Debug("Using IVisaProvider: {0}", visa);
-
-            viOpenDefaultRMRef = visa.viOpenDefaultRM;
-            viFindRsrcRef = visa.viFindRsrc;
-            viFindNextRef = visa.viFindNext;
-            viParseRsrcRef = visa.viParseRsrc;
-            viParseRsrcExRef = visa.viParseRsrcEx;
-            viOpenRef = visa.viOpen;
-            viCloseRef = visa.viClose;
-            unsafe 
+            var loader = symbolLoaders.Concat<(double order, object obj)>(visaProviders)
+                .ToArray()
+                .OrderBy(t => t.order)
+                .FirstOrDefault().obj;
+            
+            if (loader is IVisaFunctionLoader symbolLoader)
             {
-                viReadRef = visa.viRead;
-                viWriteRef = visa.viWrite;
+                VisaFunctions? functions = symbolLoader.Functions;
+                if (!functions.HasValue)
+                    throw new Exception($"{nameof(IVisaFunctionLoader)} unable to load functions.");
+                staticLog.Debug("Using IVisaSymbolLoader: {0}", symbolLoader);
+                
+                ViOpenDefaultRmRef = functions.Value.ViOpenDefaultRmRef;
+                ViFindRsrcRef = functions.Value.ViFindRsrcRef;
+                ViFindNextRef = functions.Value.ViFindNextRef;
+                ViParseRsrcRef = functions.Value.ViParseRsrcRef;
+                ViParseRsrcExRef = functions.Value.ViParseRsrcExRef;
+                ViOpenRef = functions.Value.ViOpenRef;
+                ViCloseRef = functions.Value.ViCloseRef;
+                ViReadRef = functions.Value.ViReadRef;
+                ViWriteRef = functions.Value.ViWriteRef;
+                ViReadStbRef = functions.Value.ViReadStbRef;
+                ViClearRef = functions.Value.ViClearRef;
+                ViLockRef = functions.Value.ViLockRef;
+                ViUnlockRef = functions.Value.ViUnlockRef;
+                ViGetAttributeBRef = functions.Value.ViGetAttribute1Ref;
+                ViGetAttributeSbRef = functions.Value.ViGetAttribute2Ref;
+                ViGetAttributeIRef = functions.Value.ViGetAttribute3Ref;
+                ViSetAttributeBRef = functions.Value.ViSetAttribute1Ref;
+                ViSetAttributeIRef = functions.Value.ViSetAttribute2Ref;
+                ViStatusDescRef = functions.Value.ViStatusDescRef;
+                ViEnableEventRef = functions.Value.ViEnableEventRef;
+                ViDisableEventRef = functions.Value.ViDisableEventRef;
+                ViInstallHandlerRef = functions.Value.ViInstallHandlerRef;
+                ViUninstallHandlerRef = functions.Value.ViUninstallHandlerRef;
+                ViWaitOnEventRef = functions.Value.ViWaitOnEventRef;
             }
-            viReadSTBRef = visa.viReadSTB;
-            viClearRef = visa.viClear;
-            viLockRef = visa.viLock;
-            viUnlockRef = visa.viUnlock;
-            viGetAttribute1Ref = visa.viGetAttribute1;
-            viGetAttribute2Ref = visa.viGetAttribute2;
-            viGetAttribute3Ref = visa.viGetAttribute3;
-            viSetAttribute1Ref = visa.viSetAttribute1;
-            viSetAttribute2Ref = visa.viSetAttribute2;
-            viStatusDescRef = visa.viStatusDesc;
-            viEnableEventRef = visa.viEnableEvent;
-            viDisableEventRef = visa.viDisableEvent;
-            viInstallHandlerRef = visa.viInstallHandler;
-            viUninstallHandlerRef = visa.viUninstallHandler;
-            viWaitOnEventref = visa.viWaitOnEvent;
+            else if (loader is IVisaProvider visaProvider)
+            {
+                var visa = visaProvider.Visa;
+                if (visa == null)
+                    throw new Exception("IVisaProvider unable to load VISA");
+                staticLog.Debug("Using IVisaProvider: {0}", visa);
+                
+                ViOpenDefaultRmRef = visa.viOpenDefaultRM;
+                ViFindRsrcRef = visa.viFindRsrc;
+                ViFindNextRef = visa.viFindNext;
+                ViParseRsrcRef = visa.viParseRsrc;
+                ViParseRsrcExRef = visa.viParseRsrcEx;
+                ViOpenRef = visa.viOpen;
+                ViCloseRef = visa.viClose;
+                ViReadRef = (int vi, ref byte buffer, int count, out int retCount) =>
+                {
+                    unsafe
+                    {
+                        fixed (byte* b = &buffer)
+                        {
+                            var span = new Span<byte>(b, count);
+                            return visa.viRead(vi, new ArraySegment<byte>(span.ToArray()), count, out retCount);
+                        }
+                    }
+                };
+                ViWriteRef = (int vi, ref byte buffer, int count, out int retCount) =>
+                {
+                    unsafe
+                    {
+                        fixed (byte* b = &buffer)
+                        {
+                            var span = new Span<byte>(b, count);
+                            return visa.viWrite(vi, new ArraySegment<byte>(span.ToArray()), count, out retCount);
+                        }
+                    }
+                };
+                ViReadStbRef = visa.viReadSTB;
+                ViClearRef = visa.viClear;
+                ViLockRef = visa.viLock;
+                ViUnlockRef = visa.viUnlock;
+                ViGetAttributeBRef = visa.viGetAttribute1;
+                ViGetAttributeSbRef = visa.viGetAttribute2;
+                ViGetAttributeIRef = visa.viGetAttribute3;
+                ViSetAttributeBRef = visa.viSetAttribute1;
+                ViSetAttributeIRef = visa.viSetAttribute2;
+                ViStatusDescRef = visa.viStatusDesc;
+                ViEnableEventRef = visa.viEnableEvent;
+                ViDisableEventRef = visa.viDisableEvent;
+                ViInstallHandlerRef = (vi, type, handler, handle) => visa.viInstallHandler(vi, type, (IVisa.viEventHandler)Delegate.CreateDelegate(typeof(VisaFunctions.ViEventHandler), handler.Target, handler.Method), handle);
+                ViUninstallHandlerRef = (vi, type, handler, handle) => visa.viInstallHandler(vi, type, (IVisa.viEventHandler)Delegate.CreateDelegate(typeof(VisaFunctions.ViEventHandler), handler.Target, handler.Method), handle);
+            }
 
         }
-        #endregion
+        
+        internal static int viOpenDefaultRM(out int sesn) { return ViOpenDefaultRmRef(out sesn); }
 
-        internal static int viOpenDefaultRM(out int sesn) { return viOpenDefaultRMRef(out sesn); }
+        internal static int viFindRsrc(int sesn, string expr, out int vi, out int retCount, StringBuilder desc) { return ViFindRsrcRef(sesn, expr, out vi, out retCount, desc); }
+        internal static int viFindNext(int vi, StringBuilder desc) { return ViFindNextRef(vi, desc); }
 
-        internal static int viFindRsrc(int sesn, string expr, out int vi, out int retCount, StringBuilder desc) { return viFindRsrcRef(sesn, expr, out vi, out retCount, desc); }
-        internal static int viFindNext(int vi, StringBuilder desc) { return viFindNextRef(vi, desc); }
+        internal static int viParseRsrc(int sesn, string desc, ref short intfType, ref short intfNum) { return ViParseRsrcRef(sesn, desc, ref intfType, ref intfNum); }
+        internal static int viParseRsrcEx(int sesn, string desc, ref short intfType, ref short intfNum, StringBuilder rsrcClass, StringBuilder expandedUnaliasedName, StringBuilder aliasIfExists) { return ViParseRsrcExRef(sesn, desc, ref intfType, ref intfNum, rsrcClass, expandedUnaliasedName, aliasIfExists); }
 
-        internal static int viParseRsrc(int sesn, string desc, ref short intfType, ref short intfNum) { return viParseRsrcRef(sesn, desc, ref intfType, ref intfNum); }
-        internal static int viParseRsrcEx(int sesn, string desc, ref short intfType, ref short intfNum, StringBuilder rsrcClass, StringBuilder expandedUnaliasedName, StringBuilder aliasIfExists) { return viParseRsrcExRef(sesn, desc, ref intfType, ref intfNum, rsrcClass, expandedUnaliasedName, aliasIfExists); }
+        internal static int viOpen(int sesn, string viDesc, int mode, int timeout, out int vi) { return ViOpenRef(sesn, viDesc, mode, timeout, out vi); }
+        internal static int viClose(int vi) { return ViCloseRef(vi); }
 
-        internal static int viOpen(int sesn, string viDesc, int mode, int timeout, out int vi) { return viOpenRef(sesn, viDesc, mode, timeout, out vi); }
-        internal static int viClose(int vi) { return viCloseRef(vi); }
+        internal static int viGetAttribute(int vi, int attrName, out byte attrValue) { return ViGetAttributeBRef(vi, attrName, out attrValue); }
+        internal static int viGetAttribute(int vi, int attrName, StringBuilder attrValue) { return ViGetAttributeSbRef(vi, attrName, attrValue); }
+        internal static int viGetAttribute(int vi, int attrName, out int attrValue) { return ViGetAttributeIRef(vi, attrName, out attrValue); }
+        internal static int viSetAttribute(int vi, int attrName, byte attrValue) { return ViSetAttributeBRef(vi, attrName, attrValue); }
+        internal static int viSetAttribute(int vi, int attrName, int attrValue) { return ViSetAttributeIRef(vi, attrName, attrValue); }
 
-        internal static int viGetAttribute(int vi, int attrName, out byte attrValue) { return viGetAttribute1Ref(vi, attrName, out attrValue); }
-        internal static int viGetAttribute(int vi, int attrName, StringBuilder attrValue) { return viGetAttribute2Ref(vi, attrName, attrValue); }
-        internal static int viGetAttribute(int vi, int attrName, out int attrValue) { return viGetAttribute3Ref(vi, attrName, out attrValue); }
-        internal static int viSetAttribute(int vi, int attrName, byte attrValue) { return viSetAttribute1Ref(vi, attrName, attrValue); }
-        internal static int viSetAttribute(int vi, int attrName, int attrValue) { return viSetAttribute2Ref(vi, attrName, attrValue); }
+        internal static int viStatusDesc(int vi, int status, StringBuilder desc) { return ViStatusDescRef(vi, status, desc); }
 
-        internal static int viStatusDesc(int vi, int status, StringBuilder desc) { return viStatusDescRef(vi, status, desc); }
+        internal static int viEnableEvent(int vi, int eventType, short mechanism, int context) { return ViEnableEventRef(vi, eventType, mechanism, context); }
+        internal static int viDisableEvent(int vi, int eventType, short mechanism) { return ViDisableEventRef(vi, eventType, mechanism); }
+        internal static int viInstallHandler(int vi, int eventType, VisaFunctions.ViEventHandler handler, int UserHandle) { return ViInstallHandlerRef(vi, eventType, handler, UserHandle); }
+        internal static int viUninstallHandler(int vi, int eventType, VisaFunctions.ViEventHandler handler, int userHandle) { return ViUninstallHandlerRef(vi, eventType, handler, userHandle); }
 
-        internal static int viEnableEvent(int vi, int eventType, short mechanism, int context) { return viEnableEventRef(vi, eventType, mechanism, context); }
-        internal static int viDisableEvent(int vi, int eventType, short mechanism) { return viDisableEventRef(vi, eventType, mechanism); }
-        internal static int viInstallHandler(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle) { return viInstallHandlerRef(vi, eventType, handler, UserHandle); }
-        internal static int viUninstallHandler(int vi, int eventType, IVisa.viEventHandler handler, int userHandle) { return viUninstallHandlerRef(vi, eventType, handler, userHandle); }
+        internal static int viWaitOnEvent(int vi, int eventType, int timeout, out int outEventType, out int outContext) { return ViWaitOnEventRef(vi, eventType, timeout, out outEventType, out outContext);}
 
-        internal static int viWaitOnEvent(int vi, int eventType, int timeout, out int outEventType, out int outContext) { return viWaitOnEventref(vi, eventType, timeout, out outEventType, out outContext);}
+        internal unsafe static int viRead(int vi, ref byte buffer, int count, out int retCount) { return ViReadRef(vi, ref buffer, count, out retCount); }
+        internal unsafe static int viWrite(int vi, ref byte buffer, int count, out int retCount) { return ViWriteRef(vi, ref buffer, count, out retCount); }
 
-        internal unsafe static int viRead(int vi, ArraySegment<byte> buffer, int count, out int retCount) { return viReadRef(vi, buffer, count, out retCount); }
-        internal unsafe static int viWrite(int vi, ArraySegment<byte> buffer, int count, out int retCount) { return viWriteRef(vi, buffer, count, out retCount); }
+        internal static int viReadSTB(int vi, ref short status) { return ViReadStbRef(vi, ref status); }
 
-        internal static int viReadSTB(int vi, ref short status) { return viReadSTBRef(vi, ref status); }
+        internal static int viClear(int vi) { return ViClearRef(vi); }
 
-        internal static int viClear(int vi) { return viClearRef(vi); }
-
-        internal static int viLock(int vi, int lockType, int timeout, string requestedKey, StringBuilder accessKey) { return viLockRef(vi, lockType, timeout, requestedKey, accessKey); }
-        internal static int viUnlock(int vi) { return viUnlockRef(vi); }
+        internal static int viLock(int vi, int lockType, int timeout, string requestedKey, StringBuilder accessKey) { return ViLockRef(vi, lockType, timeout, requestedKey, accessKey); }
+        internal static int viUnlock(int vi) { return ViUnlockRef(vi); }
 
         #region - Constants -------------------------------------------------------------
 

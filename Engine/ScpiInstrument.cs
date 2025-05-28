@@ -9,6 +9,7 @@ using System.Threading;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Xml.Serialization;
 using System.Text;
@@ -365,6 +366,7 @@ namespace OpenTap
         /// </summary>
         public override void Open()
         {
+            
             if (scpiIO is ScpiIO && visa_failed)
             {
                 Log.Error("No VISA provider installed. Please install/reinstall Keysight IO Libraries, or similar VISA provider.");
@@ -1312,6 +1314,7 @@ namespace OpenTap
             {
                 IoTimeout = timeoutMs;
             }
+
             try
             {
                 QueryOpc();
