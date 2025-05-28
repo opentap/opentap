@@ -195,10 +195,13 @@ namespace OpenTap
         EVENT_VXI_VME_INTR = Visa.VI_EVENT_VXI_VME_INTR,
     }
 
+    /// Mechanisms for events.
     [Flags]
     public enum ScpiEventMechanism
     {
+        /// Queue event.
         QUEUE = Visa.VI_QUEUE,
+        /// Event handler.
         HNDLR = Visa.VI_HNDLR,
     }
 
