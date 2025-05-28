@@ -215,6 +215,7 @@ jobs:
       - name: Rebuild
         run: |
           # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          # See issue for details: https://github.com/opentap/opentap/issues/2012
           dotnet publish -c Release tap  /p:Platform=${{ matrix.Architecture }}
           dotnet publish -c Release Engine  /p:Platform=${{ matrix.Architecture }}
           dotnet publish -c Release Package  /p:Platform=${{ matrix.Architecture }}
@@ -262,6 +263,7 @@ jobs:
       - name: Rebuild
         run: |
           # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          # See issue for details: https://github.com/opentap/opentap/issues/2012
           dotnet build -c Release tap  /p:Platform=${{ matrix.Architecture }}
           dotnet build -c Release Engine  /p:Platform=${{ matrix.Architecture }}
           dotnet build -c Release Package  /p:Platform=${{ matrix.Architecture }}
@@ -295,6 +297,7 @@ jobs:
       - name: Rebuild
         run: |
           # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          # See issue for details: https://github.com/opentap/opentap/issues/2012
           dotnet publish -c Release tap  /p:Platform=${{ matrix.Architecture }}
           dotnet publish -c Release Engine  /p:Platform=${{ matrix.Architecture }}
           dotnet publish -c Release Package  /p:Platform=${{ matrix.Architecture }}
