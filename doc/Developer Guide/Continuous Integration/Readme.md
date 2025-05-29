@@ -144,6 +144,7 @@ jobs:
           # 'tap sdk gitversion' can fail if the version history is incomplete. 
           # A fetch-depth of 0 ensures we get a complete history.
           fetch-depth: 0 
+      # Fixes an issue with actions/checkout. This is required for automatic versioning to work using Git-assisted versioning. See https://github.com/actions/checkout/issues/290 and https://doc.opentap.io/Developer%20Guide/Plugin%20Packaging%20and%20Versioning/Readme.html#git-assisted-versioning
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} 
