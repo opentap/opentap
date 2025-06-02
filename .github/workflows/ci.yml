@@ -706,7 +706,7 @@ jobs:
       - uses: opentap/setup-opentap@v1.0
         with:
           version: 9.21.1
-          packages: 'Package Diff:0.1.0-beta.19+2b1aa952'
+          packages: 'Package Diff:0.1.0-beta.21'
       - name: Download package
         uses: actions/download-artifact@v4
         with:
