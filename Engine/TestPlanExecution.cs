@@ -479,13 +479,29 @@ namespace OpenTap
         /// <returns>TestPlanRun results, no StepResults.</returns>
         public Task<TestPlanRun> ExecuteAsync(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride, CancellationToken cancellationToken)
         {
+            return ExecuteAsync(new TestPlanExecuteArgs()
+            {
+                ResultListeners = resultListeners,
+                Parameters = metaDataParameters,
+                StepsOverride = stepsOverride,
+                CancellationToken = cancellationToken
+            });
+        }
+
+        /// <summary>
+        /// Execute the TestPlan asynchronously.
+        /// </summary>
+        /// <param name="args">Execution arguments.</param>
+        /// <param name="cancellationToken">Cancellation token to abort the testplan</param>
+        /// <returns>TestPlanRun results, no StepResults.</returns>
+        public Task<TestPlanRun> ExecuteAsync(TestPlanExecuteArgs args)
+        {
             var tcs = new TaskCompletionSource<TestPlanRun>();
             TapThread.Start(() =>
             {
                 try
                 {
-                    cancellationToken.Register(TapThread.Current.Abort);
-                    var testPlanRun = Execute(resultListeners, metaDataParameters, stepsOverride);
+                    var testPlanRun = Execute(args);
                     tcs.SetResult(testPlanRun);
                 }
                 catch (Exception e)
@@ -507,20 +523,46 @@ namespace OpenTap
         /// <returns>TestPlanRun results, no StepResults.</returns>
         public TestPlanRun Execute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters = null, HashSet<ITestStep> stepsOverride = null)
         {
-            return executeInContext( resultListeners, metaDataParameters, stepsOverride);
+            return ExecuteInContext( new TestPlanExecuteArgs
+            {
+                ResultListeners = resultListeners,
+                Parameters = metaDataParameters,
+                StepsOverride = stepsOverride
+            });
         }
 
-        TestPlanRun executeInContext(IEnumerable<IResultListener> resultListeners,
-            IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
+        /// <summary>
+        /// Execute the TestPlan as specified. Blocking.
+        /// </summary>
+        /// <param name="resultListeners">ResultListeners for result outputs.</param>
+        /// <param name="metaDataParameters">Optional metadata parameters.</param>
+        /// <param name="stepsOverride">Sub-section of test plan to be executed. Note this might include child steps of disabled parent steps.</param>
+        /// <returns>TestPlanRun results, no StepResults.</returns>
+        public TestPlanRun Execute(TestPlanExecuteArgs args)
+        {
+            return ExecuteInContext( args );
+        }
+
+        TestPlanRun ExecuteInContext(TestPlanExecuteArgs args)
         {
             using (TapThread.UsingThreadContext())
             {
-                return DoExecute(resultListeners, metaDataParameters, stepsOverride);
+                var thread = TapThread.Current;
+                if (args.CancellationToken != CancellationToken.None)
+                {
+                    using (args.CancellationToken.Register(() => thread.Abort()))
+                    {
+                        return DoExecute(args);
+                    }
+                }
+                return DoExecute(args);
             }
         }
 
-        private TestPlanRun DoExecute(IEnumerable<IResultListener> resultListeners, IEnumerable<ResultParameter> metaDataParameters, HashSet<ITestStep> stepsOverride)
+        private TestPlanRun DoExecute(TestPlanExecuteArgs args)
         {
+            var resultListeners = args.ResultListeners;
+
             if (resultListeners == null)
                 throw new ArgumentNullException(nameof(resultListeners));
             
@@ -530,25 +572,25 @@ namespace OpenTap
                 resultListeners = resultListeners.Concat(new IResultListener[] { summaryListener });
             resultListeners = resultListeners.Where(r => r is IEnabledResource ? ((IEnabledResource)r).IsEnabled : true);
             IList<ITestStep> steps;
-            if (stepsOverride == null)
+            if (args.StepsOverride == null)
                 steps = Steps;
             else
             {
                 // Remove steps that are already included via their parent steps.
-                foreach (var step in stepsOverride)
+                foreach (var step in args.StepsOverride)
                 {
                     if (step == null)
-                        throw new ArgumentException("stepsOverride may not contain null", nameof(stepsOverride));
+                        throw new ArgumentException("stepsOverride may not contain null", nameof(args.StepsOverride));
 
                     var p = step.GetParent<ITestStep>();
                     while (p != null)
                     {
-                        if (stepsOverride.Contains(p))
-                            throw new ArgumentException("stepsOverride may not contain steps and their parents.", nameof(stepsOverride));
+                        if (args.StepsOverride.Contains(p))
+                            throw new ArgumentException("stepsOverride may not contain steps and their parents.", nameof(args.StepsOverride));
                         p = p.GetParent<ITestStep>();
                     }
                 }
-                steps = Utils.FlattenHeirarchy(Steps, step => step.ChildTestSteps).Where(stepsOverride.Contains).ToList();
+                steps = Utils.FlattenHeirarchy(Steps, step => step.ChildTestSteps).Where(args.StepsOverride.Contains).ToList();
             }
 
             long initTimeStamp = Stopwatch.GetTimestamp();
@@ -596,19 +638,27 @@ namespace OpenTap
                 }
             }
 
+            args.ResultListeners = resultListeners.ToArray();
+
             TestPlanRun execStage;
             bool continuedExecutionState = false;
             if (currentExecutionState != null)
             {
-                execStage = new TestPlanRun(currentExecutionState, initTime, initTimeStamp);
+                execStage = new TestPlanRun(currentExecutionState, initTime, initTimeStamp)
+                {
+                    ExecuteArgs = args
+                };
                 continuedExecutionState = true;
             }
             else
             {
-                execStage = new TestPlanRun(this, resultListeners.ToList(), initTime, initTimeStamp);
-                if (stepsOverride != null)
+                execStage = new TestPlanRun(this, resultListeners.ToList(), initTime, initTimeStamp)
                 {
-                    var overrides = stepsOverride.Select(o => o.Id.ToString()).ToArray();
+                    ExecuteArgs = args
+                };
+                if (args.StepsOverride != null)
+                {
+                    var overrides = args.StepsOverride.Select(o => o.Id.ToString()).ToArray();
                     // The order of the guids does not really matter. 
                     // Only that the order is the same across runs
                     Array.Sort(overrides); 
@@ -625,8 +675,8 @@ namespace OpenTap
             }
 
 
-            if (metaDataParameters != null)
-                execStage.Parameters.AddRange(metaDataParameters);
+            if (args.Parameters != null)
+                execStage.Parameters.AddRange(args.Parameters);
 
             var prevExecutingPlanRun = executingPlanRun.LocalValue;
             executingPlanRun.LocalValue = execStage;
@@ -878,4 +928,3 @@ namespace OpenTap
         
     }
 }
-    

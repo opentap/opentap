@@ -95,6 +95,14 @@ namespace OpenTap
         /// <summary> The thread that started the test plan. Use this to abort the plan thread. </summary>
         public TapThread MainThread { get; }
 
+        internal TestPlanExecuteArgs ExecuteArgs { get; set; }
+
+        /// <summary> Requests that the test plan run gets paused. If UI cannot pause the test plan this will be silently ignored. </summary>
+        public void Pause(TestStepRun stepRun = null)
+        {
+            ExecuteArgs.OnPauseRequestedCallback?.Invoke(new TestPlanPauseEventArgs{PlanRun = this, StepRun = stepRun});
+        }
+
         #region Internal Members used by the TestPlan
         internal IEnumerable<IResultListener> ResultListeners => resultWorkers.Keys;
 
