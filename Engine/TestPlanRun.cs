@@ -101,6 +101,8 @@ namespace OpenTap
         public void Pause(TestStepRun stepRun = null)
         {
             ExecuteArgs.OnPauseRequestedCallback?.Invoke(new TestPlanPauseEventArgs{PlanRun = this, StepRun = stepRun});
+
+            plan.OnBreakOffered(new BreakOfferedEventArgs(stepRun, false));
         }
 
         #region Internal Members used by the TestPlan

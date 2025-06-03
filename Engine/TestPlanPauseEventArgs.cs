@@ -5,13 +5,9 @@
 /// </summary>
 public sealed class TestPlanPauseEventArgs
 {
-    /// <summary>
-    ///  the test plan run requesting the pause/
-    /// </summary>
+    /// <summary> The test plan run requesting the pause. </summary>
     public TestPlanRun PlanRun { get; set; }
 
-    /// <summary>
-    /// The test step run (if applicable)
-    /// </summary>
+    /// <summary> The test step run (if applicable). </summary>
     public TestStepRun StepRun { get; set; }
 }

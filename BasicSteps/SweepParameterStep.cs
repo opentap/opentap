@@ -30,6 +30,7 @@ namespace OpenTap.Plugins.BasicSteps
         /// </summary>
         [AnnotationIgnore]
         [EditorBrowsable(EditorBrowsableState.Never)]
+
         [Browsable(false)]
         public IEnumerable<IResource> Resources
         {
@@ -38,7 +39,7 @@ namespace OpenTap.Plugins.BasicSteps
                 foreach (var row in SweepValues)
                 {
                     if (row.Enabled == false) continue;
-                    foreach (var value in row.Values.Values)
+                    foreach (var value in row.Values.Values)    
                     {
                         if (value is IResource res)
                             yield return res;

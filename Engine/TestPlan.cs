@@ -467,7 +467,6 @@ namespace OpenTap
         /// Indicates whether the this event was raised by the engine when it starts running a TestStep (true) 
         /// or during the run of a TestStep from within a TestStep itself (false).
         /// </summary>
-        /// <remarks>This value can also be determined as TestStepRun.Verdict == TestStep.VerdictType.Pending.</remarks>
         public bool IsTestStepStarting { get; private set; }
         
         /// <summary>

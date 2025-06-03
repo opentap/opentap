@@ -483,7 +483,7 @@ namespace OpenTap
             {
                 ResultListeners = resultListeners,
                 Parameters = metaDataParameters,
-                StepsOverride = stepsOverride,
+                SelectedTestSteps = stepsOverride,
                 CancellationToken = cancellationToken
             });
         }
@@ -492,7 +492,6 @@ namespace OpenTap
         /// Execute the TestPlan asynchronously.
         /// </summary>
         /// <param name="args">Execution arguments.</param>
-        /// <param name="cancellationToken">Cancellation token to abort the testplan</param>
         /// <returns>TestPlanRun results, no StepResults.</returns>
         public Task<TestPlanRun> ExecuteAsync(TestPlanExecuteArgs args)
         {
@@ -515,7 +514,7 @@ namespace OpenTap
         internal static ThreadHierarchyLocal<TestPlanRun> executingPlanRun = new ThreadHierarchyLocal<TestPlanRun>();
         
         /// <summary>
-        /// Execute the TestPlan as specified. Blocking.
+        /// Execute the TestPlan as specified. Blocks the thread until the test plan has completed.
         /// </summary>
         /// <param name="resultListeners">ResultListeners for result outputs.</param>
         /// <param name="metaDataParameters">Optional metadata parameters.</param>
@@ -527,20 +526,18 @@ namespace OpenTap
             {
                 ResultListeners = resultListeners,
                 Parameters = metaDataParameters,
-                StepsOverride = stepsOverride
+                SelectedTestSteps = stepsOverride
             });
         }
 
         /// <summary>
-        /// Execute the TestPlan as specified. Blocking.
+        /// Execute the TestPlan as specified. Blocks the thread until the test plan has completed.
         /// </summary>
-        /// <param name="resultListeners">ResultListeners for result outputs.</param>
-        /// <param name="metaDataParameters">Optional metadata parameters.</param>
-        /// <param name="stepsOverride">Sub-section of test plan to be executed. Note this might include child steps of disabled parent steps.</param>
+        /// <param name="args">Execution arguments.</param>
         /// <returns>TestPlanRun results, no StepResults.</returns>
         public TestPlanRun Execute(TestPlanExecuteArgs args)
         {
-            return ExecuteInContext( args );
+            return ExecuteInContext(args);
         }
 
         TestPlanRun ExecuteInContext(TestPlanExecuteArgs args)
@@ -572,25 +569,25 @@ namespace OpenTap
                 resultListeners = resultListeners.Concat(new IResultListener[] { summaryListener });
             resultListeners = resultListeners.Where(r => r is IEnabledResource ? ((IEnabledResource)r).IsEnabled : true);
             IList<ITestStep> steps;
-            if (args.StepsOverride == null)
+            if (args.SelectedTestSteps == null)
                 steps = Steps;
             else
             {
                 // Remove steps that are already included via their parent steps.
-                foreach (var step in args.StepsOverride)
+                foreach (var step in args.SelectedTestSteps)
                 {
                     if (step == null)
-                        throw new ArgumentException("stepsOverride may not contain null", nameof(args.StepsOverride));
+                        throw new ArgumentException("stepsOverride may not contain null", nameof(args.SelectedTestSteps));
 
                     var p = step.GetParent<ITestStep>();
                     while (p != null)
                     {
-                        if (args.StepsOverride.Contains(p))
-                            throw new ArgumentException("stepsOverride may not contain steps and their parents.", nameof(args.StepsOverride));
+                        if (args.SelectedTestSteps.Contains(p))
+                            throw new ArgumentException("stepsOverride may not contain steps and their parents.", nameof(args.SelectedTestSteps));
                         p = p.GetParent<ITestStep>();
                     }
                 }
-                steps = Utils.FlattenHeirarchy(Steps, step => step.ChildTestSteps).Where(args.StepsOverride.Contains).ToList();
+                steps = Utils.FlattenHeirarchy(Steps, step => step.ChildTestSteps).Where(args.SelectedTestSteps.Contains).ToList();
             }
 
             long initTimeStamp = Stopwatch.GetTimestamp();
@@ -656,9 +653,9 @@ namespace OpenTap
                 {
                     ExecuteArgs = args
                 };
-                if (args.StepsOverride != null)
+                if (args.SelectedTestSteps != null)
                 {
-                    var overrides = args.StepsOverride.Select(o => o.Id.ToString()).ToArray();
+                    var overrides = args.SelectedTestSteps.Select(o => o.Id.ToString()).ToArray();
                     // The order of the guids does not really matter. 
                     // Only that the order is the same across runs
                     Array.Sort(overrides); 
