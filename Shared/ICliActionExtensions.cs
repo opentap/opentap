@@ -100,7 +100,7 @@ namespace OpenTap.Cli
 
             if (args.MissingArguments.Any())
                 throw new Exception(
-                    $"Command line argument '{args.MissingArguments.FirstOrDefault().LongName}' is missing an argument.");
+                    $"Command line option '{args.MissingArguments.FirstOrDefault().LongName}' is missing an argument.");
 
             foreach (var @override in overrides)
             {
@@ -218,10 +218,10 @@ namespace OpenTap.Cli
             if (args.UnknownsOptions.Any() || requiredArgs.Any())
             {
                 if (args.UnknownsOptions.Any())
-                    Console.WriteLine("Unknown options: " + string.Join(" ", args.UnknownsOptions));
+                    Console.WriteLine("Unknown option(s): " + string.Join(" ", args.UnknownsOptions));
 
                 if (requiredArgs.Any())
-                    Console.WriteLine("Missing argument: " + string.Join(" ",
+                    Console.WriteLine("Missing argument(s): " + string.Join(" ",
                         requiredArgs.Select(p => p.GetAttribute<UnnamedCommandLineArgument>().Name)));
 
                 printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
