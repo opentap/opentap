@@ -20,7 +20,35 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(root.GetSubCommand("test action testaction".Split(' ')).Name == "testaction");
             Assert.IsTrue(root.GetSubCommand("test action testaction arg".Split(' ')).Name == "testaction");
         }
+
+        [Test]
+        public void CliOverrideActionTest()
+        {
+            var tree = new CliActionTree();
+            Assert.IsNull(tree.GetSubCommand(new string[] {"TestGroup", "TestAction"}));
+            Assert.AreEqual("TestAction", tree.GetSubCommand(new string[] { "TestGroup1", "TestAction" }).Name);
+        }
     }
+
+    [Display("TestAction", Group: "TestGroup")]
+    public class DefaultTestAction : ICliAction
+    {
+        public int Execute(CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+    [Display("TestAction", Group: "TestGroup1")]
+    [OverrideCliAction(typeof(DefaultTestAction))]
+    public class DefaultTestAction1 : ICliAction
+    {
+        public int Execute(CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
 
     [Display("testaction", Groups: new[] { "test", "action" }, Description:"Runs TestAction")]
     public class TestAction : ICliAction
