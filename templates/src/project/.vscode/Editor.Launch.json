@@ -9,7 +9,7 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "Editor.exe",
+      "program": "Editor.dll",
       "cwd": "${workspaceFolder}/bin/debug/",
       "console": "externalTerminal",
       "stopAtEntry": false
