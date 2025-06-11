@@ -192,13 +192,20 @@ namespace OpenTap.UnitTests
         [Test]
         public void TestSessionCreateDoesNotThrow()
         {
-            ComponentSettings.InvalidateAllSettings();
-            ThrowingSetting.Throw = true;
-            Assert.That(ThrowingSetting.Current, Is.Null); 
-            using (Session.Create(SessionOptions.None))
-                Assert.That(ThrowingSetting.Current, Is.Null); 
-            using (Session.Create(SessionOptions.OverlayComponentSettings))
-                Assert.That(ThrowingSetting.Current, Is.Null); 
+            try
+            {
+                ComponentSettings.InvalidateAllSettings();
+                ThrowingSetting.Throw = true;
+                Assert.That(ThrowingSetting.Current, Is.Null);
+                using (Session.Create(SessionOptions.None))
+                    Assert.That(ThrowingSetting.Current, Is.Null);
+                using (Session.Create(SessionOptions.OverlayComponentSettings))
+                    Assert.That(ThrowingSetting.Current, Is.Null);
+            }
+            finally
+            {
+                ThrowingSetting.Throw = false;
+            }
         }
 
         [Test]
@@ -209,16 +216,23 @@ namespace OpenTap.UnitTests
             // The first instance can be correctly constructed
             Assert.That(ThrowingSetting.Current, Is.Not.Null);
             // Make future constructors throw
-            ThrowingSetting.Throw = true;
-            // With no overlay settings, the first instance is returned
-            using (Session.Create(SessionOptions.None))
-                Assert.That(ThrowingSetting.Current, Is.Not.Null);
-            // With overlay settings, we cannot create a new instance
-            using (Session.Create(SessionOptions.OverlayComponentSettings))
-                Assert.That(ThrowingSetting.Current, Is.Null);
-            // The original instance is still used
-            using (Session.Create(SessionOptions.None))
-                Assert.That(ThrowingSetting.Current, Is.Not.Null);
+            try
+            {
+                ThrowingSetting.Throw = true;
+                // With no overlay settings, the first instance is returned
+                using (Session.Create(SessionOptions.None))
+                    Assert.That(ThrowingSetting.Current, Is.Not.Null);
+                // With overlay settings, we cannot create a new instance
+                using (Session.Create(SessionOptions.OverlayComponentSettings))
+                    Assert.That(ThrowingSetting.Current, Is.Null);
+                // The original instance is still used
+                using (Session.Create(SessionOptions.None))
+                    Assert.That(ThrowingSetting.Current, Is.Not.Null);
+            }
+            finally
+            {
+                ThrowingSetting.Throw = false;
+            }
         }
 
         [Test]

@@ -24,8 +24,12 @@ namespace OpenTap.UnitTests
         [Test]
         public void TestHelpOnActionWithNoDisplayAttribute()
         {
-            Assert.That(CliActionExecutor.Execute(nameof(CliActionWithNoDisplayAttribute), "--help"), Is.EqualTo(0));
-            Assert.That(CliActionExecutor.Execute(nameof(CliActionWithNoDisplayAttribute), "--123"), Is.EqualTo((int)ExitCodes.ArgumentParseError));
+            // Cli actions should be excuted inside a session.
+            using (Session.Create())
+            {
+                Assert.That(CliActionExecutor.Execute(nameof(CliActionWithNoDisplayAttribute), "--help"), Is.EqualTo(0));
+                Assert.That(CliActionExecutor.Execute(nameof(CliActionWithNoDisplayAttribute), "--123"), Is.EqualTo((int)ExitCodes.ArgumentParseError));
+            }
         }
     }
 
