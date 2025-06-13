@@ -31,7 +31,7 @@ internal class PluginFileSerializerPlugin : TapSerializerPlugin
             switch (elm.Name.LocalName)
             {
                 case "Name": plugin.Name = elm.Value; break;
-                case "Order": plugin.Order = double.Parse(elm.Value); break;
+                case "Order": plugin.Order = double.Parse(elm.Value, CultureInfo.InvariantCulture); break;
                 case "Browsable": plugin.Browsable = bool.Parse(elm.Value); break;
                 case "Description": plugin.Description = elm.Value; break;
                 case "Collapsed": plugin.Collapsed = bool.Parse(elm.Value); break;
