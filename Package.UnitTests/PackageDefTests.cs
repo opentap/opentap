@@ -166,6 +166,15 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
+        public void GetPluginOrder_Test()
+        {
+            string inputFilename = "Packages/PackagePluginOrder/package.xml";
+            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
+
+            Assert.AreEqual(9.58, pkg.Files[0].Plugins[0].Order);
+        }
+
+        [Test]
         public void FromXmlFile_Test()
         {
             string inputFilename = "Packages/Package/package.xml";
