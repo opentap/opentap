@@ -17,6 +17,7 @@ using System.Xml;
 using OpenTap.Cli;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using static OpenTap.Package.PackageDefExt;
+using System.Threading;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -163,6 +164,26 @@ namespace OpenTap.Package.UnitTests
             
             Assert.AreEqual("Test Step",pkg.Files?.FirstOrDefault()?.Plugins?.FirstOrDefault(p => p.Type == typeof(IfStep).FullName)?.BaseType);
             Assert.AreEqual(pkg.Files?.FirstOrDefault()?.Plugins.FirstOrDefault(p => p.Type == "OpenTap.Plugins.BasicSteps.GenericScpiInstrument")?.BaseType, "Instrument");
+        }
+
+        [Test]
+        [TestCase("da-DK")]
+        [TestCase("en-US")]
+        public void GetPluginOrder_Test_CultureIndependent(string cultureName)
+        {
+            var initialCulture = Thread.CurrentThread.CurrentCulture;
+            try
+            {
+                Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo(cultureName);
+                string inputFilename = "Packages/PackagePluginOrder/package.xml";
+                PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
+
+                Assert.AreEqual(9.58, pkg.Files[0].Plugins[0].Order);
+            }
+            finally
+            {
+                Thread.CurrentThread.CurrentCulture = initialCulture;
+            }
         }
 
         [Test]

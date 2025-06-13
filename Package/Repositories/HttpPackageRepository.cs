@@ -353,7 +353,7 @@ namespace OpenTap.Package
         {
             if (IsInError()) return Array.Empty<string>();
 
-            var parameters = GetQueryParameters(includeUnlisted: false);
+            var parameters = GetQueryParameters(includeUnlisted: false, distinctName: true);
             var packages = RepoClient.Query(parameters, cancellationToken, "Name");
             return packages.Select(p => p["Name"] as string).ToArray();
         }

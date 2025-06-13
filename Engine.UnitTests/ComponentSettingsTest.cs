@@ -177,6 +177,62 @@ namespace OpenTap.UnitTests
             s.Invalidate();
             s = ComponentSettings<TestSettingsWithGroups>.Current;
             Assert.AreEqual(newValue, s.Value);
+        } 
+
+        public class ThrowingSetting : ComponentSettings<ThrowingSetting>
+        {
+            public static bool Throw { get; set; } = false;
+            public ThrowingSetting()
+            {
+                if (Throw)
+                    throw new Exception("Some exception"); 
+            }
+        }
+
+        [Test]
+        public void TestSessionCreateDoesNotThrow()
+        {
+            try
+            {
+                ComponentSettings.InvalidateAllSettings();
+                ThrowingSetting.Throw = true;
+                Assert.That(ThrowingSetting.Current, Is.Null);
+                using (Session.Create(SessionOptions.None))
+                    Assert.That(ThrowingSetting.Current, Is.Null);
+                using (Session.Create(SessionOptions.OverlayComponentSettings))
+                    Assert.That(ThrowingSetting.Current, Is.Null);
+            }
+            finally
+            {
+                ThrowingSetting.Throw = false;
+            }
+        }
+
+        [Test]
+        public void TestSessionCreateDoesNotOverlayIncorrectInstance()
+        { 
+            ComponentSettings.InvalidateAllSettings();
+            ThrowingSetting.Throw = false;
+            // The first instance can be correctly constructed
+            Assert.That(ThrowingSetting.Current, Is.Not.Null);
+            // Make future constructors throw
+            try
+            {
+                ThrowingSetting.Throw = true;
+                // With no overlay settings, the first instance is returned
+                using (Session.Create(SessionOptions.None))
+                    Assert.That(ThrowingSetting.Current, Is.Not.Null);
+                // With overlay settings, we cannot create a new instance
+                using (Session.Create(SessionOptions.OverlayComponentSettings))
+                    Assert.That(ThrowingSetting.Current, Is.Null);
+                // The original instance is still used
+                using (Session.Create(SessionOptions.None))
+                    Assert.That(ThrowingSetting.Current, Is.Not.Null);
+            }
+            finally
+            {
+                ThrowingSetting.Throw = false;
+            }
         }
 
         [Test]

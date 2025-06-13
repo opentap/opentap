@@ -353,7 +353,7 @@ namespace OpenTap
             {
                 SettingsDirectoryRoot = settingsDirectoryRoot,
             };
-            var loadedSettings = objectCache.GetResults().ToArray();
+            var loadedSettings = objectCache.GetResults().Where(x => x != null).ToArray();
             var serializer = new TapSerializer();
             var mem = new MemoryStream();
             foreach (var setting in loadedSettings)
