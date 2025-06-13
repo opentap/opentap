@@ -2559,6 +2559,42 @@ namespace OpenTap.Engine.UnitTests
             var run = plan.Execute(new IResultListener[] {rl});
             Assert.AreEqual(Verdict.Error, run.Verdict);
         }
+
+
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TestPauseApi(bool pause)
+        {
+            var pauseRequested = false;
+
+            var plan = new TestPlan();
+            if (pause)
+                plan.ChildTestSteps.Add(new PausingTestStep());
+            else
+                plan.ChildTestSteps.Add(new SequenceStep());
+
+            var run = plan.ExecuteAsync(new TestPlanExecuteArgs()
+            {
+                OnPauseRequestedCallback = args => pauseRequested = true
+            }).Result;
+
+            if(pause)
+                Assert.IsTrue(pauseRequested);
+            else
+                Assert.IsFalse(pauseRequested);
+            Assert.AreEqual(Verdict.NotSet, run.Verdict);
+
+        }
+    }
+
+    public class PausingTestStep : TestStep
+    {
+
+        public override void Run()
+        {
+            PlanRun.Pause();
+        }
     }
 
     public class TestITestStep : ValidatingObject, ITestStep
