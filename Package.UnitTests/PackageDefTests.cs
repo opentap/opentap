@@ -17,6 +17,7 @@ using System.Xml;
 using OpenTap.Cli;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using static OpenTap.Package.PackageDefExt;
+using System.Threading;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -166,8 +167,11 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
-        public void GetPluginOrder_Test()
+        [TestCase("da-DK")]
+        [TestCase("en-US")]
+        public void GetPluginOrder_Test_CultureIndependent(string cultureName)
         {
+            Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo(cultureName);
             string inputFilename = "Packages/PackagePluginOrder/package.xml";
             PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
 
