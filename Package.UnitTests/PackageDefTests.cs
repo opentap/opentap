@@ -171,11 +171,19 @@ namespace OpenTap.Package.UnitTests
         [TestCase("en-US")]
         public void GetPluginOrder_Test_CultureIndependent(string cultureName)
         {
-            Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo(cultureName);
-            string inputFilename = "Packages/PackagePluginOrder/package.xml";
-            PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
+            var initialCulture = Thread.CurrentThread.CurrentCulture;
+            try
+            {
+                Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo(cultureName);
+                string inputFilename = "Packages/PackagePluginOrder/package.xml";
+                PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
 
-            Assert.AreEqual(9.58, pkg.Files[0].Plugins[0].Order);
+                Assert.AreEqual(9.58, pkg.Files[0].Plugins[0].Order);
+            }
+            finally
+            {
+                Thread.CurrentThread.CurrentCulture = initialCulture;
+            }
         }
 
         [Test]
