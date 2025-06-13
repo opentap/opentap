@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Package Name="PackagePluginOrder" xmlns="http://opentap.io/schemas/package">
+  <Files>
+    <File Path="OpenTap.Package.UnitTests.dll">
+      <Plugins>
+        <Plugin Type="TestPlugin" BaseType="BaseTestPlugin">
+          <Name>MyPlugin</Name>
+          <Order>9.58</Order>
+        </Plugin>
+      </Plugins>
+    </File>
+  </Files>
+</Package>

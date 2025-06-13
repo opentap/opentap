@@ -31,6 +31,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <EmbeddedResource Include="ExamplePackage.xml" />
+    <Content Include="Packages\PackagePluginOrder\package.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Packages\Test.package.xml">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -111,6 +114,7 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Remove="opentap-packages.json.gz" />
+    <None Remove="Packages\PackagePluginOrder\package.xml" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Keysight\Tap\" />
