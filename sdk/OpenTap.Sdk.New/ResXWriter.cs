@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Xml.Linq;
 
 namespace OpenTap.Sdk.New;
@@ -37,7 +38,7 @@ class ResXWriter
         var root = new XElement("root");
         document.Add(root);
 
-        foreach (var kvp in keys)
+        foreach (var kvp in keys.OrderBy(v => v.Key, StringComparer.OrdinalIgnoreCase))
         {
             var ele = new XElement("data");
             ele.SetAttributeValue("name", kvp.Key);
