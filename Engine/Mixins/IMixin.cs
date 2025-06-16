@@ -12,7 +12,7 @@ namespace OpenTap
 
     abstract class MixinEvent<T2> where T2: IMixin
     {
-        static TraceSource log = Log.CreateSource("Mixin");
+        static readonly TraceSource log = Log.CreateSource("Mixin");
         protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg) => Invoke(target, f, arg, out _);
         protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg, out bool anyInvoked)
         {
@@ -31,7 +31,7 @@ namespace OpenTap
                         f(mixin, arg);
                     }
                 }
-                catch(Exception e)
+                catch(Exception e) when (e is not OperationCanceledException)
                 {
                     log.Error("Caught error in mixin: {0}", e.Message);
                     log.Debug(e);
@@ -52,7 +52,7 @@ namespace OpenTap
             return eventArg;
         }
     }
-    
+
     /// <summary> Event args for ITestStepPreRun mixin. </summary>
     public sealed class TestStepPreRunEventArgs
     {
@@ -81,11 +81,11 @@ namespace OpenTap
 
         internal TestPlanPreRunEventArgs(TestPlan step) => TestPlan = step;
     }
-    
+
     class TestStepPostRunEvent : MixinEvent<ITestStepPostRunMixin>
     {
         public static void Invoke(ITestStep step) => 
-            Invoke(step, (v, args) => v.OnPostRun(args), new TestStepPostRunEventArgs(step));
+            Invoke(step, static (mixin, args) => mixin.OnPostRun(args), new TestStepPostRunEventArgs(step));
     }
     
     /// <summary> Event args for ITestStepPostRun mixin. </summary>
@@ -100,7 +100,7 @@ namespace OpenTap
     class ResourcePreOpenEvent: MixinEvent<IResourcePreOpenMixin>
     {
         public static void Invoke(IResource resource) => 
-            Invoke(resource, (v, args) => v.OnPreOpen(args), new ResourcePreOpenEventArgs(resource));
+            Invoke(resource, static (mixin, args) => mixin.OnPreOpen(args), new ResourcePreOpenEventArgs(resource));
     }
 
     /// <summary> Event args for IResourcePreOpenMixin mixin. </summary>

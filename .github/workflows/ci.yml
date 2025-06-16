@@ -212,6 +212,14 @@ jobs:
           dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
+      - name: Rebuild
+        run: |
+          # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          # See issue for details: https://github.com/opentap/opentap/issues/2012
+          dotnet publish -c Release tap  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Engine  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Package  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release BasicSteps  /p:Platform=${{ matrix.Architecture }}
       - name: Copy Debug Package 
         run: cp ./bin/Release/OpenTap.Debug.TapPackage ./bin/Release/publish/dbg.zip
       - name: Upload binaries
@@ -252,6 +260,14 @@ jobs:
           cp ./tap/Properties/AssemblyInfo.cs ./Tap.Upgrader/AssemblyInfo.cs
       - name: Build
         run: dotnet build -c Release /p:Platform=${{ matrix.Architecture }}
+      - name: Rebuild
+        run: |
+          # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          # See issue for details: https://github.com/opentap/opentap/issues/2012
+          dotnet build -c Release tap  /p:Platform=${{ matrix.Architecture }}
+          dotnet build -c Release Engine  /p:Platform=${{ matrix.Architecture }}
+          dotnet build -c Release Package  /p:Platform=${{ matrix.Architecture }}
+          dotnet build -c Release BasicSteps  /p:Platform=${{ matrix.Architecture }}
       - name: cat tap.runtimeconfig.json 
         run: get-content ./bin/Release/tap.runtimeconfig.json
       - name: Upload binaries
@@ -278,6 +294,14 @@ jobs:
           dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
+      - name: Rebuild
+        run: |
+          # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          # See issue for details: https://github.com/opentap/opentap/issues/2012
+          dotnet publish -c Release tap  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Engine  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Package  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release BasicSteps  /p:Platform=${{ matrix.Architecture }}
       - name: Copy Debug Package 
         run: cp ./bin/Release/OpenTap.Debug.TapPackage ./bin/Release/publish/dbg.zip
       - name: Upload binaries
@@ -682,7 +706,7 @@ jobs:
       - uses: opentap/setup-opentap@v1.0
         with:
           version: 9.21.1
-          packages: 'Package Diff:0.1.0-beta.19+2b1aa952'
+          packages: 'Package Diff:0.1.0-beta.21'
       - name: Download package
         uses: actions/download-artifact@v4
         with:
@@ -747,16 +771,13 @@ jobs:
         run: |
           $content=(Get-Content ./nuget/OpenTAP.nuspec).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Set-Content ./nuget/OpenTAP.nuspec $content
-          New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
-
-
+          New-Item -Force ./nuget/build/docs/Packages/OpenTAP -ItemType Directory | Out-Null
+        
           Copy-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
           Copy-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
-
-          Copy-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
-          Copy-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
-          Copy-Item ./bin/Release/OpenTap.Package.dll ./nuget/build/payload
-          Copy-Item ./bin/Release/OpenTap.dll ./nuget/build/payload
+          Copy-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/docs
+          Copy-Item ./bin/Release/OpenTap.xml ./nuget/build/docs
+          Copy-Item ./bin/Release/OpenTap.Plugins.BasicSteps.xml ./nuget/build/docs/Packages/OpenTAP
 
           # Expand-Archive will only extract .zip extensions    
           echo "Rename Archives"

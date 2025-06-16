@@ -293,15 +293,15 @@ namespace OpenTap.Plugins.BasicSteps
                         }
                     }
 
+                    ExitCode = process.HasExited ? process.ExitCode : -1;
                     if (elapsed.Elapsed.TotalMilliseconds < timeoutMs || timeoutMs == 0)
                     {
                         var resultData = output.ToString();
 
                         ProcessOutput(resultData);
-                        ExitCode = process.ExitCode;
                         if (CheckExitCode)
                         {
-                            if (process.ExitCode != 0)
+                            if (ExitCode != 0)
                                 UpgradeVerdict(Verdict.Fail);
                             else
                                 UpgradeVerdict(Verdict.Pass);
@@ -309,7 +309,6 @@ namespace OpenTap.Plugins.BasicSteps
                     }
                     else
                     {
-                        ExitCode = process.ExitCode;
                         process.OutputDataReceived -= OutputDataRecv;
                         process.ErrorDataReceived -= ErrorDataRecv;
 
