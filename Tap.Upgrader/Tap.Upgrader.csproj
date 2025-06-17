@@ -6,6 +6,27 @@
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <AssemblyTitle>Tap.Upgrader</AssemblyTitle>
+  </PropertyGroup>
+
+  <!-- Automatic assembly versioning in pipeline-->
+  <PropertyGroup Condition="'$(ShortVersion)' != ''">
+    <Version>$(ShortVersion)</Version>
+    <AssemblyVersion>$(ShortVersion)</AssemblyVersion>
+    <InformationalVersion>$(GitVersion)</InformationalVersion>
+    <FileVersion>$(ShortVersion).0</FileVersion> 
+  </PropertyGroup>
+
+  <!-- Automatic assembly versioning in pipeline-->
+  <PropertyGroup Condition="'$(ShortVersion)' == ''">
+    <Version>9.4.0</Version>
+    <AssemblyVersion>9.4.0</AssemblyVersion>
+    <InformationalVersion>9.4.0</InformationalVersion>
+    <FileVersion>9.4.0.0</FileVersion> 
+  </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\BasicSteps\Tap.Plugins.BasicSteps.csproj" />
     <ProjectReference Include="..\Cli\Tap.Cli.csproj" />
