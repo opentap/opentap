@@ -385,9 +385,8 @@ namespace OpenTap.Package.SetAsmInfo
                 else
                 {
                     // This action is never invoked; it is used to compute a reference to this particular constructor invocation
-                    Expression<Action> expr = () => new AssemblyFileVersionAttribute("");
-                    var body = expr.Body as NewExpression;
-                    var ctorMethod = asm.MainModule.ImportReference(body.Constructor);
+                    var ctor = typeof(AssemblyInformationalVersionAttribute).GetConstructor([typeof(string)]);
+                    var ctorMethod = asm.MainModule.ImportReference(ctor);
                     var versionAttr = new CustomAttribute(ctorMethod);
                     versionAttr.ConstructorArguments.Add(
                         new CustomAttributeArgument(ctorMethod.Parameters.First().ParameterType, fileVersion.ToString()));
