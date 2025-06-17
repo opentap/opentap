@@ -198,6 +198,10 @@ jobs:
       group: OpenTAP-SpokeVPC
       labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    needs: GetVersion
+    env:
+      ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
+      GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -236,6 +240,9 @@ jobs:
       matrix:
         Architecture: [x86, x64]
     needs: GetVersion
+    env:
+      ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
+      GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -244,20 +251,6 @@ jobs:
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
-      - name: Stamp Version
-        run: |
-          $AssemblyVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}.0`""
-          $AssemblyFileVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}`""
-          $GitVersion = "`"${{needs.GetVersion.outputs.GitVersion}}`""
-          Push-Location ./tap/Properties
-          $AssemblyInfoFile = (Get-Content AssemblyInfo.cs.Template)
-          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyVersion"', $AssemblyVersion
-          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyFileVersion"', $AssemblyFileVersion
-          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyInformationalVersion"', $GitVersion
-          $AssemblyInfoFile | Set-Content AssemblyInfo.cs
-          cat AssemblyInfo.cs
-          Pop-Location
-          cp ./tap/Properties/AssemblyInfo.cs ./Tap.Upgrader/AssemblyInfo.cs
       - name: Build
         run: dotnet build -c Release /p:Platform=${{ matrix.Architecture }}
       - name: Rebuild
@@ -280,6 +273,10 @@ jobs:
 
   Build-MacOS:
     runs-on: macos-14
+    needs: GetVersion
+    env:
+      ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
+      GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
