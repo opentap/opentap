@@ -715,7 +715,7 @@ namespace OpenTap.Engine.UnitTests
                 {
                     Other = inst1
                 };
-                InstrumentSettings.Current.AddRange(new Instrument[]{inst1, inst2});
+                InstrumentSettings.Current.AddRange([inst1, inst2]);
 
                 InstrumentSettings.Current.Remove(inst1);
 

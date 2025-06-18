@@ -12,7 +12,7 @@ namespace OpenTap
     /// <summary>
     /// <see cref="TestPlan"/> or <see cref="TestStep"/>. Specifies that a class can be inserted into the test plan hierarchy.
     /// </summary>
-    public interface ITestStepParent //: IHierarchialListItem<TestStep, ITestStepParent>
+    public interface ITestStepParent
     {
         /// <summary>
         /// Parent TestStep for this TestStep. Null if this TestStep is not a child of any other TestSteps. 
@@ -20,9 +20,9 @@ namespace OpenTap
         /// </summary>
         [XmlIgnore]
         ITestStepParent Parent { get; set; }
-        
+
         /// <summary>
-        /// Gets or sets a list of child TestSteps. (Inherited from <see cref="ITestStepParent"/>)
+        /// Gets a list of child TestSteps.
         /// </summary>
         [Browsable(false)]
         TestStepList ChildTestSteps { get; }

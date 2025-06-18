@@ -13,7 +13,8 @@ env:
   OPENTAP_NO_UPDATE_CHECK: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_CONSOLE_ANSI_COLOR: true
-  SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller:2.2.0-beta.3
+  SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller@sha256:284a6f05fc05a449a97044a98e91377fe7b3e4da5812c240f6b790e9ba9b16b7  # smartinstaller/7213146a8e2d8f4266e44055f8118db5b3b6efd0
+
 
 jobs:
   GetVersion:
@@ -198,6 +199,10 @@ jobs:
       group: OpenTAP-SpokeVPC
       labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    needs: GetVersion
+    env:
+      ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
+      GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -212,6 +217,14 @@ jobs:
           dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
+      - name: Rebuild
+        run: |
+          # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          # See issue for details: https://github.com/opentap/opentap/issues/2012
+          dotnet publish -c Release tap  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Engine  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Package  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release BasicSteps  /p:Platform=${{ matrix.Architecture }}
       - name: Copy Debug Package 
         run: cp ./bin/Release/OpenTap.Debug.TapPackage ./bin/Release/publish/dbg.zip
       - name: Upload binaries
@@ -228,6 +241,9 @@ jobs:
       matrix:
         Architecture: [x86, x64]
     needs: GetVersion
+    env:
+      ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
+      GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -236,21 +252,16 @@ jobs:
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
-      - name: Stamp Version
-        run: |
-          $AssemblyVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}.0`""
-          $AssemblyFileVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}`""
-          $GitVersion = "`"${{needs.GetVersion.outputs.GitVersion}}`""
-          Push-Location ./tap/Properties
-          $AssemblyInfoFile = (Get-Content AssemblyInfo.cs.Template)
-          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyVersion"', $AssemblyVersion
-          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyFileVersion"', $AssemblyFileVersion
-          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyInformationalVersion"', $GitVersion
-          $AssemblyInfoFile | Set-Content AssemblyInfo.cs
-          cat AssemblyInfo.cs
-          Pop-Location
       - name: Build
         run: dotnet build -c Release /p:Platform=${{ matrix.Architecture }}
+      - name: Rebuild
+        run: |
+          # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          # See issue for details: https://github.com/opentap/opentap/issues/2012
+          dotnet build -c Release tap  /p:Platform=${{ matrix.Architecture }}
+          dotnet build -c Release Engine  /p:Platform=${{ matrix.Architecture }}
+          dotnet build -c Release Package  /p:Platform=${{ matrix.Architecture }}
+          dotnet build -c Release BasicSteps  /p:Platform=${{ matrix.Architecture }}
       - name: cat tap.runtimeconfig.json 
         run: get-content ./bin/Release/tap.runtimeconfig.json
       - name: Upload binaries
@@ -263,6 +274,10 @@ jobs:
 
   Build-MacOS:
     runs-on: macos-14
+    needs: GetVersion
+    env:
+      ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
+      GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -277,6 +292,14 @@ jobs:
           dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
+      - name: Rebuild
+        run: |
+          # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          # See issue for details: https://github.com/opentap/opentap/issues/2012
+          dotnet publish -c Release tap  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Engine  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Package  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release BasicSteps  /p:Platform=${{ matrix.Architecture }}
       - name: Copy Debug Package 
         run: cp ./bin/Release/OpenTap.Debug.TapPackage ./bin/Release/publish/dbg.zip
       - name: Upload binaries
@@ -519,7 +542,7 @@ jobs:
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Linux
-      # - Build-MacOS
+      - Build-MacOS
       - Build-ApiDoc
       - GetVersion
     strategy:
@@ -681,7 +704,7 @@ jobs:
       - uses: opentap/setup-opentap@v1.0
         with:
           version: 9.21.1
-          packages: 'Package Diff:0.1.0-beta.19+2b1aa952'
+          packages: 'Package Diff:0.1.0-beta.21'
       - name: Download package
         uses: actions/download-artifact@v4
         with:
@@ -746,16 +769,13 @@ jobs:
         run: |
           $content=(Get-Content ./nuget/OpenTAP.nuspec).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Set-Content ./nuget/OpenTAP.nuspec $content
-          New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
-
-
+          New-Item -Force ./nuget/build/docs/Packages/OpenTAP -ItemType Directory | Out-Null
+        
           Copy-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
           Copy-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
-
-          Copy-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
-          Copy-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
-          Copy-Item ./bin/Release/OpenTap.Package.dll ./nuget/build/payload
-          Copy-Item ./bin/Release/OpenTap.dll ./nuget/build/payload
+          Copy-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/docs
+          Copy-Item ./bin/Release/OpenTap.xml ./nuget/build/docs
+          Copy-Item ./bin/Release/OpenTap.Plugins.BasicSteps.xml ./nuget/build/docs/Packages/OpenTAP
 
           # Expand-Archive will only extract .zip extensions    
           echo "Rename Archives"
@@ -817,7 +837,7 @@ jobs:
       - run: mv SDK*TapPackage SDK.TapPackage
         name: Rename SDK
         working-directory: Installer/Assets
-      - run: tap installer create "opentap.installer.xml" -v --target-os win
+      - run: tap installer create "opentap.installer.xml" -v --target-os win --arch x86
         working-directory: Installer/Assets
         env:
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS_INTERNAL }}
@@ -890,7 +910,7 @@ jobs:
       - run: mv SDK*TapPackage SDK.TapPackage
         name: Rename SDK
         working-directory: Installer/Assets
-      - run: tap installer create "opentap.installer.linux.xml" -v --target-os linux
+      - run: tap installer create "opentap.installer.linux.xml" -v --target-os linux --arch x64
         working-directory: Installer/Assets
         name: Build installer
       - run: mv Installer/Assets/Installer Installer/Assets/OpenTAP
@@ -1076,9 +1096,9 @@ jobs:
         uses: opentap/setup-opentap@main
         with:
           version: 9.23.0
-          packages: 'Repository Client:1.0'
+          packages: 'Repository Client:1.0.3-beta.9+15a03b2b'
       - name: Publish Packages
-        run: tap repo upload --repository https://packages.opentap.io --token ${{ secrets.PUBLIC_REPO_TOKEN }} ./publish/*.TapPackage
+        run: tap repo upload --repository https://packages.opentap.io --token ${{ secrets.PUBLIC_REPO_TOKEN }} ./publish/*.TapPackage --parallel --skip-existing
 
   Build-SDK-Linux:
     runs-on: ubuntu-latest

@@ -15,22 +15,17 @@ namespace OpenTap
 
         IMemberData IMemberMenuModel.Member => member;
         
-        public bool TestPlanLocked
-        {
-            get
-            {
-                var plan2 = Source.OfType<ITestStepParent>()
-                    .Select(step => step is TestPlan plan ? plan : step.GetParent<TestPlan>()).FirstOrDefault();
-                return (plan2?.IsRunning ?? false) || (plan2?.Locked ?? false);
-            }
-        }
+        public bool TestPlanAllowsEdit => Source
+            .OfType<ITestStepParent>()
+            .FirstNonDefault(step => step as TestPlan ?? step.GetParent<TestPlan>())
+            ?.AllowEdit ?? true;
 
         public bool StepLocked => Source.OfType<ITestStep>().Any(x => x.ChildTestSteps.IsReadOnly);
         
         [Display("Modify Mixin...", "Modify custom setting.", Order: 2.0, Group: "Mixins")]
         [Browsable(true)]
         [IconAnnotation(IconNames.ModifyMixin)]
-        [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(TestPlanAllowsEdit), true)]
         [EnabledIf(nameof(StepLocked), false, HideIfDisabled = true)]
         public void ModifyMixin()
         {
@@ -88,7 +83,7 @@ namespace OpenTap
         [Display("Remove Mixin", "Remove custom setting.", Order: 2.0, Group: "Mixins")]
         [Browsable(true)]
         [IconAnnotation(IconNames.RemoveMixin)]
-        [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(TestPlanAllowsEdit), true)]
         [EnabledIf(nameof(StepLocked), false, HideIfDisabled = true)]
         public void RemoveMixin()
         {

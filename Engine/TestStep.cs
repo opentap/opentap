@@ -109,13 +109,13 @@ namespace OpenTap
         /// </summary>
         [ColumnDisplayName("Type", Order : 1)]
         [Browsable(false)]
-        public string TypeName => typeName ?? (typeName = TypeData.GetTypeData(this)
-            .GetDisplayAttribute().GetFullName());
+        public string TypeName => typeName ??= TypeData.GetTypeData(this).GetDisplayAttribute().GetFullName();
 
         TestStepList childTestSteps;
+        
         /// <summary>
-        /// Gets or sets a List of child <see cref="TestStep"/>s. Any TestSteps in this list will be
-        /// executed instead of the Run method of this TestStep.
+        /// Gets or sets a List of child <see cref="TestStep"/>s. The teststeps in this list will be executed in the
+        /// <see cref="RunChildSteps(System.Collections.Generic.IEnumerable{OpenTap.ResultParameter})"/> method.
         /// </summary>
         [Browsable(false)]
         [AnnotationIgnore]
@@ -580,7 +580,11 @@ namespace OpenTap
     public static class TestStepExtensions
     {
         /// <summary>
-        /// Searches up through the Parent steps and returns the first step of the requested type that it finds.  
+        /// Breaks out of running child steps when used as the suggested next step.
+        /// </summary>
+        public static Guid StartAtParent { get; } = new("62D9FEDD-E63A-48F3-B1A0-0C38C084298F");
+        /// <summary>
+        /// Searches up through the Parent steps and returns the first step of the requested type that it finds.
         /// </summary>
         /// <typeparam name="T">The type of TestStep to get.</typeparam>
         /// <returns>The closest TestStep of the requested type in the hierarchy.</returns>
@@ -624,7 +628,10 @@ namespace OpenTap
             {
                 BreakOfferedEventArgs args = new BreakOfferedEventArgs(stepRun, isTestStepStarting);
                 plan.OnBreakOffered(args);
-                stepRun.SuggestedNextStep = args.JumpToStep;
+
+                // stepRun.SuggestedNextStep might have been set by something else.
+                if(args.JumpToStep != null)
+                    stepRun.SuggestedNextStep = args.JumpToStep;
             }
         }
         /// <summary>
@@ -733,6 +740,11 @@ namespace OpenTap
                         if (id == step.Id)
                         {
                             // If suggested next step is the parent step, skip executing child steps.
+                            break;
+                        }
+                        if (id == StartAtParent)
+                        {
+                            currentStepRun.SuggestedNextStep = step.Id;
                             break;
                         }
 
@@ -989,17 +1001,30 @@ namespace OpenTap
                         stepRun.StartStepRun(); // set verdict to running, set Timestamp.
                         parentRun.ChildStarted(stepRun);
                         planRun.AddTestStepRunStart(stepRun);
-                        Step.Run();
-                        
+                        try
                         {
-                            // Evaluate post run mixins.
-                            // This needs to be done before 'AfterRun' as that waits for defer and publishes results
-                            // which the mixins must be able to affect.
-                            TestStepPostRunEvent.Invoke(Step);
+                            // exception set by pre-run mixin?
+                            if(stepRun.Exception == null)
+                                Step.Run();
                         }
-                        
+                        catch (Exception ex)
+                        {
+                            stepRun.Exception = ex;
+                        }
+
+                        // Evaluate post run mixins.
+                        // Allow running these even if an exception was thrown in the test step.
+                        // This needs to be done before 'AfterRun' as that waits for defer and publishes results
+                        // which the mixins must be able to affect.
+                        TestStepPostRunEvent.Invoke(Step);
+
                         stepRun.AfterRun(Step);
-                        
+
+                        if(stepRun.Exception is { } ex2)
+                            // rethrow the exception.
+                            // include the original stack trace in the exception.
+                            ExceptionDispatchInfo.Capture(ex2).Throw();
+
                         TapThread.ThrowIfAborted();
                     }
                     finally
@@ -1293,8 +1318,17 @@ namespace OpenTap
         /// <summary> Takes the name of step and replaces {} tokens with the value of properties. </summary>
         public static string GetFormattedName(this ITestStep step)
         {
-            if(step.Name.Contains('{') == false || step.Name.Contains('}') == false)
-                return step.Name;
+            string name;
+
+            if(step is IFormatName _fmt)
+                name = _fmt.GetFormattedName();
+            else
+                name = step?.Name;
+
+            if (name == null) return string.Empty;
+            if(name.Contains('{') == false || name.Contains('}') == false)
+                return name;
+
             var type = TypeData.GetTypeData(step);
             if (formatterLutCache.TryGetValue(type, out var props) == false)
             {
@@ -1326,9 +1360,7 @@ namespace OpenTap
 
                 formatterLutCache.GetValue(type, _ => props);
             }
-            var name = step.Name;
-            if (name == null)
-                return ""; // Since we are returning the formatted name we should not return null.
+
             int offset = 0;
             int seek = 0;
 
@@ -1350,9 +1382,8 @@ namespace OpenTap
                 while (prop.Contains("  "))
                    prop = prop.Replace("  ", " ");
                 
-                if (props.ContainsKey(prop))
+                if (props.TryGetValue(prop, out var property))
                 {
-                    var property = props[prop];
                     var value = property.GetValue(step);
                     var unitattr = property.GetAttribute<UnitAttribute>();
                     string valueString = null;

@@ -20,6 +20,17 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(root.GetSubCommand("test action testaction".Split(' ')).Name == "testaction");
             Assert.IsTrue(root.GetSubCommand("test action testaction arg".Split(' ')).Name == "testaction");
         }
+
+        [Test]
+        public void TestHelpOnActionWithNoDisplayAttribute()
+        {
+            // Cli actions should be excuted inside a session.
+            using (Session.Create())
+            {
+                Assert.That(CliActionExecutor.Execute(nameof(CliActionWithNoDisplayAttribute), "--help"), Is.EqualTo(0));
+                Assert.That(CliActionExecutor.Execute(nameof(CliActionWithNoDisplayAttribute), "--123"), Is.EqualTo((int)ExitCodes.ArgumentParseError));
+            }
+        }
     }
 
     [Display("testaction", Groups: new[] { "test", "action" }, Description:"Runs TestAction")]
@@ -33,6 +44,11 @@ namespace OpenTap.UnitTests
         }
     }
     
+    public class CliActionWithNoDisplayAttribute : ICliAction
+    {
+        public int Execute(CancellationToken cancellationToken) => 0;
+    }
+
     [Display("action2", Groups: new[] { "test" }, Description:"Runs TestAction2")]
     public class TestAction2 : ICliAction
     {

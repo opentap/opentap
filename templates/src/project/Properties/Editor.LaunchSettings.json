@@ -1,8 +1,13 @@
 {
   "profiles": {
-    "Debug with editor": {
+    "Debug with Editor (Windows)": {
       "commandName": "Executable",
       "executablePath": "./Editor.exe",
+      "dotnetRunMessages": true
+    },
+    "Debug with Editor (Linux/MacOS)": {
+      "commandName": "Executable",
+      "executablePath": "./Editor.dll",
       "dotnetRunMessages": true
     }
   }

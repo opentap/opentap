@@ -70,6 +70,9 @@
         <File Path="Packages/OpenTAP/tap.exe.new" SourcePath="tap.exe" >
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
+        <File Path="Packages/OpenTAP/tap.dll.new" SourcePath="tap.dll" >
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
         <!-- The tap upgrader is only necessary on Windows because we cannot overwrite tap.exe otherwise -->
         <File Path="Packages/OpenTAP/Tap.Upgrader.runtimeconfig.json" SourcePath="Tap.Upgrader.runtimeconfig.json"/>
         <File Path="Packages/OpenTAP/Tap.Upgrader.exe" SourcePath="Tap.Upgrader.exe">
@@ -98,7 +101,7 @@
     </Files>
     <!-- License Texts -->
     <Files>
-        <File Path="LICENSE.txt" />
+        <File Path="Packages/OpenTAP/LICENSE.txt" SourcePath="LICENSE.txt" />
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/LICENSE.txt"
               SourcePath="libgit2sharp.license.md"/>
         <File Path="Dependencies/Mono.Cecil.0.10.1.0/LICENSE.txt"
@@ -136,6 +139,5 @@
     </PackageActionExtensions>
     <PackageActionExtensions Condition="$(Platform) == Windows">
         <ActionStep ActionName="install" ExeFile="Packages/OpenTAP/Tap.Upgrader.exe" />
-        <ActionStep ActionName="uninstall" ExeFile="Packages/OpenTAP/Tap.Upgrader.exe" />
     </PackageActionExtensions>
 </Package>

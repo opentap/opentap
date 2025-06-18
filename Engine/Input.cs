@@ -199,7 +199,7 @@ namespace OpenTap
 
         T GetValueNonBlocking()
         {
-            if (step != null && Property?.GetValue(Step) is T v)
+            if (Step is ITestStep step && Property?.GetValue(step) is T v)
                 return v;
             return default;
         }

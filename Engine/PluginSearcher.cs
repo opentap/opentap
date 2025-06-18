@@ -131,6 +131,11 @@ namespace OpenTap
                 Option = opt;
             }
 
+            static string VersionFromFileVersion(FileVersionInfo v)
+            {
+                return $"{v.FileMajorPart}.{v.FileMinorPart}.{v.FileBuildPart}";
+            }
+
             /// <summary>
             /// Returns a list of assemblies and their dependencies/references. 
             /// The list is sorted such that a dependency is before the assembly/assemblies that depend on it.
@@ -162,7 +167,9 @@ namespace OpenTap
                             if ((Path.GetDirectoryName(file)?.Contains("Dependencies") ?? false) == false)   
                                 allInDependencies = false;
                             var fileVersion = FileVersionInfo.GetVersionInfo(file);
-                            versions.Add(fileVersion?.FileVersion ?? "");
+
+                            // According to docs fileVersion is never null. Could be set to 0.0.0 though, but this is fine.
+                            versions.Add(VersionFromFileVersion(fileVersion));
                         }
                         catch
                         {
@@ -181,7 +188,7 @@ namespace OpenTap
                         string ver = "unknown";
                         try
                         {
-                            ver = FileVersionInfo.GetVersionInfo(file)?.FileVersion ?? "0.0";
+                            ver = VersionFromFileVersion(FileVersionInfo.GetVersionInfo(file));
                         }
                         catch (Exception)
                         {

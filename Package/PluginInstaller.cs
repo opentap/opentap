@@ -417,16 +417,6 @@ namespace OpenTap.Package
         internal static List<string> UnpackPackage(string packagePath, string destinationDir)
         {
             List<string> installedParts = new List<string>();
-            string packageName = null;
-            try
-            {
-                packageName = PackageDef.FromPackage(packagePath).Name;
-            }
-            catch
-            {
-                // This is fine, it could be a bundle. The package name is only required if the package is OpenTAP
-            }
-
             try
             {
                 using (var packageStream = File.OpenRead(packagePath))
@@ -441,13 +431,6 @@ namespace OpenTap.Package
 
                         string path = Uri.UnescapeDataString(part.FullName).Replace('\\', '/');
                         path = Path.Combine(destinationDir, path).Replace('\\', '/');
-
-                        if (OperatingSystem.Current == OperatingSystem.Windows && packageName == "OpenTAP" && Path.GetFileNameWithoutExtension(part.FullName) == "tap")
-                        {
-                            // tap.dll and tap.exe cannot be overwritten because they are in use by this process -- extract them to a temp location so they can be overwritten later
-                            if (File.Exists(path))
-                                path += ".new";
-                        }
 
                         var sw = Stopwatch.StartNew();
 
@@ -496,9 +479,6 @@ namespace OpenTap.Package
                             }
                             catch (Exception ex)
                             {
-                                if (Path.GetFileNameWithoutExtension(path) == "tap")
-                                    break; // this is ok tap.exe (or just tap on linux) is not designed to be overwritten
-
                                 if (Retries == MaxRetries)
                                     throw;
                                 Retries++;
@@ -603,11 +583,11 @@ namespace OpenTap.Package
 
         private static ActionResult DoUninstall(PluginInstaller pluginInstaller, ActionExecuter action, PackageDef package, bool force, string target)
         {
-
             var result = ActionResult.Ok;
             var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : target;
+            var installation = new Installation(destination);
 
-            var filesToRemain = new Installation(destination).GetPackages()
+            var filesToRemain = installation.GetPackages()
                 .Where(p => p.Name != package.Name)
                 .SelectMany(p => p.Files)
                 .Select(f => f.RelativeDestinationPath)
@@ -635,22 +615,10 @@ namespace OpenTap.Package
                 result = ActionResult.Error;
             }
 
-            int totalDeleteRetries = 0;
-            bool ignore(string filename) => filename.ToLower() == "tap" || filename.ToLower() == "tap.exe" || filename.ToLower() == "tap.dll";
+            var mover = UninstallContext.Create(installation);
             foreach (var file in package.Files)
             {
-                if (ignore(file.RelativeDestinationPath)) // ignore tap, tap.dll, and tap.exe as they are not meant to be overwritten.
-                    continue;
-
-                string fullPath;
-                if (package.IsSystemWide())
-                {
-                    fullPath = Path.Combine(PackageDef.SystemWideInstallationDirectory, file.RelativeDestinationPath);
-                }
-                else
-                {
-                    fullPath = Path.Combine(destination, file.RelativeDestinationPath);
-                }
+                string fullPath = Path.Combine(destination, file.RelativeDestinationPath);
 
                 if (filesToRemain.Contains(file.RelativeDestinationPath))
                 {
@@ -658,42 +626,13 @@ namespace OpenTap.Package
                     continue;
                 }
 
-                try
+                log.Debug("Deleting file '{0}'.", file.RelativeDestinationPath);
+                if (!mover.Delete(file))
                 {
-                    log.Debug("Deleting file '{0}'.", file.RelativeDestinationPath);
-
-                    const int maxRetries = 10;
-                    FileSystemHelper.SafeDelete(fullPath, maxRetries, (i, ex) =>
-                    {
-                        if (ex is UnauthorizedAccessException || ex is IOException)
-                        {
-                            // the number of retries goes across files, to avoid an install taking several minutes.
-                            if (totalDeleteRetries >= maxRetries) throw ex;
-                            totalDeleteRetries++;
-                            // File.Delete might throw either exception depending on if it is a
-                            // program _or_ a file in use.
-                            
-                            log.Warning("Unable to delete file '{0}' file might be in use. Retrying {1} of {2} in 1 second.", file.RelativeDestinationPath, totalDeleteRetries, maxRetries, totalDeleteRetries);
-                            log.Debug("Error: {0}", ex.Message);
-                            TapThread.Sleep(1000);
-                        }
-                        else throw ex;
-                    });
-                    
+                    mover.UndoAllDeletions();
+                    throw new Exception($"Unable to delete file '{file.RelativeDestinationPath}'.");
                 }
-                catch (Exception e)
-                {
-                    if (e is FileNotFoundException || e is DirectoryNotFoundException)
-                    {
-                        log.Debug($"File not found: {file.RelativeDestinationPath}");
-                    }
-                    else
-                    {
-                        log.Debug(e);
-                        result = ActionResult.Error;
-                    }
-                }
-
+                
                 DeleteEmptyDirectory(new FileInfo(fullPath).Directory);
             }
 

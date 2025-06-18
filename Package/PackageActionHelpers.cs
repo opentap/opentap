@@ -111,7 +111,11 @@ namespace OpenTap.Package
                         }
                     }
                     else if (Path.GetExtension(packageName)
-                             .Equals(".Tappackage", StringComparison.OrdinalIgnoreCase) || File.Exists(packageName))
+                             .Equals(".Tappackage", StringComparison.OrdinalIgnoreCase) 
+                             // if the file exists try installing it, but only if it has an extension.
+                             // otherwise there is a great risk that the name conflicts with a remote package name.
+                             // For example, the Editor package has a file called Editor inside it (on Linux).
+                             || (File.Exists(packageName) && Path.HasExtension(packageName)))
                     {
                         
                         var pkg = PackageDef.FromPackage(packageName);
@@ -204,7 +208,16 @@ namespace OpenTap.Package
             gatheredPackages = gatheredPackages
                 .Select(x => directlyReferencesPackages.FirstOrDefault(y => y.Name == x.Name && y.Version == x.Version) ?? x)
                 .ToList();
-            return gatheredPackages.ToList();
+
+            var unavailablePackages =
+                gatheredPackages.Where(x => x.PackageSource is InstalledPackageDefSource).ToArray();
+            if (unavailablePackages.Any())
+            {
+                var str = string.Join("', '", unavailablePackages.Select(x => x.Name));
+                throw new Exception($"The following packages are not available: '{str}'");
+            }
+
+            return gatheredPackages;
         }
 
         internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload, List<string> filenames = null, Action<int, string> progressUpdate = null, bool ignoreCache = false)
@@ -248,8 +261,12 @@ namespace OpenTap.Package
                     {
                         // If the package we are installing is from a file, we should always use that file instead of a cached package.
                         // During development a package might not change version but still have different content.
-                        if (pkg.PackageSource is FilePackageDefSource == false && File.Exists(filename) && !ignoreCache)
+                        if (pkg.PackageSource is FilePackageDefSource == false && File.Exists(filename) &&
+                            !ignoreCache && Path.HasExtension(filename))
+                        {
+                            log.Info($"Treating {filename} as a package");
                             existingPkg = PackageDef.FromPackage(filename);
+                        }
                     }
                     catch (Exception e)
                     {

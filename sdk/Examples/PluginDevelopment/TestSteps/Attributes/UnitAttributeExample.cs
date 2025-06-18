@@ -28,6 +28,9 @@ namespace OpenTap.Plugins.PluginDevelopment
         [Unit("Hz", UseEngineeringPrefix: true, PreScaling: 1000)]
         public double FrequencyWithHzAndEngPrefixAndPreScaling { get; set; }
 
+        [Unit("", StringFormat:"0x8")]
+        public int HexString { get; set; }
+
         [Unit(" Hz", UseRanges: true)]
         public int[] MyIntArrayUnits { get; set; }
 
@@ -37,6 +40,7 @@ namespace OpenTap.Plugins.PluginDevelopment
             FrequencyWithHzAndEngPrefix = 1234567.89;
             FrequencyWithHzAndEngPrefixAndPreScaling = 1234567.89;
             MyIntArrayUnits = new int[] {1, 2, 4, 5, 6, 7};
+            HexString = 0x0123abcd;
         }
 
         public override void Run()

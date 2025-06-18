@@ -1,4 +1,4 @@
-//            Copyright Keysight Technologies 2012-2019
+//            Copyright Keysight Technologies 2012-2025
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
@@ -9,7 +9,7 @@ using System.Reflection;
 // associated with an assembly.
 [assembly: AssemblyCompany("Keysight Technologies")]
 [assembly: AssemblyProduct("OpenTAP")]
-[assembly: AssemblyCopyright("© Keysight Technologies 2012-2024")]
+[assembly: AssemblyCopyright("© Keysight Technologies 2012-2025")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -17,9 +17,9 @@ using System.Reflection;
 // "stamp" stage.
 // Format is x.y.z.w where x and y is defined by a git tag, z is the number 
 // of commits since that tag and w is the first 8 digits of the git commit hash.
-[assembly: AssemblyVersion("9.4.0.0")]
-[assembly: AssemblyFileVersion("9.4.0.0")]
-[assembly: AssemblyInformationalVersion("9.4.0-Development")]
+[assembly: AssemblyVersion("9.31.0.0")]
+[assembly: AssemblyFileVersion("9.31.0.0")]
+[assembly: AssemblyInformationalVersion("9.31.0-alpha+DeveloperBuild")]
 
 // Configuration is updated automatically by the build in the "stamp" stage.
 // Value of this attribute is the name of the git branch.

@@ -119,7 +119,7 @@ namespace OpenTap.Cli
 
             if (!overrides.Contains("help") && args.Contains("help"))
             {
-                printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
+                printOptions(action.GetType().GetDisplayAttribute().Name, ap.AllOptions, unnamedArgToProp);
                 return (int)ExitCodes.Success;
             }
 
@@ -224,11 +224,19 @@ namespace OpenTap.Cli
                     Console.WriteLine("Missing argument: " + string.Join(" ",
                         requiredArgs.Select(p => p.GetAttribute<UnnamedCommandLineArgument>().Name)));
 
-                printOptions(action.GetType().GetAttribute<DisplayAttribute>().Name, ap.AllOptions, unnamedArgToProp);
+                printOptions(action.GetType().GetDisplayAttribute().Name, ap.AllOptions, unnamedArgToProp);
                 return (int)ExitCodes.ArgumentParseError;
             }
 
             var actionFullName = td.GetDisplayAttribute().GetFullName();
+            bool isUpdate = "package \\ check-updates" == actionFullName;
+
+            if (isUpdate)
+            { 
+                // Avoid logging debug information for check-updates, since this is potentially confusing.
+                return action.Execute(TapThread.Current.AbortToken);
+            }
+ 
             log.Debug($"Executing CLI action: {actionFullName}");
             var sw = Stopwatch.StartNew();
             int exitCode = action.Execute(TapThread.Current.AbortToken);

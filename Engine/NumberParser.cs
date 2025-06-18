@@ -146,6 +146,8 @@ namespace OpenTap
             {
                 if (format.StartsWith("x", StringComparison.OrdinalIgnoreCase))
                     sb.Append(((long)post_scale.Rounded()).ToString(format, culture));
+                else if (format.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                    sb.Append("0x" + ((long)post_scale.Rounded()).ToString(format.Substring(1), culture));
                 else
                 {
                     try
@@ -171,7 +173,7 @@ namespace OpenTap
             if(unit != null)
                 sb.Append(unit);
         }
-        
+
         public static string Format(BigFloat value, bool prefix, string unit, string format, CultureInfo culture, bool compact = false)
         {
             char level = prefix ? findLevel(value) : ' ';
@@ -185,6 +187,8 @@ namespace OpenTap
             {
                 if (format.StartsWith("x", StringComparison.OrdinalIgnoreCase))
                     final_string = ((long)post_scale.Rounded()).ToString(format, culture);
+                else if (format.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+                    final_string = "0x" + ((long)post_scale.Rounded()).ToString(format.Substring(1), culture);
                 else
                 {
                     try

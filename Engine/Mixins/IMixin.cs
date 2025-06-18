@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenTap
 {
@@ -12,31 +14,49 @@ namespace OpenTap
 
     abstract class MixinEvent<T2> where T2: IMixin
     {
-        static TraceSource log = Log.CreateSource("Mixin");
-        protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg) => Invoke(target, f, arg, out _);
-        protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg, out bool anyInvoked)
+        static readonly TraceSource log = Log.CreateSource("Mixin");
+        protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg) => Invoke(target, f, null, arg,  out _);
+        protected static T1 Invoke<T1>(object target, Action<T2, T1> f, Func<T2, double> ordering, T1 arg, out bool anyInvoked)
         {
             anyInvoked = false;
             var emb = TypeData.GetTypeData(target).GetBaseType<EmbeddedTypeData>();
             if (emb == null) return arg;
-            foreach (var mem in emb.GetEmbeddingMembers())
+            var embeddingMembers = emb.GetEmbeddingMembers();
+
+            List<T2> objects = null;
+
+            foreach (var mem in embeddingMembers)
             {
                 if (!mem.TypeDescriptor.DescendsTo(typeof(T2))) continue;
                 if (mem.Readable == false) continue;
-                try
-                { 
-                    if (mem.GetValue(target) is T2 mixin)
-                    {
-                        anyInvoked = true;
-                        f(mixin, arg);
-                    }
-                }
-                catch(Exception e)
+
+                if (mem.GetValue(target) is T2 mixin)
                 {
-                    log.Error("Caught error in mixin: {0}", e.Message);
-                    log.Debug(e);
+                    (objects ??= []).Add(mixin);
                 }
             }
+
+            if (objects != null)
+            {
+
+                IEnumerable<T2> orderedObjects = ordering != null ? objects.OrderBy(ordering) : objects;
+
+                foreach (var mixin in orderedObjects)
+                {
+                    try
+                    {
+                        f(mixin, arg);
+                    }
+                    catch (Exception e) when (e is not OperationCanceledException)
+                    {
+                        log.Error("Caught error in mixin: {0}", e.Message);
+                        log.Debug(e);
+                    }
+                }
+                anyInvoked = true;
+            }
+
+
             return arg;
         }
         
@@ -47,12 +67,12 @@ namespace OpenTap
         public static TestStepPreRunEventArgs Invoke(ITestStep step)
         {
             var eventArg = new TestStepPreRunEventArgs(step);
-            Invoke(step, (v, arg) => v.OnPreRun(arg), eventArg, out bool anyInvoked);
+            Invoke(step, static (v, arg) => v.OnPreRun(arg), static v => (v as ITestStepPreRunMixinOrder)?.GetPreRunOrder() ?? 0.0, eventArg, out bool anyInvoked);
             eventArg.AnyPrerunsInvoked = anyInvoked;
             return eventArg;
         }
     }
-    
+
     /// <summary> Event args for ITestStepPreRun mixin. </summary>
     public sealed class TestStepPreRunEventArgs
     {
@@ -81,11 +101,11 @@ namespace OpenTap
 
         internal TestPlanPreRunEventArgs(TestPlan step) => TestPlan = step;
     }
-    
+
     class TestStepPostRunEvent : MixinEvent<ITestStepPostRunMixin>
     {
         public static void Invoke(ITestStep step) => 
-            Invoke(step, (v, args) => v.OnPostRun(args), new TestStepPostRunEventArgs(step));
+            Invoke(step, static (mixin, args) => mixin.OnPostRun(args), static v => (v as ITestStepPostRunMixinOrder)?.GetPostRunOrder() ?? 0, new TestStepPostRunEventArgs(step), out _);
     }
     
     /// <summary> Event args for ITestStepPostRun mixin. </summary>
@@ -100,7 +120,7 @@ namespace OpenTap
     class ResourcePreOpenEvent: MixinEvent<IResourcePreOpenMixin>
     {
         public static void Invoke(IResource resource) => 
-            Invoke(resource, (v, args) => v.OnPreOpen(args), new ResourcePreOpenEventArgs(resource));
+            Invoke(resource, static (mixin, args) => mixin.OnPreOpen(args), new ResourcePreOpenEventArgs(resource));
     }
 
     /// <summary> Event args for IResourcePreOpenMixin mixin. </summary>
@@ -119,13 +139,31 @@ namespace OpenTap
         void OnPostRun(TestStepPostRunEventArgs eventArgs);
     }
 
+    /// <summary> Defines an ordering for test step post run mixins. </summary>
+    public interface ITestStepPostRunMixinOrder : ITestStepPostRunMixin
+    {
+
+        /// <summary>
+        /// Gets the order. Default value is 0. The ordering is ascending.
+        /// </summary>
+        double GetPostRunOrder();
+    }
+
+
     /// <summary> This mixin is activated just before a step is executed. It allows modifying the test step run. </summary>
     public interface ITestStepPreRunMixin : IMixin
     {
         /// <summary> Invoked before test step run.</summary>
         void OnPreRun(TestStepPreRunEventArgs eventArgs);
     }
-    
+
+    /// <summary> Defines an ordering for test step pre run mixins. </summary>
+    public interface ITestStepPreRunMixinOrder : ITestStepPreRunMixin
+    {
+        /// <summary> Gets the order. Default value is 0. The ordering is ascending. </summary>
+        double GetPreRunOrder();
+    }
+
     /// <summary> This mixin is activated just before a resource opens. </summary>
     public interface IResourcePreOpenMixin : IMixin
     {

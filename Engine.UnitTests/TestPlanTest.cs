@@ -1281,6 +1281,39 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        class CheckAllowEditStep : OpenTap.TestStep
+        {
+            public bool? allowedEdit;
+            public override void Run()
+            {
+                allowedEdit = GetParent<TestPlan>().AllowEdit;
+                UpgradeVerdict(Verdict.Pass);
+
+            }
+        }
+
+        [Test]
+        public void EditWhileBreak([Values(true,false)] bool allowEdit)
+        {
+            var plan = new TestPlan();
+            CheckAllowEditStep checkStep = new CheckAllowEditStep();
+            plan.ChildTestSteps.Add(checkStep);
+            plan.BreakOffered += PlanOnBreakOffered;
+            plan.AllowEditWhilePaused = allowEdit;
+            bool? allowedEdit = false;
+            void PlanOnBreakOffered(object sender, BreakOfferedEventArgs e)
+            {
+                allowedEdit = plan.AllowEdit;
+            }
+            Assert.AreEqual(Verdict.Pass, plan.Execute().Verdict);
+
+            // allow edit while paused and AllowEditWhilePaused is true.
+            Assert.AreEqual(allowEdit, allowedEdit);
+
+            // never allow edit while running.
+            Assert.AreEqual(false, checkStep.allowedEdit);
+        }
+
         [Test]
         public void DutPromptMetadataTest()
         {
@@ -2095,6 +2128,16 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsNull(stepParameters.Find(nameof(ManySettingsStep.Id), "")); // Id is not saved as Parameter
             Assert.IsNotNull(run.TestPlanXml);
             Assert.IsNotNull(run.Hash);
+        }
+
+        [Test]
+        public void CheckBasicPlanContents()
+        {
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new SequenceStep());
+            var planXml = plan.SerializeToString();
+            Assert.IsFalse(planXml.Contains("AllowEditWhilePaused"));
+
         }
 
         class CheckTestPlanXmlListener : ResultListener

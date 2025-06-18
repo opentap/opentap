@@ -30,7 +30,9 @@ namespace OpenTap
         [AnnotationIgnore]
         public ExternalParameters ExternalParameters { get; }
 
-        /// <summary> A collection of TestStepBase steps. </summary>
+        /// <summary>
+        /// Gets or sets a list of child TestSteps.
+        /// </summary>
         [Browsable(false)]
         [AnnotationIgnore]
         public TestStepList Steps
@@ -46,9 +48,7 @@ namespace OpenTap
             }
         }
 
-        /// <summary>
-        /// List of test steps that make up this plan.  
-        /// </summary>
+        /// <inheritdoc cref="ITestStepParent.ChildTestSteps"/>
         [AnnotationIgnore]
         public TestStepList ChildTestSteps => _Steps;
 
@@ -160,6 +160,20 @@ namespace OpenTap
         /// <summary> True if this TestPlan is currently running. </summary>
         [AnnotationIgnore]
         public bool IsRunning => CurrentRun != null;
+
+        /// <summary>
+        /// Can be set to true to allow editing the test plan while it's paused.
+        /// </summary>
+        /// <remarks>This is set to non-editorbrowsable to avoid it being modified from a test step.</remarks>
+        [AnnotationIgnore]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        [XmlIgnore]
+        public bool AllowEditWhilePaused { get; set; }
+
+        /// <summary>
+        /// Gets if the test plan is currently editable. This will never be true if the test plan is running(not paused) or locked.
+        /// </summary>
+        public bool AllowEdit => !Locked && (!IsRunning ||  (IsRunning && IsInBreak && AllowEditWhilePaused));
 
         /// <summary> </summary>
         public TestPlan()
