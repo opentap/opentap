@@ -52,12 +52,6 @@
     <PackagePayloadFiles Include="$(OpenTapDocsDir)\**\*"/>
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="OpenTap">
-      <HintPath>$(OutDir)OpenTap.dll</HintPath>
-    </Reference>
-  </ItemGroup>
-
   <Target Name="CopyOpenTapPayloadFiles"
           Inputs="@(PackagePayloadFiles)"
           Outputs="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
