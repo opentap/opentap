@@ -5,6 +5,7 @@
      <!-- Re-enable this when we actually get around to documenting all basicsteps APIs -->
     <NoWarn>CS1591</NoWarn>
     <DocumentationFile>$(OutputPath)\OpenTap.Plugins.BasicSteps.xml</DocumentationFile>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Engine\ObjectCloner.cs">

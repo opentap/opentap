@@ -3,6 +3,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>OpenTap</AssemblyName>
     <RootNamespace>OpenTap</RootNamespace>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(IsDebug)'!='true'">
