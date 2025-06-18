@@ -225,6 +225,55 @@ public class DialogStep : TestStep
 
 ```
 
+## Distributing translations
+
+If you own the package, we recommend bundling your translation files directly
+in the package. This solves the problem of language files potentially getting
+out of sync with the source files by ensuring the translation files always
+match the installed version of the package, and ensures that the translations
+are always available when your package is installed. See example:
+
+```xml
+<Package Name="MyPackage">
+  <Files>
+    <!-- You can include the neutral file if you want, but it is not required, and OpenTAP will ignore it -->
+    <!-- <File Path="Languages/MyPackage.resx"/> -->
+    <File Path="Languages/MyPackage.de.resx"/>
+    <File Path="Languages/MyPackage.fr.resx"/>
+    <File Path="Packages/MyPackage/MyPackage.dll"/>
+  </Files>
+</Package>
+```
+
+If you do not own the package you are translating, things get a bit more
+tricky. If possible, you can reach out to the package maintainers and add a
+pull request with your translations, but be aware that they may not accept your
+translation.
+
+Alternatively, you can add additional translations for other packages in your
+own plugin, or even create a new package which only contains translations:
+
+```xml
+<Package Name="OpenTAP German Language Pack">
+  <Description>This package adds german translation for OpenTAP types.</Description>
+  <Dependencies>
+    <!-- Manually add a dependency on the package you are translating. This
+    communicates that your translations were created for this version of
+    OpenTAP, and that strings added after 9.29.0 may not be translated. -->
+    <PackageDependency Package="OpenTAP" Version="^9.29.0" />
+  </Dependencies>
+  <Files>
+    <!-- You could call this file "OpenTAP.de.resx", but this introduces the
+    risks of name collisions if OpenTAP added native german support in a future
+    update. By using a more specific name, collisions are avoided. -->
+    <File Path="Languages/OpenTAP German Language Pack.de.resx"/>
+  </Files>
+```
+
+If there are multiple translations of the same string, the choice is not
+currently defined, so you should not make assumptions about which string will
+be chosen as this could easily change in a new OpenTAP version.
+
 ## Translation tips
 
 This section is dedicated to some general tips about working with translations in OpenTAP.

@@ -58,16 +58,16 @@ namespace OpenTap.Package
         internal static ImageSpecifier FromAddedPackages(Installation installation, IEnumerable<PackageSpecifier> newPackages)
         {
             var toInstall = new List<PackageSpecifier>();
-            var installed = installation.GetPackages().ToList();
+            var installed = installation.GetPackages(true).ToList();
             var additionalPackages = new List<PackageDef>();
 
             foreach (var package in newPackages)
             {
-                var ext = installed.FirstOrDefault(x => x.Name == package.Name);
-                if (ext != null)
+                var existing = installed.FirstOrDefault(x => x.Name == package.Name);
+                if (existing != null)
                 { 
-                    installed.Remove(ext);
-                    additionalPackages.Add(ext);
+                    installed.Remove(existing);
+                    additionalPackages.Add(existing);
                 }
 
                 // IsZipFile handles the special case where there exists a file on disk

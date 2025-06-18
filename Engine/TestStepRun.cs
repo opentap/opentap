@@ -63,7 +63,7 @@ namespace OpenTap
         }
         
         /// <summary> Exception causing the Verdict to be 'Error'. </summary>
-        public Exception Exception { get; internal set; }
+        public Exception Exception { get; set; }
         
         /// <summary> Length of time it took to run. </summary>
         public virtual TimeSpan Duration

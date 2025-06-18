@@ -2,6 +2,9 @@
   <PropertyGroup>
     <AssemblyName>OpenTap.Plugins.BasicSteps</AssemblyName>
     <RootNamespace>OpenTap.Plugins.BasicSteps</RootNamespace>
+     <!-- Re-enable this when we actually get around to documenting all basicsteps APIs -->
+    <NoWarn>CS1591</NoWarn>
+    <DocumentationFile>$(OutputPath)\OpenTap.Plugins.BasicSteps.xml</DocumentationFile>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Engine\ObjectCloner.cs">

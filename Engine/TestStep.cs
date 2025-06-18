@@ -989,15 +989,26 @@ namespace OpenTap
                         stepRun.StartStepRun(); // set verdict to running, set Timestamp.
                         parentRun.ChildStarted(stepRun);
                         planRun.AddTestStepRunStart(stepRun);
-                        Step.Run();
-                        
+                        try
                         {
-                            // Evaluate post run mixins.
-                            // This needs to be done before 'AfterRun' as that waits for defer and publishes results
-                            // which the mixins must be able to affect.
-                            TestStepPostRunEvent.Invoke(Step);
+                            Step.Run();
                         }
-                        
+                        catch (Exception ex)
+                        {
+                            stepRun.Exception = ex;
+                        }
+
+                        // Evaluate post run mixins.
+                        // Allow running these even if an exception was thrown in the test step.
+                        // This needs to be done before 'AfterRun' as that waits for defer and publishes results
+                        // which the mixins must be able to affect.
+                        TestStepPostRunEvent.Invoke(Step);
+
+                        if(stepRun.Exception is { } ex2)
+                            // rethrow the exception.
+                            // include the original stack trace in the exception.
+                            ExceptionDispatchInfo.Capture(ex2).Throw();
+
                         stepRun.AfterRun(Step);
                         
                         TapThread.ThrowIfAborted();

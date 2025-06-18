@@ -84,6 +84,40 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void DeletedInputTest()
+        {
+            var plan = new TestPlan();
+            var delayStep = new DelayStep();
+            var ifStep = new IfStep();
+            plan.ChildTestSteps.AddRange([delayStep, ifStep]);
+
+            var a = AnnotationCollection.Annotate(ifStep);
+            var mem = a.GetMember(nameof(ifStep.InputVerdict)); 
+            var sv = mem.Get<IStringReadOnlyValueAnnotation>();
+
+            {
+                // Verify the value is initally not set
+                Assert.That(sv.Value, Is.EqualTo("None"));
+                Assert.That(ifStep.InputVerdict.ToString(), Is.EqualTo("NotSet"));
+            }
+            {
+                // Verify that the string value is updated
+                ifStep.InputVerdict.Step = delayStep;
+                ifStep.InputVerdict.Property = TypeData.GetTypeData(delayStep).GetMember(nameof(delayStep.Verdict));
+                a.Read();
+                Assert.That(sv.Value, Is.EqualTo("Verdict from Delay"));
+                Assert.That(ifStep.InputVerdict.ToString(), Is.EqualTo("NotSet"));
+            }
+            {
+                // Delete the target step from the test plan and verify the string value is unset
+                plan.ChildTestSteps.Remove(delayStep);
+                a.Read();
+                Assert.That(sv.Value, Is.EqualTo("None"));
+                Assert.That(ifStep.InputVerdict.ToString(), Is.EqualTo("NotSet"));
+            }
+        }
+
+        [Test]
         public void TestSerializeInput()
         {
             var step = new HandleInputStep();
