@@ -2563,5 +2563,19 @@ namespace OpenTap.UnitTests
             dsv.Value = "0001-01-01";
             Assert.AreEqual(0, GetErrors().Count());
         }
+        
+        [Test]
+        public void TestTimeSpanAnnotationError()
+        {
+            var timeStep = new TestPlanTimespan.TimespanStep();
+            var annotations = AnnotationCollection.Annotate(timeStep);
+            var member = annotations.GetMember("TestProp");
+            var annotation = member.Get<TimeSpanAnnotation>();
+            Assert.DoesNotThrow(() =>
+            {
+                annotation.Value = "test123";
+            });
+            Assert.AreEqual(1, annotation.Errors.Count());
+        }
     }
 }
