@@ -115,7 +115,19 @@ namespace OpenTap
                 // copy all attributes from first member.
                 // if there is no display attribute, create one.
                 bool found = false;
-                var attrs = member.Attributes.ToArray();
+
+                // remove the attributes that should not follow the
+                static bool FilterAttributes(object attr)
+                {
+                    switch (attr)
+                    {
+                        case ColumnDisplayNameAttribute: return false;
+                        case ExternalParameterAttribute: return false;
+                        default: return true;
+                    }
+                }
+
+                var attrs = member.Attributes.Where(FilterAttributes).ToArray();
                 for (int i = 0; i < attrs.Length; i++)
                 {
                     if (false == (attrs[i] is DisplayAttribute))
@@ -136,13 +148,13 @@ namespace OpenTap
         internal object Target { get; }
 
         /// <summary> Immutable data structure for managing parameter members. </summary>
-        readonly struct ParameterMembers : IEnumerable<(object, IMemberData)>
+        // implementing ICollection gives performance benefits for calling Enumerable.Contains
+        readonly struct ParameterMembers : ICollection<(object, IMemberData)>
         {
             public readonly object Source;
             public readonly IMemberData Member;
             public readonly ImmutableHashSet<(object Source, IMemberData Member)> Additional;
-            public readonly int Count;
-
+            
             public ParameterMembers(object source, IMemberData member, ImmutableHashSet<(object Source, IMemberData Member)> additionalMembers)
             {
                 Source = source;
@@ -190,6 +202,31 @@ namespace OpenTap
             IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
             
             public bool Contains(object findSource, IMemberData findMember) => Equals(findSource, Source) && Equals(findMember, Member) || Additional.Contains((findSource, findMember));
+            public void Add((object, IMemberData) item)
+            {
+                throw new NotSupportedException("This class is readonly, create a new instance instead.");
+            }
+            public void Clear()
+            {
+                throw new NotSupportedException("This class is readonly, create a new instance instead.");
+            }
+            public bool Contains((object, IMemberData) item) => Contains(item.Item1, item.Item2);
+            
+            public void CopyTo((object, IMemberData)[] array, int arrayIndex)
+            {
+                array[arrayIndex] = (Source, Member);
+                foreach (var elem in Additional)
+                {
+                    arrayIndex++;
+                    array[arrayIndex] = elem;
+                }
+            }
+            public bool Remove((object, IMemberData) item)
+            {
+                throw new NotSupportedException("This class is readonly, create a new instance instead.");
+            }
+            public int Count { get; }
+            public bool IsReadOnly => true;
         }
 
         ParameterMembers parameterMembers;
@@ -226,7 +263,8 @@ namespace OpenTap
         /// <summary>  The members and objects that make up the aggregation of this parameter. </summary>
         public IEnumerable<(object Source, IMemberData Member)> ParameterizedMembers => parameterMembers;
 
-        internal bool ContainsMember((object Source, IMemberData Member) memberKey) => parameterMembers.Contains(memberKey.Source, memberKey.Member);
+
+        internal bool ContainsMember(object Source, IMemberData Member) => parameterMembers.Contains(Source, Member);
 
         /// <summary> The target object type. </summary>
         public ITypeData DeclaringType { get; }
@@ -273,14 +311,17 @@ namespace OpenTap
             return false;
         }
 
-        /// <summary>  Call on a ParameterMemberData to remove itself from its parent type. </summary>
-        internal void Remove()
+        /// <summary>  Completely removes the parameter from a type. </summary>
+        public void Remove()
         {
-            while (ParameterizedMembers.Any())
+            var oldMembers = parameterMembers;
+            parameterMembers = new ParameterMembers();
+            foreach (var member in oldMembers)
             {
-                var fst = ParameterizedMembers.First();
-                fst.Member.Unparameterize(this, fst.Source);
+                DynamicMember.UnregisterParameter(member.Item2, member.Item1, this);
             }
+
+            DynamicMember.RemoveDynamicMember(Target, this);
         }
 
         bool IDynamicMemberData.IsDisposed => source == null;
@@ -445,7 +486,7 @@ namespace OpenTap
             else
                 GetPlanFor(source)?.RegisterParameter(member, source);
         }
-        static void unregisterParameter(IMemberData member, object source, ParameterMemberData parameter)
+        internal static void UnregisterParameter(IMemberData member, object source, ParameterMemberData parameter)
         {
             if (source is IParameterizedMembersCache cache)
                 cache.UnregisterParameterizedMember(member, parameter);
@@ -524,8 +565,9 @@ namespace OpenTap
             if (parameterMember == null) throw new ArgumentNullException(nameof(parameterMember));
             if (parameterMember == null)
                 throw new Exception($"Member {parameterMember.Name} is not a forwarded member.");
+            
             parameterMember.RemoveMember(member, source);
-            unregisterParameter(member, source, parameterMember);
+            UnregisterParameter(member, source, parameterMember);
         }
 
         /// <summary>
@@ -733,7 +775,8 @@ namespace OpenTap
             internal static DynamicMember DescriptionMember(ITypeData target)
             {
                 // TestPlan Description should not be in the Common group.
-                var displayAttribute = target.DescendsTo(typeof(TestPlan)) ?
+                bool isTestPlan = target.DescendsTo(typeof(TestPlan));
+                var displayAttribute = isTestPlan ?
                     new DisplayAttribute("Description", "A short description of this item.", null, 20001.2) :
                     new DisplayAttribute("Description", "A short description of this item.", "Common", 20001.2);
 
@@ -745,7 +788,7 @@ namespace OpenTap
                     {
                         displayAttribute, new LayoutAttribute(LayoutMode.Normal, 3, 3), new UnsweepableAttribute(), new UnparameterizableAttribute(), new DefaultValueAttribute(target.GetDisplayAttribute().Description), new NonMetaDataAttribute()
                     },
-                    DeclaringType = TypeData.FromType(typeof(TestStepTypeData)),
+                    DeclaringType = isTestPlan ? TypeData.FromType(typeof(TestPlan)) : TypeData.FromType(typeof(ITestStep)),
                     Readable = true,
                     Writable = true,
                     TypeDescriptor = TypeData.FromType(typeof(string))

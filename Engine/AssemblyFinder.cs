@@ -40,7 +40,7 @@ namespace OpenTap
             return matching.Invoke(fileName);
         }
 
-        static bool StrEq(string a, string b) => string.Equals(a, b, StringComparison.InvariantCultureIgnoreCase);
+        static bool StrEq(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
         public string[] AllAssemblies()
         {

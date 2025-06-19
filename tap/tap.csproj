@@ -3,9 +3,30 @@
     <OutputType>Exe</OutputType>
     <AssemblyName>tap</AssemblyName>
     <RunPostBuildEvent>OnOutputUpdated</RunPostBuildEvent>
-    <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
     <ApplicationIcon>../Installer/Assets/opentap.ico</ApplicationIcon>
     <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
+    <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <AssemblyTitle>tap</AssemblyTitle>
+  </PropertyGroup>
+
+  <!-- Automatic assembly versioning in pipeline-->
+  <PropertyGroup Condition="'$(ShortVersion)' != ''">
+    <Version>$(ShortVersion)</Version>
+    <AssemblyVersion>$(ShortVersion)</AssemblyVersion>
+    <InformationalVersion>$(GitVersion)</InformationalVersion>
+    <FileVersion>$(ShortVersion).0</FileVersion> 
+  </PropertyGroup>
+
+  <!-- Automatic assembly versioning in pipeline-->
+  <PropertyGroup Condition="'$(ShortVersion)' == ''">
+    <Version>9.4.0</Version>
+    <AssemblyVersion>9.4.0</AssemblyVersion>
+    <InformationalVersion>9.4.0</InformationalVersion>
+    <FileVersion>9.4.0.0</FileVersion> 
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,7 +36,14 @@
     </Content>
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(OS)'=='Windows_NT'">
+    <Content Include="..\Shared\tap.runtimeconfig.WindowsDesktop.json">
+      <Link>tap.runtimeconfig.json</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(OS)'!='Windows_NT'">
     <Content Include="..\Shared\tap.runtimeconfig.json">
       <Link>tap.runtimeconfig.json</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

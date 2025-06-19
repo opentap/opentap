@@ -13,7 +13,7 @@
                 &lt;PropertyGroup&gt;
                     &lt;TargetFrameworkIdentifier&gt;&lt;/TargetFrameworkIdentifier&gt;
                     &lt;TargetFrameworkVersion&gt;&lt;/TargetFrameworkVersion&gt;
-                    &lt;TargetFramework&gt;netstandard2.0&lt;/TargetFramework&gt;
+                    &lt;TargetFramework&gt;net9&lt;/TargetFramework&gt;
                     &lt;AppendTargetFrameworkToOutputPath&gt;false&lt;/AppendTargetFrameworkToOutputPath&gt;
                     &lt;CopyLocalLockFileAssemblies&gt;true&lt;/CopyLocalLockFileAssemblies&gt;
                     &lt;OutputPath&gt;bin/Debug&lt;/OutputPath&gt;
@@ -110,7 +110,7 @@
           <BreakConditions>Inherit</BreakConditions>
         </TestStep>
       </ChildTestSteps>
-      <BreakConditions>Inherit</BreakConditions>
+      <BreakConditions>BreakOnError</BreakConditions>
     </TestStep>
     <TestStep type="OpenTap.Engine.UnitTests.TestTestSteps.ReplaceInFileStep" Version="0.0.0" Id="7dba2808-7a59-46fb-b0b3-3f168c7ab560">
       <File>../../NewProj/NewProj.csproj</File>
@@ -237,7 +237,7 @@
               <BreakConditions>Inherit</BreakConditions>
             </TestStep>
           </ChildTestSteps>
-          <BreakConditions>Inherit</BreakConditions>
+          <BreakConditions>BreakOnError</BreakConditions>
         </TestStep>
       </ChildTestSteps>
       <BreakConditions>Inherit</BreakConditions>

@@ -63,7 +63,7 @@ namespace OpenTap
         }
         
         /// <summary> Exception causing the Verdict to be 'Error'. </summary>
-        public Exception Exception { get; internal set; }
+        public Exception Exception { get; set; }
         
         /// <summary> Length of time it took to run. </summary>
         public virtual TimeSpan Duration
@@ -283,8 +283,13 @@ namespace OpenTap
             TestStepName = step.GetFormattedName();
             stepTypeData = TypeData.GetTypeData(step);
             TestStepTypeName = stepTypeData.AsTypeData().AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step);
+            Parameters = ResultParameters.GetParams(step, stepTypeData);
             Verdict = Verdict.NotSet;
+        }
+        
+        internal void UpdateParams()
+        {
+            ResultParameters.UpdateParams(Parameters, _step, type: stepTypeData);
         }
         
         /// <summary>

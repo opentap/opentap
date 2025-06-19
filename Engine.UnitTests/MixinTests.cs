@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
+using Tap.Shared;
 namespace OpenTap.UnitTests
 {
     [TestFixture]
@@ -306,8 +307,102 @@ namespace OpenTap.UnitTests
             var isDisabled2 = enabled.Any(x => x.IsEnabled == false);
             Assert.IsFalse(isDisabled2);
 
+        } 
+        public class PrerunMixinModifyingParametersBuilder : IMixinBuilder
+        {
+            public void Initialize(ITypeData targetType)
+            {
+            }
+            
+            IEnumerable<Attribute> GetAttributes()
+            {
+                yield return new EmbedPropertiesAttribute();
+            }
+
+            public MixinMemberData ToDynamicMember(ITypeData targetType)
+            {
+                return new MixinMemberData(this, () => new PrerunMixinModifyingParameters())
+                {
+                    TypeDescriptor = TypeData.FromType(typeof(PrerunMixinModifyingParameters)),
+                    Writable = true,
+                    Readable = true,
+                    DeclaringType = targetType,
+                    Attributes = GetAttributes(),
+                    Name = nameof(PrerunMixinModifyingParameters) 
+                };
+            }
+        }
+        
+        public class PrerunMixinModifyingParameters : IMixin, ITestStepPreRunMixin
+        {
+            public PrerunMixinModifyingParameters()
+            {
+                
+            }
+            public void OnPreRun(TestStepPreRunEventArgs eventArgs)
+            {
+                var step = eventArgs.TestStep as LogStep;
+                step.LogMessage = "Hello Prerun";
+                step.StepRun.Parameters["Additional Parameter"] = "More Info";
+            }
         }
 
+        [Test]
+        public void PrerunMixinModifyParametersTest()
+        { 
+            var plan = new TestPlan();
+            var step = new LogStep() { LogMessage = "No Prerun" };
+            plan.ChildTestSteps.Add(step);
+
+            { /* no mixin */
+                var rl = new RecordAllResultListener();
+                plan.Execute(new[] { rl });
+                var run = rl.RunStart.First(r => (r.Value as TestStepRun)?.TestStepId == step.Id).Value; 
+                Assert.AreEqual("No Prerun", run.Parameters["Log Message"]);
+            }
+
+            { /* prerun mixin */
+                MixinFactory.LoadMixin(step, new PrerunMixinModifyingParametersBuilder());
+                var rl = new RecordAllResultListener();
+                plan.Execute(new[] { rl });
+                var run = rl.RunStart.First(r => (r.Value as TestStepRun)?.TestStepId == step.Id).Value; 
+                Assert.AreEqual("Hello Prerun", run.Parameters["Log Message"]);
+                Assert.AreEqual("More Info", run.Parameters["Additional Parameter"]);
+            }
+        }
+
+        [Test]
+        public void CanAddMixinToTestPlanReference()
+        {
+            var plan1 = new TestPlan();
+            plan1.ChildTestSteps.Add(new DelayStep());
+            var plan1File = PathUtils.GetTempFileName("TapPlan");
+            plan1.Save(plan1File);
+
+            var plan2 = new TestPlan();
+            var tpr = new TestPlanReference();
+            tpr.Filepath.Text = plan1File;
+
+            plan2.ChildTestSteps.Add(tpr);
+            tpr.LoadTestPlan();
+            {
+                var a = AnnotationCollection.Annotate(tpr);
+                var addMixin = a.GetIcon(IconNames.AddMixin);
+                var enabled = addMixin.Get<IAccessAnnotation>();
+                // it _is_ allowed to add mixins to test plan reference.
+                Assert.IsTrue(enabled.IsVisible);
+            }
+            {
+                var a = AnnotationCollection.Annotate(tpr.ChildTestSteps[0]);
+                var addMixin = a.GetIcon(IconNames.AddMixin);
+                var enabled = addMixin.Get<IAccessAnnotation>();
+                // it is not allowed to add mixins to the child steps of test plan reference.
+                Assert.IsFalse(enabled.IsVisible);
+            }
+
+        }
+        
+        
 
         [Test]
         public void CannotModifyMixinTest()
@@ -393,8 +488,24 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(i1 != -1);
             Assert.IsTrue(i2 == -1);
         }
-        
 
+        [Test]
+        [TestCase(HandleExceptionDialog.Options.Abort, Verdict.Aborted)]
+        [TestCase(HandleExceptionDialog.Options.Retry, Verdict.Pass)]
+        [TestCase(HandleExceptionDialog.Options.Continue, Verdict.Error)]
+        public void TestUnhandledExceptionMixin(HandleExceptionDialog.Options behavior, Verdict expectedVerdict)
+        {
+            using var session = Session.Create(SessionOptions.OverlayComponentSettings);
+            var userInput = new UnhandledMixinUserInputHandler(behavior);
+            UserInput.SetInterface(userInput);
+            var plan = new TestPlan();
+            var step = new ThrowingStep() { Throws = true };
+            plan.ChildTestSteps.Add(step);
+            var mixin = MixinFactory.LoadMixin(step, new TestUnhandledExceptionMixinBuilder());
+            var run = plan.Execute();
+            Assert.That(run.Verdict, Is.EqualTo(expectedVerdict));
+
+        }
     }
 
     public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin
@@ -480,7 +591,7 @@ namespace OpenTap.UnitTests
         }
         public MixinMemberData ToDynamicMember(ITypeData targetType)
         {
-            return new MixinMemberData(this, () => 0)
+            return new MixinMemberData(this, () => 0.0)
             {
                 TypeDescriptor = TypeData.FromType(typeof(double)),
                 Attributes = GetAttributes().ToArray(),
@@ -499,5 +610,119 @@ namespace OpenTap.UnitTests
                 yield return new OutputAttribute();
         }
     }
-}
 
+    [Display("Unhandled Exception")]
+    public class HandleExceptionDialog
+    {
+        public enum Options
+        {
+            [Display("Continue")]
+            Continue, 
+            [Display("Retry Failed Step")]
+            Retry,
+            [Display("Abort Sequence")]
+            Abort,
+        }
+
+        private readonly Exception ex;
+        private readonly string stepName;
+        public HandleExceptionDialog(string stepName, Exception ex)
+        {
+            this.ex = ex;
+            this.stepName = stepName;
+        }
+
+        [Browsable(true)]
+        [Layout(LayoutMode.FullRow)]
+        public string Message => $"Error in step {stepName}: {ex.Message}";
+
+        [Submit]
+        [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+        [Display("Continue Behavior")]
+        public Options HandlingOption { get; set; }
+    }
+
+
+    public class ThrowingStep : TestStep
+    {
+        public bool Throws { get; set; } = true;
+        public override void Run()
+        {
+            if (Throws)
+            {
+                throw new Exception("Something went wrong");
+            }
+            UpgradeVerdict(Verdict.Pass);
+        }
+    }
+
+    [MixinBuilder(typeof(ITestStepParent))]
+    [Display("Handle Exceptions")]
+    public class TestUnhandledExceptionMixinBuilder : IMixinBuilder
+    {
+        public void Initialize(ITypeData targetType)
+        {
+
+        }
+
+        public MixinMemberData ToDynamicMember(ITypeData targetType)
+        {
+            return new MixinMemberData(this, () => new ExceptionMixin())
+            {
+                TypeDescriptor = TypeData.FromType(typeof(ExceptionMixin)),
+                Writable = true,
+                Readable = true,
+                DeclaringType = targetType,
+                Attributes = [new EmbedPropertiesAttribute()],
+                Name = "On Exception", 
+            };
+        }
+    }
+
+    public class UnhandledMixinUserInputHandler(HandleExceptionDialog.Options behavior) : IUserInputInterface
+    {
+        public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+        {
+            if (dataObject is HandleExceptionDialog h)
+            {
+                h.HandlingOption = behavior;
+            }
+        }
+    }
+
+    [Display("On Exception")]
+    public class ExceptionMixin : IMixin, ITestStepPostRunMixin
+    {
+        [Display("Handle Exception")] public bool HandleException { get; set; } = true;
+
+        public void OnPostRun(TestStepPostRunEventArgs eventArgs)
+        {
+            if (!HandleException) return;
+            if (TapThread.Current.AbortToken.IsCancellationRequested)
+                return;
+            var step = eventArgs.TestStep;
+            var run = step.StepRun;
+            var exception = run.Exception;
+            if (exception == null) return;
+
+
+            var handling = new HandleExceptionDialog(step.GetFormattedName(),exception);
+            UserInput.Request(handling, true);
+            switch (handling.HandlingOption)
+            {
+                case HandleExceptionDialog.Options.Abort:
+                    step.PlanRun.MainThread.Abort();
+                    break;
+                case HandleExceptionDialog.Options.Continue:
+                    // do nothing
+                    break;
+                case HandleExceptionDialog.Options.Retry:
+                    // Ensure that the step will not throw after retry
+                    (step as ThrowingStep).Throws = false;
+                    run.Exception = null;
+                    run.SuggestedNextStep = run.TestStepId;
+                    break;
+            }
+        }
+    }
+}

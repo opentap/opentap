@@ -63,19 +63,68 @@ namespace OpenTap.Plugins
                             }
                         });
                     }
-                };
+                }; 
+
+                bool tryGetFactory(out Func<IList> ctor)
+                {
+                    var os = Serializer.SerializerStack
+                        .OfType<ObjectSerializer>()
+                        .FirstOrDefault();
+                    if (os?.CurrentMember is IMemberData member
+                        && member.GetAttribute<FactoryAttribute>() is {} fac
+                        && member.TypeDescriptor.DescendsTo(t))
+                    {
+                        if (member is MemberData && os.Object != null)
+                        {
+                            ctor = () => (IList)FactoryAttribute.Create(os.Object, fac);
+                            return true;
+                        }
+
+                        if (member is IParameterMemberData pmem)
+                        {
+                            ctor = () =>
+                            {
+                                if (!FactoryAttribute.TryCreateFromMember(pmem, fac, out var o))
+                                    throw new Exception(
+                                        $"Cannot create object of type '{pmem.TypeDescriptor.Name}' using factory '{fac.FactoryMethodName}'.");
+                                if (o is not IList lst)
+                                    throw new Exception(
+                                        $"Object constructed from factory '{fac.FactoryMethodName}' is not a list.");
+                                return lst;
+                            };
+                            return true;
+                        }
+                    }
+
+                    ctor = null;
+                    return false;
+                }
+
 
                 if (element.IsEmpty)
                 {
-
                     try
                     {
-                        if (t.IsArray)
+                        var os = Serializer.SerializerStack
+                            .OfType<ObjectSerializer>()
+                            .FirstOrDefault();
+                        if (!_t.CanCreateInstance && !t.IsArray && tryGetFactory(out var f))
+                        {
+                            setResult(f());
+                        }
+                        else if (t.IsArray)
+                        {
                             setResult(Array.CreateInstance(t.GetElementType(), 0));
+                        }
                         else if (t.IsInterface)
+                        {
                             setResult(null);
+                        }
                         else
+                        {
                             setResult(Activator.CreateInstance(t));
+                        }
+
                         return true;
                     }
                     catch (MemberAccessException)
@@ -86,7 +135,9 @@ namespace OpenTap.Plugins
 
                     return false;
                 }
-
+                
+                IEnumerable values = null;
+                
                 if (genericType.IsNumeric() && element.HasElements == false)
                 {
                     var str = element.Value;
@@ -100,30 +151,43 @@ namespace OpenTap.Plugins
                         return true;
                     }
                 }
-                else
+                
                 {
                     if (!_t.CanCreateInstance && !t.IsArray)
                     {
-                        // the data has to be updated in-place.
                         var os = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
                         var mem = os?.CurrentMember;
                         if (mem == null) throw new Exception("Unable to get member list");
-                        var val = ((IEnumerable)mem.GetValue(os.Object)).Cast<object>();
-                        var elems = element.Elements();
-                        if (elems.Count() != val.Count())
+                        /* First check if there is a factory we can use. */
+                        if (tryGetFactory(out var f))
                         {
-                            Log.Warning("Deserialized unbalanced list.");
-                        }
-
-                        foreach (var (elem, obj) in elems.Pairwise(val))
+                            values = f();
+                            this.Object = values;
+                        } 
+                        else /* otherwise try to update in place */
                         {
-                            if (!os.TryDeserializeObject(elem, TypeData.GetTypeData(obj), o => { }, obj, true))
-                                return false;
-                        }
+                            // the data has to be updated in-place.
+                            var val = ((IEnumerable)mem.GetValue(os.Object)).Cast<object>();
+                            var elems = element.Elements();
+                            if (elems.Count() != val.Count())
+                            {
+                                Log.Warning("Deserialized unbalanced list.");
+                            }
 
-                        return true;
+                            foreach (var (elem, obj) in elems.Pairwise(val))
+                            {
+                                if (!os.TryDeserializeObject(elem, TypeData.GetTypeData(obj), o => { }, obj, true))
+                                    return false;
+                            }
+
+                            return true;
+                        }
                     }
-                    this.Object = finalValues;
+
+                    if(this.Object != values)
+                        this.Object = finalValues;
+                    if (finalValues is ICombinedNumberSequence seq)
+                        finalValues = seq.Cast<object>().ToArray();
                     var vals = (IList) finalValues;
                     foreach (var node2 in element.Elements())
                     {
@@ -148,7 +212,7 @@ namespace OpenTap.Plugins
                     }
                 }
 
-                IEnumerable values;
+                
                 if (t.IsArray)
                 {
                     int elementCount = finalValues.Cast<object>().Count();
@@ -162,6 +226,13 @@ namespace OpenTap.Plugins
                             lst[i++] = item;
                         setResult(values);
                     });
+                }
+                else if (!_t.CanCreateInstance && !t.IsArray && tryGetFactory(out _))
+                {
+                    var lst = (IList)values;
+                    foreach (var item in finalValues)
+                        lst.Add(item);
+                    values = lst;
                 }
                 else if (t.DescendsTo(typeof(System.Collections.ObjectModel.ReadOnlyCollection<>)))
                 {

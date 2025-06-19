@@ -84,6 +84,13 @@
           </xs:complexType>
         </xs:element>
 
+        <xs:element name="EULA" minOccurs="0" maxOccurs="1">
+          <xs:complexType>
+            <xs:attribute name="Identifier" type="xs:string" use="required" />
+            <xs:attribute name="Source" type="xs:string" use="required" />
+          </xs:complexType>
+        </xs:element>
+
         <xs:element name="PackageActionExtensions" minOccurs="0" maxOccurs="1">
           <xs:complexType>
             <xs:sequence>
@@ -128,6 +135,26 @@
       <xs:attribute name="Class" type="xs:string" default="package"/>
       <xs:attribute name="Group" type="xs:string"/>
       <xs:attribute name="Tags" type="xs:string"/>
+    </xs:complexType>
+  </xs:element>
+
+  <xs:complexType name="Validation" abstract="true"/>
+
+  <xs:complexType name="FileExists">
+    <xs:complexContent>
+      <xs:extension base="Validation">
+        <xs:attribute name="Path" type="xs:string" use="required" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+
+  <xs:element name="Validation">
+    <xs:complexType>
+    <xs:sequence>
+      <xs:choice minOccurs="0" maxOccurs="unbounded">
+        <xs:element name="FileExists" type="FileExists"/>
+      </xs:choice>
+    </xs:sequence>
     </xs:complexType>
   </xs:element>
 </xs:schema>

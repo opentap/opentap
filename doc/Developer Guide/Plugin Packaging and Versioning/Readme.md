@@ -125,7 +125,30 @@ The **Dependency** element can be used to manually specify such dependencies:
 </Package>
 ```
 
+#### EULA Element
+The **EULA** element is optional, and can be used to specify an End User License Agreement, which must be accepted
+before the plugin can be installed. A source and an identifier can be specified. The identifier should uniquely identify
+the license agreement. This is useful because OpenTAP will remember what license agreements the user has already
+accepted, so the user will not be prompted to accept the same license agreement twice.
 
+The source should specify a location where the user can read the license agreement. This can be a URL, or a file
+included in the package, such as a PDF file.
+
+```xml
+<Package Name="MyPackage">
+  <EULA Identifier="End User License Agreement" 
+        Source="Packages/MyPackage/EULA.pdf"
+  />
+  <Files>
+    <File Path="Packages/MyPackage/EULA.pdf"/>
+  </Files>
+</Package>
+```
+
+The way the EULA is presented to the user may vary depending on the way the package is installed, or not at all. For
+example, if the package is being installed in a C# build context, the EULA will be implicitly accepted because the
+environment is not interactive. See 
+[Reference Other OpenTAP Packages](../Getting%20Started%20in%20Visual%20Studio/Readme.md#reference-other-opentap-packages)
 
 
 #### File Element
@@ -504,7 +527,7 @@ To add and push annotated tag to the latest commit (and create a release version
 
   ```sh
   git tag -a v1.0.0 -m "version 1.0.0"
-  git push --tags
+  git push origin v1.0.0
   ```
 
 Annotated tags can also be created in Visual Studio. This is done by including a tag message during tag creation. A lightweight tag, which Git assisted versioning will not consider, is created if the tag message is left out.

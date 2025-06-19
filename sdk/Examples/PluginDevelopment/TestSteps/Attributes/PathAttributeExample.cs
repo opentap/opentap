@@ -12,6 +12,7 @@
 //See the License for the specific language governing permissions and
 //limitations under the License.
 
+using System.Collections.Generic;
 namespace OpenTap.Plugins.PluginDevelopment
 {
     [Display("Path Attributes Example", Groups: new[] {"Examples", "Plugin Development", "Attributes" },
@@ -21,6 +22,11 @@ namespace OpenTap.Plugins.PluginDevelopment
         // This will create a button that opens a dialog for browsing for files. 
         [FilePath]
         public string MyFilePath { get; set; }
+        
+        // This will create a button that opens a dialog for browsing for files. In this dialog multiple files can be selected at the same time. 
+        // in addition, a table format is used to show all the selected paths.
+        [FilePath]
+        public List<string> MyFilePaths { get; set; } = new List<string>();
 
         // This will create a button that opens a dialog for browsing for files. This dialog will also filter for CSV files, with 'any files' filter being optional.
         [FilePath(FilePathAttribute.BehaviorChoice.Open, "csv")]

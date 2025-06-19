@@ -35,7 +35,7 @@ namespace OpenTap
             return TryClone(context, targetType ?? typeOfValue, false, out object _);
         }
         
-        public bool TryClone(object context, ITypeData targetType, bool skipIfPossible, out object clone )
+        public bool TryClone(object context, ITypeData targetType, bool skipIfPossible, out object clone)
         {
             if (ReferenceEquals(targetType, typeOfValue) && valueType || value == null)
             {
@@ -69,7 +69,7 @@ namespace OpenTap
                         xmlString = serializer.SerializeToString(value);
                     if (xmlString != null)
                     {
-                        clone = serializer.DeserializeFromString(xmlString);
+                        clone = serializer.DeserializeFromString(xmlString, targetType);
                         if (serializer.Errors.Any())
                             return false;
                         return true;
@@ -94,7 +94,7 @@ namespace OpenTap
         {
             if (TryClone(context, targetType, skipIfPossible, out var clone) == false)
             {
-                throw new InvalidCastException($"Failed cloning {value} as {targetType.Name}.");
+                throw new InvalidCastException($"Failed cloning '{value}' as '{targetType.Name}'.");
             }
             return clone;
         }

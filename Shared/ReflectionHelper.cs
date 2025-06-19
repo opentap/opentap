@@ -14,6 +14,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
+using OpenTap.Translation;
 
 //**** WARNING ****//
 // This file is used in many projects(link existing), but only with internal protection.
@@ -422,7 +423,6 @@ namespace OpenTap
 
         public static bool ContainsMember(this IParameterMemberData p, (object Source, IMemberData Member) item)
         {
-            if (p is ParameterMemberData p2) return p2.ContainsMember(item);
             return p.ParameterizedMembers.Contains(item);
         }
             
@@ -1018,6 +1018,19 @@ namespace OpenTap
         }
 
         /// <summary>
+        /// Returns true if the generic IEnumerable is empty
+        /// </summary>
+        /// <param name="enu"></param>
+        /// <returns></returns>
+        public static bool IsEnumerableEmpty(this IEnumerable enu)
+        {
+            var e = enu.GetEnumerator();
+            bool empty = e.MoveNext() == false;
+            (e as IDisposable)?.Dispose();
+            return empty;
+        }
+
+        /// <summary>
         /// Returns true if the source is longer than count elements.
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -1222,7 +1235,10 @@ namespace OpenTap
             if (value == null) return null;
             var enumType = value.GetType();
             var mem = enumType.GetMember(value.ToString()).FirstOrDefault();
-            if (mem != null) return mem.GetDisplayAttribute().Name;
+            if (mem != null) 
+            { 
+                return TranslationManager.TranslateEnum(value).Name;
+            }
             if (false == enumType.HasAttribute<FlagsAttribute>())
                 return value.ToString();
             var zeroValue = Enum.ToObject(enumType, 0);

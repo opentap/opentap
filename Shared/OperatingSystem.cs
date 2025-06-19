@@ -22,24 +22,29 @@ namespace OpenTap
             Name = name;
         }
 
+        private static TraceSource log = Log.CreateSource(nameof(OperatingSystem));
         static OperatingSystem getCurrent()
         {
 
             if (Path.DirectorySeparatorChar == '\\')
             {
+                log.Debug($"OS is windows: Path.DirectorySeparatorChar == '{Path.DirectorySeparatorChar}'");
                 return OperatingSystem.Windows;
             }
             else
             {
                 if (isMacOs())
                 {
+                    log.Debug("OS is mac (uname)");
                     return OperatingSystem.MacOS;
                 }
                 else if (Directory.Exists("/proc/"))
                 {
+                    log.Debug("Os is Linux: /proc/ exists.");
                     return OperatingSystem.Linux;
                 }
             }
+            log.Debug("OS not detected.");
             return OperatingSystem.Unsupported;
         }
         
@@ -52,7 +57,7 @@ namespace OpenTap
                 var process = Process.Start(startInfo);
                 process.WaitForExit(1000);
                 var uname = process.StandardOutput.ReadToEnd();
-                return uname.ToLowerInvariant().Contains("darwin");
+                return uname.ToUpperInvariant().Contains("DARWIN");
             }
             catch
             {

@@ -27,6 +27,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
     internal class OpenTapImageInstaller : IDisposable
     {
         public string TapDir { get; set; }
+        public string RuntimeDir { get; set; }
         public CancellationToken CancellationToken { get; set; }
         public PackageDef OpenTapNugetPackage { get; set; }
         public IImageDeployer ImageDeployer { get; set; }
@@ -66,11 +67,20 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             Log.AddListener(traceListener);
         }
 
-        public OpenTapImageInstaller(string tapDir, CancellationToken cancellationToken)
+        public OpenTapImageInstaller(string tapDir, string runtimeDir, CancellationToken cancellationToken)
         {
             CancellationToken = cancellationToken;
             TapDir = tapDir;
+            RuntimeDir = runtimeDir; 
             attachTraceListener();
+        }
+
+        /// <summary>
+        /// UserInputInterface implementation which returns immediately. Intended for non-interactive use.
+        /// </summary>
+        class NonInteractiveUserInputInterface : IUserInputInterface
+        {
+            void IUserInputInterface.RequestUserInput(object dataObject, TimeSpan timeout, bool modal) { }
         }
 
         /// <summary>
@@ -86,6 +96,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
             try
             {
+                // This installation is happening during a C# compilation context. The user will not be able to respond to any user input requests.
+                // We should ensure a non-interactive user input is configured in case any user inputs are raised.
+                UserInput.SetInterface(new NonInteractiveUserInputInterface());
                 var install = new Installation(TapDir);
 
                 OpenTapNugetPackage = install.GetOpenTapPackage();

@@ -508,10 +508,43 @@ namespace OpenTap.Plugins.BasicSteps
 
         public double Priority => 5;
 
+        class ConvertToSequenceAnnotation : IMethodAnnotation, IMergedMethodAnnotation
+        {
+            readonly AnnotationCollection annotation;
+            public ConvertToSequenceAnnotation(AnnotationCollection annotation)
+            {
+                this.annotation = annotation;
+            }
+
+            public void Invoke()
+            {
+                // only ask for confirmation the first time.
+                // if the user click cancel just stop.
+                bool userShouldConfirm = true;
+                foreach (var step in (ITestStep[])annotation.Source)
+                {
+                    bool userClickedProceed = ((TestPlanReference)step).ConvertToSequence(userShouldConfirm, true);
+                    if (!userClickedProceed)
+                        break;
+
+                    userShouldConfirm = false;
+                }
+            }
+        }
+
         public void Annotate(AnnotationCollection annotation)
         {
             if (annotation.Get<IMemberAnnotation>()?.Member is IMemberData mem)
             {
+                if (mem.Name == nameof(TestPlanReference.ConvertToSequence)
+                    && annotation.Get<IMergedValueAnnotation>() != null
+                    && mem.DeclaringType.DescendsTo(typeof(TestPlanReference)))
+                {
+                    // multi-select: remove the default method handler and use this new way.
+                    annotation.RemoveType<IMethodAnnotation>();
+                    annotation.Add(new ConvertToSequenceAnnotation(annotation));
+                }
+
                 if (mem.GetAttribute<HideOnMultiSelectAttribute>() is HideOnMultiSelectAttribute attr)
                     annotation.Add(attr);
                 

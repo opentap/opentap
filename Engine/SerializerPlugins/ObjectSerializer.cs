@@ -80,10 +80,26 @@ namespace OpenTap.Plugins
                     {
                         throw new Exception($"Cannot create instance of {t} and no default value exists.");
                     }
+                    if (ownerMember.HasAttribute<IFactoryAttribute>())
+                    {
+                        // Use element factory if the member type is not the target type, but rather 'has a' target type.
+                        // we dont need to detect if it 'has a' target type, lets just assume it.
+                        if (ownerMember.TypeDescriptor.DescendsTo(t) && ownerMember.GetAttribute<FactoryAttribute>() is FactoryAttribute f)
+                        {
+                            newobj = FactoryAttribute.Create(ownerObj, f);
+                        }
+                        else if (ownerMember.GetAttribute<ElementFactoryAttribute>() is ElementFactoryAttribute f2)
+                        {
+                            newobj = FactoryAttribute.Create(ownerObj, f2);
+                        }
+                    }
 
-                    newobj = ownerMember.GetValue(ownerObj);
                     if (newobj == null)
-                        throw new Exception($"Unable to get default value of {ownerMember}");
+                    {
+                        newobj = ownerMember.GetValue(ownerObj);
+                        if (newobj == null)
+                            throw new Exception($"Unable to get default value of {ownerMember}");
+                    }
                 }
                 else
                 {
@@ -443,6 +459,16 @@ namespace OpenTap.Plugins
                 else if (propType.HasInterface<IConvertible>())
                 {
                     value = Convert.ChangeType(valueString, propType, CultureInfo.InvariantCulture);
+                }else if (propType.IsGenericType && propType.GetGenericTypeDefinition() == typeof(Nullable<>))
+                {
+                    // For nullable<T> we recurse focusing on the underlying non-nullable type.
+                    if (valueString == null)
+                    {
+                        outvalue = null;
+                        return true; // null is a valid value for nullable types.
+                    }
+
+                    return readContentInternal(Nullable.GetUnderlyingType(propType), ignoreComponentSettings, getvalueString, elem, out outvalue);
                 }
                 else
                 {

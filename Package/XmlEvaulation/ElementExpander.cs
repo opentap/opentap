@@ -21,7 +21,8 @@ namespace OpenTap.Package
             foreach (var textNode in textNodes)
             {
                 var curr = textNode.Value;
-                var newValue = textNode.Value.Replace($"$({token})", value);
+                var newValue = textNode.Value.Replace($"$({token})", value)
+                    .Replace($"$!({token})", value);
 
                 if (curr != newValue)
                 {
@@ -33,7 +34,8 @@ namespace OpenTap.Package
             foreach (var attribute in element.Attributes().ToArray())
             {
                 var curr = attribute.Value;
-                var newValue = attribute.Value.Replace($"$({token})", value);
+                var newValue = attribute.Value.Replace($"$({token})", value)
+                    .Replace($"$!({token})", value);
 
                 if (curr != newValue)
                 {

@@ -160,8 +160,8 @@ namespace OpenTap.Package
             // Path case sensitivity is file system dependent. Typically Windows and MacOS will be case-insensitive,
             // and Linux will be case-sensitive, but not always. TODO: check if path file system is case sensitive
             var stringComparer = OperatingSystem.Current == OperatingSystem.Linux
-                ? StringComparison.InvariantCulture
-                : StringComparison.InvariantCultureIgnoreCase;
+                ? StringComparison.Ordinal
+                : StringComparison.OrdinalIgnoreCase;
             // Ensure the file is in a subdirectory of the installation. Otherwise it is not contained in a package.
             if (!abs.StartsWith(installDir, stringComparer))
                 return null;
@@ -202,7 +202,7 @@ namespace OpenTap.Package
             if (string.IsNullOrWhiteSpace(sourceFile)) return null;
 
             var assemblyPath = Path.GetFullPath(sourceFile);
-            var installPath = Path.GetFullPath(ExecutorClient.ExeDir);
+            var installPath = Path.GetFullPath(Directory);
 
             // The assembly must be rooted in the installation
             if (assemblyPath.StartsWith(installPath) == false)
@@ -234,7 +234,12 @@ namespace OpenTap.Package
         /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
         /// Results are cached, and Invalidate must be called if changes to the installation are made by circumventing OpenTAP APIs.
         /// </summary>
-        public List<PackageDef> GetPackages() => new List<PackageDef>(GetPackagesLookup().Values);
+        public List<PackageDef> GetPackages() => GetPackagesLookup().Values.ToList();
+        /// <summary>
+        /// Returns package definition list of installed packages in the TAP installation defined in the constructor, and system-wide packages.
+        /// Results are cached, and Invalidate must be called if changes to the installation are made by circumventing OpenTAP APIs.
+        /// </summary>
+        public List<PackageDef> GetPackages(bool validOnly) => GetPackagesLookup().Values.Where(pkg => pkg.IsValid()).ToList();
 
         /// <summary> Finds an installed package by name. Returns null if the package was not found. </summary>
         public PackageDef FindPackage(string name) => GetPackagesLookup().TryGetValue(name, out var package) ? package : null;
@@ -281,6 +286,7 @@ namespace OpenTap.Package
                         Installation = this,
                         PackageDefFilePath = file
                     };
+
                     if (!plugins.ContainsKey(package.Name))
                     {
                         plugins.Add(package.Name, package);
@@ -302,6 +308,8 @@ namespace OpenTap.Package
                                 $"{string.Join("\n", p.Append(plugins[p.Key]).Select(x => " - " + ((InstalledPackageDefSource)x.PackageSource).PackageDefFilePath))}");
                     }
                 }
+
+
 
                 invalidate = false;
                 packageCache = plugins;

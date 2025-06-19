@@ -53,6 +53,11 @@ namespace OpenTap.Package
         public bool Collapsed { get; set; }
         /// <summary> The array of display groups of the plugin type as specified by its <see cref="DisplayAttribute"/>.</summary>
         public string[] Groups { get; set; }
+        
+        /// <summary>
+        /// The hardware models supported by this plugin. Specified by <see cref="SupportedModelsAttribute"/>
+        /// </summary>
+        public SupportedModelsAttribute[] SupportedModels { get; set; }
 
         /// <summary>
         /// Creates a new PluginFile.
@@ -302,6 +307,138 @@ namespace OpenTap.Package
         arm64
     }
 
+    [Display("Please review the End User License Agreement")]
+    class EulaAcceptanceDialog
+    {
+        public enum Acceptance
+        {
+            [Display("I accept the agreement")]
+            Accept,
+            [Display("I do not accept the agreement")]
+            Decline,
+        }
+        private readonly EULA _eula;
+        private PackageDef _packageDef;
+        private static readonly TraceSource log = Log.CreateSource("EULA");
+        
+        [Browsable(true)]
+        [Layout(LayoutMode.FullRow | LayoutMode.WrapText)]
+        [Display("Message", Order: 1)]
+        public string Message => $"Please review the end user license agreement at {_eula.Source}";
+
+        [Browsable(true)]
+        [Layout(LayoutMode.FullRow)]
+        [Display("View License Agreement", Order: 2)]
+        public void OpenEula()
+        {
+            if (!Uri.TryCreate(_eula.Source, UriKind.RelativeOrAbsolute, out var uri))
+            {
+                log.Error($"Cannot determine resource type '{_eula.Source}'. Please review it manually, if possible.");
+                return;
+            }
+
+            string path = null;
+            if (uri.IsAbsoluteUri && !uri.IsFile)
+            {
+                // Assume some Uri scheme which can be opened (most likely http)
+                path = uri.AbsoluteUri;
+            }
+            else
+            {
+                // Assume either a relative or absolute file path
+                if (uri.IsAbsoluteUri && uri.IsFile)
+                {
+                    path = uri.LocalPath;
+                }
+                else
+                {
+                    try
+                    {
+                        path = Path.GetFullPath(_eula.Source);
+                    }
+                    catch (Exception)
+                    {
+                        log.Error($"Cannot determine resource type '{_eula.Source}'. Please review it manually, if possible.");
+                        return;
+                    }
+                }
+
+                if (!File.Exists(path))
+                {
+                    string norm(string x) => x.Trim().Replace('\\', '/');
+                    // If the file does not exist, it is likely part of the packagedef, and has not been extracted yet.
+                    // Try to extract it to a temporary location and open that instead.
+#pragma warning disable CS0618 // Type or member is obsolete
+                    using var packageStream = File.OpenRead(_packageDef.Location);
+#pragma warning restore CS0618 // Type or member is obsolete
+                    using var zip = new ZipArchive(packageStream, ZipArchiveMode.Read);
+                    foreach (var part in zip.Entries)
+                    {
+                        if (norm(part.FullName).Equals(norm(_eula.Source), StringComparison.OrdinalIgnoreCase))
+                        {
+                            var ext = Path.GetExtension(part.Name);
+                            var tmp = Path.GetTempFileName() + ext;
+                            path = tmp;
+                            var ifs = part.Open();
+                            using var ofs = File.Create(path);
+                            ifs.CopyTo(ofs);
+                            break;
+                        }
+                    }
+                }
+
+                if (!File.Exists(path))
+                {
+                    log.Error($"EULA file '{path}' does not exist.");
+                    return;
+                }
+            }
+
+            try
+            {
+                Process.Start(new ProcessStartInfo()
+                {
+                    FileName = path,
+                    UseShellExecute = true,
+                });
+            }
+            catch (Exception ex)
+            {
+                log.Error($"Error opening EULA '{path}': {ex.Message}");
+                log.Debug(ex);
+            }
+        }
+
+        [Submit]
+        [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
+        [Display("Answer", Order: 3)]
+        public Acceptance Answer { get; set; } = Acceptance.Accept;
+
+        public EulaAcceptanceDialog(PackageDef package)
+        {
+            _packageDef = package;
+            _eula = package.EULA;
+        }
+    }
+
+    /// <summary>
+    /// End User License Agreement
+    /// </summary>
+    [XmlType("EULA")]
+    public class EULA
+    {
+        /// <summary>
+        /// Unique identifier for this Eula.
+        /// </summary>
+        [XmlAttribute("Identifier")]
+        public string Identifier { get; set; }
+        /// <summary>
+        /// File or URL where the Eula can be accessed.
+        /// </summary>
+        [XmlAttribute("Source")]
+        public string Source { get; set; }
+    }
+
     /// <summary>
     /// Definition of a package file. Contains basic structural information relating to packages.
     /// </summary>
@@ -410,7 +547,13 @@ namespace OpenTap.Package
         /// Specific open source license. Must be a SPDX identifier, read more at https://spdx.org/licenses/.
         /// </summary>
         [DefaultValue(null)]
-        public string SourceLicense { get; set; }
+        public string SourceLicense { get; set; } 
+        
+        /// <summary>
+        /// Link or path to a Eula which must be accepted in order to use this plugin.
+        /// </summary>
+        [DefaultValue(null)]
+        public EULA EULA { get; set; }
 
         /// <summary>
         /// License(s) required to use this package. During package create all '<see cref="PackageFile.LicenseRequired"/>' attributes from '<see cref="Files"/>' will be concatenated into this property.
@@ -426,6 +569,11 @@ namespace OpenTap.Package
         [XmlAttribute]
         [DefaultValue("package")]
         public string Class { get; set; }
+
+        /// <summary>
+        /// Validation objects for validating that the package is correctly installed.
+        /// </summary>
+        public List<Validation> Validation { get; set; }
 
         internal bool IsBundle()
         {
@@ -621,6 +769,20 @@ namespace OpenTap.Package
             return packages;
         }
 
+        internal static bool TryFromPackage(string path, out PackageDef package)
+        {
+            try 
+            {
+                package = FromPackage(path);
+                return true;
+            }
+            catch 
+            {
+                package = null;
+                return false;
+            }
+        }
+
         /// <summary>
         /// Constructs a PackageDef object to represent a TapPackage package that has already been created.
         /// </summary>
@@ -797,11 +959,11 @@ namespace OpenTap.Package
                     var files = Directory.GetFiles(dir, "*", SearchOption.TopDirectoryOnly);
 
                     if (files.Any(f =>
-                        string.Equals(Path.GetFileName(f), ".OpenTapIgnore", StringComparison.InvariantCulture)))
+                        string.Equals(Path.GetFileName(f), ".OpenTapIgnore", StringComparison.OrdinalIgnoreCase)))
                         continue;
 
                     var packageXml = files.FirstOrDefault(f =>
-                        string.Equals(Path.GetFileName(f), "package.xml", StringComparison.InvariantCulture));
+                        string.Equals(Path.GetFileName(f), "package.xml", StringComparison.OrdinalIgnoreCase));
 
                     if (packageXml != null)
                         results.Add(packageXml);
@@ -915,9 +1077,58 @@ namespace OpenTap.Package
         }
 
         internal PackageSpecifier GetSpecifier() => new PackageSpecifier(Name, Version.AsExactSpecifier(), Architecture, OS);
+
+        internal bool IsValid()
+        {
+            if (Validation != null)
+            {
+                foreach (var marker in Validation)
+                {
+                    if (!marker.IsValid())
+                        return false;
+
+                }
+            }
+            return true;
+        }
     }
 
-    
+    /// <summary>
+    /// Base class for package validation objects.
+    /// </summary>
+    public abstract class Validation
+    {
+        /// <summary>
+        /// Return true if the package installation is valid.
+        /// </summary>
+        /// <returns>true if the package is correctly installed.</returns>
+        public abstract bool IsValid();
+    }
+
+    /// <summary>
+    /// This package validation checks if a file exists.
+    /// </summary>
+    public class FileExists : Validation
+    {
+        /// <summary>
+        /// The path to the file that have to exist for the package to be correctly installed.
+        /// </summary>
+        [XmlAttribute]
+        public string Path { get; set; }
+
+        /// <summary>
+        /// Returns true if the file pointed to by Path exists.
+        /// </summary>
+        /// <returns></returns>
+        public override bool IsValid()
+        {
+            var file = Environment.ExpandEnvironmentVariables(Path);
+            return System.IO.File.Exists(file);
+        }
+    }
+
+
+
     // helper class to ignore namespaces when de-serializing
     internal class NamespaceIgnorantXmlTextReader : XmlTextReader
     {

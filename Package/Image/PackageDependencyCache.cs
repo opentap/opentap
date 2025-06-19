@@ -27,15 +27,20 @@ namespace OpenTap.Package
 
         private void UpdatePrerelease(string name, string version)
         {
-            foreach (var graph in graphs)
-            {
-                if (repos[graph] is HttpPackageRepository http)
+            var newGraphs = graphs
+                .Where(g => repos[g] is IQueryPrereleases)
+                .AsParallel()
+                .Select(g =>
                 {
-                    var graph2 =
-                        PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, version, name);
-                    graph.Absorb(graph2);
-                    Graph.Absorb(graph2);
-                }
+                    var newGraph =
+                        (repos[g] as IQueryPrereleases).QueryPrereleases(os, deploymentInstallationArchitecture,
+                            version, name);
+                    g.Absorb(newGraph);
+                    return newGraph;
+                });
+            foreach (var g in newGraphs)
+            {
+                Graph.Absorb(g);
             }
         }
 
@@ -92,49 +97,52 @@ namespace OpenTap.Package
             this.graph.Absorb(graph);
             addedPackages.AddRange(packages);
         }
-        
+
         PackageDependencyGraph GetGraph(IPackageRepository repo)
         {
-            
-                if (repo is HttpPackageRepository http)
-                {
-                    return PackageDependencyQuery.QueryGraph(http.Url, os, deploymentInstallationArchitecture, "");
-                } 
-                
-                if (repo is FilePackageRepository fpkg)
-                {
-                    var sw = Stopwatch.StartNew();
-                    var graph = new PackageDependencyGraph();
-                    var packages = fpkg.GetAllPackages(TapThread.Current.AbortToken);
-                    graph.LoadFromPackageDefs(packages.Where(x => x.IsPlatformCompatible(deploymentInstallationArchitecture, os)));
-                    
-                    log.Debug(sw, "Read {1} packages from {0}", repo, packages.Length);
-                    
-                    return graph;
-                }
-                
-                {
-                    // This occurs during unit testing when mock repositories are used.
-                    var sw = Stopwatch.StartNew();
-                    var graph = new PackageDependencyGraph();
-                    var names = repo.GetPackageNames();
-                    List<PackageDef> packages = new List<PackageDef>();
-                    foreach (var name in names)
-                    {
-                        foreach (var version in repo.GetPackageVersions(name))
-                        {
-                            var pkgs = repo.GetPackages(new PackageSpecifier(version.Name, version.Version.AsExactSpecifier(), version.Architecture, version.OS), TapThread.Current.AbortToken);
-                            packages.AddRange(pkgs);
-                        }
-                    }
+            if (repo is IQueryPrereleases q)
+                return q.QueryPrereleases(os, deploymentInstallationArchitecture, "", null);
 
-                    var compatiblePackages = packages
-                        .Where(x => x.IsPlatformCompatible(deploymentInstallationArchitecture, os)).ToArray();
-                    graph.LoadFromPackageDefs(compatiblePackages);
-                    
-                    log.Debug(sw, "Read {1} packages from {0}", repo, packages.Count);
-                    return graph;
+            if (repo is FilePackageRepository fpkg)
+            {
+                var sw = Stopwatch.StartNew();
+                var graph = new PackageDependencyGraph();
+                var packages = fpkg.GetAllPackages(TapThread.Current.AbortToken);
+                graph.LoadFromPackageDefs(packages.Where(x =>
+                    x.IsPlatformCompatible(deploymentInstallationArchitecture, os)));
+
+                log.Debug(sw, "Read {1} packages from {0}", repo, packages.Length);
+
+                return graph;
+            }
+
+            {
+                // This occurs during unit testing when mock repositories are used.
+                // UPDATE: No it doesn't. Mock Repository implements IQueryPrereleases.
+                // Figure out if this is safe to delete.
+                // IPackageRepository is public, so this code is probably not unreachable.
+                var sw = Stopwatch.StartNew();
+                var graph = new PackageDependencyGraph();
+                var names = repo.GetPackageNames();
+                List<PackageDef> packages = new List<PackageDef>();
+                foreach (var name in names)
+                {
+                    foreach (var version in repo.GetPackageVersions(name))
+                    {
+                        var pkgs = repo.GetPackages(
+                            new PackageSpecifier(version.Name, version.Version.AsExactSpecifier(), version.Architecture,
+                                version.OS), TapThread.Current.AbortToken);
+                        packages.AddRange(pkgs);
+                    }
                 }
+
+                var compatiblePackages = packages
+                    .Where(x => x.IsPlatformCompatible(deploymentInstallationArchitecture, os)).ToArray();
+                graph.LoadFromPackageDefs(compatiblePackages);
+
+                log.Debug(sw, "Read {1} packages from {0}", repo, packages.Count);
+                return graph;
+            }
         }
 
         public PackageDef GetPackageDef(PackageSpecifier packageSpecifier)

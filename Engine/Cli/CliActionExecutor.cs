@@ -169,8 +169,13 @@ namespace OpenTap.Cli
             // Signals are not supported on Windows.
             if (OperatingSystem.Current != OperatingSystem.Windows)
             {
-                PosixSignals.SigTerm += (sig, info) => abort();
-                PosixSignals.SigInt += (sig, info) => abort();
+                PosixSignals.SignalCallback handler = context =>
+                {
+                    abort();
+                    context.Cancel = true;
+                };
+                PosixSignals.AddSignalHandler(PosixSignals.SIGINT, handler);
+                PosixSignals.AddSignalHandler(PosixSignals.SIGTERM, handler);
             }
 
             CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
@@ -330,6 +335,12 @@ namespace OpenTap.Cli
                 log.Error("Unable to load CLI Action '{0}'", SelectedAction.GetDisplayAttribute().GetFullName());
                 log.Info("{0}", e.Message);
                 return (int)ExitCodes.UnknownCliAction;
+            }
+            catch (InvalidOperationException ex)
+            {
+                log.Error("Unable to load CLI Action '{0}'", SelectedAction.GetDisplayAttribute().GetFullName());
+                log.Info("{0}", ex.Message);
+                return (int)ExitCodes.GeneralException;
             }
             
             if (packageAction == null)

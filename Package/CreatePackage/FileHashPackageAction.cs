@@ -28,7 +28,7 @@ namespace OpenTap.Package
             {
                 if (false == File.Exists(file))
                     return Array.Empty<byte>();
-                var sha1 = SHA1CryptoServiceProvider.Create();
+                var sha1 = SHA1.Create();
                 using (var fstr = File.OpenRead(file))
                     return sha1.ComputeHash(fstr);
             }
@@ -230,7 +230,7 @@ namespace OpenTap.Package
                     // remove conflicts that came from the same package name. These may be overwritten.
                     .Where(x => x.Item1.Name != package.Name)
                     // remove conflicts in files that came from Dependencies. 
-                    .Where(x => x.Item2.FileName.StartsWith("Dependencies/", StringComparison.InvariantCultureIgnoreCase) == false)
+                    .Where(x => x.Item2.FileName.StartsWith("Dependencies/", StringComparison.OrdinalIgnoreCase) == false)
                     .Select(x => (x.Item1, x.Item2, package)));
             }
 

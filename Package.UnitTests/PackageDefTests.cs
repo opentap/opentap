@@ -12,10 +12,12 @@ using OpenTap.Plugins.BasicSteps;
 using System.Reflection;
 using System;
 using System.Runtime.Loader;
+using System.Text;
 using System.Xml;
 using OpenTap.Cli;
 using OpenTap.Engine.UnitTests.TestTestSteps;
 using static OpenTap.Package.PackageDefExt;
+using System.Threading;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -165,6 +167,26 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
+        [TestCase("da-DK")]
+        [TestCase("en-US")]
+        public void GetPluginOrder_Test_CultureIndependent(string cultureName)
+        {
+            var initialCulture = Thread.CurrentThread.CurrentCulture;
+            try
+            {
+                Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo(cultureName);
+                string inputFilename = "Packages/PackagePluginOrder/package.xml";
+                PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
+
+                Assert.AreEqual(9.58, pkg.Files[0].Plugins[0].Order);
+            }
+            finally
+            {
+                Thread.CurrentThread.CurrentCulture = initialCulture;
+            }
+        }
+
+        [Test]
         public void FromXmlFile_Test()
         {
             string inputFilename = "Packages/Package/package.xml";
@@ -252,7 +274,7 @@ namespace OpenTap.Package.UnitTests
                     File.Delete(outputFilename);
             }
         }
-#if NET6_0
+
         [Test]
         public void CreatePackageVersioningMono()
         {
@@ -277,7 +299,7 @@ namespace OpenTap.Package.UnitTests
             Assert.AreEqual("0.1.2", FileVersionInfo.GetVersionInfo(tmpFile).ProductVersion, "GetVersionInfo().ProductVersion");
             Assert.AreEqual("0.1.2", FileSystemHelper.GetAssemblyVersion(tmpFile), "FileSystemHelper.GetAssemblyVersion");
         }
-#endif
+
         [Test]
         public void CreatePackageDepVersions()
         {
@@ -591,7 +613,7 @@ namespace OpenTap.Package.UnitTests
             string inputXml = @"<?xml version='1.0' encoding='utf-8' ?>
 <Package Name='Test3' xmlns ='http://opentap.io/schemas/package'>
   <Files>
-    <File Path='System.Reflection.Metadata.dll'/>
+    <File Path='System.Reflection.MetadataLoadContext.dll'/>
   </Files>
 </Package>
 ";
@@ -755,8 +777,8 @@ namespace OpenTap.Package.UnitTests
             var plugins = Directory.EnumerateFiles(".");
 
             Assert.IsTrue(plugins.Any(package =>
-                Path.GetFileName(package).StartsWith("Test", System.StringComparison.InvariantCultureIgnoreCase) &&
-                Path.GetExtension(package).EndsWith("TapPackage", System.StringComparison.InvariantCultureIgnoreCase)
+                Path.GetFileName(package).StartsWith("Test", System.StringComparison.OrdinalIgnoreCase) &&
+                Path.GetExtension(package).EndsWith("TapPackage", System.StringComparison.OrdinalIgnoreCase)
             ), "Generated OpenTAP package file not found");
         }
 
@@ -917,6 +939,58 @@ namespace OpenTap.Package.UnitTests
                     // ignored
                 }
             }
+        }
+
+        [Test]
+        public void ValidationMarkerTest()
+        {
+            var pkgDef = @"<?xml version=""1.0"" encoding=""utf-8"" ?>
+<Package Name=""MarkerTest"" Version=""1.2.3+4""  xmlns=""http://opentap.io/schemas/package"">
+  <Files>
+    <File Path=""testfile.txt"">
+    </File>
+  </Files>
+  <Validation>
+      <FileExists Path=""markerfile.txt""/>
+  </Validation>
+</Package>";
+            var pkg = PackageDef.FromXml(new MemoryStream(Encoding.UTF8.GetBytes(pkgDef)));
+
+            File.WriteAllText("markerfile.txt", "123");
+            bool isValid = pkg.IsValid();
+            Assert.IsTrue(isValid);
+            var stream = new MemoryStream();
+            pkg.SaveTo(stream);
+            var pkg2 = PackageDef.FromXml(new MemoryStream(stream.ToArray()));
+            bool isValid2 = pkg.IsValid();
+            Assert.IsTrue(isValid2);
+            Assert.AreEqual(1, pkg2.Validation.Count);
+            File.Delete("markerfile.txt");
+            Assert.IsFalse(pkg2.IsValid());
+        }
+
+        /// <summary>
+        /// Using an unknown validation tag should be the same as not having it.
+        /// </summary>
+        [Test]
+        public void UnknownValidationTest()
+        {
+            var pkgDef = @"<?xml version=""1.0"" encoding=""utf-8"" ?>
+<Package Name=""MarkerTest"" Version=""1.2.3+4""  xmlns=""http://opentap.io/schemas/package"">
+  <Files>
+    <File Path=""testfile.txt"">
+    </File>
+  </Files>
+  <Validation>
+      <UnknownValidation Path=""markerfile.txt""/>
+      <FileExists Path=""markerfile.txt""/>
+  </Validation>
+</Package>";
+            var pkg = PackageDef.FromXml(new MemoryStream(Encoding.UTF8.GetBytes(pkgDef)));
+            File.WriteAllText("markerfile.txt", "123");
+            Assert.IsTrue(pkg.IsValid());
+            File.Delete("markerfile.txt");
+            Assert.IsFalse(pkg.IsValid());
         }
     }
 }

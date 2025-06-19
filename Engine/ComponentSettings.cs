@@ -116,11 +116,22 @@ namespace OpenTap
                 {
 
                     Type compSetType = typeHandlers[key];
-                    PropertyInfo prop = compSetType.GetProperty("Current", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy);
-                    if (prop != null)
+                    if (GetCurrentProp(compSetType) is { } prop)
                         yield return prop;
                 }
             }
+        }
+
+        private static PropertyInfo GetCurrentProp(Type compSetType)
+        {
+            return compSetType.GetProperty("Current", BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy); 
+        }
+        
+        private static IList GetCurrent(Type compSetType)
+        {
+            if (GetCurrentProp(compSetType) is {} prop)
+                return (IList)prop.GetValue(null, null);
+            return null;
         }
         
         /// <summary>
@@ -135,11 +146,14 @@ namespace OpenTap
             return (IList)m.GetValue(null, null);
         }
 
-        internal static IEnumerable<IList> GetContainers(Type T)
+        internal static IEnumerable<IList> GetResourceContainers()
         {
-            foreach (var m in getGetCurrentMethodsForContainer(T))
+            foreach (Type key in typeHandlers.Keys)
             {
-                yield return (IList)m.GetValue(null, null);
+                if (!key.DescendsTo(typeof(IResource))) continue;
+                Type compSetType = typeHandlers[key];
+                if (GetCurrent(compSetType) is IList lst) 
+                    yield return lst;
             }
         }
 
@@ -216,7 +230,7 @@ namespace OpenTap
         public ComponentSettingsList()
         {
             list = new ObservableCollection<ContainedType>();
-            list.CollectionChanged += list_CollectionChanged;
+            list.CollectionChanged += OnCollectionChanged;
             ilist = list;
         }
 
@@ -225,7 +239,8 @@ namespace OpenTap
             return touchedResources.GetElements().Where(x => Contains(x) == false).ToArray();
         }
 
-        void list_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        /// <summary> This gets invoked when the collection is changed. </summary>
+        internal protected virtual void OnCollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
             if (e.Action == NotifyCollectionChangedAction.Add)
             {
@@ -372,6 +387,7 @@ namespace OpenTap
             }
         }
 
+
         /// <summary>
         /// Invoked when collection is changed.
         /// </summary>
@@ -493,6 +509,8 @@ namespace OpenTap
         /// Get the currently loaded ComponentSettings instance for this class.
         /// </summary>
         public static T Current =>  GetCurrent();
+        
+        internal static T CurrentFromCache =>  (T)GetCurrentFromCache(typeof(T));
     }
 
     /// <summary>

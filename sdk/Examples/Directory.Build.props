@@ -9,12 +9,12 @@
 	<PropertyGroup>
 		<!-- This variable is only defined so we can compile locally without replacing GitVersion. 
 		     It will be removed in the build script. -->
-		<GitVersion>9.22.2</GitVersion>
+		<GitVersion>9.26.1</GitVersion>
 	</PropertyGroup>	
 	<PropertyGroup>
 		<!-- Ensure that all projects in this solution use the same version of OpenTAP -->		
 		<OpenTapVersion>$(GitVersion)</OpenTapVersion>
-		<TargetFramework>netstandard2.0</TargetFramework>
+		<TargetFramework>net9</TargetFramework>
 		<GenerateAssemblyInfo>false</GenerateAssemblyInfo>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
@@ -38,9 +38,11 @@
 		<DevelopersSystem Condition="'$(Configuration)' != 'Debug CE'">Developer's System</DevelopersSystem>
 	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
+  <!-- We need to override the default runtimeconfig used by OpenTAP because it cannot otherwise resolve some Windows Desktop references -->
+  <ItemGroup Condition="'$(IsWindows)'=='True'">
+    <Content Include="$(MSBuildThisFileDirectory)Custom.runtimeconfig.json">
+      <Link>tap.runtimeconfig.json</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
-
-
 </Project>

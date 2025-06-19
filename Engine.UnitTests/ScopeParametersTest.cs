@@ -379,8 +379,8 @@ namespace OpenTap.UnitTests
             sweep.ChildTestSteps.Add(step);
            
             
-            sweep.SweepValues.Add(new SweepRow());
-            sweep.SweepValues.Add(new SweepRow());
+            sweep.SweepValues.Add(new SweepRow(sweep));
+            sweep.SweepValues.Add(new SweepRow(sweep));
 
             TypeData.GetTypeData(step).GetMember(nameof(ScopeTestStep.A)).Parameterize(sweep, step, "Parameters \\ A");
             TypeData.GetTypeData(step).GetMember(nameof(ScopeTestStep.EnabledTest)).Parameterize(sweep, step, nameof(ScopeTestStep.EnabledTest));
@@ -395,8 +395,18 @@ namespace OpenTap.UnitTests
             {
                 // verify Enabled<T> works with SweepParameterStep.
                 var annotation = AnnotationCollection.Annotate(sweep);
-                var col = annotation.GetMember(nameof(SweepParameterStep.SelectedParameters)).Get<IStringReadOnlyValueAnnotation>().Value;
-                Assert.AreEqual("EnabledTest, A", col);
+                var col = annotation.GetMember(nameof(SweepParameterStep.SelectedParameters)).Get<IStringReadOnlyValueAnnotation>().Value; 
+                // The order is not deterministic because the implementation is using a dictionary and looping over the content.
+                // The string hashing function used by dotnet can vary across processes, which affects the order.
+                // It may be confusing to users that restarting an application causes the displayed parameters to change,
+                // but this is a cosmetic issue. We can consider changing the underlying implementation to ensure the list
+                // remains sorted on insertion. I have opted not to change the implementation at this time because the
+                // list implementation is directly exposed to the user with methods such as Insert(index, parameter)
+                // which would be impossible to honor if we sort the list anyway. The way the comma separated string
+                // is actually generated is through a MemberDataSequenceStringAnnotation which is widely used, so ordering
+                // the members alphabetically in that implementation is also a no-go since ordering could be important in other contexts.
+                // The least destructive way would be to use a separate annotator for this particular implementation, which seems excessive for a cosmetic issue.
+                Assert.That(col, Is.EqualTo("A, EnabledTest").Or.EqualTo("EnabledTest, A"));
                 var elements = annotation.GetMember(nameof(SweepParameterStep.SweepValues))
                     .Get<ICollectionAnnotation>().AnnotatedElements
                     .Select(elem => elem.GetMember(nameof(ScopeTestStep.EnabledTest)))
@@ -430,7 +440,7 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(((ScopeTestStep)sweep2.ChildTestSteps[0]).Collection.SequenceEqual(new[] {10, 20}));
 
             var name = sweep.GetFormattedName();
-            Assert.AreEqual("Sweep EnabledTest, A", name);
+            Assert.That(name, Is.EqualTo("Sweep A, EnabledTest").Or.EqualTo("Sweep EnabledTest, A"));
 
             { // Testing that sweep parameters are automatically removed after unparameterization.
                 var p = (ParameterMemberData) TypeData.GetTypeData(sweep2).GetMember("Parameters \\ A");
@@ -568,9 +578,9 @@ namespace OpenTap.UnitTests
             
             TypeData.GetTypeData(step).GetMember(nameof(step.NormallyNull)).Parameterize(sweep, step, nameof(step.NormallyNull));
             
-            var row = new SweepRow {Loop = sweep};
+            var row = new SweepRow(sweep);
             row.Values[nameof(step.NormallyNull)] = null;
-            sweep.SweepValues.Add(new SweepRow{Loop = sweep});
+            sweep.SweepValues.Add(new SweepRow(sweep));
 
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
@@ -716,7 +726,7 @@ namespace OpenTap.UnitTests
             var failStep = new FailParameterStep();
             step1.ChildTestSteps.Add(failStep);
             TypeData.GetTypeData(failStep).GetMember(nameof(failStep.Value)).Parameterize(step1, failStep, "A");
-            step1.SweepValues.Add(new SweepRow());
+            step1.SweepValues.Add(new SweepRow(step1));
             // this should make failStep fail.
             step1.SweepValues[0].Values["A"] = -1.0;
 
@@ -733,7 +743,7 @@ namespace OpenTap.UnitTests
             var testStep = new DelayStep();
             sweep.ChildTestSteps.Add(testStep);
             TypeData.GetTypeData(testStep).GetMember(nameof(testStep.DelaySecs)).Parameterize(sweep, testStep, "A");
-            sweep.SweepValues.Add(new SweepRow());
+            sweep.SweepValues.Add(new SweepRow(sweep));
             sweep.SweepValues[0].Values["A"] = -1;
 
             var result = plan.Execute();
@@ -804,7 +814,7 @@ namespace OpenTap.UnitTests
                 mem.Parameterize(step1, step2, "Instrument");
                 for (int i = 0; i < iterations; i++)
                 {
-                    var row1 = new SweepRow();
+                    var row1 = new SweepRow(step1);
                     row1.Values["Instrument"] = instruments[i];
                     step1.SweepValues.Add(row1);
                 }
@@ -850,8 +860,14 @@ namespace OpenTap.UnitTests
             var param = logType.GetMember(nameof(log.LogMessage)).Parameterize(seq, log, "log1");
             var param2 = param.Parameterize(plan, seq, "log2");
             seq.ChildTestSteps.Clear();
-            using (ParameterManager.WithSanityCheckDelayed(true))
+            using (ParameterManager.WithSanityCheckDelayed(quickCheck: false))
             {
+                var m2 = TypeData.GetTypeData(plan).GetMember(param2.Name);
+                Assert.IsNotNull(m2);
+            }
+            using (ParameterManager.WithSanityCheckDelayed(quickCheck: true))
+            {
+                // since a quick-check is allowed, the check will anyway be done.
                 var m2 = TypeData.GetTypeData(plan).GetMember(param2.Name);
                 Assert.IsNull(m2);
             }

@@ -363,7 +363,7 @@ namespace OpenTap.Package
                 // but this causes issues in scenarios where merge commits are fast-forwarded onto e.g. the main branch.
                 // See here: https://github.com/opentap/opentap/pull/1384
                 // And here: https://github.com/opentap/opentap/issues/1321#issuecomment-1895749385
-                bool isRc = preRelease.StartsWith("rc", StringComparison.InvariantCultureIgnoreCase);
+                bool isRc = preRelease.StartsWith("rc", StringComparison.OrdinalIgnoreCase);
                 Commit cfgCommit = getLatestConfigVersionChange(targetCommit);
                 Commit commonAncestor = findFirstCommonAncestor(defaultBranch, targetCommit);
                 int commitsFromDefaultBranch = countCommitsBetween(commonAncestor, targetCommit, firstParentOnly: isRc);
@@ -408,6 +408,24 @@ namespace OpenTap.Package
         /// </summary>
         private Commit findFirstCommonAncestor(Branch b1, Commit target)
         {
+            // This fixes gitversion calculation in scenarios where the local revision of
+            // a checked out branch is behind the origin branch. If the local revision is fully merged
+            // in the remote tracking branch, we base our calculation on the remote branch instead.
+            // Otherwise, if the local branch contains commits that are *not* merged in the remote, we base the calculation on that.
+            // This should make the gitversion calculation work as expected after `git fetch --all`.
+            if (b1.TrackedBranch != null)
+            {
+                // Check if any local commits are unreachable from the tracking branch
+                var commitsMissingFromUpstream = (IQueryableCommitLog)repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = b1.Tip, ExcludeReachableFrom = b1.TrackedBranch.Tip});
+                if (commitsMissingFromUpstream.Any())
+                {
+                    throw new Exception(
+                        $"The local branch '{b1.GetShortName()}' contains commits missing from the tracked upstream branch.\n" +
+                        $"This can cause unexpected mismatching version numbers. Please align '{b1.GetShortName()}' with its upstream.");
+                }
+                b1 = b1.TrackedBranch;
+            }
+
             Commit b1Commit = b1.Tip;
             while (b1Commit != null)
             {
@@ -460,9 +478,12 @@ namespace OpenTap.Package
                 {
                     // be careful to return the remote branch instead of any local one. On build runners the local branch might be behind, as they usually just checkout a sha not the actual branch
                     var branch = repo.Branches.FirstOrDefault(b => b.CanonicalName == defaultRef.TargetIdentifier);
-                    log.Debug("Determined beta branch to be '{0}' by looking at the HEAD of the remote '{1}'.", branch.GetShortName(), remote.Name);
                     if (branch != null)
+                    {
+                        log.Debug("Determined beta branch to be '{0}' by looking at the HEAD of the remote '{1}'.",
+                            branch.GetShortName(), remote.Name);
                         return branch;
+                    }
                 }
             }
 

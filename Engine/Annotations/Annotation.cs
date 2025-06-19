@@ -10,6 +10,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
 using System.Text;
+using OpenTap.Translation;
 
 namespace OpenTap
 {
@@ -51,6 +52,14 @@ namespace OpenTap
     {
         /// <summary> Gets or sets the current value. Note, for the value to be written to the owner object, Annotation.Write has to be called.</summary>
         object Value { get; set; }
+    }
+
+    /// <summary>
+    /// A marker interface for object value annotations that comes from a merged source instead of a single-value source.
+    /// </summary>
+    public interface IMergedValueAnnotation : IObjectValueAnnotation
+    {
+
     }
 
     /// <summary> Specifies how available values proxies are implemented. This class should rarely be implemented. Consider implementing just IAvailableValuesAnnotation instead.</summary>
@@ -194,6 +203,16 @@ namespace OpenTap
     {
         /// <summary> Invokes the action.  </summary>
         void Invoke();
+    }
+
+    /// <summary>
+    /// The merged method annotation marks a custom method annotation which overrides
+    /// the standard behavior in the case where multiple values are merged.
+    /// This can happen during multi select of a test step with a method.
+    /// </summary>
+    public interface IMergedMethodAnnotation : IMethodAnnotation
+    {
+
     }
 
     /// <summary> Specifies how to implement basic collection annotations. </summary>
@@ -712,7 +731,7 @@ namespace OpenTap
 
     }
 
-    class MergedValueAnnotation : IObjectValueAnnotation, IOwnedAnnotation
+    class MergedValueAnnotation : IMergedValueAnnotation, IOwnedAnnotation
     {
         public IEnumerable<AnnotationCollection> Merged => merged;
         readonly List<AnnotationCollection> merged;
@@ -902,8 +921,10 @@ namespace OpenTap
                     var method = newa.Get<IMethodAnnotation>();
                     if (method != null)
                     {
-                        newa.Add(new ManyToOneMethodAnnotation(newa));
-                        newa.Remove(method);
+                        // skip adding many-to-one method annotation.
+                        // if the method annotation can already handle the merged case.
+                        if(!(method is IMergedMethodAnnotation))
+                            newa.Add(new ManyToOneMethodAnnotation(newa));
                     }
 
                     var enabledValue = newa.Get<IEnabledValueAnnotation>();
@@ -1152,6 +1173,7 @@ namespace OpenTap
         public void Read(object source)
         {
             wasRead = false;
+            wasSet = false;
         }
 
         public void Write(object source)
@@ -1166,7 +1188,7 @@ namespace OpenTap
             error = null;
             try
             {
-                if (object.Equals(currentValue, m.Member.GetValue(source)) == false || isParameter)
+                if (isParameter || object.Equals(currentValue, m.Member.GetValue(source)) == false)
                     m.Member.SetValue(source, currentValue);
             }
             catch (Exception e)
@@ -1295,17 +1317,25 @@ namespace OpenTap
             }
         }
 
-
         class InputStepAnnotation : IAvailableValuesSelectedAnnotation, IOwnedAnnotation, IStringReadOnlyValueAnnotation
         {
+            class Strings : IStringLocalizer
+            {
+                // this should always be private.
+                static readonly Strings strings = new();
+
+                public static string NoSteps => strings.Translate("None");
+                public static FormatString InputFormat => strings.TranslateFormat("{0} from {1}");
+            }
+
             struct InputThing
             {
                 public ITestStep Step { get; set; }
                 public IMemberData Member { get; set; }
                 public override string ToString()
                 {
-                    if (Step == null) return "None";
-                    return $"{Member.GetDisplayAttribute().Name} from {Step.GetFormattedName()}";
+                    if (Step == null) return Strings.NoSteps;
+                    return Strings.InputFormat.Format(Member.GetTranslatedDisplayAttribute().Name, Step.GetFormattedName());
                 }
 
                 public static InputThing FromInput(IInput inp)
@@ -1491,19 +1521,26 @@ namespace OpenTap
             {
                 get
                 {
-                    if (availableValues == null)
+                    // This cache is disabled for two reasons:
+                    // 1. Changing language requires invalidating this cache. Otherwise weird issues can occur.
+                    // 2. Translations are automatically reloaded on change. This also requires invalidating this cache.
+                    // There is currently no good mechanism to handle these scenarios.
+                    // TODO: Find the golden path to language based cache invalidation.
+                    // if (availableValues == null)
                     {
                         var names = Enum.GetNames(enumType);
                         var values = Enum.GetValues(enumType);
                         
-                        var orders = names.Select(x =>
+                        var orders = names.Select((x, i) =>
                         {
+                            var enumValue = values.GetValue(i) as Enum;
+                            var disp = TranslationManager.TranslateEnum(enumValue);
                             var memberInfo = enumType.GetMember(x).FirstOrDefault();
-                            return (memberInfo.GetDisplayAttribute(), memberInfo.IsBrowsable());
+                            return (Display: disp, IsBrowsable: memberInfo.IsBrowsable());
                         }).ToArray();
                         availableValues = Enumerable.Range(0, names.Length)
-                            .Where(i => orders[i].Item2)
-                            .OrderBy(i => orders[i].Item1.Order)
+                            .Where(i => orders[i].IsBrowsable)
+                            .OrderBy(i => orders[i].Display.Order)
                             .Select(i => values.GetValue(i))
                             .ToArray();
                     }
@@ -2079,8 +2116,15 @@ namespace OpenTap
                         }
                     }
                 }
-                
-                                        
+
+                if (rdonly && lst == null)
+                {
+                    //throw new Exception("Unable to show list value");
+                    // an error should be thrown here, but that will critically break current implementations
+                    // lets wait a few releases before we do that.
+                    return;
+                }
+
                 // Some IObjectValue annotations works best if they are notified of a modification this way.
                 // for example MergedValueAnnotation.
                 objValue.Value = lst;
@@ -2112,6 +2156,21 @@ namespace OpenTap
                             return fac.AnnotateSub(elem2, "");
                         if (elem2.IsNumeric)
                             return fac.AnnotateSub(elem2, Convert.ChangeType(0, elem2.Type));
+                        object instance = null;
+                        var member = fac.Get<IMemberAnnotation>()?.Member;
+                       
+                        if(member?.GetAttribute<ElementFactoryAttribute>() is ElementFactoryAttribute f)
+                        {
+                            var source = fac.Source;
+                            if (member is IParameterMemberData param)
+                            {
+                                source = (param.ParameterizedMembers.FirstOrDefault(x => x.Member.GetAttribute<ElementFactoryAttribute>() == f).Source) ?? source;
+                            }
+                            instance = FactoryAttribute.Create(source, f);
+                        }
+                        if (instance != null)
+                            return fac.AnnotateSub(null, instance);
+                        
                         if (elem2.IsValueType)
                         {
                             if (elem2.DescendsTo(typeof(Enum)))
@@ -2130,7 +2189,20 @@ namespace OpenTap
                         object instance = null;
                         try
                         {
-                            instance = elem2.CreateInstance(Array.Empty<object>());
+                            var member = fac.Get<IMemberAnnotation>()?.Member;
+                            if(member?.GetAttribute<ElementFactoryAttribute>() is ElementFactoryAttribute f)
+                            {
+                                var source = fac.Source;
+                                if (member is IParameterMemberData param)
+                                {
+                                    source = (param.ParameterizedMembers.FirstOrDefault(x => x.Member.GetAttribute<ElementFactoryAttribute>() == f).Source) ?? source;
+                                }
+                                instance = FactoryAttribute.Create(source, f);
+                            }
+                            if(instance == null)
+                            {
+                               instance = elem2.CreateInstance(Array.Empty<object>());
+                            }
                         }
                         catch
                         {
@@ -2153,7 +2225,9 @@ namespace OpenTap
             {
                 get
                 {
-                    var x = ComponentSettingsList.GetContainers(baseType).Select(x => x.Cast<object>())
+                    // We need all items (from any resource container) which can be assigned to a property of type baseType.
+                    var x = ComponentSettingsList.GetResourceContainers()
+                        .Select(x => x.Cast<object>())
                         .SelectMany(x => x);
                     var cv = a.Get<IObjectValueAnnotation>()?.Value as IResource;
                     var result = x.Where(y => y.GetType().DescendsTo(baseType)).ToList();
@@ -2711,6 +2785,7 @@ namespace OpenTap
             public void Read(object source) => forwarded?.ForEach(elem => elem.Read());
             public void Write(object source) => forwarded?.ForEach(elem => elem.Write());
         }
+
         void IAnnotator.Annotate(AnnotationCollection annotation)
         {
             var reflect = annotation.Get<IReflectionAnnotation>();
@@ -2720,7 +2795,7 @@ namespace OpenTap
                 if (reflect.ReflectionInfo.DescendsTo(typeof(IDisplayAnnotation)))
                     annotation.Add(new DisplayAnnotationWrapper());
                 else
-                    annotation.Add(reflect.ReflectionInfo.GetDisplayAttribute());
+                    annotation.Add(reflect.ReflectionInfo.GetTranslatedDisplayAttribute());
             }
 
             bool rd_only = annotation.Get<ReadOnlyMemberAnnotation>() != null;
@@ -2762,18 +2837,13 @@ namespace OpenTap
                     annotation.Add(new MemberValueAnnotation(annotation));
 
                 var attributes = mem.Member.Attributes;
-                bool displayFound = false;
                 Sequence.ProcessPattern(attributes,
                     (SuggestedValuesAttribute suggested) => annotation.Add(new SuggestedValueAnnotation(annotation, suggested.PropertyName)),
                     (DeviceAddressAttribute x) => annotation.Add(new DeviceAddressAnnotation(annotation)),
-                    (PluginTypeSelectorAttribute x) => annotation.Add(new PluginTypeSelectAnnotation(annotation)),
-                    (DisplayAttribute x) =>
-                    {
-                        displayFound = true;
-                        annotation.Add(x);
-                    });
-                if(!displayFound)
-                    annotation.Add(mem.Member.GetDisplayAttribute());
+                    (PluginTypeSelectorAttribute x) => annotation.Add(new PluginTypeSelectAnnotation(annotation)));
+
+                var translatedDisplay = mem.Member.GetTranslatedDisplayAttribute();
+                annotation.Add(translatedDisplay);
 
                 var browsable = mem.Member.GetAttribute<BrowsableAttribute>();
                 if(mem.Member.Writable == false || browsable != null)
@@ -3053,6 +3123,9 @@ namespace OpenTap
         {
             IEnumerable<AnnotationCollection> annotations;
             object[] prevValues = Array.Empty<object>();
+            // when the object has been re-read, we need to check if the AvailableValues annotations needs update.
+            bool invalidated;
+
             public IEnumerable<AnnotationCollection> AvailableValues
             {
                 get
@@ -3192,8 +3265,7 @@ namespace OpenTap
                 this.a = a;
             }
 
-            // when the object has been re-read, we need to check if the AvailableValues annotations needs update.
-            bool invalidated;
+
             
             public void Read(object source)
             {
@@ -3212,12 +3284,16 @@ namespace OpenTap
         {
             IEnumerable<AnnotationCollection> annotations = null;
             IEnumerable prevValues = Enumerable.Empty<object>();
+            // when the object has been re-read, we need to check if the AvailableValues annotations needs update.
+            bool invalidated;
+
             public IEnumerable<AnnotationCollection> SuggestedValues
             {
                 get
                 {
-                    if (annotations == null)
+                    if (annotations == null || invalidated)
                     {
+                        invalidated = false;
                         var values = a.Get<ISuggestedValuesAnnotation>()?.SuggestedValues ?? Enumerable.Empty<object>();
                         // the same reference of an the value may be updated, so keep a copy of the values instead of a reference.
                         prevValues = values.OfType<object>().ToArray();
@@ -3273,6 +3349,8 @@ namespace OpenTap
 
             public void Read(object source)
             {
+                invalidated = true;
+                if (annotations == null) return;
                 if (annotations == null) return;
                 var values = a.Get<ISuggestedValuesAnnotation>()?.SuggestedValues;
                 if (Enumerable.SequenceEqual(prevValues.Cast<object>(), values.Cast<object>()) == false)
@@ -3409,6 +3487,18 @@ namespace OpenTap
     /// </summary>
     public class MultiObjectAnnotator : IAnnotator
     {
+        class MergedValidationErrorAnnotation : IErrorAnnotation
+        {
+            readonly AnnotationCollection annotation;
+            public MergedValidationErrorAnnotation(AnnotationCollection annotation)
+            {
+                this.annotation = annotation;
+            }
+
+            public IEnumerable<string> Errors => annotation.Get<MergedValueAnnotation>().Merged
+                .SelectMany(a => a.Get<ValidationErrorAnnotation>()?.Errors ?? Enumerable.Empty<string>())
+                .Distinct();
+        }
         class MergedAvailableValues : IAvailableValuesAnnotation
         {
             public IEnumerable AvailableValues
@@ -3458,8 +3548,16 @@ namespace OpenTap
             }
             var merged = annotation.Get<MergedValueAnnotation>();
             if (merged == null) return;
-            var members = annotation.Get<IMembersAnnotation>();
 
+            var validationErrors = annotation.Get<ValidationErrorAnnotation>();
+            if (validationErrors != null)
+            {
+                annotation.Remove(validationErrors);
+                annotation.Add(new MergedValidationErrorAnnotation(annotation));
+            }
+            
+            var members = annotation.Get<IMembersAnnotation>();
+            
             if (members != null)
             {
                 var manyToOne = new ManyToOneAnnotation(annotation);
@@ -3819,7 +3917,7 @@ namespace OpenTap
         {
             get
             {
-                var disp = Get<IDisplayAnnotation>()?.Name ?? Get<IReflectionAnnotation>().ReflectionInfo?.Name;
+                var disp = Get<IDisplayAnnotation>()?.Name ?? Get<IReflectionAnnotation>()?.ReflectionInfo?.Name;
                 return disp ?? "?";
             }
         }

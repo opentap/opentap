@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace OpenTap.Plugins.BasicSteps
 {
-    class ExpandedMemberData : IMemberData, IParameterMemberData
+    class ExpandedMemberData : IMemberData, IParameterMemberData, IDynamicMemberData
     {
         public override bool Equals(object obj)
         {
@@ -78,14 +78,17 @@ namespace OpenTap.Plugins.BasicSteps
                 dis = Member.GetDisplayAttribute();
             
             attrs.Add(new DisplayAttribute(dis.Name, Description: dis.Description, Order: 5, Groups:dis.Group));
-            if (attrs.Any(x => x is ColumnDisplayNameAttribute))
+            static bool FilterAttributes(object attr)
             {
-                var colAttr = (ColumnDisplayNameAttribute) attrs.FirstOrDefault(x => x is ColumnDisplayNameAttribute);
-                attrs.Remove(colAttr);
-
-                var newColAttr = new ColumnDisplayNameAttribute(ep.Name, colAttr.Order, colAttr.IsReadOnly);
-                attrs.Add(newColAttr);
+                switch (attr)
+                {
+                    case ColumnDisplayNameAttribute: return false;
+                    case ExternalParameterAttribute: return false;
+                    default: return true;
+                }
             }
+            attrs.RemoveIf<object>(static x => FilterAttributes(x) == false);
+
 
             Attributes = attrs;
         }
@@ -94,6 +97,9 @@ namespace OpenTap.Plugins.BasicSteps
             ExternalParameter.ParameterizedMembers
                 .Select(x => new KeyValuePair<ITestStep, IEnumerable<IMemberData>>((ITestStep)x.Source, new []{x.Member}))
                 .SelectMany(x => x.Value.Select(y => ((object)x.Key, y)));
+        
+        /// <summary> Set to true if the member has been removed from the test plan reference.</summary>
+        public bool IsDisposed => ExternalParameter == null || ParameterizedMembers.Any() == false;
     }
 
     class ExpandedTypeData : ITypeData
@@ -165,6 +171,8 @@ namespace OpenTap.Plugins.BasicSteps
 
         public IEnumerable<IMemberData> GetMembers()
         {
+            if (Object == null) // this can occur during deserialization
+                return InnerDescriptor.GetMembers();
             var names2 = string.Join(",", Object.ExternalParameters.Select(x => x.Name));
             if (names == names2 && savedMembers != null) return savedMembers;
             List<IMemberData> members = new List<IMemberData>();
@@ -326,10 +334,10 @@ namespace OpenTap.Plugins.BasicSteps
         
         public object CreateInstance(object[] arguments)
         {
-            return new SweepRow {Loop = SweepParameterLoop};
+            throw new Exception("Cannot create instance");
         }
 
-        public bool CanCreateInstance => true;
+        public bool CanCreateInstance => false;
 
         public override bool Equals(object obj)
         {

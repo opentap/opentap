@@ -249,7 +249,7 @@ namespace OpenTap
             }
 
             [Display("Message", Order: 1)]
-            [Layout(LayoutMode.FullRow, 3)]
+            [Layout(LayoutMode.FullRow | LayoutMode.WrapText, 3)]
             [Browsable(true)]
             public string Message => string.Join("\n", getMessage().Select(x => x.message));
 
@@ -493,7 +493,7 @@ namespace OpenTap
         
         static bool isParameterized(ITestStepParent item, IMemberData member) => item.GetParents().Any(parent =>
             TypeData.GetTypeData(parent).GetMembers().OfType<ParameterMemberData>()
-                .Any(x => x.ContainsMember((item, Member: member))));
+                .Any(x => x.ContainsMember(item, member)));
         static bool IsValidParameter(IMemberData property, ITestStepParent[] steps, bool checkTestPlan = true)
         {
             if (steps.Length == 0) return false;
@@ -650,41 +650,32 @@ namespace OpenTap
                     }
                     foreach (var fwd in item.ParameterizedMembers)
                     {
-                        var src = fwd.Source as ITestStepParent;
-                        if (src == null) continue;
+                        // Multiple situations possible.
+                        // 1. the step is no longer a child of the parent to which it has parameterized a setting.
+                        // 2. the member of a parameter no longer exists.
+                        // 3. the child has been deleted from the step heirarchy.
+
+                        var parameterSource = fwd.Source as ITestStepParent;
+                        if (parameterSource == null) continue;
                         var member = fwd.Member;
                         bool isParent = false;
-                        bool unparented = false;
-                        var subparent = src.Parent;
-
-                        if (changeid.Value != step.ChildTestSteps.ChangeId || overrideCache)
-                        {                            
-                            // Multiple situations possible.
-                            // 1. the step is no longer a child of the parent to which it has parameterized a setting.
-                            // 2. the member of a parameter no longer exists.
-                            // 3. the child has been deleted from the step heirarchy.
-                            if (subparent != null && (src is ITestStep step2 &&
-                                                      subparent.ChildTestSteps.GetStep(step2.Id) == null))
-                                unparented = true;
-                            if (subparent != step)
+                        if (parameterSource == step)
+                        {
+                            // the parameter is parementerized on itself.
+                            isParent = true;
+                        }
+                        else if (changeid.Value != step.ChildTestSteps.ChangeId || overrideCache)
+                        {
+                            // now iterate up to confirm that there is an unbroken chain between the parameter source and target.
+                            var stepi = parameterSource;
+                            while (stepi != null)
                             {
-                                while (subparent != null)
+                                if (stepi.Parent == step)
                                 {
-                                    if (subparent.Parent != null &&
-                                        subparent.Parent.ChildTestSteps.GetStep((subparent as ITestStep).Id) == null)
-                                        unparented = true;
-                                    if (subparent == step)
-                                    {
-                                        isParent = true;
-                                        break;
-                                    }
-
-                                    subparent = subparent.Parent;
+                                    isParent = true;
+                                    break;
                                 }
-                            }
-                            else
-                            {
-                                isParent = true;
+                                stepi = stepi.Parent;
                             }
                         }
                         else
@@ -693,21 +684,21 @@ namespace OpenTap
                         }
 
                         if (member is IParameterMemberData)
-                            isSane &= CheckParameterSanity(src, new[] {member});
-                        
+                            isSane &= CheckParameterSanity(parameterSource, [member]);
+
                         bool memberDisposed = member is IDynamicMemberData dynamicMember && dynamicMember.IsDisposed;
-                        
+
                         if (!memberDisposed && member is EmbeddedMemberData emb)
                         { // This is a special case, if the member is not as such dynamic, but an embedded member, then the owner member could have been disposed.
                             if (emb.OwnerMember is IDynamicMemberData dynamicMember2 && dynamicMember2.IsDisposed)
                                 memberDisposed = true;
                         }
-                        if (memberDisposed || isParent == false || unparented)
+                        if (memberDisposed || isParent == false )
                         {
-                            member.Unparameterize(item, src);
-                            if (!isParent || unparented)
+                            member.Unparameterize(item, parameterSource);
+                            if (!isParent)
                                 log.Info("Step {0} is no longer a child step of the parameter owner. Removing from {1}.",
-                                    (src as ITestStep)?.GetFormattedName() ?? src?.ToString(), item.Name);
+                                    (parameterSource as ITestStep)?.GetFormattedName() ?? parameterSource?.ToString(), item.Name);
                             else
                                 log.Warning("Member {0} no longer exists, unparameterizing member.", member.Name);
                             isSane = false;

@@ -7,6 +7,7 @@ using NUnit.Framework;
 using OpenTap.EngineUnitTestUtils;
 using OpenTap.Package;
 using OpenTap.Plugins.BasicSteps;
+using OpenTap.UnitTests;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -447,6 +448,37 @@ namespace OpenTap.Engine.UnitTests
                 Assert.IsFalse(wasUsed);
             }
         }
-        
+
+        public class ObjectWithNullable
+        {
+            // if the value is 0x1337 means it has not been set. If its deliberately set to null
+            // we should not treat it as default.
+            public double? NullableDouble { get; set; } = 0x1337;
+        }
+
+        [Test]
+        public void SerializeDeserializePropertyWithNullable()
+        {
+            var a = new ObjectWithNullable
+            {
+                NullableDouble = 5
+            };
+            var b = new ObjectWithNullable()
+            {
+                NullableDouble = null
+            };
+
+            // The problem only occurs if the type is not explicit. Note in the future we will probably
+            // not require explicit type since it can be inferred through reflection, so this should work without.
+            var aXml = new TapSerializer().SerializeToString(a).Replace("type=\"System.Double\"", "");
+            var bXml = new TapSerializer().SerializeToString(b).Replace("type=\"System.Double\"", "");
+            var a2 = (ObjectWithNullable)new TapSerializer().DeserializeFromString(aXml);
+            var b2 = (ObjectWithNullable)new TapSerializer().DeserializeFromString(bXml);
+            Assert.AreEqual(a.NullableDouble, a2.NullableDouble);
+            Assert.AreEqual(b.NullableDouble, b2.NullableDouble);
+
+
+
+        }
     }
 }

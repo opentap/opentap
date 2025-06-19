@@ -12,9 +12,11 @@ namespace OpenTap
 
     abstract class MixinEvent<T2> where T2: IMixin
     {
-        static TraceSource log = Log.CreateSource("Mixin");
-        protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg) 
+        static readonly TraceSource log = Log.CreateSource("Mixin");
+        protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg) => Invoke(target, f, arg, out _);
+        protected static T1 Invoke<T1>(object target, Action<T2, T1> f, T1 arg, out bool anyInvoked)
         {
+            anyInvoked = false;
             var emb = TypeData.GetTypeData(target).GetBaseType<EmbeddedTypeData>();
             if (emb == null) return arg;
             foreach (var mem in emb.GetEmbeddingMembers())
@@ -22,13 +24,14 @@ namespace OpenTap
                 if (!mem.TypeDescriptor.DescendsTo(typeof(T2))) continue;
                 if (mem.Readable == false) continue;
                 try
-                {
+                { 
                     if (mem.GetValue(target) is T2 mixin)
                     {
+                        anyInvoked = true;
                         f(mixin, arg);
                     }
                 }
-                catch(Exception e)
+                catch(Exception e) when (e is not OperationCanceledException)
                 {
                     log.Error("Caught error in mixin: {0}", e.Message);
                     log.Debug(e);
@@ -41,10 +44,15 @@ namespace OpenTap
     
     class TestStepPreRunEvent : MixinEvent<ITestStepPreRunMixin>
     {
-        public static TestStepPreRunEventArgs Invoke(ITestStep step) => 
-            Invoke(step, (v, arg) => v.OnPreRun(arg), new TestStepPreRunEventArgs(step));
+        public static TestStepPreRunEventArgs Invoke(ITestStep step)
+        {
+            var eventArg = new TestStepPreRunEventArgs(step);
+            Invoke(step, (v, arg) => v.OnPreRun(arg), eventArg, out bool anyInvoked);
+            eventArg.AnyPrerunsInvoked = anyInvoked;
+            return eventArg;
+        }
     }
-    
+
     /// <summary> Event args for ITestStepPreRun mixin. </summary>
     public sealed class TestStepPreRunEventArgs
     {
@@ -52,6 +60,9 @@ namespace OpenTap
         public ITestStep TestStep { get; }
         /// <summary> Can be set to true to skip the step</summary>
         public bool SkipStep { get; set; }
+        
+        /// <summary> Indicates whether any prerun mixins were invoked. </summary>
+        internal bool AnyPrerunsInvoked { get; set; }
 
         internal TestStepPreRunEventArgs(ITestStep step) => TestStep = step;
     }
@@ -70,11 +81,11 @@ namespace OpenTap
 
         internal TestPlanPreRunEventArgs(TestPlan step) => TestPlan = step;
     }
-    
+
     class TestStepPostRunEvent : MixinEvent<ITestStepPostRunMixin>
     {
         public static void Invoke(ITestStep step) => 
-            Invoke(step, (v, args) => v.OnPostRun(args), new TestStepPostRunEventArgs(step));
+            Invoke(step, static (mixin, args) => mixin.OnPostRun(args), new TestStepPostRunEventArgs(step));
     }
     
     /// <summary> Event args for ITestStepPostRun mixin. </summary>
@@ -89,7 +100,7 @@ namespace OpenTap
     class ResourcePreOpenEvent: MixinEvent<IResourcePreOpenMixin>
     {
         public static void Invoke(IResource resource) => 
-            Invoke(resource, (v, args) => v.OnPreOpen(args), new ResourcePreOpenEventArgs(resource));
+            Invoke(resource, static (mixin, args) => mixin.OnPreOpen(args), new ResourcePreOpenEventArgs(resource));
     }
 
     /// <summary> Event args for IResourcePreOpenMixin mixin. </summary>

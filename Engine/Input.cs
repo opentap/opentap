@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Linq;
 using System.Xml.Serialization;
 
 namespace OpenTap
@@ -28,12 +29,17 @@ namespace OpenTap
         bool SupportsType(ITypeData concreteType);
     }
 
+    interface IOwnedInput
+    {
+        object Owner { get; set; }
+    }
+
     /// <summary>   
     /// A generic type that specifies input properties for a TestStep. The user can link this property to properties on other TestSteps that are marked with the <see cref="OutputAttribute"/>
     /// When used in a TestStep, Input value should always be set in the constructor.
     /// </summary>
     /// <typeparam name="T"> Generic type parameter. </typeparam>
-    public class Input<T> : IInput, IInputTypeRestriction, ICloneable
+    public class Input<T> : IInput, IInputTypeRestriction, ICloneable, IOwnedInput
     {
         /// <summary> 
         /// Describes the output property on the <see cref="Step"/> to which this Input is connected.  
@@ -85,7 +91,7 @@ namespace OpenTap
             }
         }
 
-        private ITestStepParent getTopmostParent()
+        private ITestStepParent getTopmostParent(ITestStepParent step)
         {
             if (step == null) return null;
             ITestStepParent parent = step;
@@ -94,7 +100,39 @@ namespace OpenTap
             return parent;
         }
 
+        object testStepOwner = null;
+        const string OwnerNotFound = nameof(OwnerNotFound);
         ITestStep step;
+
+        /// <summary>
+        /// Sometimes we need to know the owner object.
+        /// Since we cannot automatically get it from the owning object, we can iterate the entire test plan to find it.
+        /// It's a bit of a hack, but works well.
+        /// For better performance we set the owner object for all Inputs in the test plan by using the IOwnedInput (internal) interface.
+        /// </summary>
+        void UpdateAllOwnedInputsInPlan()
+        {
+            if (step == null) return;
+            var topmost = getTopmostParent(step);
+            foreach (var step in topmost.ChildTestSteps.RecursivelyGetAllTestSteps(TestStepSearch.All))
+            {
+                foreach (var inputMember in TypeData.GetTypeData(step).GetMembers().Where(member => member.TypeDescriptor.DescendsTo(typeof(IOwnedInput)) && member.Readable))
+                {
+                    try
+                    {
+                        if (inputMember.GetValue(step) is IOwnedInput owned)
+                        {
+                            owned.Owner = step;
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore errors in user code.
+                    }
+                }
+            }
+        }
+
         /// <summary>   Gets or sets the TestStep that has the output property to which this Input is connected. </summary>
         public ITestStep Step
         {
@@ -102,9 +140,27 @@ namespace OpenTap
             {
                 // If the step is part of the test plan heirarchy, return the step.
                 // Otherwise, return null.
-                if (step != null && getTopmostParent().ChildTestSteps.GetStep(step.Id) != null)
-                    return step;
-                return null;
+                if (step == null) return null;
+
+                if (testStepOwner == null)
+                {
+                    UpdateAllOwnedInputsInPlan();
+                    if(testStepOwner == null)
+                        testStepOwner = OwnerNotFound;
+                }
+
+                if (testStepOwner is ITestStep ownerStep)
+                {
+
+                    if (getTopmostParent(ownerStep).ChildTestSteps.GetStep(step.Id) != null)
+                        return step;
+
+                    // the step is not in the same plan as the owner step.
+                    return null;
+                }
+
+                // if we could not find the owner step, then its better to assume that the value of step is ok.
+                return step;
             }
             set
             {
@@ -143,7 +199,7 @@ namespace OpenTap
 
         T GetValueNonBlocking()
         {
-            if (step != null && Property?.GetValue(Step) is T v)
+            if (Step is ITestStep step && Property?.GetValue(step) is T v)
                 return v;
             return default;
         }
@@ -190,5 +246,10 @@ namespace OpenTap
         /// <summary> Compares two Input for inequality.</summary>
         /// <returns></returns>
         public static bool operator !=(Input<T> a, Input<T> b) => !(a == b);
+        object IOwnedInput.Owner
+        {
+            get => testStepOwner as ITestStepParent;
+            set => testStepOwner = value;
+        }
     }
 }

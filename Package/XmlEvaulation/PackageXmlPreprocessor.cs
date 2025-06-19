@@ -51,12 +51,12 @@ namespace OpenTap.Package
             InitExpander(projectPath);
         }
 
+        private readonly DefaultVariableExpander _defaultExpander = new DefaultVariableExpander();
         private void InitExpander(string projectPath = null)
         {
             // The project directory is required to compute the gitversion. If it is not set, GitVersion will not be computed.
             Expander.AddProvider(new GitVersionExpander(projectPath));
-
-            Expander.AddProvider(new DefaultVariableExpander());
+            Expander.AddProvider(_defaultExpander);
             Expander.AddProvider(new EnvironmentVariableExpander());
             Expander.AddProvider(new ConditionExpander());
 
@@ -91,6 +91,10 @@ namespace OpenTap.Package
             // but with conditions it makes sense to specify these elements multiple times with different conditions.
             // Their children should be merged in a single parent element so the XML is still valid according to the schema.
             MergeDuplicateElements(Root);
+            
+            if (_defaultExpander.UndefinedVariables.Any())
+                throw new Exception(
+                    $"The following required variables are not defined: {string.Join(", ", _defaultExpander.UndefinedVariables)}");
 
             return Root;
         }

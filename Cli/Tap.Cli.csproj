@@ -3,6 +3,7 @@
     <OutputType>Library</OutputType>
     <AssemblyName>OpenTap.Cli</AssemblyName>
     <RootNamespace>OpenTap.Cli</RootNamespace>
+    <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Shared\AnsiColorCodeFix.cs" Link="Shared\AnsiColorCodeFix.cs" />

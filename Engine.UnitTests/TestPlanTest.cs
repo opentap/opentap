@@ -273,11 +273,14 @@ namespace OpenTap.Engine.UnitTests
 
             { // Move repeat step into the parallel step                        
                 plan.ChildTestSteps.Remove(repeat);
-                // Verify the step is null after removing it
-                Assert.That(ifVerdict.InputVerdict.Step, Is.Null);
                 par.ChildTestSteps.Add(repeat);
+
                 // Verify the step can still be computed after adding it back
                 Assert.That(ifVerdict.InputVerdict.Step, Is.EqualTo(dialog));
+
+                // after removing the dialog step the input step should be null.
+                repeat.ChildTestSteps.Remove(dialog);
+                Assert.That(ifVerdict.InputVerdict.Step, Is.Null);
             } 
         }
 
@@ -328,6 +331,33 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(2, pl1.StepRuns.Count);
             Assert.AreEqual(true, pl1.WasOpened);
             Assert.AreEqual(false, pl2.WasOpened);
+        }
+
+        [Test]
+        public void OpenAdditionalResources()
+        {
+            var instr1 = new DummyInstrument();
+            var instr2 = new DummyInstrument();
+            var instr3 = new DummyInstrument();
+            var plan = new TestPlan();
+            
+            plan.Open();
+            
+            Assert.IsFalse(instr1.IsConnected);
+            Assert.IsFalse(instr2.IsConnected);
+            Assert.IsFalse(instr3.IsConnected);
+            
+            plan.Open(new IResource[]{instr1,instr2});
+            Assert.IsTrue(instr1.IsConnected);
+            plan.Open(new IResource[]{instr3,instr2});
+            Assert.IsTrue(instr3.IsConnected);
+            Assert.IsTrue(instr2.IsConnected);
+            Assert.IsTrue(instr1.IsConnected);
+            plan.Close();
+            
+            Assert.IsFalse(instr1.IsConnected);
+            Assert.IsFalse(instr2.IsConnected);
+            Assert.IsFalse(instr3.IsConnected);
         }
 
         [Test]
@@ -2816,4 +2846,3 @@ namespace OpenTap.Engine.UnitTests
         }
     }
 }
-

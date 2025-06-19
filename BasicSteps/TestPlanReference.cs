@@ -277,10 +277,19 @@ namespace OpenTap.Plugins.BasicSteps
                     if (currentSerializer != null)
                         newSerializer.GetSerializer<ExternalParameterSerializer>().PreloadedValues.MergeInto(currentSerializer.GetSerializer<ExternalParameterSerializer>().PreloadedValues);
                     var ext = newSerializer.GetSerializer<ExternalParameterSerializer>();
-                    ExternalParameters.ToList().ForEach(e =>
+                    foreach (var e in ExternalParameters)
                     {
-                        ext.PreloadedValues[e.Name] = StringConvertProvider.GetString(e.GetValue(plan));
-                    });
+                        /* If the value can be converted to/from a string, do so */
+                        if (StringConvertProvider.TryGetString(e.GetValue(plan), out var str))
+                        {
+                            ext.PreloadedValues[e.Name] = str;
+                        }
+                        /* otherwise, write a null value to ensure the current value is not overwritten in the serializer. We can write it back later. */
+                        else
+                        {
+                            ext.PreloadedValues[e.Name] = null;
+                        }
+                    }
 
                     CurrentMappings = allMapping;
 
@@ -300,7 +309,23 @@ namespace OpenTap.Plugins.BasicSteps
                         }
                     }
 
-                    ExternalParameters = TypeData.GetTypeData(tp).GetMembers().OfType<ParameterMemberData>().ToArray();
+                    { /* write back any parameters that could not be converted to a string */
+                        var newParameters = TypeData.GetTypeData(tp).GetMembers().OfType<ParameterMemberData>()
+                            .ToArray();
+                        ILookup<string, ParameterMemberData> lookup = null;
+                        foreach (var par in newParameters)
+                        {
+                            if (par.GetValue(plan) == null)
+                            {
+                                lookup ??= ExternalParameters.ToLookup(m => m.Name);
+                                var prevParameter = lookup[par.Name].FirstOrDefault();
+                                if (prevParameter != null)
+                                    par.SetValue(plan, prevParameter.GetValue(plan));
+                            }
+                        }
+                        ExternalParameters = newParameters;
+                    }
+
 
                     var flatSteps = Utils.FlattenHeirarchy(tp.ChildTestSteps, x => x.ChildTestSteps);
 
@@ -325,6 +350,52 @@ namespace OpenTap.Plugins.BasicSteps
                             step.OnPropertyChanged("");
                         }
                     }
+
+                    if (currentSerializer == null)
+                    {
+                        // if currentSerializer is set, it means that we are loading a previously saved test plan reference.
+                        // Hence these things will be automatically set up.
+                        // otherwise we need to trasfer mixins and dynamic member values.
+                        
+                        // transfer mixins
+                        var thisType = TypeData.GetTypeData(this);
+
+                        foreach (var member in TypeData.GetTypeData(tp).GetMembers())
+                        {
+                            if (member is MixinMemberData mixinMember)
+                            {
+                                if (thisType.GetMember(member.Name) != null) continue;
+                                var mixin = mixinMember.Source;
+                                var mem = mixin.ToDynamicMember(thisType);
+                                if (mem == null)
+                                {
+                                    if (mixin is IValidatingObject validating && validating.Error is string err && string.IsNullOrEmpty(err) == false)
+                                    {
+                                        Log.Error($"Unable to load mixin: {err}");
+                                    }
+                                    else
+                                    {
+                                        Log.Error($"Unable to load mixin: {TypeData.GetTypeData(mixin)?.GetDisplayAttribute()?.Name ?? mixin.ToString()}");
+                                    }
+                                    continue;
+                                }
+                                // transfer  the value from the test plan instance to this instance.
+                                var value = member.GetValue(tp);
+                                DynamicMember.AddDynamicMember(this, mem);
+                                mem.SetValue(this, value);
+                            }
+                        }
+
+                        // transfer dynamic member values.
+                        foreach (var member in TypeData.GetTypeData(tp).GetMembers().Where(mem => mem is DynamicMember))
+                        {
+                            if (member.HasAttribute<XmlIgnoreAttribute>())
+                                continue;
+                            member.SetValue(this, member.GetValue(tp));
+                        }
+                    }
+
+
                 }
                 finally
                 {
@@ -376,6 +447,208 @@ namespace OpenTap.Plugins.BasicSteps
             
             UpdateStep();
         }
+
+        string GetPath()
+        {
+            object testplandir = null;
+            var currentSerializer = TapSerializer.GetObjectDeserializer(this);
+            if (currentSerializer != null && currentSerializer.ReadPath != null)
+                testplandir = System.IO.Path.GetDirectoryName(currentSerializer.ReadPath);
+            
+            var refPlanPath = Filepath.Expand(testPlanDir: testplandir as string);
+            refPlanPath = refPlanPath.Replace('\\', '/');
+            
+            return refPlanPath;
+        }
+
+        public bool anyStepsLoaded => ChildTestSteps.Any() && GetPath() is string path && File.Exists(path);
+
+        
+        
+        [Display("Are you sure?")]
+        class ConvertWarning
+        {
+            public enum ConvertOrCancel
+            {
+                Convert,
+                Cancel
+            }
+            [Browsable(true)]
+            [Layout(LayoutMode.FullRow | LayoutMode.WrapText)]
+            public string Message { get; }
+
+            [Layout(LayoutMode.FloatBottom | LayoutMode.FullRow)]
+            [Submit]
+            public ConvertOrCancel Response { set; get; } = ConvertOrCancel.Cancel;
+
+            public ConvertWarning(bool multiSelect)
+            {
+                Message = "Are you sure you want to convert the Test Plan Reference to a Sequence?\n\nAny future changes to the referenced test plan will not be reflected.";
+                if(multiSelect)
+                    Message += "\n\nThis will affect all selected test steps.";
+            }
+        }
+            
+
+        /// <summary> Convert the test plan reference to a sequence step. This will pop up a dialog. </summary>
+        [Browsable(true)]
+        [Display("Convert to Sequence", "Convert the test plan reference to a sequence step.", Order: 1.1)]
+        [EnabledIf(nameof(anyStepsLoaded), HideIfDisabled = true)]
+        public void ConvertToSequence()
+        {
+            // only show the dialog if the user input interface has been set.
+            // otherwise treat this as a normal method.
+            bool showDialog = UserInput.Interface != null;
+
+            ConvertToSequence(showDialog, false);
+        }
+
+        internal bool ConvertToSequence(bool userShouldConfirm, bool multiSelect)
+        {
+            if (userShouldConfirm)
+            {
+                var warn = new ConvertWarning(multiSelect);
+                UserInput.Request(warn, true);
+                if (warn.Response == ConvertWarning.ConvertOrCancel.Cancel)
+                    return false;
+            }
+
+            // This test plan contains a clone of all the test steps in 'this'.
+            var subPlan = TestPlan.Load(GetPath());
+            
+            // the new sequence step.
+            var seq = new SequenceStep
+            {
+                // Replace Test Plan Reference if the name starts with that.
+                Name = Name.StartsWith("Test Plan Reference") ? ("Sequence" + Name.Substring("Test Plan Reference".Length)) : Name,
+                Parent = Parent,
+                Id = this.Id
+            };
+            
+            ChildItemVisibility.SetVisibility(seq, ChildItemVisibility.GetVisibility(this));
+            
+            // first figure out which steps are parameterized to this in the list of child steps.
+            var parameters = TypeData.GetTypeData(subPlan).GetMembers().OfType<ParameterMemberData>()
+                .Select(e => new {Name = e.Name , Members = e.ParameterizedMembers.ToArray()}).ToArray();
+            foreach (var param in TypeData.GetTypeData(subPlan).GetMembers().OfType<ParameterMemberData>().ToArray())
+            {
+                // unparameterize those.
+                param.Remove();
+            }
+            
+            // now copy the steps over to the new step. 
+            var steps = subPlan.ChildTestSteps.ToArray();
+            subPlan.ChildTestSteps.Clear();
+            foreach (var step in steps)
+            {
+                seq.ChildTestSteps.Add(step);
+            }
+            ChildTestSteps.IsReadOnly = false;
+            var parent = this.Parent;
+            var idx = parent.ChildTestSteps.IndexOf(this);
+            parent.ChildTestSteps[idx] = seq;
+            
+            // This section copies parameters over from the test plan reference to the sequence
+            foreach (var parameter in parameters)
+            {
+                var name = parameter.Name;
+                ParameterMemberData parameterMember = null;
+                foreach (var member in parameter.Members)
+                {
+                    parameterMember = member.Member.Parameterize(seq, member.Source, name);
+                }
+                parameterMember.SetValue(seq, ExternalParameters.First(x => x.Name == name).GetValue(this));
+            }
+            
+            // This section copies mixins over from the test plan reference to the sequence           
+            var seqType = TypeData.GetTypeData(seq);
+
+            // Some MixinMemberData members may be seen multiple times
+            // e.g. multiple EmbeddedMemberData can have the same OwnerMember
+            // Store the seen members so that we can skip it
+            HashSet<MixinMemberData> seen = new HashSet<MixinMemberData>();
+
+            foreach (var member in TypeData.GetTypeData(this).GetMembers())
+            {
+                MixinMemberData mixinMember = member switch
+                {
+                    MixinMemberData mixin => mixin,
+                    IEmbeddedMemberData emb => emb.OwnerMember as MixinMemberData,
+                    var _ => null
+                };
+
+
+                if (mixinMember != null && !seen.Contains(mixinMember))
+                {
+                    seen.Add(mixinMember);
+                    var mixin = mixinMember.Source;
+                    var mem = mixin.ToDynamicMember(seqType);
+                    if (mem == null)
+                    {
+                        if (mixin is IValidatingObject validating && validating.Error is string err && string.IsNullOrEmpty(err) == false)
+                        {
+                            Log.Error($"Unable to load mixin: {err}");
+                        }
+                        else
+                        {
+                            Log.Error($"Unable to load mixin: {TypeData.GetTypeData(mixin)?.GetDisplayAttribute()?.Name ?? mixin.ToString()}");
+                        }
+                        continue;
+                    }
+                    DynamicMember.AddDynamicMember(seq, mem);
+                    mem.SetValue(seq, mixinMember.GetValue(this));
+                }
+            }
+
+            
+            // This section migrates parameters to the new step.
+            
+            ParameterMemberData GetParameter(object target, object source, IMemberData parameterizedMember)
+            {
+                var parameterMembers = TypeData.GetTypeData(target).GetMembers().OfType<ParameterMemberData>();
+                foreach (var fwd in parameterMembers)
+                {
+                    if (fwd.ContainsMember((source, parameterizedMember)))
+                        return fwd;
+                }
+                return null;
+            }
+            foreach (var member in TypeData.GetTypeData(this).GetMembers())
+            {
+                if (member.IsParameterized(this))
+                {
+                    
+                    var parent2 = Parent;
+                    while (parent2 != null)
+                    {
+                        var p = GetParameter(parent2, this, member);
+                        if (p != null)
+                        {
+                            TypeData.GetTypeData(seq).GetMember(member.Name).Parameterize(parent2, seq, p.Name);
+                            member.Unparameterize(p, this);
+                            
+                            break;
+                        }
+                        parent2 = parent2.Parent;
+                    }
+                }
+            }
+
+
+            // This section copies dynamic member values.
+
+            foreach (var member in TypeData.GetTypeData(this).GetMembers().Where(mem => mem is DynamicMember))
+            {
+                if (member.HasAttribute<XmlIgnoreAttribute>())
+                    continue;
+                var val = member.GetValue(this);
+                val = new ObjectCloner(val).Clone(false, this, member.TypeDescriptor);
+                member.SetValue(seq, val);
+            }
+            // .. and done.
+            return true;
+        }
+        
         internal ParameterMemberData[] ExternalParameters { get; private set; } = Array.Empty<ParameterMemberData>();
     }
 }

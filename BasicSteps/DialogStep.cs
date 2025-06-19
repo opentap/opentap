@@ -10,7 +10,7 @@ namespace OpenTap.Plugins.BasicSteps
 {
     public enum InputButtons
     {
-        [Display("Ok / Cancel", "Shows the OK and Cancel buttons")]
+        [Display("OK / Cancel", "Shows the OK and Cancel buttons")]
         OkCancel,
         [Display("Yes / No", "Shows the Yes and No buttons")]
         YesNo
@@ -27,7 +27,7 @@ namespace OpenTap.Plugins.BasicSteps
     {
         // The order of the results determines the order in which the buttons is shown in the dialog box.
         // The number assigned, determines the default value.
-        Cancel = 2, Ok = 1
+        Cancel = 2, [Display("OK")] Ok = 1
     }
 
     class DialogRequest : IDisplayAnnotation

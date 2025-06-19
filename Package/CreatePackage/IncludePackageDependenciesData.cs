@@ -92,7 +92,7 @@ namespace OpenTap.Package
                     VersionSpecifier thisVersionSpec;
                     SemanticVersion thisSemver;
                     var thisAny = string.IsNullOrWhiteSpace(thisVersion) ||
-                                  thisVersion.Equals("any", StringComparison.InvariantCultureIgnoreCase);
+                                  thisVersion.Equals("any", StringComparison.OrdinalIgnoreCase);
 
                     try
                     {
@@ -132,7 +132,7 @@ namespace OpenTap.Package
                     if (existing != null)
                     {
                         var otherAny =
-                            existing.RawVersion.Equals("any", StringComparison.InvariantCultureIgnoreCase);
+                            existing.RawVersion.Equals("any", StringComparison.OrdinalIgnoreCase);
 
                         var otherSemver = otherAny ? null : SemanticVersion.Parse(existing.RawVersion);
 

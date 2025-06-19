@@ -39,7 +39,6 @@ jobs:
     runs-on:
        group: OpenTAP-SpokeVPC
        labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     outputs:
       gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
       ks8500_repo_token_is_set: ${{ steps.check_KS8500_REPO_TOKEN.outputs.is_set }}
@@ -88,8 +87,8 @@ jobs:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.ks8500_repo_token_is_set == 'true'
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Setup OpenTAP
@@ -113,8 +112,8 @@ jobs:
     needs: CheckSecrets
     if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container:
       image: ghcr.io/opentap/oci-images/build-doxygen:latest
     steps:
@@ -146,8 +145,8 @@ jobs:
 
   Build-Pages:
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-ApiDoc
@@ -196,9 +195,13 @@ jobs:
 
   Build-Linux:
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
+    needs: GetVersion
+    env:
+      ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
+      GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -210,9 +213,17 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
+      - name: Rebuild
+        run: |
+          # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          # See issue for details: https://github.com/opentap/opentap/issues/2012
+          dotnet publish -c Release tap  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Engine  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Package  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release BasicSteps  /p:Platform=${{ matrix.Architecture }}
       - name: Copy Debug Package 
         run: cp ./bin/Release/OpenTap.Debug.TapPackage ./bin/Release/publish/dbg.zip
       - name: Upload binaries
@@ -229,6 +240,9 @@ jobs:
       matrix:
         Architecture: [x86, x64]
     needs: GetVersion
+    env:
+      ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
+      GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -237,46 +251,32 @@ jobs:
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
-      - name: Nuget Cache
-        uses: actions/cache@v4
-        id: cache
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }} #hash of project files
-          restore-keys: ${{ runner.os }}-nuget-
-      - name: Stamp Version
-        run: |
-          $AssemblyVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}.0`""
-          $AssemblyFileVersion = "`"${{needs.GetVersion.outputs.ShortVersion}}`""
-          $GitVersion = "`"${{needs.GetVersion.outputs.GitVersion}}`""
-          Push-Location ./tap/Properties
-          $AssemblyInfoFile = (Get-Content AssemblyInfo.cs.Template)
-          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyVersion"', $AssemblyVersion
-          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyFileVersion"', $AssemblyFileVersion
-          $AssemblyInfoFile = ($AssemblyInfoFile) -replace '"AssemblyInformationalVersion"', $GitVersion
-          $AssemblyInfoFile | Set-Content AssemblyInfo.cs
-          cat AssemblyInfo.cs
-          Pop-Location
-      - name: Restore
-        #if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          dotnet restore /p:Platform=${{ matrix.Architecture }}
       - name: Build
-        run: dotnet build --no-restore -c Release /p:Platform=${{ matrix.Architecture }}
-      - name: Build tap.csproj
-        run: dotnet build --no-restore tap/tap.csproj -c Release /p:Platform=${{ matrix.Architecture }}
+        run: dotnet build -c Release /p:Platform=${{ matrix.Architecture }}
+      - name: Rebuild
+        run: |
+          # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          # See issue for details: https://github.com/opentap/opentap/issues/2012
+          dotnet build -c Release tap  /p:Platform=${{ matrix.Architecture }}
+          dotnet build -c Release Engine  /p:Platform=${{ matrix.Architecture }}
+          dotnet build -c Release Package  /p:Platform=${{ matrix.Architecture }}
+          dotnet build -c Release BasicSteps  /p:Platform=${{ matrix.Architecture }}
       - name: cat tap.runtimeconfig.json 
         run: get-content ./bin/Release/tap.runtimeconfig.json
       - name: Upload binaries
         uses: actions/upload-artifact@v4
         with:
-          name: win-${{ matrix.Architecture }}-bin
+          name: win-${{ matrix.architecture }}-bin
           retention-days: 5
           path: |
             bin/Release/*
 
   Build-MacOS:
     runs-on: macos-14
+    needs: GetVersion
+    env:
+      ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
+      GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -288,9 +288,17 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
+      - name: Rebuild
+        run: |
+          # Ensure dependencies from these .netstandard2.0 projects are not overwritten by .NET 9 variants
+          # See issue for details: https://github.com/opentap/opentap/issues/2012
+          dotnet publish -c Release tap  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Engine  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release Package  /p:Platform=${{ matrix.Architecture }}
+          dotnet publish -c Release BasicSteps  /p:Platform=${{ matrix.Architecture }}
       - name: Copy Debug Package 
         run: cp ./bin/Release/OpenTap.Debug.TapPackage ./bin/Release/publish/dbg.zip
       - name: Upload binaries
@@ -348,8 +356,8 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
-          cd bin/Release                                                                                                                            # Timeout: 10 minutes (normally takes 5 minutes to run)
-          dotnet vstest /framework:.NETFramework,Version=v4.62 /Platform:x64 OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=600000 RunConfiguration.TreatNoTestsAsError=true
+          cd bin/Release                                                                       # Timeout: 10 minutes (normally takes 5 minutes to run)
+          dotnet vstest OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=600000 RunConfiguration.TreatNoTestsAsError=true
 
   TestWindowsPlan:
     runs-on: windows-2022
@@ -390,7 +398,7 @@ jobs:
             NewProj*/**
 
   TestLinuxPlan:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs: 
     - Build-Linux
@@ -404,7 +412,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
@@ -434,7 +442,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
@@ -528,8 +536,8 @@ jobs:
 
   Package-Cross:
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Linux
@@ -554,6 +562,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
@@ -681,14 +693,17 @@ jobs:
             SDK.*.TapPackage
 
   Package-Diff:
-    runs-on: ubuntu-20.04
+    runs-on:
+       group: OpenTAP-SpokeVPC
+       labels:  [Linux, X64]
+    container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Package-Cross
     steps:
       - uses: opentap/setup-opentap@v1.0
         with:
           version: 9.21.1
-          packages: 'Package Diff:0.1.0-beta.19+2b1aa952'
+          packages: 'Package Diff:0.1.0-beta.21'
       - name: Download package
         uses: actions/download-artifact@v4
         with:
@@ -751,11 +766,18 @@ jobs:
           path: .
       - name: Package
         run: |
-          #cp bin\Release\runtimes\win-x64\native\git2-b7bad55.dll bin\Release
           $content=(Get-Content ./nuget/OpenTAP.nuspec).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Set-Content ./nuget/OpenTAP.nuspec $content
-          New-Item -Force ./nuget/build/payload -ItemType Directory | Out-Null
+          New-Item -Force ./nuget/build/docs/Packages/OpenTAP -ItemType Directory | Out-Null
+        
+          Copy-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
+          Copy-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
+          Copy-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/docs
+          Copy-Item ./bin/Release/OpenTap.xml ./nuget/build/docs
+          Copy-Item ./bin/Release/OpenTap.Plugins.BasicSteps.xml ./nuget/build/docs/Packages/OpenTAP
+
           # Expand-Archive will only extract .zip extensions    
+          echo "Rename Archives"
           Move-Item OpenTAP.*.x86.Windows.TapPackage OpenTAP.x86.zip 
           Move-Item OpenTAP.*.x64.Windows.TapPackage OpenTAP.x64.zip
           Move-Item OpenTAP.*.Linux.x64.TapPackage OpenTAP.Linux.x64.zip
@@ -763,33 +785,14 @@ jobs:
           Move-Item OpenTAP.*.MacOS.x64.TapPackage OpenTAP.MacOS.x64.zip
           Move-Item OpenTAP.*.MacOS.arm64.TapPackage OpenTAP.MacOS.arm64.zip
 
-          Move-Item ./bin/Release/Keysight.OpenTap.Sdk.MSBuild.dll ./nuget/build
-          Move-Item ./bin/Release/DotNet.Glob.NetStandard1.1.dll ./nuget/build/DotNet.Glob.dll
-          echo "Install opentap"    
-          ./bin/Release/tap package install ./OpenTap.x64.zip -t ./nuget/build/payload -f -v --no-isolation
-          # package.xml, tap.dll, and tap.runtimeconfig.json of an installation should always come from 
-          # one of the Runtime directories. Delete it from the payload directory.
-          Remove-Item ./nuget/build/payload/Packages/OpenTAP/package.xml
-          # these files only exists when building for net6.0.
-          #Remove-Item ./nuget/build/payload/tap.dll
-          #Remove-Item ./nuget/build/payload/tap.runtimeconfig.json
+          echo "Expand Archives"
+          Expand-Archive OpenTAP.x64.zip -DestinationPath ./nuget/build/runtimes/win-x64 -Force
+          Expand-Archive OpenTAP.x86.zip -DestinationPath ./nuget/build/runtimes/win-x86 -Force
+          Expand-Archive OpenTAP.Linux.x64.zip -DestinationPath ./nuget/build/runtimes/linux-x64 -Force
+          Expand-Archive OpenTAP.Linux.arm64.zip -DestinationPath ./nuget/build/runtimes/linux-arm64 -Force
+          Expand-Archive OpenTAP.MacOS.x64.zip -DestinationPath ./nuget/build/runtimes/macos-x64 -Force
+          Expand-Archive OpenTAP.MacOS.arm64.zip -DestinationPath ./nuget/build/runtimes/macos-arm64 -Force
 
-          Move-Item ./bin/Release/OpenTap.Package.xml ./nuget/build/payload
-          Move-Item ./bin/Release/OpenTap.xml ./nuget/build/payload
-          Push-Location ./nuget/build/payload
-          Remove-Item tap.exe
-          Remove-Item ./Dependencies/LibGit2Sharp.0.27.0.0/git2*.dll
-          Pop-Location
-          echo "Expand archive"
-
-          Expand-Archive OpenTAP.x64.zip win-x64 -Verbose
-          Expand-Archive OpenTAP.x86.zip win-x86 -Verbose
-          Expand-Archive OpenTAP.Linux.x64.zip linux-x64 -Verbose
-          Expand-Archive OpenTAP.Linux.arm64.zip linux-arm64 -Verbose
-          Expand-Archive OpenTAP.MacOS.x64.zip macos-x64 -Verbose
-          Expand-Archive OpenTAP.MacOS.arm64.zip macos-arm64 -Verbose
-
-          ./nuget/NugetPackager.ps1
           cd ./nuget    
           Invoke-WebRequest -Method Get -Uri "https://dist.nuget.org/win-x86-commandline/v5.7.1/nuget.exe" -OutFile nuget.exe
           echo "Pack nuget"
@@ -804,8 +807,8 @@ jobs:
   
   Build-Installer-Windows:
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     needs:
       - GetVersion
       - Package-Win
@@ -848,10 +851,10 @@ jobs:
 
   Publish-Installer-Windows:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
-    environment: packages.opentap.io 
+    environment: packages.opentap.io
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Installer-Windows 
@@ -871,14 +874,14 @@ jobs:
                -H 'Metadata-Version: "${{ needs.GetVersion.outputs.LongVersion }}"' \
                -H 'Metadata-OS: "Windows"' \
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
-               --form 'file=@"'$(pwd)'/OpenTAP.exe"'
+               --form 'file=@"OpenTAP.exe"'
       - name: Upload Installer to Archive
-        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP.exe" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/WindowsX32/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}.exe"
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"OpenTAP.exe" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/WindowsX32/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}.exe"
 
   Build-Installer-Linux:
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     needs:
       - GetVersion
       - Package-Cross
@@ -918,15 +921,15 @@ jobs:
 
   Publish-Installer-Linux:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
-    environment: packages.opentap.io 
+    environment: packages.opentap.io
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Installer-Linux
       - GetVersion
-    steps: 
+    steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -939,15 +942,15 @@ jobs:
                -H 'Metadata-Version: "${{ needs.GetVersion.outputs.LongVersion }}"' \
                -H 'Metadata-OS: "Linux"' \
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
-               --form 'file=@"'$(pwd)'/OpenTAP"'
+               --form 'file=@"OpenTAP"'
       - name: Upload Installer to Archive
-        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"'$(pwd)'/OpenTAP" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/LinuxX64/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}"
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"OpenTAP" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/LinuxX64/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}"
 
   Docker-Linux:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-docker:latest
     environment: sign
     strategy:
@@ -993,6 +996,7 @@ jobs:
           tag: ${{env.TAG_NAME}}${{ matrix.tag-suffix }}
           path: docker/Linux
 
+
   ###############
   ### Publish ###
   ###############
@@ -1009,7 +1013,7 @@ jobs:
           name: nuget-package
           path: .
       - name: Package
-        run: nuget push OpenTAP.*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json
+        run: nuget push OpenTAP.*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json -SkipDuplicate
 
   Publish-Templates:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
@@ -1030,8 +1034,8 @@ jobs:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: packages.opentap.io
     runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Package-Win
@@ -1094,3 +1098,66 @@ jobs:
           packages: 'Repository Client:1.0'
       - name: Publish Packages
         run: tap repo upload --repository https://packages.opentap.io --token ${{ secrets.PUBLIC_REPO_TOKEN }} ./publish/*.TapPackage
+
+  Build-SDK-Linux:
+    runs-on: ubuntu-latest
+    needs:
+      - Package-NuGet
+      - Package-SDK
+    steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Download SDK package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-sdk
+          path: ./sdk-package/
+      - name: Unzip SDK package
+        run: unzip ./sdk-package/SDK.*.TapPackage
+      - name: Download nuget package
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-package
+          path: ./Packages/SDK/Examples/nuget-package
+      - name: Create Local Nuget Package Source
+        run: dotnet nuget add source $(pwd)/nuget-package --name local-nuget
+        working-directory: ./Packages/SDK/Examples
+      - run: dotnet build -c LinuxDebug
+        working-directory: ./Packages/SDK/Examples
+      - run: dotnet build -c LinuxRelease
+        working-directory: ./Packages/SDK/Examples
+
+  Build-SDK-Windows:
+    runs-on: windows-2022
+    needs:
+      - Package-NuGet
+      - Package-SDK
+    steps:
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+      - name: Download SDK package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-sdk
+          path: ./sdk-package/
+      - name: Rename SDK package
+        run: mv ./sdk-package/SDK.*.TapPackage SDK.zip
+      - name: Unzip SDK package
+        run: unzip SDK.zip
+      - name: Download nuget package
+        uses: actions/download-artifact@v4
+        with:
+          name: nuget-package
+          path: ./Packages/SDK/Examples/nuget-package
+      - name: Create Local Nuget Package Source
+        run: echo '<configuration><packageSources><add key="local-nuget" value="./nuget-package" /></packageSources></configuration>' > ./Packages/SDK/Examples/Nuget.config
+      - run: dotnet build -c Debug
+        working-directory: ./Packages/SDK/Examples
+      - run: dotnet build -c "Debug CE"
+        working-directory: ./Packages/SDK/Examples
+      - run: dotnet build -c Release
+        working-directory: ./Packages/SDK/Examples

@@ -144,7 +144,7 @@ namespace OpenTap
                 post_scale.AppendTo(sb, culture);
             else
             {
-                if (format.StartsWith("x", StringComparison.InvariantCultureIgnoreCase))
+                if (format.StartsWith("x", StringComparison.OrdinalIgnoreCase))
                     sb.Append(((long)post_scale.Rounded()).ToString(format, culture));
                 else
                 {
@@ -183,7 +183,7 @@ namespace OpenTap
                 final_string = post_scale.ToString("R", culture);
             else
             {
-                if (format.StartsWith("x", StringComparison.InvariantCultureIgnoreCase))
+                if (format.StartsWith("x", StringComparison.OrdinalIgnoreCase))
                     final_string = ((long)post_scale.Rounded()).ToString(format, culture);
                 else
                 {
@@ -224,18 +224,18 @@ namespace OpenTap
             str = str.Trim();
 
             bool IsHex =
-                (str.StartsWith("0x", StringComparison.InvariantCultureIgnoreCase) ||
-                str.StartsWith("-0x", StringComparison.InvariantCultureIgnoreCase));
+                (str.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ||
+                str.StartsWith("-0x", StringComparison.OrdinalIgnoreCase));
             int HexSkip = 2;
 
             if ((!IsHex) &&
-               (format.StartsWith("x", StringComparison.InvariantCultureIgnoreCase)))
+               (format.StartsWith("x", StringComparison.OrdinalIgnoreCase)))
             {
                 IsHex = true;
                 HexSkip = 0;
             }
 
-            if (unit.Length > 0 && str.EndsWith(unit, StringComparison.InvariantCultureIgnoreCase))
+            if (unit.Length > 0 && str.EndsWith(unit, StringComparison.OrdinalIgnoreCase))
                 str = str.Remove(str.Length - unit.Length);
             str = str.TrimEnd();
             if (str.Length == 0)
@@ -248,7 +248,7 @@ namespace OpenTap
             if (levels.Contains(prefix))
             {
                 // Handle case of "femto" unit
-                if (!(IsHex && (prefix == 'f') && !str.EndsWith(" f", StringComparison.InvariantCulture)))
+                if (!(IsHex && (prefix == 'f') && !str.EndsWith(" f", StringComparison.Ordinal)))
                 {
                     multiplier = engineeringPrefixLevel(prefix);
                     if (str[str.Length - 1] == prefix)
@@ -256,15 +256,15 @@ namespace OpenTap
                 }
             }
 
-            if (IsHex && str.StartsWith("-", StringComparison.InvariantCultureIgnoreCase))
+            if (IsHex && str.StartsWith("-", StringComparison.OrdinalIgnoreCase))
                 return new BigFloat(-Int64.Parse(str.Substring(HexSkip + 1).ToUpper(), NumberStyles.HexNumber, culture)) * multiplier;
             else if (IsHex)
                 return new BigFloat(BigInteger.Parse("0" + str.Substring(HexSkip).ToUpper(), NumberStyles.HexNumber, culture)) * multiplier;
 
-            if (str.StartsWith("0b", StringComparison.InvariantCultureIgnoreCase) || str.StartsWith("-0b", StringComparison.InvariantCultureIgnoreCase))
+            if (str.StartsWith("0b", StringComparison.OrdinalIgnoreCase) || str.StartsWith("-0b", StringComparison.OrdinalIgnoreCase))
             {
                 string bits = "";
-                if (str.StartsWith("-0b", StringComparison.InvariantCultureIgnoreCase))
+                if (str.StartsWith("-0b", StringComparison.OrdinalIgnoreCase))
                 {
                     multiplier = -multiplier;
                     bits = str.Substring(2);

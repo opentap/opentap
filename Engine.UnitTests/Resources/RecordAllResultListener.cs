@@ -8,6 +8,7 @@ namespace OpenTap.UnitTests
 {
     public class RecordAllResultListener : ResultListener
     {
+        public Dictionary<Guid, TestStepRun> RunStart { get; set; } = new Dictionary<Guid, TestStepRun>();
         public Dictionary<Guid, TestRun> Runs { get; set; } = new Dictionary<Guid, TestRun>();
         public Dictionary<Guid, string> planLogs = new Dictionary<Guid, string>();
         public List<ResultTable> Results = new List<ResultTable>();
@@ -20,6 +21,7 @@ namespace OpenTap.UnitTests
         public override void OnTestStepRunStart(TestStepRun stepRun)
         {
             OnTestStepRunStartAction();
+            RunStart[stepRun.Id] = stepRun;
             Runs[stepRun.Id] = stepRun;
             Interlocked.Increment(ref running);
             base.OnTestStepRunStart(stepRun);

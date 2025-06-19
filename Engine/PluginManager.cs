@@ -499,6 +499,7 @@ namespace OpenTap
             FileFinder.Invalidate();
             FileFinder.DirectoriesToSearch = directoriesToSearch;
             lastSearchedDirs = FileFinder.DirectoriesToSearch.ToHashSet();
+            assemblyResolutionMemorizer.InvalidateWhere((k, v) => v == null);
         }
 
         
@@ -600,10 +601,7 @@ namespace OpenTap
                 {
                     try
                     {
-                        if (!reflectionOnly)
-                            return Assembly.LoadFrom(loadFilename);
-                        else
-                            return Assembly.ReflectionOnlyLoadFrom(loadFilename);
+                        return Assembly.LoadFrom(loadFilename);
                     }
                     catch(Exception ex)
                     {

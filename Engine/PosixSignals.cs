@@ -1,55 +1,56 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 
 namespace OpenTap
 {
     internal static class PosixSignals
-    {
-        // Signal implementation and numbering can vary between POSIX systems. I have checked some of the major resources, and at least SIGTERM seems to be consistent.
+    { 
+        public delegate void SignalCallback(dynamic signalContext);
+        // Microsoft has invented their own signal codes for posix signals. Normally, SIGINT is 2, and SIGTERM is 15.
+        internal const int SIGINT = -2;
+        internal const int SIGTERM = -4;
 
-        // GNU Linux: see the section 'Signal numbering for standard signals'
-        // https://www.man7.org/linux/man-pages/man7/signal.7.html
-
-        // MacOS
-        // https://opensource.apple.com/source/xnu/xnu-344/bsd/sys/signal.h
-
-        // FreeBSD:
-        // https://raw.githubusercontent.com/freebsd/freebsd-src/master/sys/sys/signal.h
-
-        // Fedora: (glibc 2.37 at least)
-        // https://elixir.bootlin.com/glibc/glibc-2.37/source/bits/signum-generic.h#L53
-
-        // Currently, we are only interested in handling SIGTERM and SIGINT
-        const int SIGINT = 2;
-        const int SIGTERM = 15;
-
-        // Keep a list of registered callbacks to ensure they won't be garbage collected
-        private static List<SignalCallback> callbacks = new List<SignalCallback>();
-
-        public static event SignalCallback SigTerm
+        // Hold on to signal handlers so they don't get disposed.
+        private static List<IDisposable> SignalHandlerGcHandles = new List<IDisposable>();
+        
+        
+        private static MethodInfo signalHandlerCreateMethod = null;
+        private static MethodInfo proxyInvoke = null;
+        private static Type targetDelegateType = null; 
+        public static void AddSignalHandler(int signal, SignalCallback callback)
         {
-            add
+            if (signalHandlerCreateMethod == null)
             {
-                callbacks.Add(value);
-                signal(SIGTERM, value);
+                var asm = typeof(object).Assembly;
+                var type = asm.GetType("System.Runtime.InteropServices.PosixSignalRegistration")!;
+                signalHandlerCreateMethod = type.GetMethod("Create", BindingFlags.Static | BindingFlags.Public)!;
+                proxyInvoke = typeof(DelegateProxy).GetMethod("Invoke", BindingFlags.Instance | BindingFlags.NonPublic)!;
+                targetDelegateType = signalHandlerCreateMethod.GetParameters()[1].ParameterType;
             }
-            remove { throw new NotSupportedException(); }
+
+            // We cannot create a signal handler without a delegate of the correct type.
+            // To get this delegate, we need to create a delegate proxy with a more relaxed signature.
+            var proxy = new DelegateProxy(callback); 
+            Delegate d = Delegate.CreateDelegate(targetDelegateType, proxy, proxyInvoke);
+            IDisposable handler = signalHandlerCreateMethod.Invoke(null, [signal, d]) as IDisposable;
+            // Finally, add the handler to a list to ensure it will not be garbage collected.
+            SignalHandlerGcHandles.Add(handler);
         }
 
-        public static event SignalCallback SigInt
+        class DelegateProxy
         {
-            add
+            private SignalCallback Proxy { get; } 
+            public DelegateProxy(SignalCallback callback)
             {
-                callbacks.Add(value);
-                signal(SIGINT, value);
+                Proxy = callback;
+            } 
+            private void Invoke(object o)
+            {
+                Proxy(o);
             }
-            remove { throw new NotSupportedException(); }
-        }
-
-        public delegate void SignalCallback(int sig, int info);
-
-        [DllImport("libc", EntryPoint = "signal")]
-        private static extern void signal(int sig, SignalCallback callback);
+        } 
     }
 }
