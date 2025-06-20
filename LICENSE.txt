@@ -2,7 +2,7 @@ Additional licenses for OpenTAP dependencies are contained within their dependen
 ------------------------------------------------
 
 OpenTAP
-© Keysight Technologies 2012-2024
+© Keysight Technologies 2012-2025
 ------------------------------------------------
 Mozilla Public License
 Version 2.0
@@ -164,6 +164,6 @@ Exhibit B - “Incompatible With Secondary Licenses” Notice
     This Source Code Form is “Incompatible With Secondary Licenses”, as defined by the Mozilla Public License, v. 2.0.
 ------------------------------------------------
 
-Contact for source code requests:  tap.support@keysight.com
+Contact for source code requests: support@opentap.io
 
 ------------------------------------------------
