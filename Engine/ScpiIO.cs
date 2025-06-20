@@ -306,9 +306,9 @@ namespace OpenTap
             return MakeError(Visa.viDisableEvent(instrument, (int)eventType, (short)mechanism));
         }
         
-        public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType, out int outContext)
+        public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType)
         {
-            var result = Visa.viWaitOnEvent(instrument, (int)eventType, timeout, out int outEvent, out outContext);
+            var result = Visa.viWaitOnEvent(instrument, (int)eventType, timeout, out int outEvent, IntPtr.Zero);
             outEventType = (ScpiEvent)outEvent;
             return MakeError(result);
         }

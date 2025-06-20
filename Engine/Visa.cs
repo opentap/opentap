@@ -157,7 +157,7 @@ namespace OpenTap
         internal static int viInstallHandler(int vi, int eventType, VisaFunctions.ViEventHandler handler, int UserHandle) { return ViInstallHandlerRef(vi, eventType, handler, UserHandle); }
         internal static int viUninstallHandler(int vi, int eventType, VisaFunctions.ViEventHandler handler, int userHandle) { return ViUninstallHandlerRef(vi, eventType, handler, userHandle); }
 
-        internal static int viWaitOnEvent(int vi, int eventType, int timeout, out int outEventType, out int outContext) { return ViWaitOnEventRef(vi, eventType, timeout, out outEventType, out outContext);}
+        internal static int viWaitOnEvent(int vi, int eventType, int timeout, out int outEventType, IntPtr outContext) { return ViWaitOnEventRef(vi, eventType, timeout, out outEventType, outContext);}
 
         internal unsafe static int viRead(int vi, ArraySegment<byte> buffer, int count, out int retCount) { return ViReadRef(vi, buffer, count, out retCount); }
         internal unsafe static int viWrite(int vi, ArraySegment<byte> buffer, int count, out int retCount) { return ViWriteRef(vi, buffer, count, out retCount); }
