@@ -209,16 +209,6 @@ While `Reflection.Emit` is still supported in .NET 9, some APIs and behaviors ha
 **Solution**  
 Review and update your use of `Reflection.Emit` to align with .NET 9 requirements.
 
-**Example**
-
-```csharp
-var assemblyName = new AssemblyName("DynamicAssembly");
-var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
-var moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule");
-var typeBuilder = moduleBuilder.DefineType("MyDynamicType", TypeAttributes.Public);
-var dynamicType = typeBuilder.CreateType();
-```
-
 ---
 
 ## CodeDomProvider Removed for Dynamic Compilation
