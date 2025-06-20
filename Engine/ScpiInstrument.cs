@@ -1205,11 +1205,11 @@ namespace OpenTap
         }
         
         /// <inheritdoc cref="IScpiIO3.WaitOnEvent"/>
-        public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType, out int outContext)
+        public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType)
         {
             if (scpiIO is IScpiIO3 scpiIO3)
             {
-                return scpiIO3.WaitOnEvent(eventType, timeout, out outEventType, out outContext);
+                return scpiIO3.WaitOnEvent(eventType, timeout, out outEventType);
             }
 
             throw new NotImplementedException();

@@ -223,8 +223,7 @@ namespace OpenTap
         /// <summary>
         /// Waits on an event.
         /// </summary>
-        public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType,
-            out int outContext);
+        public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType);
     }
     
     /// <summary> SCPI IO SRQ Event Delegate </summary>
