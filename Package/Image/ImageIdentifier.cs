@@ -320,6 +320,16 @@ namespace OpenTap.Package
                 log.Info($"Downloading {package.Name} version {package.Version} from {rm.Url}");
                 rm.DownloadPackage(package, filename, token);
             }
+            else if (package.PackageSource is InstalledPackageDefSource)
+            {
+                throw new Exception(
+                    $"Unable to download package {package.Name} since it is only available as an installed package.");
+            }
+            else
+            {
+                throw new Exception(
+                    $"Unable to downlaod package {package.Name} because its source type '{package.PackageSource.GetType().Name}' is not supported.");
+            }
         }
 
         private static string CachedLocation(PackageDef package)
