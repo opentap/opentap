@@ -545,7 +545,7 @@ namespace OpenTap
         public IEnumerable<string> Errors => currentError == null ? Array.Empty<string>() : new[] { currentError };
     }
 
-    class TimeSpanAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation
+    class TimeSpanAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation, IErrorAnnotation
     {
         public string Value
         {
@@ -559,8 +559,16 @@ namespace OpenTap
 
             set
             {
-                var timespan = TimeSpanParser.Parse(value);
-                annotation.Get<IObjectValueAnnotation>(from: this).Value = timespan;
+                try
+                {
+                    var timespan = TimeSpanParser.Parse(value);
+                    annotation.Get<IObjectValueAnnotation>(from: this).Value = timespan;
+                    Errors = [];
+                }
+                catch (Exception ex)
+                {
+                    Errors = [ex.Message];
+                }
             }
         }
         AnnotationCollection annotation;
@@ -571,6 +579,8 @@ namespace OpenTap
             if (fmt == null) fmt = new TimeSpanFormatAttribute();
             this.annotation = annotation;
         }
+
+        public IEnumerable<string> Errors { get; private set; }
     }
 
     class NumberSequenceAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation, IErrorAnnotation
