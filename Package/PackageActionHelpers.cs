@@ -204,7 +204,16 @@ namespace OpenTap.Package
             gatheredPackages = gatheredPackages
                 .Select(x => directlyReferencesPackages.FirstOrDefault(y => y.Name == x.Name && y.Version == x.Version) ?? x)
                 .ToList();
-            return gatheredPackages.ToList();
+
+            var unavailablePackages =
+                gatheredPackages.Where(x => x.PackageSource is InstalledPackageDefSource).ToArray();
+            if (unavailablePackages.Any())
+            {
+                var str = string.Join("', '", unavailablePackages.Select(x => x.Name));
+                throw new Exception($"The following packages are not available: '{str}'");
+            }
+
+            return gatheredPackages;
         }
 
         internal static List<string> DownloadPackages(string destinationDir, List<PackageDef> PackagesToDownload, List<string> filenames = null, Action<int, string> progressUpdate = null, bool ignoreCache = false)

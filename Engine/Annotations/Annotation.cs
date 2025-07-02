@@ -38,7 +38,7 @@ namespace OpenTap
         string[] Group { get; }
         /// <summary> Name displayed by the UI. </summary>
         string Name { get; }
-        /// <summary> Optional integer that ranks items and groups in ascending order relative to other items/groups. 
+        /// <summary> Optional double that ranks items and groups in ascending order relative to other items/groups. 
         /// Default is -10000. For a group, the order is the average order of the elements inside the group. 
         /// Any double value is allowed. Items with same order are ranked alphabetically.
         /// </summary>
@@ -545,7 +545,7 @@ namespace OpenTap
         public IEnumerable<string> Errors => currentError == null ? Array.Empty<string>() : new[] { currentError };
     }
 
-    class TimeSpanAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation
+    class TimeSpanAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation, IErrorAnnotation
     {
         public string Value
         {
@@ -559,8 +559,16 @@ namespace OpenTap
 
             set
             {
-                var timespan = TimeSpanParser.Parse(value);
-                annotation.Get<IObjectValueAnnotation>(from: this).Value = timespan;
+                try
+                {
+                    var timespan = TimeSpanParser.Parse(value);
+                    annotation.Get<IObjectValueAnnotation>(from: this).Value = timespan;
+                    Errors = [];
+                }
+                catch (Exception ex)
+                {
+                    Errors = [ex.Message];
+                }
             }
         }
         AnnotationCollection annotation;
@@ -571,6 +579,8 @@ namespace OpenTap
             if (fmt == null) fmt = new TimeSpanFormatAttribute();
             this.annotation = annotation;
         }
+
+        public IEnumerable<string> Errors { get; private set; }
     }
 
     class NumberSequenceAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation, IErrorAnnotation
