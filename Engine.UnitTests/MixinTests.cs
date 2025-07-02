@@ -504,8 +504,80 @@ namespace OpenTap.UnitTests
             var mixin = MixinFactory.LoadMixin(step, new TestUnhandledExceptionMixinBuilder());
             var run = plan.Execute();
             Assert.That(run.Verdict, Is.EqualTo(expectedVerdict));
-
         }
+
+
+
+        class ExecutedStep : TestStep
+        {
+
+            public bool Executed;
+            public override void Run()
+            {
+                Executed = true;
+            }
+        }
+        class PreJumpSkipStep : ExecutedStep
+        {
+            public class JumpMixin : ITestStepPreRunMixin
+            {
+
+                public ITestStep NextStep;
+                public void OnPreRun(TestStepPreRunEventArgs eventArgs)
+                {
+                    eventArgs.TestStep.StepRun.SuggestedNextStep = NextStep.Id;
+                }
+            }
+            [EmbedProperties]
+            public JumpMixin Jump { get; } = new JumpMixin();
+        }
+
+        class ExceptionPreMixinStep : ExecutedStep
+        {
+            public class ExceptionMixin : ITestStepPreRunMixin
+            {
+                public void OnPreRun(TestStepPreRunEventArgs eventArgs)
+                {
+                    eventArgs.TestStep.StepRun.Exception = new Exception("!!");
+                }
+            }
+            [EmbedProperties]
+            public ExceptionMixin Exception { get; } = new ExceptionMixin();
+        }
+
+        [Test]
+        public void TestMixinPreJumpToStep()
+        {
+            var step1 = new PreJumpSkipStep();
+            var step2 = new ExecutedStep();
+            var step3 = new ExecutedStep();
+            var step4 = new ExecutedStep();
+            step1.Jump.NextStep = step3;
+            var plan = new TestPlan();
+            plan.ChildTestSteps.AddRange([step1, step2, step3, step4]);
+            plan.Execute();
+            Assert.IsFalse(step1.Executed);
+            Assert.IsFalse(step2.Executed);
+            Assert.IsTrue(step3.Executed);
+            Assert.IsTrue(step4.Executed);
+        }
+
+        [Test]
+        public void TestMixinExceptionPreStep()
+        {
+            var step1 = new ExceptionPreMixinStep();
+            var step2 = new ExecutedStep();
+            var step3 = new ExecutedStep();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.AddRange([step1, step2, step3]);
+            var run = plan.Execute();
+            Assert.IsFalse(step1.Executed);
+            Assert.IsFalse(step2.Executed);
+            Assert.IsFalse(step3.Executed);
+            Assert.AreEqual(Verdict.Error, run.Verdict);
+        }
+
+
     }
 
     public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin

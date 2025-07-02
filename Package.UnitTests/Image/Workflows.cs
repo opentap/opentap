@@ -174,7 +174,7 @@ namespace OpenTap.Image.Tests
             Console.WriteLine($"Second deploy (uninstall): {stopwatch.ElapsedMilliseconds} ms");
 
             var uninstallLog = logListener.allLog.ToString();
-            StringAssert.DoesNotContain("Error", uninstallLog, $"Errors in uninstall log:\n {uninstallLog}");
+            Assert.That(logListener.ErrorMessage, Is.Empty);
             StringAssert.Contains("Starting uninstall step 'tap package list -i'", uninstallLog, $"Errors in uninstall log:\n {uninstallLog}");
 
             var installation = tempInstall.Installation;
