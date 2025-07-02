@@ -225,6 +225,82 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual("123", aMemberValue);
             }
         }
+
+        public class MixinOrder1 : ITestStepPreRunMixin,ITestStepPostRunMixin
+        {
+            public string Value = "";
+
+            public void OnPreRun(TestStepPreRunEventArgs eventArgs)
+            {
+                (eventArgs.TestStep as TestStepWithMixins).preOrders.Add(Value);
+            }
+            public void OnPostRun(TestStepPostRunEventArgs eventArgs)
+            {
+                (eventArgs.TestStep as TestStepWithMixins).postOrders.Add(Value);
+            }
+        }
+
+        public class MixinOrder2 : ITestStepPreRunMixinOrder, ITestStepPostRunMixinOrder
+        {
+            public string Value = "";
+
+            public double Order;
+            public void OnPreRun(TestStepPreRunEventArgs eventArgs)
+            {
+                (eventArgs.TestStep as TestStepWithMixins).preOrders.Add(Value);
+            }
+            public double GetPreRunOrder() => Order;
+            public double GetPostRunOrder() => -Order;
+            public void OnPostRun(TestStepPostRunEventArgs eventArgs)
+            {
+                (eventArgs.TestStep as TestStepWithMixins).postOrders.Add(Value);
+            }
+        }
+
+
+        public class TestStepWithMixins : TestStep
+        {
+            // the order of execution depends on the Order set
+            // but also the declaration order if Order is the same.
+
+            public List<string> preOrders = new List<string>();
+            public List<string> postOrders = new List<string>();
+            [EmbedProperties]
+            public MixinOrder2 A { get; set; } = new () { Value = nameof(A), Order=-1 };
+            [EmbedProperties]
+            public MixinOrder1 E { get; set; } = new () { Value = nameof(E) };
+            [EmbedProperties]
+            public MixinOrder2 B { get; set; } = new () { Value = nameof(B), Order=-1 };
+            [EmbedProperties]
+            public MixinOrder2 H { get; set; }= new () { Value = nameof(H), Order=1 };
+            [EmbedProperties]
+            public MixinOrder2 I { get; set; }= new () { Value = nameof(I), Order=1 };
+            [EmbedProperties]
+            public MixinOrder1 F { get; set; }= new () { Value = nameof(F) };
+            [EmbedProperties]
+            public MixinOrder2 C { get; set; }= new () { Value = nameof(C), Order=-1 };
+            [EmbedProperties]
+            public MixinOrder1 G { get; set; }= new () { Value = nameof(G) };
+            [EmbedProperties]
+            public MixinOrder2 D { get; set; }= new () { Value = nameof(D), Order=-1 };
+
+            public override void Run()
+            {
+
+            }
+        }
+
+        [Test]
+        public void TestMixinOrder()
+        {
+            var step = new TestStepWithMixins();
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(step);
+            plan.Execute();
+            Assert.IsTrue(step.preOrders.SequenceEqual(["A", "B", "C", "D", "E", "F", "G", "H", "I"]));
+            Assert.IsTrue(step.postOrders.SequenceEqual(["H", "I", "E", "F", "G", "A", "B", "C", "D"]));
+
+        }
         
         [Test]
         public void TestParameterizeAndRemoveMixin()
