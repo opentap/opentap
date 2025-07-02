@@ -624,7 +624,10 @@ namespace OpenTap
             {
                 BreakOfferedEventArgs args = new BreakOfferedEventArgs(stepRun, isTestStepStarting);
                 plan.OnBreakOffered(args);
-                stepRun.SuggestedNextStep = args.JumpToStep;
+
+                // stepRun.SuggestedNextStep might have been set by something else.
+                if(args.JumpToStep != null)
+                    stepRun.SuggestedNextStep = args.JumpToStep;
             }
         }
         /// <summary>
@@ -991,7 +994,9 @@ namespace OpenTap
                         planRun.AddTestStepRunStart(stepRun);
                         try
                         {
-                            Step.Run();
+                            // exception set by pre-run mixin?
+                            if(stepRun.Exception == null)
+                                Step.Run();
                         }
                         catch (Exception ex)
                         {
