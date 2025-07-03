@@ -580,7 +580,11 @@ namespace OpenTap
     public static class TestStepExtensions
     {
         /// <summary>
-        /// Searches up through the Parent steps and returns the first step of the requested type that it finds.  
+        /// Breaks out of running child steps when used as the suggested next step.
+        /// </summary>
+        public static Guid StartAtParent { get; } = new("62D9FEDD-E63A-48F3-B1A0-0C38C084298F");
+        /// <summary>
+        /// Searches up through the Parent steps and returns the first step of the requested type that it finds.
         /// </summary>
         /// <typeparam name="T">The type of TestStep to get.</typeparam>
         /// <returns>The closest TestStep of the requested type in the hierarchy.</returns>
@@ -736,7 +740,11 @@ namespace OpenTap
                         if (id == step.Id)
                         {
                             // If suggested next step is the parent step, skip executing child steps.
-                            currentStepRun.SuggestedNextStep = id;
+                            break;
+                        }
+                        if (id == StartAtParent)
+                        {
+                            currentStepRun.SuggestedNextStep = step.Id;
                             break;
                         }
 
