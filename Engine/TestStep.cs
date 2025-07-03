@@ -736,6 +736,7 @@ namespace OpenTap
                         if (id == step.Id)
                         {
                             // If suggested next step is the parent step, skip executing child steps.
+                            currentStepRun.SuggestedNextStep = id;
                             break;
                         }
 
