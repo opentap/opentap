@@ -6,19 +6,14 @@ namespace OpenTap
     {
         readonly ITypeData type;
 
-        public bool TestPlanLocked
-        {
-            get
-            {
-                var plan2 = source.OfType<ITestStepParent>()
-                    .Select(step => step is TestPlan plan ? plan : step.GetParent<TestPlan>()).FirstOrDefault();
-                return (plan2?.IsRunning ?? false) || (plan2?.Locked ?? false);
-            }
-        }
+        public bool TestPlanAllowsEdit => source
+            .OfType<ITestStepParent>()
+            .FirstNonDefault(step => step as TestPlan ?? step.GetParent<TestPlan>())
+            ?.AllowEdit ?? true;
         
         public MixinMenuModel(ITypeData type) => this.type = type;
         bool? showMixins;
-        public bool ShowMixins => (showMixins ??= (MixinFactory.GetMixinBuilders(type).Any()))&& !TestPlanLocked;
+        public bool ShowMixins => (showMixins ??= (MixinFactory.GetMixinBuilders(type).Any())) && TestPlanAllowsEdit;
         public bool StepLocked => source.OfType<ITestStep>().Any(x => x.IsReadOnly);
         
         [Display("Add Mixin...", "Add a new mixin.", Order: 2.0, Group: "Mixins")]
