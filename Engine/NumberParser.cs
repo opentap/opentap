@@ -146,6 +146,14 @@ namespace OpenTap
             {
                 if (format.StartsWith("x", StringComparison.OrdinalIgnoreCase))
                     sb.Append(((long)post_scale.Rounded()).ToString(format, culture));
+                else if (format == "hex")
+                {
+                    sb.Append("0x"+ ((long)post_scale.Rounded()).ToString("x", culture));
+                }
+                else if (format == "HEX")
+                {
+                    sb.Append("0x"+ ((long)post_scale.Rounded()).ToString("X", culture));
+                }
                 else
                 {
                     try
@@ -185,6 +193,10 @@ namespace OpenTap
             {
                 if (format.StartsWith("x", StringComparison.OrdinalIgnoreCase))
                     final_string = ((long)post_scale.Rounded()).ToString(format, culture);
+                else if (format == "hex")
+                {
+                    final_string = "0x"+ ((long)post_scale.Rounded()).ToString("x", culture);
+                }
                 else
                 {
                     try

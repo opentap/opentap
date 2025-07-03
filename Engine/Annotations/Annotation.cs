@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using OpenTap.Translation;
 
@@ -481,6 +482,64 @@ namespace OpenTap
     }
 
 
+
+    public class NumberFormat
+    {
+        public override string ToString() => $"format:{Name}";
+
+        private readonly string _name;
+        public string Name => _name;
+        
+        public static NumberFormat Regular = new("regular");
+        public static NumberFormat Hex = new("hex");
+        public static NumberFormat Binary = new("binary");
+
+        public static NumberFormat FromString(string formatName)
+        {
+            switch (formatName)
+            {
+                case "regular": return Regular;
+                case "hex": return Hex;
+                case "binary": return Binary;
+                default: return Regular;
+            }
+        }
+        
+        NumberFormat(string name)
+        {
+            _name = name;
+        }
+
+        private static ConditionalWeakTable<object, Dictionary<string, NumberFormat>> objectNumberFormat = new();
+
+        public static void Set(object target, string member, NumberFormat format)
+        {
+            if (!objectNumberFormat.TryGetValue(target, out var lookup))
+            {
+                lookup = new();
+                objectNumberFormat.Add(target, lookup);
+            }
+
+            if (format == Regular)
+                lookup.Remove(member);
+            else
+                lookup[member] = format;
+
+        }
+
+        public static NumberFormat Get(object target, string member)
+        {
+            if (objectNumberFormat.TryGetValue(target, out var lookup))
+            {
+                if(lookup.TryGetValue(member, out var format))
+                    return format;
+            }
+
+            return Regular;
+        }
+        
+    }
+
     class NumberAnnotation : IStringValueAnnotation, IErrorAnnotation, ICopyStringValueAnnotation
     {
         public Type NullableType { get; set; }
@@ -496,7 +555,21 @@ namespace OpenTap
                     var value2 = value.Value;
                     if (NullableType != null && value2 == null)
                         return "";
-                    return new NumberFormatter(CultureInfo.CurrentCulture, unit).FormatNumber(value2);
+                    
+                    var formatter = new NumberFormatter(CultureInfo.CurrentCulture, unit);
+                    
+                    if (annotation.Source is ITestStep src)
+                    {
+                        var member = annotation.Get<IMemberAnnotation>()?.Member;
+                        if (member != null)
+                        {
+                            if (NumberFormat.Get(src, member.Name) == NumberFormat.Hex)
+                            {
+                                formatter.Format = "hex";
+                            }
+                        }
+                    }
+                    return formatter.FormatNumber(value2);
                 }
                 return null;
             }
@@ -516,6 +589,17 @@ namespace OpenTap
                     object number = null;
                     try
                     {
+                        if (value.TrimStart().StartsWith("0x"))
+                        {
+                            if (annotation.Source is ITestStep src)
+                            {
+                                var member = annotation.Get<IMemberAnnotation>()?.Member;
+                                if (member != null)
+                                {
+                                    NumberFormat.Set(src, member.Name, NumberFormat.Hex);
+                                }
+                            }
+                        }
                         number = new NumberFormatter(CultureInfo.CurrentCulture, unit).ParseNumber(value, NullableType ?? cst.Type);
                     }
                     catch (Exception e)

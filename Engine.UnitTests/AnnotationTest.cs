@@ -2577,5 +2577,34 @@ namespace OpenTap.UnitTests
             });
             Assert.AreEqual(1, annotation.Errors.Count());
         }
+
+        class TestStepWithNumber : TestStep
+        {
+            public int Number { get; set; }
+            public override void Run()
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        [TestCase("0xFF", 0xFF, 0xAA, "0xAA")]
+        [TestCase("0xff", 0xFF, 0xAA, "0xaa")]
+        public void TestAlternativeNumberFormats(string value1, int value1ReadBack, int value2, string value2ReadBack)
+        {
+            var step = new TestStepWithNumber();
+            var number = AnnotationCollection.Annotate(step);
+            var numberMember = number.GetMember(nameof(step.Number));
+            var strval = numberMember.Get<IStringValueAnnotation>();
+            strval.Value = value1;
+            number.Write();
+            number.Read();
+            Assert.AreEqual(value1ReadBack, step.Number);
+            Assert.AreEqual(NumberFormat.Hex, NumberFormat.Get(step, "Number"));
+            step.Number = value2;
+            number.Read();
+            Assert.AreEqual(value2ReadBack, strval.Value);
+
+
+        }
     }
 }
