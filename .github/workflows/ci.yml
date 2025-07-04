@@ -13,7 +13,7 @@ env:
   OPENTAP_NO_UPDATE_CHECK: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_CONSOLE_ANSI_COLOR: true
-  SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller:2.2.0-beta.3
+  SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller@sha256:ba12026cb76264c0f71a9a8cbb144a48004296be6b6bf736a3f3ec7b99c450fc  # smartinstaller/dafeb1ff6a2fb5d6d44ae761f463f3650caa9115
 
 jobs:
   GetVersion:
@@ -836,7 +836,7 @@ jobs:
       - run: mv SDK*TapPackage SDK.TapPackage
         name: Rename SDK
         working-directory: Installer/Assets
-      - run: tap installer create "opentap.installer.xml" -v --target-os win
+      - run: tap installer create "opentap.installer.xml" -v --target-os win --arch x86
         working-directory: Installer/Assets
         env:
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS_INTERNAL }}
@@ -909,7 +909,7 @@ jobs:
       - run: mv SDK*TapPackage SDK.TapPackage
         name: Rename SDK
         working-directory: Installer/Assets
-      - run: tap installer create "opentap.installer.linux.xml" -v --target-os linux
+      - run: tap installer create "opentap.installer.linux.xml" -v --target-os linux --arch x64
         working-directory: Installer/Assets
         name: Build installer
       - run: mv Installer/Assets/Installer Installer/Assets/OpenTAP
