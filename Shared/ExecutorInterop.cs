@@ -101,6 +101,15 @@ namespace OpenTap
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
+            var dotnet = ExecutorClient.Dotnet;
+            var dotnetDir = Path.GetDirectoryName(dotnet);
+            if (!string.IsNullOrWhiteSpace(dotnetDir))
+            {
+                var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+                path = $"{dotnetDir}{Path.PathSeparator}{path}";
+                // Ensure the directory containing the current dotnet executable appears first in PATH.
+                start.Environment["PATH"] = $"{dotnetDir}{Path.PathSeparator}{path}";
+            }
             if (isolated)
             {
                 start.Environment[EnvVarNames.ParentProcessExeDir] = ExecutorClient.ExeDir;
