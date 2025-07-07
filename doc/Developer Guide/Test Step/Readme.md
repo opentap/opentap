@@ -585,20 +585,31 @@ When using the Expressions feature, it's essential to adhere to a specific synta
     - Settings on test steps like `Time Delay` is a valid identifier and will get the current value of that setting. 
     - Constants like `π`, `pi` or `e` don't require any additional symbols. Use them as you would use a number.
         * Example: `2 * π`.
+    - In case of ambiguities, for example if the settings name contains operators, single-quotes (') can be used
+        * Example: `'Time Delay (2)' * 2`
 
 5. **String Interpolation**:
     - To use expressions with strings, enclose the expression within curly braces `{ }`.
         * Example: `"The radius is {2 * π * r}."`.
-
-6. **Whitespace**:
+      
+6. **Outputs From Other Test Steps**
+   - Outputs from other test steps can be used as inputs with the `@` operator.
+        * Example: `The result was {@Scpi Step.Response}`
+   - Again single-quotes (') can be used to clarify when step names contains possible expression syntax.
+        * Example: `@'Step (2).Power [dBm]' * 0.001`
+   - When using outputs from other steps, it is important to note that the reference is based on the name of the test step.
+   If the referenced test step changes it's name, the expression needs to be manually updated. For a more fixed reference,
+   a number or text mixin can be added and that input can be assigned to the output test step property.
+ 
+7. **Whitespace**:
     - Spaces between numbers, operators, and functions are optional but can make your expression more readable.
     - Avoid adding spaces inside function names or immediately after a function name and before its opening parenthesis.
         * Correct: `max(2, 3)`.
         * Incorrect: `max (2, 3)` or `max( 2, 3 )`.
 
-7. **Case Sensitivity**:
+8. **Case Sensitivity**:
     - While some functions or constants may be case-insensitive, names a generally lower-case. And plugins should try to follow that rule.
-8. **Names Escaping**:
+9. **Names Escaping**:
    - In cases where your expression includes names that might be confused with built-in functions or constants, you can escape these names using single quotes `' '`.
       * Example: If there's a property named `A/B`, you can distinguish it from the `A / B` expression by writing it as `'A/B'`.
 
@@ -615,9 +626,16 @@ Remember, adhering to the correct syntax is crucial for the expressions to evalu
 
 2. **Functions**:
 
-   - **String Functions**:
-      - `empty(str)`: Checks if the provided string `str` is empty or null. Returns `true` or `false`.
+   - **Text Functions**:
+      - `env(name)`: Gets an environment variable by `name`. If the environment variable does not exist it will return an empty text.
+      - `empty(text)`: Checks if the provided text `text` is empty or null. Returns `true` or `false`.
          * Example: `empty("")` returns `true`.
+      - `line(text,n)`: If the text contains multiple lines, this returns the nth line from the text. It returns empty text if the text has less than n lines.
+      - `line_matching(text, regex)`: returns the first line from the text that matches the regular expression. Returns an empty text if it is not found.
+      - `number(text)`: Converts the text to a number. If the text cannot be converted it will raise an error.
+      - `number(text, n)`: Treats the text as a comma separated list of numbers. Returns the nth element.
+      - `number(text, n, separator)`: Treats the text as a `separator` separated list of numbers. Returns the nth element.
+
 
    - **Trigonometric Functions**:
       - `sin(v)`: Returns the sine of value `v`.
@@ -633,6 +651,7 @@ Remember, adhering to the correct syntax is crucial for the expressions to evalu
       - `ceiling(v)`: Rounds the value `v` up to the nearest integer.
       - `round(v)`: Rounds the value `v` to the nearest integer.
       - `round(v, decimals)`: Rounds the value `v` to the specified number of `decimals`.
+      - `number(boolean)`: Converts a boolean value to 1 or 0 for true and false respectively.
 
    - **Sign Function**:
       - `sign(v)`: Returns the sign of `v`. It gives `1` for positive values, `-1` for negative values, and `0` for zero.
@@ -650,6 +669,7 @@ Remember, adhering to the correct syntax is crucial for the expressions to evalu
       - `log10(x)`: Returns the base-10 logarithm of `x`.
       - `log(x, base)`: Returns the logarithm of `x` using the specified `base`.
       - `exp(x)`: Returns the exponential function of `x`, i.e., e raised to the power `x`.
+      - `sqrt(x)`: Returns the square root of `x`.
 
 
 3. **Constants**:
@@ -810,5 +830,3 @@ public class MyMixinBuilder : IMixinBuilder {
 ```
 
 After adding this class, the user should have access to the mixin type in the context menu of the test step.
-
-
