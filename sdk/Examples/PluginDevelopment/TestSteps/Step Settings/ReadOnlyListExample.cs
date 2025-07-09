@@ -25,6 +25,9 @@ namespace OpenTap.Plugins.PluginDevelopment
         [Browsable(true)] public string Message => X + " example";
         public string Note { get; set; } = "Write notes here..";
 
+        // The default `Equals` checks for reference equality, which causes OpenTAP to emit a warning
+        // when multi-editing lists of this type because the list elements appear different.
+        // Overriding Equals gets rid of this warning because the elements will then appear as equal.
         public override bool Equals(object obj)
         {
             if (obj is ReadOnlyListElement other)
