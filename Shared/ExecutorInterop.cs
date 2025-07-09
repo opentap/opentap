@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.IO;
 using System.IO.Pipes;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -100,6 +101,15 @@ namespace OpenTap
                 RedirectStandardOutput = true,
                 RedirectStandardError = true
             };
+            var dotnet = ExecutorClient.Dotnet;
+            var dotnetDir = Path.GetDirectoryName(dotnet);
+            if (!string.IsNullOrWhiteSpace(dotnetDir))
+            {
+                var currentPath = Environment.GetEnvironmentVariable("PATH") ?? "";
+                var newPath = $"{dotnetDir}{Path.PathSeparator}{currentPath}";
+                // Ensure the directory containing the current dotnet executable appears first in PATH.
+                start.Environment["PATH"] = newPath;
+            }
             if (isolated)
             {
                 start.Environment[EnvVarNames.ParentProcessExeDir] = ExecutorClient.ExeDir;
@@ -199,6 +209,57 @@ namespace OpenTap
                 }
             }
         }
+        
+        public static string Dotnet => _dotnet ??= mineDotnet();
+        private static string _dotnet = null;
+        private static string mineDotnet()
+        {
+            // Ensure dotnet is always assigned. "dotnet' is used as a fallback, in which case the system
+            // will try to resolve it from the current PATH
+
+            // Look for dotnet.exe on windows
+            var executable = Path.DirectorySeparatorChar == '\\' ? "dotnet.exe" : "dotnet";
+            try
+            {
+                // 1. Try to check which `dotnet` instance launched the current application
+                string mainModulePath = Process.GetCurrentProcess().MainModule?.FileName;
+                if (!string.IsNullOrWhiteSpace(mainModulePath) &&
+                    Path.GetFileName(mainModulePath).Equals(executable, StringComparison.OrdinalIgnoreCase))
+                {
+                    return mainModulePath;
+                }
+            }
+            catch
+            {
+                // ignore potential permission errors
+            }
+
+            try
+            {
+                // 2. Find dotnet based on runtime information
+                var runtime = RuntimeEnvironment.GetRuntimeDirectory();
+                if (!string.IsNullOrWhiteSpace(runtime) && Directory.Exists(runtime))
+                {
+                    var dir = new DirectoryInfo(runtime);
+                    while (dir != null)
+                    {
+                        var candidate = System.IO.Path.Combine(dir.FullName, executable);
+                        if (File.Exists(candidate))
+                        {
+                            return candidate;
+                        }
+
+                        dir = dir.Parent;
+                    }
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+
+            return "dotnet";
+        } 
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         static string GetOpenTapDllLocation() => Path.GetDirectoryName(typeof(PluginSearcher).Assembly.Location);
