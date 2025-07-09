@@ -25,7 +25,7 @@ namespace OpenTap
         [Display("Modify Mixin...", "Modify custom setting.", Order: 2.0, Group: "Mixins")]
         [Browsable(true)]
         [IconAnnotation(IconNames.ModifyMixin)]
-        [EnabledIf(nameof(TestPlanAllowsEdit), false)]
+        [EnabledIf(nameof(TestPlanAllowsEdit), true)]
         [EnabledIf(nameof(StepLocked), false, HideIfDisabled = true)]
         public void ModifyMixin()
         {
@@ -83,7 +83,7 @@ namespace OpenTap
         [Display("Remove Mixin", "Remove custom setting.", Order: 2.0, Group: "Mixins")]
         [Browsable(true)]
         [IconAnnotation(IconNames.RemoveMixin)]
-        [EnabledIf(nameof(TestPlanAllowsEdit), false)]
+        [EnabledIf(nameof(TestPlanAllowsEdit), true)]
         [EnabledIf(nameof(StepLocked), false, HideIfDisabled = true)]
         public void RemoveMixin()
         {
