@@ -15,27 +15,27 @@ namespace OpenTap
         /// <summary>
         /// The unit e.g "Hz".
         /// </summary>
-        public string Unit { get; private set; }
+        public string Unit { get; protected set; }
 
         /// <summary>
         /// Whether to use engineering prefix. E.g 1000000 Hz -> 1 MHz
         /// </summary>
-        public bool UseEngineeringPrefix { get; private set; }
+        public bool UseEngineeringPrefix { get; protected set; }
 
         /// <summary>
         /// Pre scaling of values.
         /// </summary>
-        public double PreScaling { get; private set; }
+        public double PreScaling { get; protected set; }
 
         /// <summary>
         /// The format argument to string.Format.
         /// </summary>
-        public string StringFormat { get; private set; } 
+        public string StringFormat { get; protected set; }
 
         /// <summary>
         /// Whether to use ranges to show arrays of numbers. For example, show 1, 2, 3, 4 as 1 : 4.
         /// </summary>
-        public bool UseRanges { get; private set; }
+        public bool UseRanges { get; protected set; }
 
         /// <summary>Constructor for <see cref="UnitAttribute"/>.</summary>
         /// <param name="Unit">The unit e.g "Hz".</param>

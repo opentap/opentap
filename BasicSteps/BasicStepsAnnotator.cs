@@ -532,6 +532,77 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
 
+        class SweepUnitAttribute : UnitAttribute, IOwnedAnnotation
+        {
+            readonly SweepParameterRangeStep step;
+            public void Update()
+            {
+                var unit = GetUnit();
+                if (unit == null)
+                {
+                    Unit = "";
+                    PreScaling = 1;
+                    StringFormat = "";
+                    UseRanges = true;
+                }
+                else
+                {
+                    Unit = unit.Unit;
+                    PreScaling = unit.PreScaling;
+                    StringFormat = unit.StringFormat;
+                    UseRanges = unit.UseRanges;
+                    UseEngineeringPrefix = unit.UseEngineeringPrefix;
+                }
+            }
+
+
+            public SweepUnitAttribute(SweepParameterRangeStep step) : base("")
+            {
+                this.step = step;
+            }
+
+            public void Read(object source)
+            {
+                Update();
+            }
+            public void Write(object source)
+            {
+
+            }
+
+            internal UnitAttribute GetUnit()
+            {
+                UnitAttribute unit = null;
+                foreach (var member in step.SelectedMembers)
+                {
+                    if (member.GetAttribute<UnitAttribute>() is UnitAttribute unit2)
+                    {
+                        if (unit == null)
+                            unit = unit2;
+                        else
+                        {
+                            if (unit.Unit != unit2.Unit)
+                            {
+                                return null;
+                            }
+                            if (unit.PreScaling != unit2.PreScaling)
+                                return null;
+                            if (unit.StringFormat != unit2.StringFormat)
+                                return null;
+
+                        }
+                    }
+                    else
+                    {
+                        return null;
+                    }
+                }
+                return unit;
+
+            }
+
+        }
+
         public void Annotate(AnnotationCollection annotation)
         {
             if (annotation.Get<IMemberAnnotation>()?.Member is IMemberData mem)
@@ -543,6 +614,14 @@ namespace OpenTap.Plugins.BasicSteps
                     // multi-select: remove the default method handler and use this new way.
                     annotation.RemoveType<IMethodAnnotation>();
                     annotation.Add(new ConvertToSequenceAnnotation(annotation));
+                }
+
+                if (annotation.Source is SweepParameterRangeStep step &&
+                    (mem.Name == nameof(SweepParameterRangeStep.SweepStart)
+                    || mem.Name == nameof(SweepParameterRangeStep.SweepStop)
+                    || mem.Name == nameof(SweepParameterRangeStep.SweepStep)))
+                {
+                    annotation.Add(new SweepUnitAttribute(step));
                 }
 
                 if (mem.GetAttribute<HideOnMultiSelectAttribute>() is HideOnMultiSelectAttribute attr)
