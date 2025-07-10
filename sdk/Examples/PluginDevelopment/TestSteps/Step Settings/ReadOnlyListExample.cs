@@ -24,6 +24,21 @@ namespace OpenTap.Plugins.PluginDevelopment
         [Browsable(true)] public int X => GetHashCode(); 
         [Browsable(true)] public string Message => X + " example";
         public string Note { get; set; } = "Write notes here..";
+
+        // The default `Equals` checks for reference equality, which causes OpenTAP to emit a warning
+        // when multi-editing lists of this type because the list elements appear different.
+        // Overriding Equals gets rid of this warning because the elements will then appear as equal.
+        public override bool Equals(object obj)
+        {
+            if (obj is ReadOnlyListElement other)
+                return Message == other.Message && Note == other.Note;
+            return false;
+        } 
+
+        public override int GetHashCode()
+        {
+            return Message.GetHashCode() * 901283 + Note.GetHashCode() * 17283;
+        }
     }
     
     [Display("Read-Only List Example", "Demonstrates how to use a list where items cannot be added or removed." +
