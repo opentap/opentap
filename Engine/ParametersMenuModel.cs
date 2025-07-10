@@ -38,7 +38,7 @@ namespace OpenTap
         public bool CanExecuteParameterize => ParameterManager.CanParameter(this) && (IsAnyOutputAssigned == false);
         
         [EnabledIf(nameof(CanExecuteParameterize), true, HideIfDisabled = true)]
-        [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(TestPlanAllowsEdit), true)]
         [Browsable(true)]
         [IconAnnotation(IconNames.Parameterize)]
         [Display("Parameterize...", "Parameterize this setting by creating, or adding to, an existing parameter.", Order: 1.0, Group: "Parameters")]
@@ -49,7 +49,7 @@ namespace OpenTap
 
         [EnabledIf(nameof(CanExecuteParameterize), true, HideIfDisabled = true)]
         [EnabledIf(nameof(HasTestPlanParent), true, HideIfDisabled = true)]
-        [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(TestPlanAllowsEdit), true)]
         [EnabledIf(nameof(CanAutoParameterize), true)]
         [Browsable(true)]
         [IconAnnotation(IconNames.ParameterizeOnTestPlan)]
@@ -66,7 +66,7 @@ namespace OpenTap
         public bool HasSameParents => source.Select(x => x.Parent).OfType<ITestStep>().Distinct().Take(2).Count() == 1;
         public bool CanExecutedParameterizeOnParent => CanExecuteParameterize && HasSameParents; 
         [EnabledIf(nameof(CanExecutedParameterizeOnParent), true, HideIfDisabled = true)]
-        [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(TestPlanAllowsEdit), true)]
         [EnabledIf(nameof(CanAutoParameterize), true)]
         [Browsable(true)]
         [IconAnnotation(IconNames.ParameterizeOnParent)]
@@ -83,21 +83,15 @@ namespace OpenTap
         public bool IsParameter => member is ParameterMemberData;
         public bool MultiSelect => source?.Length != 1;
 
-        public bool TestPlanLocked
-        {
-            get
-            {
-                var plan2 = source
-                    .Select(step => step is TestPlan plan ? plan : step.GetParent<TestPlan>()).FirstOrDefault();
-                return (plan2?.IsRunning ?? false) || (plan2?.Locked ?? false);
-            }
-        }
+        public bool TestPlanAllowsEdit => source
+            .FirstNonDefault(step => step as TestPlan ?? step.GetParent<TestPlan>())
+            ?.AllowEdit ?? true;
 
         public bool CanExecuteUnparameterize => ParameterManager.CanUnparameter(this) && (IsAnyOutputAssigned == false);
         
         [EnabledIf(nameof(CanExecuteUnparameterize), true, HideIfDisabled = true)]
         [EnabledIf(nameof(IsParameterized), true, HideIfDisabled = true)]
-        [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(TestPlanAllowsEdit), true)]
         [Display("Unparameterize", "Removes the parameterization of this setting.", Order: 1.0, Group: "Parameters")]
         [IconAnnotation(IconNames.Unparameterize)]
         [Browsable(true)]
@@ -108,7 +102,7 @@ namespace OpenTap
         [Display("Edit Parameter", "Edit an existing parameterization.", Order: 1.0, Group: "Parameters")]
         [EnabledIf(nameof(CanEditParameter), true, HideIfDisabled = true)]
         [Browsable(true)]
-        [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(TestPlanAllowsEdit), true)]
         [IconAnnotation(IconNames.EditParameter)]
         [EnabledIf(nameof(IsParameter), true, HideIfDisabled = true)]
         [EnabledIf(nameof(MultiSelect), false, HideIfDisabled = true)]
@@ -120,7 +114,7 @@ namespace OpenTap
         [Display("Remove Parameter", "Remove a parameter.", Order: 1.0, Group: "Parameters")]
         [IconAnnotation(IconNames.RemoveParameter)]
         [EnabledIf(nameof(CanRemoveParameter), true, HideIfDisabled = true)]
-        [EnabledIf(nameof(TestPlanLocked), false)]
+        [EnabledIf(nameof(TestPlanAllowsEdit), true)]
         public void RemoveParameter() => ParameterManager.RemoveParameter(this);
 
         bool CalcAnyAvailableOutputs()
@@ -137,7 +131,7 @@ namespace OpenTap
         public bool AnyAvailableOutputs => (anyAvailableOutputs ?? (anyAvailableOutputs = CalcAnyAvailableOutputs())) ?? false;
         
         // Input/Output
-        public bool CanAssignOutput => TestPlanLocked == false && source.Length > 0 && IsReadOnly == false && member.Writable && IsSweepable && !CanUnassignOutput && !IsParameterized && !IsAnyOutputAssigned;
+        public bool CanAssignOutput => TestPlanAllowsEdit && source.Length > 0 && IsReadOnly == false && member.Writable && IsSweepable && !CanUnassignOutput && !IsParameterized && !IsAnyOutputAssigned;
         [Display("Assign Output", "Control this setting using an output.", Order: 2.0, Group: "Outputs")]
         [Browsable(true)]
         [IconAnnotation(IconNames.AssignOutput)]
@@ -186,7 +180,7 @@ namespace OpenTap
 
         public bool IsOutput => member.HasAttribute<OutputAttribute>();
         
-        public bool CanUnassignOutput => TestPlanLocked == false && source.Length > 0 && IsReadOnly == false && member.Writable && IsAnyOutputAssigned;
+        public bool CanUnassignOutput => TestPlanAllowsEdit && source.Length > 0 && IsReadOnly == false && member.Writable && IsAnyOutputAssigned;
         [Display("Unassign Output", "Unassign the output controlling this property.", Order: 2.0, Group: "Outputs")]
         [Browsable(true)]
         [IconAnnotation(IconNames.UnassignOutput)]
