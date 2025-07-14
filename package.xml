@@ -98,7 +98,7 @@
     </Files>
     <!-- License Texts -->
     <Files>
-        <File Path="LICENSE.txt" />
+        <File Path="Packages/OpenTAP/LICENSE.txt" SourcePath="LICENSE.txt" />
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/LICENSE.txt"
               SourcePath="libgit2sharp.license.md"/>
         <File Path="Dependencies/Mono.Cecil.0.10.1.0/LICENSE.txt"
