@@ -60,6 +60,7 @@ export default defineConfig({
             { link: "Developer Guide/Package Publishing/Readme.md", text: "Package Publishing" },
             { link: "Developer Guide/Continuous Integration/Readme.md", text: "Continuous Integration (CI/CD)" },
             { link: "Developer Guide/Attributes/Readme.md", text: "Attributes" },
+            { link: "Developer Guide/Migrating to .NET 9/Readme.md", text: "Migrating to .NET 9" },
             { link: "Developer Guide/Known Issues/Readme.md", text: "Known Issues" },
             { link: "Developer Guide/Appendix/Readme.md", text: "Appendix: Macro Strings" }
         ]
