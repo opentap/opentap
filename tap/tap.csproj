@@ -6,6 +6,10 @@
     <ApplicationIcon>../Installer/Assets/opentap.ico</ApplicationIcon>
     <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
     <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
+    <!-- .net9 introduces CET compatibility by default. This adds hardware stack protection.
+    Howver, this causes issues with some plugins using native code.
+    Hence we disable it for now-->
+    <CETCompat>false</CETCompat>
   </PropertyGroup>
 
   <PropertyGroup>
