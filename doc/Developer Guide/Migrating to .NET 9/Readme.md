@@ -197,7 +197,7 @@ If you are in control of the executable with the problem, you can disable CET by
 ```xml
 <PropertyGroup>
   <!-- Disable Control-flow Enforcement Technology -->
-  <CetCompat>false</CetCompat>
+  <CETCompat>false</CETCompat>
 </PropertyGroup>
 ```
 
