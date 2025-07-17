@@ -12,7 +12,7 @@ jobs:
   issue-in-project:
     runs-on: ubuntu-latest
     steps:
-      - uses: docker://ghcr.io/asgeriversen/issue-in-project:v1
+      - uses: docker://ghcr.io/alnlarsen/issue-in-project:v1.0.2
         env:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-closed-to-project: opentap/opentap/projects/5
