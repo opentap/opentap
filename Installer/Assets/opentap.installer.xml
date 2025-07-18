@@ -10,7 +10,7 @@
   <SetupIcon>opentap.ico</SetupIcon>
 
   <TopImage>LogoTop.bmp</TopImage>
-  <SideImage>Logo.png</SideImage>
+  <SideImage>OpenTAP</SideImage>
   
   <EULA></EULA>
   <SignCert>Keysight Technologies, Inc</SignCert>
