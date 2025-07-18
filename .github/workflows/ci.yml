@@ -13,7 +13,7 @@ env:
   OPENTAP_NO_UPDATE_CHECK: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_CONSOLE_ANSI_COLOR: true
-  SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller@sha256:bbbf35bf6118b6fd11e62ef9ee3638f36ba73b79c9a2352efa9f974892b8fbdf  # smartinstaller/9021b8575be817408e5512a5ee53bcd7c4830391
+  SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller@sha256:900889063d447e9a0dcd427676dd06efdb735d3cdf40185a4e5cd6fe0e5ac863  # smartinstaller/ef42b0d4f51d6041c40710c265591c6c1af62d23
 
 
 jobs:
