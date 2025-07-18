@@ -11,8 +11,9 @@
 
   <TopImage>LogoTop.bmp</TopImage>
   <SideImage>OpenTAP</SideImage>
-  
-  <EULA></EULA>
+  <AppBranding>OpenTAP</AppBranding>
+
+	<EULA></EULA>
   <SignCert>Keysight Technologies, Inc</SignCert>
 
   <OpenTap>
