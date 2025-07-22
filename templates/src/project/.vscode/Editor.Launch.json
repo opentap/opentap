@@ -10,8 +10,8 @@
       "request": "launch",
       "preLaunchTask": "build",
       "program": "Editor.dll",
-      "cwd": "${workspaceFolder}/bin/debug/",
-      "console": "externalTerminal",
+      "cwd": "${workspaceFolder}/bin/Debug/",
+      "console": "integratedTerminal",
       "stopAtEntry": false
     }
   ]
