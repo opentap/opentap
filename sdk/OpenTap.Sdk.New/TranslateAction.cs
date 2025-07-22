@@ -264,6 +264,8 @@ public class TranslateAction : ICliAction
             if (type.DescendsTo(typeof(IStringLocalizer)))
             {
                 if (type.CanCreateInstance) return false;
+                // Skip abstract types with no error
+                if (AsTypeData(type)?.Type?.IsAbstract == true) return true;
                 // It is currently a requirement that IStringLocalizer can be instantiated.
                 // In the future, we can improve the string detection algorithm to relax this requirement,
                 // but for now we should warn the user that this will not work.
