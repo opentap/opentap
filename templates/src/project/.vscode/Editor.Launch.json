@@ -9,9 +9,9 @@
       "type": "coreclr",
       "request": "launch",
       "preLaunchTask": "build",
-      "program": "Editor.exe",
-      "cwd": "${workspaceFolder}/bin/debug/",
-      "console": "externalTerminal",
+      "program": "Editor.dll",
+      "cwd": "${workspaceFolder}/bin/Debug/",
+      "console": "integratedTerminal",
       "stopAtEntry": false
     }
   ]
