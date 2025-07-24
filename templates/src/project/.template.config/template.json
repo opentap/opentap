@@ -135,14 +135,14 @@
       "description": "The default editor to debug with.",
       "choices": [
         {
+          "choice": "Editor",
+          "displayName": "Keysight Test Automation",
+          "description": "Set Keysight Test Automation as the debugging editor."
+        },
+        {
           "choice": "TUI",
           "displayName": "OpenTAP TUI",
           "description": "Set TUI as the debugging editor."
-        },
-        {
-          "choice": "Editor",
-          "displayName": "Keysight Test Automation (License required)",
-          "description": "Set Keysight Test Automation as the debugging editor."
         }
       ]
     },
