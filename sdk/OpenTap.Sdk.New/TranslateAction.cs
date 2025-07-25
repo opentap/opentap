@@ -73,9 +73,17 @@ public class TranslateAction : ICliAction
                     if (mem.TypeDescriptor.Name.StartsWith("System.")
                         || mem.TypeDescriptor.Name.StartsWith("Microsoft."))
                         continue;
-                    if (seen.Add(mem.TypeDescriptor))
+                    if (SkipMem(td, mem))
                     {
-                        recursivelyAddReferencedTypes(mem.TypeDescriptor, seen);
+                        continue;
+                    }
+                    // Always translate the member type if it is embedded.
+                    if (mem.HasAttribute<EmbedPropertiesAttribute>() || SkipType(mem.TypeDescriptor) == false)
+                    {
+                        if (seen.Add(mem.TypeDescriptor))
+                        {
+                            recursivelyAddReferencedTypes(mem.TypeDescriptor, seen);
+                        }
                     }
                 }
             }
@@ -98,7 +106,6 @@ public class TranslateAction : ICliAction
             // We are not interested in creating a different translation for each 
             // variant of a generic type we use. 
             // Remove all instances of generic types, and add a single reference to the generic variant.
-            // TODO: The translation implementation needs to support this. (add test)
             HashSet<TypeData> add = [];
             HashSet<TypeData> remove = [];
             foreach (var type in types)
@@ -273,14 +280,13 @@ public class TranslateAction : ICliAction
                 return true;
             }
             if (type.DescendsTo(typeof(Enum))) return false; 
+            
+            var members = type.GetMembers().ToArray();
+            foreach (var mem in members)
             {
-                var members = type.GetMembers().ToArray();
-                foreach (var mem in members)
-                {
-                    // If at least one member should be translated, we can't skip the type.
-                    if (SkipMem(type, mem) == false)
-                        return false;
-                }
+                // If at least one member should be translated, we can't skip the type.
+                if (SkipMem(type, mem) == false)
+                    return false;
             }
         }
         catch (Exception ex)
