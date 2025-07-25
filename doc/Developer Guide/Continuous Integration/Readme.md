@@ -139,12 +139,12 @@ jobs:
     steps:
       # Check out the files in this repository. 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           # 'tap sdk gitversion' can fail if the version history is incomplete. 
           # A fetch-depth of 0 ensures we get a complete history.
           fetch-depth: 0 
-      # Fixes an issue with actions/checkout@v3. See https://github.com/actions/checkout/issues/290
+      # Fixes an issue with actions/checkout. This is required for automatic versioning to work using Git-assisted versioning. See https://github.com/actions/checkout/issues/290 and https://doc.opentap.io/Developer%20Guide/Plugin%20Packaging%20and%20Versioning/Readme.html#git-assisted-versioning
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} 
@@ -154,12 +154,12 @@ jobs:
       # Upload the package so it can be downloaded from GitHub, 
       # and consumed by other steps in this workflow
       - name: Upload binaries
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: tap-package
           retention-days: 5
-          path: |
-            bin/Release/*.TapPackage
+          # Path to the package from the build step. If your package builds to a subfolder make sure to update this path.
+          path: bin/Release/*.TapPackage
 
   ##############
   ### TEST    ##
@@ -169,7 +169,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build
         run: dotnet test
 
