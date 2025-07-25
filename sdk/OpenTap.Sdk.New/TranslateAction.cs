@@ -61,6 +61,7 @@ public class TranslateAction : ICliAction
         var types = new List<ITypeData>();
         // first add all plugins
         types.AddRange(TypeData.GetDerivedTypes<ITapPlugin>());
+        
         types = [.. types.Distinct()];
 
         static void recursivelyAddReferencedTypes(ITypeData td, HashSet<ITypeData> seen)
@@ -73,9 +74,17 @@ public class TranslateAction : ICliAction
                     if (mem.TypeDescriptor.Name.StartsWith("System.")
                         || mem.TypeDescriptor.Name.StartsWith("Microsoft."))
                         continue;
-                    if (seen.Add(mem.TypeDescriptor))
+                    if (SkipMem(td, mem))
                     {
-                        recursivelyAddReferencedTypes(mem.TypeDescriptor, seen);
+                        continue;
+                    }
+                    // Always translate the member type if it is embedded.
+                    if (mem.HasAttribute<EmbedPropertiesAttribute>() || SkipType(mem.TypeDescriptor) == false)
+                    {
+                        if (seen.Add(mem.TypeDescriptor))
+                        {
+                            recursivelyAddReferencedTypes(mem.TypeDescriptor, seen);
+                        }
                     }
                 }
             }
@@ -98,7 +107,6 @@ public class TranslateAction : ICliAction
             // We are not interested in creating a different translation for each 
             // variant of a generic type we use. 
             // Remove all instances of generic types, and add a single reference to the generic variant.
-            // TODO: The translation implementation needs to support this. (add test)
             HashSet<TypeData> add = [];
             HashSet<TypeData> remove = [];
             foreach (var type in types)
@@ -137,46 +145,81 @@ public class TranslateAction : ICliAction
             }
         }
 
-        var typesBySource =
-            packageTypes.GroupBy(tp => Path.GetFullPath(TypeData.GetTypeDataSource(tp).Location),
-                StringComparer.OrdinalIgnoreCase).ToArray();
-
-        if (!typesBySource.Any())
+        if (!packageTypes.Any())
         { 
             log.Error($"0 types discovered for package '{Package}'. This is likely a bug.");
             return 1;
         }
         
-        foreach (var grp in typesBySource)
+        foreach (var type in packageTypes)
         {
-            foreach (var type in grp)
+            if (SkipType(type))
+                continue;
+
+            if (type.DescendsTo(typeof(Enum)) && AsTypeData(type)?.Type is Type enumType)
             {
-                if (SkipType(type))
+                // Special handling for enums. We need to write each enum variant
+                WriteEnumMembers(writer, enumType);
+                continue;
+            }
+
+            if (type.DescendsTo(typeof(IStringLocalizer)) && type.CanCreateInstance && type.CreateInstance() is IStringLocalizer t)
+            {
+                WriteStringLocalizerStrings(writer, t);
+            }
+
+            var members = GetMembers(type);
+            var typeDisplay = type.GetDisplayAttribute();
+
+            WriteAttribute(writer, type.Name, typeDisplay);
+            foreach (var mem in members)
+            {
+                if (SkipMem(type, mem))
                     continue;
-
-                if (type.DescendsTo(typeof(Enum)) && AsTypeData(type)?.Type is Type enumType)
+                var memDisplay = mem.GetDisplayAttribute();
+                WriteAttribute(writer, $"{type.Name}.{mem.Name}", memDisplay);
+            }
+        }
+        
+        // Also add all display attributes defined in the plugin
+        {
+            var assemblyFiles = pkg.Files.Where(f => !f.FileName.StartsWith("Dependencies/")).Where(x =>
+                    x.FileName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                    x.FileName.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            List<Assembly> assemblies = [];
+            foreach (var f in assemblyFiles)
+            {
+                try
                 {
-                    // Special handling for enums. We need to write each enum variant
-                    WriteEnumMembers(writer, enumType);
-                    continue;
+                    var asm = Assembly.LoadFrom(f.FileName);
+                    assemblies.Add(asm);
                 }
-
-                if (type.DescendsTo(typeof(IStringLocalizer)) && type.CanCreateInstance && type.CreateInstance() is IStringLocalizer t)
+                catch
                 {
-                    WriteStringLocalizerStrings(writer, t);
+                    // ignore
                 }
+            }
 
-
-                var members = type.GetMembers().ToArray();
-                var typeDisplay = type.GetDisplayAttribute();
-
-                WriteAttribute(writer, type.Name, typeDisplay);
-                foreach (var mem in members)
+            foreach (var asm in assemblies)
+            {
+                foreach (var type in asm.ExportedTypes)
                 {
-                    if (SkipMem(type, mem))
-                        continue;
-                    var memDisplay = mem.GetDisplayAttribute();
-                    WriteAttribute(writer, $"{type.Name}.{mem.Name}", memDisplay);
+                    if (type.GetCustomAttribute<DisplayAttribute>() is { } typeDisplay)
+                    {
+                        WriteAttribute(writer, type.FullName, typeDisplay);
+                    }
+
+                    foreach (var mem in type.GetMembers())
+                    {
+                        // Inherited members should be translated on the base type. Otherwise translators would
+                        // have to duplicate translation of inherited members.
+                        if (mem.DeclaringType != type) continue;
+                        if (mem.GetCustomAttribute<DisplayAttribute>() is { } memDisplay)
+                        {
+                            WriteAttribute(writer, $"{type.FullName}.{mem.Name}", memDisplay);
+                        }
+                    }
                 }
             }
         }
@@ -264,22 +307,16 @@ public class TranslateAction : ICliAction
             if (type.DescendsTo(typeof(IStringLocalizer)))
             {
                 if (type.CanCreateInstance) return false;
+                // Skip abstract types with no error
+                if (AsTypeData(type)?.Type?.IsAbstract == true) return true;
                 // It is currently a requirement that IStringLocalizer can be instantiated.
                 // In the future, we can improve the string detection algorithm to relax this requirement,
                 // but for now we should warn the user that this will not work.
                 log.Error($"String localizer '{type.Name}' does not have an empty constructor, and will not be translated.");
                 return true;
             }
-            if (type.DescendsTo(typeof(Enum))) return false; 
-            {
-                var members = type.GetMembers().ToArray();
-                foreach (var mem in members)
-                {
-                    // If at least one member should be translated, we can't skip the type.
-                    if (SkipMem(type, mem) == false)
-                        return false;
-                }
-            }
+
+            return false;
         }
         catch (Exception ex)
         {
@@ -289,6 +326,23 @@ public class TranslateAction : ICliAction
             log.Debug(ex);
         } 
         return true;
+    }
+
+    static IMemberData[] GetMembers(ITypeData type)
+    {
+        try
+        {
+            return type.GetMembers().ToArray();
+        }
+        catch (Exception ex)
+        {
+            // ignore. This can happen for bad typedata implementations. We should just ignore the type in this case
+            // since we can't translate it if we can't enumerate the members.
+            log.Error($"Error reflecting type '{type.Name}'. Properties will not be translated.");
+            log.Debug(ex);
+        }
+
+        return [];
     }
 
     static bool SkipMem(ITypeData type, IMemberData mem)

@@ -389,10 +389,20 @@ namespace OpenTap
                 return enumType.GetElementType();
             if (enumType.IsGenericTypeDefinition)
                 return null;
-            var ienumInterface = enumType.GetInterface(typeof(IEnumerable<>).Name);
-            if (ienumInterface != null)
-                return ienumInterface.GetGenericArguments().FirstOrDefault();
+            try
+            {
+                // check if it *has* the interface
+                var ienumInterface = enumType.GetInterface(typeof(IEnumerable<>).Name);
+                if (ienumInterface != null)
+                    return ienumInterface.GetGenericArguments().FirstOrDefault();
+            }
+            catch (AmbiguousMatchException)
+            {
+                // the type implements multiple different IEnumerable<> interfaces.
+                // this is an odd case that is not commonly seen.
+            }
 
+            // check if it *is* the interface.
             if(enumType.IsInterface && enumType.IsGenericType && enumType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
             {
                 return enumType.GetGenericArguments().FirstOrDefault();

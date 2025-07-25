@@ -130,8 +130,8 @@
     "Editor": {
       "type": "parameter",
       "datatype": "choice",
-      "defaultValue": "TUI",
       "replaces": "TapEditor",
+      "defaultValue": "Editor",
       "description": "The default editor to debug with.",
       "choices": [
         {

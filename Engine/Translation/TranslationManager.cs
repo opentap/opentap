@@ -129,7 +129,10 @@ public static class TranslationManager
         language ??= EngineSettings.Current.Language;
         if (language.Equals(NeutralLanguage) || string.IsNullOrWhiteSpace(key))
             return neutral;
-        var fullKey = stringLocalizer.GetType().FullName + $".{key}";
+        var type = stringLocalizer.GetType();
+        if (type.IsGenericType)
+            type = type.GetGenericTypeDefinition();
+        var fullKey = type.FullName + $".{key}";
         return TranslateKey(fullKey, language) ?? neutral;
     }
 
