@@ -1,5 +1,6 @@
 ﻿using NUnit.Framework;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Reflection;
@@ -91,6 +92,47 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual(browsable, td2.IsBrowsable);
             }
 
+        }
+
+        class MultipleEnumerableInterfacesList : List<double>, IEnumerable<int>
+        {
+            IEnumerator<int> IEnumerable<int>.GetEnumerator()
+            {
+                foreach (var value in this)
+                    yield return (int)value;
+            }
+        }
+
+        class MultipleEnumerableInterfacesList2 : IEnumerable<double>, IEnumerable<int>, IEnumerable<string>
+        {
+            IEnumerator<string> IEnumerable<string>.GetEnumerator()
+            {
+                yield return "1";
+            }
+
+            IEnumerator<int> IEnumerable<int>.GetEnumerator()
+            {
+                yield return 1;
+            }
+
+            IEnumerator<double> IEnumerable<double>.GetEnumerator()
+            {
+                yield return 1.0;
+            }
+
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                yield return 1.0;
+            }
+        }
+        
+        [Test]
+        public void TestMultipleEnumerableInterfaceImplementations()
+        {
+            Assert.IsNull(TypeData.FromType(typeof(MultipleEnumerableInterfacesList)).ElementType);
+            Assert.IsNull(TypeData.FromType(typeof(MultipleEnumerableInterfacesList2)).ElementType);
+            Assert.AreEqual(TypeData.FromType(typeof(List<double>)).AsTypeData().ElementType.Type, typeof(double));
+            Assert.AreEqual(TypeData.FromType(typeof(IEnumerable<double>)).AsTypeData().ElementType.Type, typeof(double));
         }
     }
 }
