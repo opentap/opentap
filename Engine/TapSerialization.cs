@@ -5,6 +5,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Text;
@@ -178,7 +179,9 @@ namespace OpenTap
             {
                 try
                 {
-                    deferredLoads.Dequeue()();
+                    var item = deferredLoads[0];
+                    deferredLoads.RemoveAt(0);
+                    item.Action();
                 }
                 catch (Exception e)
                 {
@@ -302,7 +305,26 @@ namespace OpenTap
             currentSerializer.Value = previousValue;
         }
 
-        readonly Queue<Action> deferredLoads = new Queue<Action>();
+        internal enum DeferredLoadOrder
+        {
+            Early,
+            Normal,
+            Late,
+            Latest,
+        }
+
+        [DebuggerDisplay("{Order}")]
+        struct DeferredAction : IComparable<DeferredAction>
+        {
+            public DeferredLoadOrder Order;
+            public Action Action;
+
+            public int CompareTo(DeferredAction other)
+            {
+                return Order.CompareTo(other.Order);
+            }
+        }
+        private List<DeferredAction> deferredLoads = [];
 
         /// <summary>
         /// Pushes a deferred load action onto a queue of deferred loads.  
@@ -310,9 +332,26 @@ namespace OpenTap
         /// <param name="deferred"></param>
         public void DeferLoad(Action deferred)
         {
+            DeferLoad(deferred, DeferredLoadOrder.Normal);
+        }
+
+        internal void DeferLoad(Action deferred, DeferredLoadOrder order)
+        {
             if (deferred == null)
                 throw new ArgumentNullException(nameof(deferred));
-            deferredLoads.Enqueue(deferred);
+            DeferredAction item;
+            item.Action = deferred;
+            item.Order = order;
+
+            // We want to ensure that a new item is inserted at the end of its own priority segment.
+            // The linear scan can be rewritten as a custom binary search,
+            // but this list is unlikely to grow to an unmanagable size.
+            int i = deferredLoads.BinarySearch(item);
+            if (i < 0) i = ~i;
+            for (; i < deferredLoads.Count; i++)
+                if (deferredLoads[i].Order > order)
+                    break;
+            deferredLoads.Insert(i, item);
         }
 
         readonly List<XmlMessage> messages = new List<XmlMessage>();
@@ -648,4 +687,3 @@ namespace OpenTap
 
     }
 }
-

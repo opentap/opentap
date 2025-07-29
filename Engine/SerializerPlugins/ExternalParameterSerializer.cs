@@ -129,8 +129,7 @@ namespace OpenTap.Plugins
                 Serializer.DeferLoad(() =>
                 {
                     loadPreloadedvalues(_plan);
-                    Serializer.DeferLoad(() => loadPreloadedvalues(_plan));
-                });
+                }, TapSerializer.DeferredLoadOrder.Latest);
 
                 return ok;
             }
