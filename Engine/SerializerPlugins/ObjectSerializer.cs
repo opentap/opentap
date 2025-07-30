@@ -321,7 +321,10 @@ namespace OpenTap.Plugins
                                             // This must be deferred because ParameterMemberData relies on IObjectCloner
                                             // to clone the member value, but if this setter is not deferred, the objects
                                             // will have been cloned before they are fully serialized
-                                            Serializer.DeferLoad(() => property.SetValue(newobj, x), TapSerializer.DeferredLoadOrder.Late);
+                                            var priority = property is ParameterMemberData
+                                                ? TapSerializer.DeferredLoadOrder.ParameterMemberDataSetter
+                                                : TapSerializer.DeferredLoadOrder.Normal;
+                                            Serializer.DeferLoad(() => property.SetValue(newobj, x), priority);
                                         };
                                         
                                         var prevobj2 = Object;

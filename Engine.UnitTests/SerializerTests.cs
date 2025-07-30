@@ -471,35 +471,30 @@ namespace OpenTap.Engine.UnitTests
                 };
             }
 
-            // Even if this defer is inserted first, it should run last
-            ser.DeferLoad(Assertion(9), TapSerializer.DeferredLoadOrder.Last);
-            {
-                // These defers should also run after all Early defers
-                ser.DeferLoad(Assertion(5), TapSerializer.DeferredLoadOrder.Normal);
-                ser.DeferLoad(Assertion(6), TapSerializer.DeferredLoadOrder.Normal);
-            }
+            // Even though this defer is inserted first, it should run last
+            ser.DeferLoad(Assertion(7), TapSerializer.DeferredLoadOrder.ExternalParameter);
             // This defer should run after all normal Defers
-            ser.DeferLoad(Assertion(7), TapSerializer.DeferredLoadOrder.Late);
+            ser.DeferLoad(Assertion(5), TapSerializer.DeferredLoadOrder.ParameterMemberDataSetter);
             // These defers should run first although they are inserted late
-            ser.DeferLoad(Assertion(1), TapSerializer.DeferredLoadOrder.Early);
-            ser.DeferLoad(Assertion(2), TapSerializer.DeferredLoadOrder.Early);
-            ser.DeferLoad(Assertion(3), TapSerializer.DeferredLoadOrder.Early);
+            ser.DeferLoad(Assertion(1), TapSerializer.DeferredLoadOrder.Normal);
+            ser.DeferLoad(Assertion(2), TapSerializer.DeferredLoadOrder.Normal);
+            ser.DeferLoad(Assertion(3), TapSerializer.DeferredLoadOrder.Normal);
             
             ser.DeferLoad(() =>
             {
-                // The defer inserted in this defer should run before all normal defers
-                ser.DeferLoad(Assertion(4), TapSerializer.DeferredLoadOrder.Early);
-            }, TapSerializer.DeferredLoadOrder.Early);
+                // The defer inserted in this defer should run before parameter defers
+                ser.DeferLoad(Assertion(4), TapSerializer.DeferredLoadOrder.Normal);
+            }, TapSerializer.DeferredLoadOrder.Normal);
             
             ser.DeferLoad(() =>
             {
-                // This early defer is inserted during the Late defer phase, and is expected to run before the Latest defers
-                ser.DeferLoad(Assertion(8), TapSerializer.DeferredLoadOrder.Early);
-            }, TapSerializer.DeferredLoadOrder.Late);
+                // This defer is inserted during the parameter defer phase, and is expected to run before the external parameter defers
+                ser.DeferLoad(Assertion(6), TapSerializer.DeferredLoadOrder.Normal);
+            }, TapSerializer.DeferredLoadOrder.ParameterMemberDataSetter);
             
             Assert.That(count, Is.EqualTo(0));
             ser.Flush();
-            Assert.That(count, Is.EqualTo(9));
+            Assert.That(count, Is.EqualTo(7));
         }
 
         [Test]

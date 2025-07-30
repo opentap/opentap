@@ -307,10 +307,11 @@ namespace OpenTap
 
         internal enum DeferredLoadOrder
         {
-            Early,
             Normal,
-            Late,
-            Last,
+            // ParameterMemberDataSetter should run after other defers, but before ExternalParameter
+            ParameterMemberDataSetter,
+            // External parameter should be set last
+            ExternalParameter,
         }
 
         [DebuggerDisplay("{Order}")]
