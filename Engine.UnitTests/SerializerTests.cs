@@ -455,6 +455,52 @@ namespace OpenTap.Engine.UnitTests
             // we should not treat it as default.
             public double? NullableDouble { get; set; } = 0x1337;
         }
+        
+        [Test]
+        public void TestSerializerDeferOrder()
+        {
+            var ser = new TapSerializer();
+            int count = 0;
+
+            Action Assertion(int expected)
+            {
+                return () =>
+                {
+                    count++;
+                    Assert.That(expected, Is.EqualTo(count));
+                };
+            }
+
+            // Even if this defer is inserted first, it should run last
+            ser.DeferLoad(Assertion(9), TapSerializer.DeferredLoadOrder.Latest);
+            {
+                // These defers should also run after all Early defers
+                ser.DeferLoad(Assertion(5), TapSerializer.DeferredLoadOrder.Normal);
+                ser.DeferLoad(Assertion(6), TapSerializer.DeferredLoadOrder.Normal);
+            }
+            // This defer should run after all normal Defers
+            ser.DeferLoad(Assertion(7), TapSerializer.DeferredLoadOrder.Late);
+            // These defers should run first although they are inserted late
+            ser.DeferLoad(Assertion(1), TapSerializer.DeferredLoadOrder.Early);
+            ser.DeferLoad(Assertion(2), TapSerializer.DeferredLoadOrder.Early);
+            ser.DeferLoad(Assertion(3), TapSerializer.DeferredLoadOrder.Early);
+            
+            ser.DeferLoad(() =>
+            {
+                // The defer inserted in this defer should run before all normal defers
+                ser.DeferLoad(Assertion(4), TapSerializer.DeferredLoadOrder.Early);
+            }, TapSerializer.DeferredLoadOrder.Early);
+            
+            ser.DeferLoad(() =>
+            {
+                // This early defer is inserted during the Late defer phase, and is expected to run before the Latest defers
+                ser.DeferLoad(Assertion(8), TapSerializer.DeferredLoadOrder.Early);
+            }, TapSerializer.DeferredLoadOrder.Late);
+            
+            Assert.That(count, Is.EqualTo(0));
+            ser.Flush();
+            Assert.That(count, Is.EqualTo(9));
+        }
 
         [Test]
         public void SerializeDeserializePropertyWithNullable()
