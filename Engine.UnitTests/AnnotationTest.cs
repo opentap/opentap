@@ -422,8 +422,8 @@ namespace OpenTap.UnitTests
 
         [Test]
         public void ListOfStringAnnotation2()
-            {
-              var obj = new ClassWithListOfString();    
+        {
+            var obj = new ClassWithListOfString();    
             var targetObject = new SequenceStep();
             var obj2 = new ClassWithListOfString();
             targetObject.ChildTestSteps.Add(obj);
@@ -873,7 +873,7 @@ namespace OpenTap.UnitTests
             }
         }
 
-            [Test]
+        [Test]
         public void MenuAnnotationTest2()
         {
             var currentUserInterface = UserInput.Interface;
@@ -1173,6 +1173,78 @@ namespace OpenTap.UnitTests
                 Assert.AreSame(null, if1.InputVerdict.Step);
                 Assert.AreSame(null, if2.InputVerdict.Step);
                 Assert.AreSame(null, if3.InputVerdict.Step);
+            }
+        }
+
+        public class DoubleOut : TestStep
+        {
+            [Output] public double Out { get; set; } = 123;
+            public override void Run() { }
+        }
+        
+        public class DoubleIn : TestStep
+        {
+            public Input<double> In { get; set; } = new();
+            public override void Run() { }
+        }
+
+        [Test]
+        public void TestSerializeMergedInput()
+        {
+            var plan = new TestPlan();
+            var out1 = new DoubleOut();
+            var seq = new SequenceStep();
+            var in1 = new DoubleIn { Name = "In 1" };
+            var in2 = new DoubleIn { Name = "In 2" };
+            var in3 = new DoubleIn { Name = "In 3" };
+            plan.ChildTestSteps.AddRange([out1, seq]);
+            ITestStep[] merged = [in1, in2, in3];
+            seq.ChildTestSteps.AddRange(merged);
+            
+            { // Parameterize `In` on the parent sequence step
+                var a = AnnotationCollection.Annotate(merged);
+                var mem = a.GetMember(nameof(in1.In));
+                var icon = mem.Get<MenuAnnotation>().MenuItems
+                    .FirstOrDefault(m => m.Get<IIconAnnotation>().IconName == IconNames.ParameterizeOnParent);
+                var method = icon.Get<IMethodAnnotation>();
+                method.Invoke();
+                a.Write();
+                a.Read();
+            }
+            
+            { // Assign the parameterized member to the output from `Out`
+                var a = AnnotationCollection.Annotate(seq);
+                var mem = a.GetMember("Parameters \\ In");
+                var avail = mem.Get<IAvailableValuesAnnotationProxy>();
+                avail.SelectedValue = avail.AvailableValues.LastOrDefault();
+                a.Write();
+                a.Read();
+            }
+
+            { // Verify the merged inputs are wired up correctly in this session
+                Input<double> parameter = (Input<double>)TypeData.GetTypeData(seq).GetMember("Parameters \\ In").GetValue(seq);
+                Assert.AreEqual(parameter.Step.Id, out1.Id);
+                Assert.AreEqual(in1.In.Step.Id, out1.Id);
+                Assert.AreEqual(in2.In.Step.Id, out1.Id);
+                Assert.AreEqual(in3.In.Step.Id, out1.Id);
+            }
+
+            { // Verify the merged inputs are wired up correctly after reloading
+                var ser = new TapSerializer() { IgnoreErrors = false, ThrowOnErrors = true, };
+                var str = ser.SerializeToString(plan);
+                var plan2 = (TestPlan)ser.DeserializeFromString(str);
+
+                out1 = (DoubleOut)plan2.ChildTestSteps[0];
+                seq = (SequenceStep)plan2.ChildTestSteps[1];
+                in1 = (DoubleIn)seq.ChildTestSteps[0];
+                in2 = (DoubleIn)seq.ChildTestSteps[1];
+                in3 = (DoubleIn)seq.ChildTestSteps[2];
+                
+                Input<double> parameter = (Input<double>)TypeData.GetTypeData(seq).GetMember("Parameters \\ In").GetValue(seq);
+                Assert.AreEqual(parameter.Step.Id, out1.Id);
+                Assert.AreEqual(in1.In.Step.Id, out1.Id);
+                Assert.AreEqual(in2.In.Step.Id, out1.Id);
+                Assert.AreEqual(in3.In.Step.Id, out1.Id);
             }
         }
 

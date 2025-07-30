@@ -455,6 +455,47 @@ namespace OpenTap.Engine.UnitTests
             // we should not treat it as default.
             public double? NullableDouble { get; set; } = 0x1337;
         }
+        
+        [Test]
+        public void TestSerializerDeferOrder()
+        {
+            var ser = new TapSerializer();
+            int count = 0;
+
+            Action Assertion(int expected)
+            {
+                return () =>
+                {
+                    count++;
+                    Assert.That(expected, Is.EqualTo(count));
+                };
+            }
+
+            // Even though this defer is inserted first, it should run last
+            ser.DeferLoad(Assertion(7), TapSerializer.DeferredLoadOrder.ExternalParameter);
+            // This defer should run after all normal Defers
+            ser.DeferLoad(Assertion(5), TapSerializer.DeferredLoadOrder.ParameterMemberDataSetter);
+            // These defers should run first although they are inserted late
+            ser.DeferLoad(Assertion(1), TapSerializer.DeferredLoadOrder.Normal);
+            ser.DeferLoad(Assertion(2), TapSerializer.DeferredLoadOrder.Normal);
+            ser.DeferLoad(Assertion(3), TapSerializer.DeferredLoadOrder.Normal);
+            
+            ser.DeferLoad(() =>
+            {
+                // The defer inserted in this defer should run before parameter defers
+                ser.DeferLoad(Assertion(4), TapSerializer.DeferredLoadOrder.Normal);
+            }, TapSerializer.DeferredLoadOrder.Normal);
+            
+            ser.DeferLoad(() =>
+            {
+                // This defer is inserted during the parameter defer phase, and is expected to run before the external parameter defers
+                ser.DeferLoad(Assertion(6), TapSerializer.DeferredLoadOrder.Normal);
+            }, TapSerializer.DeferredLoadOrder.ParameterMemberDataSetter);
+            
+            Assert.That(count, Is.EqualTo(0));
+            ser.Flush();
+            Assert.That(count, Is.EqualTo(7));
+        }
 
         [Test]
         public void SerializeDeserializePropertyWithNullable()
