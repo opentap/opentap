@@ -52,6 +52,9 @@ else
   # If the user cannot write to the installation, OpenTAP will not work correctly.
   # Instead, we should give a hint about how to resolve the issue.
   TapDllGroupOwner="$(stat -c "%G" "$TapDllDir")"
-  echo "User $USER does not have write access in the OpenTAP installation at '$TapDllDir'."
-  echo "This installation belongs to the group '$TapDllGroupOwner'. The user can be added to this group with the command 'usermod -a -G $TapDllGroupOwner $USER'."
+  echo "User $USER does not have write access in the OpenTAP installation at '$TapDllDir':"
+  echo "This installation belongs to $TapDllGroupOwner"
+  if [ "$TapDllGroupOwner" = "opentap" ]; then
+    echo "Add $USER to $TapDllGroupOwner with the command 'usermod -aG $TapDllGroupOwner $USER'."
+  fi
 fi
