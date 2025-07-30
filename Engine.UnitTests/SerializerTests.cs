@@ -472,7 +472,7 @@ namespace OpenTap.Engine.UnitTests
             }
 
             // Even if this defer is inserted first, it should run last
-            ser.DeferLoad(Assertion(9), TapSerializer.DeferredLoadOrder.Latest);
+            ser.DeferLoad(Assertion(9), TapSerializer.DeferredLoadOrder.Last);
             {
                 // These defers should also run after all Early defers
                 ser.DeferLoad(Assertion(5), TapSerializer.DeferredLoadOrder.Normal);

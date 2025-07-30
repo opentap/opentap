@@ -123,13 +123,12 @@ namespace OpenTap.Plugins
                     setter(_plan); 
                 }, t);
                 
-                // preloaded values should be handled as the absolute last thing
-                // 2x Defer is used to ensure that there's a very little chance that it will be overwritten
-                // but idealy there should be a way for ordering defers.
+                // preloaded values should be handled as the absolute last thing.
+                // This should be ensured by DeferredLoadOrder.Last, so we should make sure not to use this priority for other things.
                 Serializer.DeferLoad(() =>
                 {
                     loadPreloadedvalues(_plan);
-                }, TapSerializer.DeferredLoadOrder.Latest);
+                }, TapSerializer.DeferredLoadOrder.Last);
 
                 return ok;
             }

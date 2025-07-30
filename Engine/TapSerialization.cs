@@ -310,7 +310,7 @@ namespace OpenTap
             Early,
             Normal,
             Late,
-            Latest,
+            Last,
         }
 
         [DebuggerDisplay("{Order}")]
