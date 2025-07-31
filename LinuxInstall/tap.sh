@@ -36,12 +36,14 @@ TapDllDir="$(dirname "$TapPath")"
 TapDllPath="$TapDllDir/tap.dll"
 
 if ! [ -f "$TapDllPath" ]; then
-  echo "File does not exist: '$TapDllPath'"
-  echo "This could mean:"
-  echo "  1) OpenTAP is broken due to a partial update or uninstall"
-  echo "  2) The OpenTAP installation was moved"
-  echo "Please reinstall OpenTAP"
-  exit 1
+  cat >&2 <<EOF
+File does not exist: $TapDllPath
+This could mean:
+  1) OpenTAP is broken due to a partial update or uninstall
+  2) The OpenTAP installation was moved
+Please reinstall OpenTAP
+EOF
+exit 1
 fi
 
 # -w checks if TapDllDir exists and is writable by the current user.
@@ -50,7 +52,5 @@ if [ -w "$TapDllDir" ]; then
   exec dotnet "$TapDllPath" "$@"
 else
   # If the user cannot write to the installation, OpenTAP will not work correctly.
-  # Instead, we should give a hint about how to resolve the issue.
-  TapDllGroupOwner="$(stat -c "%G" "$TapDllDir")"
-  echo "$USER does not have write access to in '$TapDllDir': This directory belongs to $TapDllGroupOwner."
+  echo "User $USER does not have write access to this OpenTAP installation." >&2
 fi
