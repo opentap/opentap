@@ -209,7 +209,23 @@ If both requirements are met, a dialog (in the Editor) or prompt(in OpenTAP CLI)
 Values captured as metadata are provided to all the result listeners, and can be used in the macro system. See SimpleDut.cs for an example of the use of the MetaData attribute.
 
 ### Unit Attribute
-The Unit attribute specifies the units for a setting. The Editor displays the units after the value (with a space separator). Compound units (watt-hours) should be hyphenated. Optionally, displayed units can insert engineering prefixes.
+The Unit attribute specifies the units for a setting. The Editor displays the units after the value (with a space separator). Compound units (watt-hours) should be hyphenated. Optionally, displayed units can insert engineering prefixes, e.g 0.001 s, will be converted to 1 ms, 1000000 Hz will be converted to 1 MHz if engineering prefix is used.
+
+A string formatting specifier can be set, using the "StringFormat" specifier. StringFormat is especially useful for presenting integer values as hexadecimal to the user, using the "X"-format. 
+
+"0x" can be to specify hexadecimal with "0x" prefix. Zero padding can be added as a number in the suffix. E.g 0x8, means hexadecimal with 8 zeros as padding. for example: "0x0000A00"
+
+Below is a list of alternative formats:
+- "X" : Hexadecimal format, upper case. E.g 10AF. ("x" for lower case)
+- "0x" :Hexadecimal format with 0x prefix. e.g
+- "0X8" :Hexadecimal format with 0x prefix, 8 zeros of padding and upper case character values. e.g 0x009ABCDE.
+- "0x16": Hexadecimal format with 0x prefix and 16 zeros of padding. This is useful for 64bit integer values
+
+This can be used as such:
+```c#
+[Unit("", StringFormat: "0x8")]
+public int IntegerValue {get;set;} = 0xa; // Displayed as "0x0000000a
+```
 
 See the `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes\UnitAttributeExample.cs` file for an extensive example.
 
