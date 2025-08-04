@@ -9,6 +9,28 @@ OpenTAP, and is not meant to be comprehensive. For a comprehensive list of
 breaking changes, see [the official
 documentation](https://github.com/dotnet/docs/blob/main/docs/core/compatibility/breaking-changes.md).
 
+To know which version of .NET OpenTAP is using, you can check the log file. It might say:
+```
+; Microsoft Windows 10.0.19045X64
+; .NET 9.0.7
+; OpenTAP Engine 9.29.0+f68daa39 X64
+```
+
+Here it says, OpenTAP 9.29.0 running on .NET 9(.0.7) on Microsoft Windows 10, 64-bit.
+
+Using OpenTAP 9.28, it might have said:
+
+```
+; Microsoft Windows 10.0.19045 X64
+; .NET Framework 4.8.4790.0
+; OpenTAP Engine 9.28.2+504225fd X64
+```
+
+Here it says, OpenTAP 9.29.2, running on .NET Framework 4.8, on Microsoft Windows 10, 64-bit.
+
+Even though OpenTAP depends on a given .NET version, it might actually be running on a newer, but compatible runtime.
+For example, in 9.28, it specifies 4.7.2, but can run on 4.8. And in the same way, it could be running on .NET 10, even though it requires .NET 9.
+
 ---
 
 ## ProcessStartInfo Defaults Changed
@@ -148,22 +170,26 @@ refer to Microsoft's documentation about
 
 **Symptoms**
 
-Attempts to use or reference assemblies from the GAC fails in .NET 9.
+FileNotFoundException or TypeLoadException exceptions raised from code previously working in .NET Framework. 
+
+In some cases, this is because the assembly is located in the GAC (Global Assembly Cache) and that is no longer supported in .NET 9.
 
 **Cause**  
 .NET 9 does not support GAC.
 
 **Solution**  
-Distribute required assemblies as part of your plugin if permitted by the
-software license. Alternatively, instruct your users to install relevant
-software and manually load dependencies from the installation directory. 
 
-If you know have a specific set of DLLs you need to load, you can load them
-manually with `Assembly.LoadFrom(@"C:\Absolute\Path\To\Assembly.dll");`.
+Load the assembly directly or create a GAC assembly resolver. 
 
-Alternatively, OpenTAP can be instructed to look for dependencies in a specific
-directory by calling
-`PluginManager.DirectoriesToSearch.Add(@"C:\Path\To\Library");`
+Usually those assemblies are located inside a folder in `C:\Windows\assembly\GAC_MSIL\[assembly-name]\[version]\[assembly-name].dll`.
+
+The simplest solution is to add a custom assembly resolver for those assemblies. This can be done via `AppDomain.Current.ResolveAssembly`. 
+That event will be called if it was otherwise not possible to resolve the assembly.
+
+If that solves the issue, instruct the users to install relevant software for the assembly to be located there. For example, the assembly may follow
+an IVI driver.
+
+Alternatively, you can use the DLL as part of your solution by simply copying it into the OpenTAP installation folder. Check if the license permits that before distributing it.
 
 ---
 
