@@ -31,9 +31,8 @@ Here it says, OpenTAP 9.29.2, running on .NET Framework 4.8, on Microsoft Window
 Even though OpenTAP depends on a given .NET version, it might actually be running on a newer, but compatible runtime.
 For example, in 9.28, it specifies 4.7.2, but can run on 4.8. And in the same way, it could be running on .NET 10, even though it requires .NET 9.
 
----
 
-## ProcessStartInfo Defaults Changed
+### ProcessStartInfo Defaults Changed
 
 **Symptoms**
 
@@ -54,9 +53,8 @@ var startInfo = new ProcessStartInfo
 };
 Process.Start(startInfo);
 ```
----
 
-## Missing `System.IO.Ports` API
+### Missing System.IO.Ports API
 
 **Symptoms**
 
@@ -83,9 +81,9 @@ Install the OpenTAP [Serial Ports](https://packages.opentap.io/#name=%2FPackages
 ```
 
 > This package restores the `System.IO.Ports` API functionality for OpenTAP users on .NET 9.
----
 
-## Other Missing .NET Framework APIs
+
+### Other Missing .NET Framework APIs
 
 **Symptoms**
 
@@ -122,9 +120,8 @@ possible.
 ```
 
 > This enables use of legacy APIs such as `System.Drawing`, `System.ServiceModel`, and others.
----
 
-## Assembly Side-Loading Not Supported
+### Assembly Side-Loading Not Supported
 
 **Symptoms**
 
@@ -145,9 +142,7 @@ different versions results in two different instances of the same assembly. In
 
 Side-loading is still possible, but must be manually managed using `AssemblyLoadContext`.
 
----
-
-## AppDomain Changes
+### AppDomain Changes
 
 **Symptoms**
 
@@ -164,9 +159,7 @@ Migrate code depending on `AppDomain` to use `AssemblyLoadContext` instead.
 refer to Microsoft's documentation about
 [AssemblyLoadContext](https://learn.microsoft.com/en-us/dotnet/core/dependency-loading/understanding-assemblyloadcontext)
 
----
-
-## Global Assembly Cache (GAC) Not Supported
+### Global Assembly Cache (GAC) Not Supported
 
 **Symptoms**
 
@@ -191,9 +184,7 @@ an IVI driver.
 
 Alternatively, you can use the DLL as part of your solution by simply copying it into the OpenTAP installation folder. Check if the license permits that before distributing it.
 
----
-
-## CET Enabled by Default
+### CET Enabled by Default
 
 **Symptoms**
 
@@ -230,9 +221,7 @@ If you are in control of the executable with the problem, you can disable CET by
 If you are not in control of either the library or the binary, you can disable
 stack protections for your system or for a particular process.
 
----
-
-## BinaryFormatter Removed
+### BinaryFormatter Removed
 
 **Symptoms**
 
@@ -244,9 +233,7 @@ Code using `BinaryFormatter` for serialization fails to compile or throws runtim
 **Solution**  
 Migrate to safer serialization alternatives such as `System.Text.Json`.
 
----
-
-## Assembly.LoadWithPartialName Removed
+### Assembly.LoadWithPartialName Removed
 
 **Symptoms**
 
@@ -258,9 +245,7 @@ Code using `Assembly.LoadWithPartialName` fails to compile or throws runtime err
 **Solution**  
 Use `Assembly.Load` or `AssemblyLoadContext` with the full assembly name or path instead.
 
----
-
-## Thread.Suspend and Thread.Resume Removed
+### Thread.Suspend and Thread.Resume Removed
 
 **Symptoms**
 
@@ -272,9 +257,7 @@ These APIs have been removed because there is no way to use them safely.
 **Solution**  
 Refactor code to use safer synchronization primitives such as the `lock` keyword, `Monitor`, `Mutex`, `Semaphore` or `Event` for synchronization.
 
----
-
-## Thread.Abort Removed
+### Thread.Abort Removed
 
 **Symptoms**
 
@@ -286,9 +269,8 @@ Calls to `Thread.Abort` cause compilation errors or runtime failures in .NET 9.
 **Solution**  
 Use cooperative cancellation patterns with `CancellationToken` to gracefully stop threads.
 
----
 
-## Registry API Changes
+### Registry API Changes
 
 **Symptoms**
 
@@ -306,9 +288,8 @@ Add the `Microsoft.Win32.Registry` package to your project and update your code 
 </ItemGroup>
 ```
 
----
 
-## System.IO.FileInfo.Length Exception on Missing File
+### System.IO.FileInfo.Length Exception on Missing File
 
 **Symptoms**
 
@@ -320,9 +301,8 @@ In .NET 9, `FileInfo.Length` no longer returns 0 for nonexistent files and inste
 **Solution**  
 Check `FileInfo.Exists` before accessing `FileInfo.Length`.
 
----
 
-## TLS 1.0/1.1 Disabled by Default
+### TLS 1.0/1.1 Disabled by Default
 
 **Symptoms**
 
@@ -345,9 +325,7 @@ var handler = new HttpClientHandler
 using var client = new HttpClient(handler);
 ```
 
----
-
-## HttpWebRequest & WebClient Deprecated
+### HttpWebRequest & WebClient Deprecated
 
 **Symptoms**
 
@@ -359,9 +337,7 @@ Code using `HttpWebRequest` or `WebClient` issues warnings or may not behave opt
 **Solution**  
 Migrate to using `HttpClient` for HTTP operations.
 
----
-
-## CodeDomProvider Removed for Dynamic Compilation
+### CodeDomProvider Removed for Dynamic Compilation
 
 **Symptoms**
 
@@ -373,9 +349,8 @@ Code using `CodeDomProvider` or `CSharpCodeProvider` to compile code at runtime 
 **Solution**  
 Migrate to the Roslyn compiler APIs (`Microsoft.CodeAnalysis.CSharp`) for runtime code compilation.
 
----
 
-## Remoting Removed
+### Remoting Removed
 
 **Symptoms**
 
@@ -389,5 +364,3 @@ This affects the following APIs:
 
 **Solution**  
 There is no direct replacement. You must migrate to a different communication technology.
-
----
