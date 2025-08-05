@@ -26,11 +26,6 @@
   <ItemGroup Condition="'$(IsWindows)'=='True'">
 	  <AdditionalOpenTapPackage Include="$(DevelopersSystem)" />
 	  <OpenTapPackageReference Include="WPF Controls" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="ResultsViewer">
-      <HintPath>$(OutputPath)\ResultsViewer.exe</HintPath>
-    </Reference>
+	  <OpenTapPackageReference Include="Results Viewer" />
   </ItemGroup>
 </Project>

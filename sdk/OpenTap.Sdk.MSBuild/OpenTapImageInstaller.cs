@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using Microsoft.Build.Framework;
@@ -92,7 +94,22 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// <returns></returns>
         public bool InstallImage(ITaskItem[] packagesToInstall, List<string> repositories)
         {
-            bool success = true;
+            bool success = false;
+            var mutexName = Path.GetFullPath(TapDir) + ".image.lock";
+            using var filelock = FileLock.Create(mutexName);
+            var sw = Stopwatch.StartNew();
+            int count = 0;
+            while (!filelock.WaitOne(TimeSpan.FromSeconds(5)))
+            {
+                if (sw.Elapsed > TimeSpan.FromMinutes(10))
+                {
+                    LogMessage($"Image installer timed out waiting for mutex.", (int)LogEventType.Error, null);
+                    return false;
+                }
+
+                count++;
+                LogMessage($"Image Installer waiting for mutex... ({count})", (int)LogEventType.Warning, null);
+            }
 
             try
             {
@@ -116,12 +133,12 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 try
                 {
                     ImageDeployer.Install(imageSpecifier, install, CancellationToken);
+                    success = true;
                 }
                 catch (ImageResolveException ex)
                 {
                     LogMessage(ex.Message, (int)LogEventType.Error, null);
                     LogMessage("Unable to resolve image.", (int)LogEventType.Error, null);
-                    success = false;
                 }
             }
             catch (AggregateException aex)
@@ -131,16 +148,14 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 {
                     LogMessage(ex.Message, (int)LogEventType.Error, null);
                 }
-
-                success = false;
             }
             catch (Exception ex)
             {
                 LogMessage(ex.Message, (int)LogEventType.Error, null);
-                success = false;
             }
             finally
             {
+                filelock.Release();
                 if (success == false)
                 {
                     LogMessage($"Failed to install packages.", (int)LogEventType.Error, null);

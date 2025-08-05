@@ -59,6 +59,7 @@ Table of Contents
 - [Attributes](Attributes/Readme.md)
 	- [Attributes Used by OpenTAP](Attributes/Readme.md#attributes-used-by-opentap)
 	- [Attribute Details](Attributes/Readme.md#attribute-details)
+- [Migrating to .NET 9](Migrating to .NET 9/Readme.md)
 - [Appendix: Macro Strings](Appendix/Readme.md)
 
 
