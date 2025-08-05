@@ -209,25 +209,55 @@ If both requirements are met, a dialog (in the Editor) or prompt(in OpenTAP CLI)
 Values captured as metadata are provided to all the result listeners, and can be used in the macro system. See SimpleDut.cs for an example of the use of the MetaData attribute.
 
 ### Unit Attribute
-The Unit attribute specifies the units for a setting. The Editor displays the units after the value (with a space separator). Compound units (watt-hours) should be hyphenated. Optionally, displayed units can insert engineering prefixes, e.g 0.001 s, will be converted to 1 ms, 1000000 Hz will be converted to 1 MHz if engineering prefix is used.
 
-A string formatting specifier can be set, using the "StringFormat" specifier. StringFormat is especially useful for presenting integer values as hexadecimal to the user, using the "X"-format. 
+The `Unit` attribute specifies the unit of measurement for a setting. In the OpenTAP Editor, the unit is displayed after the value, separated by a space (e.g., `10 V`). Compound units (e.g., watt-hours) should be hyphenated: `Watt-hours`, `Newton-meters`, etc.
 
-"0x" can be to specify hexadecimal with "0x" prefix. Zero padding can be added as a number in the suffix. E.g 0x8, means hexadecimal with 8 zeros as padding. for example: "0x0000A00"
+When enabled, engineering prefixes are automatically applied to improve readability. For example:
 
-Below is a list of alternative formats:
-- "X" : Hexadecimal format, upper case. E.g 10AF. ("x" for lower case)
-- "0x" :Hexadecimal format with 0x prefix. e.g
-- "0X8" :Hexadecimal format with 0x prefix, 8 zeros of padding and upper case character values. e.g 0x009ABCDE.
-- "0x16": Hexadecimal format with 0x prefix and 16 zeros of padding. This is useful for 64bit integer values
+* `0.001 s` is displayed as `1 ms`
+* `1,000,000 Hz` is displayed as `1 MHz`
 
-This can be used as such:
-```c#
-[Unit("", StringFormat: "0x8")]
-public int IntegerValue {get;set;} = 0xa; // Displayed as "0x0000000a
+#### Example:
+
+```csharp
+[Unit("Hz", UseEngineeringPrefix: true)]
+public double Frequency{get;set;} = 2.1e9 // displayed as "2.1 GHz"
 ```
 
-See the `TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes\UnitAttributeExample.cs` file for an extensive example.
+### String Formatting with StringFormat
+
+You can optionally specify how values are formatted using the `StringFormat` parameter. This is particularly useful for displaying integers in hexadecimal format.
+
+When working with hexadecimal values, type 0x to enter a hexadecimal value and omit 0x to enter a regular decimal value.
+
+It is generally recommended to use the unsigned integer types when you want to enter values as hexadecimal.
+
+#### Hexadecimal Formatting Options:
+
+| Format   | Description                                                                                | Example Output       |
+| -------- | ------------------------------------------------------------------------------------------ | -------------------- |
+| `"X"`    | Uppercase hexadecimal (use `"x"` for lowercase).                                           | `10AF`               |
+| `"0x"`   | Hexadecimal with `0x` prefix.                                                              | `0x10AF`             |
+| `"0x8"`  | Hexadecimal with `0x` prefix and zero-padded to 8 characters.                              | `0x000010AF`         |
+| `"0x16"` | Hexadecimal with `0x` prefix and zero-padded to 16 characters. Useful for 64-bit integers. | `0x00000000000010AF` |
+
+#### Example:
+
+```csharp
+[Unit("", StringFormat: "0x8")]
+public uint IntegerValue { get; set; } = 0xA; // Displayed as: "0x0000000A"
+```
+
+### Additional Notes
+
+* If no unit is required, use an empty string (`""`) for the `Unit`.
+* The `StringFormat` works similarly to standard .NET format strings.
+
+For a complete working example, refer to:
+
+```
+TAP_PATH\Packages\SDK\Examples\PluginDevelopment\TestSteps\Attributes\UnitAttributeExample.cs
+```
 
 ### XmlIgnore Attribute
 The XmlIgnore attribute indicates that a setting should not be serialized. If XmlIgnore is set for a property, the property will not show up in the Editor. If you want to NOT serialize the setting AND show it in the Editor, then use the Browsable(true) attribute, as shown below:
