@@ -167,6 +167,7 @@ namespace OpenTap
         /// <remarks>This is set to non-editorbrowsable to avoid it being modified from a test step.</remarks>
         [AnnotationIgnore]
         [EditorBrowsable(EditorBrowsableState.Never)]
+        [XmlIgnore]
         public bool AllowEditWhilePaused { get; set; }
 
         /// <summary>
