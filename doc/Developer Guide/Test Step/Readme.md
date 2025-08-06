@@ -575,24 +575,47 @@ When using the Expressions feature, it's essential to adhere to a specific synta
     - The power operation is represented by `^`.
     - Parentheses `(` and `)` can be used to group expressions or change the precedence of evaluation.
         * Example: `(1 + 2) * 3` evaluates to `9`.
+3. **Boolean and Comparison Operators**
 
-3. **Functions**:
+   - Expressions can include comparison and logical operations, often used in conditional logic or expressions that evaluate to `true` or `false`.
+
+   - **Comparison Operators**:
+
+  | Operator | Meaning               | Example       |
+  | -------- | --------------------- | ------------- |
+  | `<`      | Less than             | `value < 10`  |
+  | `<=`     | Less than or equal    | `x <= 5`      |
+  | `>`      | Greater than          | `score > 100` |
+  | `>=`     | Greater than or equal | `level >= 3`  |
+  | `==`     | Equal to              | `mode == 1`   |
+  | `!=`     | Not equal to          | `status != 0` |
+
+   - **Logical Operators**:
+
+  | Operator     | Meaning     | Example                                |
+  |--------------|-------------|----------------------------------------|
+  | &&          | Logical AND | x > 0 && y < 100                     |
+  | &#124; &#124; | Logical OR  | temp > 50 &#124; &#124; pressure < 10 |
+
+   - **Note**: Logical operators use **short-circuit evaluation**, meaning the second operand is only evaluated if necessary.
+
+4. **Functions**:
     - Function names are always followed by parentheses `()`.
     - When a function requires multiple arguments, separate each argument with a comma `,`.
         * Example: `max(1, 2, 3)` or `log(8, 2)`.
 
-4. **Identifiers**:
+5. **Identifiers**:
     - Settings on test steps like `Time Delay` is a valid identifier and will get the current value of that setting. 
     - Constants like `π`, `pi` or `e` don't require any additional symbols. Use them as you would use a number.
         * Example: `2 * π`.
     - In case of ambiguities, for example if the settings name contains operators, single-quotes (') can be used
         * Example: `'Time Delay (2)' * 2`
 
-5. **String Interpolation**:
+6. **String Interpolation**:
     - To use expressions with strings, enclose the expression within curly braces `{ }`.
         * Example: `"The radius is {2 * π * r}."`.
       
-6. **Outputs From Other Test Steps**
+7. **Outputs From Other Test Steps**
    - Outputs from other test steps can be used as inputs with the `@` operator.
         * Example: `The result was {@Scpi Step.Response}`
    - Again single-quotes (') can be used to clarify when step names contains possible expression syntax.
@@ -601,15 +624,15 @@ When using the Expressions feature, it's essential to adhere to a specific synta
    If the referenced test step changes it's name, the expression needs to be manually updated. For a more fixed reference,
    a number or text mixin can be added and that input can be assigned to the output test step property.
  
-7. **Whitespace**:
+8. **Whitespace**:
     - Spaces between numbers, operators, and functions are optional but can make your expression more readable.
     - Avoid adding spaces inside function names or immediately after a function name and before its opening parenthesis.
         * Correct: `max(2, 3)`.
         * Incorrect: `max (2, 3)` or `max( 2, 3 )`.
 
-8. **Case Sensitivity**:
+9. **Case Sensitivity**:
     - While some functions or constants may be case-insensitive, names a generally lower-case. And plugins should try to follow that rule.
-9. **Names Escaping**:
+10. **Names Escaping**:
    - In cases where your expression includes names that might be confused with built-in functions or constants, you can escape these names using single quotes `' '`.
       * Example: If there's a property named `A/B`, you can distinguish it from the `A / B` expression by writing it as `'A/B'`.
 

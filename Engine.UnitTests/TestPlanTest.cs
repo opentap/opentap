@@ -2130,6 +2130,16 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsNotNull(run.Hash);
         }
 
+        [Test]
+        public void CheckBasicPlanContents()
+        {
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new SequenceStep());
+            var planXml = plan.SerializeToString();
+            Assert.IsFalse(planXml.Contains("AllowEditWhilePaused"));
+
+        }
+
         class CheckTestPlanXmlListener : ResultListener
         {   
             public override void OnTestPlanRunStart(TestPlanRun planRun)
