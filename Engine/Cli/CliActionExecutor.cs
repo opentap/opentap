@@ -227,7 +227,8 @@ namespace OpenTap.Cli
                     {
                         var checkUpdatesCommands = actionTree.GetSubCommand(new[] {"package", "check-updates"});
                         var checkUpdateAction = checkUpdatesCommands?.Type?.CreateInstance() as ICliAction;
-                        if (SelectedAction != checkUpdatesCommands?.Type)
+                        var upgradeCommand = actionTree.GetSubCommand(new[] { "package", "upgrade" });
+                        if (SelectedAction != checkUpdatesCommands?.Type && SelectedAction != upgradeCommand?.Type)
                             checkUpdateAction?.PerformExecute(new[] {"--startup"});
                     }
                     catch (Exception e)
