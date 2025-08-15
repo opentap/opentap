@@ -1096,7 +1096,7 @@ jobs:
         uses: opentap/setup-opentap@main
         with:
           version: 9.23.0
-          packages: 'Repository Client:1.0.3-beta.9+15a03b2b'
+          packages: 'Repository Client:1.1.0-beta.1+22e051cf'
       - name: Publish Packages
         run: tap repo upload --repository https://packages.opentap.io --token ${{ secrets.PUBLIC_REPO_TOKEN }} ./publish/*.TapPackage --parallel --skip-existing
 
