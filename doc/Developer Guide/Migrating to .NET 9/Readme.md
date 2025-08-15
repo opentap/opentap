@@ -26,7 +26,7 @@ Using OpenTAP 9.28, it might have said:
 ; OpenTAP Engine 9.28.2+504225fd X64
 ```
 
-Here it says, OpenTAP 9.29.2, running on .NET Framework 4.8, on Microsoft Windows 10, 64-bit.
+Here it says, OpenTAP 9.28.2, running on .NET Framework 4.8, on Microsoft Windows 10, 64-bit.
 
 Even though OpenTAP depends on a given .NET version, it might actually be running on a newer, but compatible runtime.
 For example, in 9.28, it specifies 4.7.2, but can run on 4.8. And in the same way, it could be running on .NET 10, even though it requires .NET 9.
