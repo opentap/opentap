@@ -6,7 +6,7 @@ Table of Contents
 	- [Prerequisites](Introduction/Readme.md#prerequisites)
 	- [Suggested Resources](Introduction/Readme.md#suggested-resources)
 - [What Is OpenTAP](<What is OpenTAP/Readme.md>)
-	- [OpenTAP Architecture](<What is TAP#tap-architecture>)
+	- [OpenTAP Architecture](<What is OpenTAP#tap-architecture>)
 	- [OpenTAP](<What is OpenTAP#opentap>)
 	- [Graphical User Interface](<What is OpenTAP#opentap-graphical-user-interface>)
 	- [Command Line Interface](<What is OpenTAP#opentap-command-line-interface>)
