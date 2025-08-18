@@ -41,13 +41,13 @@ sudo ./opentap.linux --quiet
 ```
 
 The installer is likely to work on other Linux distributions, but additional dependencies
-may be required on these platforms, such as dotnet 6 runtime.
+may be required on these platforms, such as dotnet 9 runtime.
 
 #### Other Linux distributions
 For other Linux distributions, OpenTAP can be installed using the terminal:
 
 1. Install dotnet: [Instructions](https://learn.microsoft.com/da-dk/dotnet/core/install/linux?WT.mc_id=dotnet-35129-website).
-    - For Ubuntu: `sudo apt install -y dotnet-sdk-8.0`.
+    - For Ubuntu: `sudo apt install -y dotnet-sdk-9.0`.
 2. Download the latest OpenTAP release: `curl -Lo opentap.zip 'https://packages.opentap.io/4.0/Objects/Packages/OpenTAP?os=Linux&architecture=<architecture>'`.
     - Remember to change the architecture if needed (`x64`, `arm64`, `arm`).
 3. Create a directory for OpenTAP: `mkdir -p /home/$USER/.local/share/opentap`.
@@ -99,7 +99,7 @@ unzip ./opentap.zip -d opentap
 chmod +x ./opentap/tap
 ```
 
-OpenTAP requires dotnet 6 runtime. If you do not already have dotnet installed, get it from [Microsoft](https://learn.microsoft.com/en-us/dotnet/core/install/macos).
+OpenTAP requires dotnet 9 runtime. If you do not already have dotnet installed, get it from [Microsoft](https://learn.microsoft.com/en-us/dotnet/core/install/macos).
 
 Verify the installation works by trying for example `./opentap/tap package list --installed`.
 
