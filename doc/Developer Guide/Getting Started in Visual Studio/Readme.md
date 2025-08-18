@@ -18,7 +18,6 @@ dotnet sln add MyFirstPlugin
 ```
 
 To convert an existing project to an OpenTAP plugin, add a reference to the [OpenTAP NuGet package](https://www.nuget.org/packages/OpenTAP/). You can do this by using the dotnet CLI: `dotnet add package OpenTAP --version 9.23.2`, or by searching for "OpenTAP" in the NuGet package manager in your IDE.
-> NOTE: On Windows, only .NET Framework and netstandard2.0 is supported. If you are using .NET 9 or later, OpenTAP may not be able to correctly load your plugin.
 
 ## NuGet Features
 
