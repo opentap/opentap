@@ -75,10 +75,10 @@ namespace OpenTap.Plugins
             if (newParameter.ParameterizedMembers.Skip(1).Any())
             {
                 // merge occured. See similar code in ExternalParameters.
-                if (ParameterManager.UnmergableListType(newParameter))
+                if (ParameterManager.UnmergableListType(parent, newParameter))
                 {
                     member.Unparameterize(newParameter, step);
-                    Log.Warning("Unable merge parameters {0}, since their types do not support it.", parameter);
+                    Log.Warning("Unable to merge parameters {0}, since their types do not support it.", parameter);
                 }
             }
 
