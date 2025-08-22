@@ -51,7 +51,6 @@
         <File Path="OpenTap.Plugins.BasicSteps.pdb"/>
         <File Path="OpenTap.Cli.dll"/>
         <File Path="OpenTap.Cli.pdb"/>
-        <File Path="Packages/OpenTAP/Tap.Upgrader.pdb" SourcePath="Tap.Upgrader.pdb"/>
     </Files>
     <!-- Windows only files -->
     <Files Condition="$(Platform) != Windows">
@@ -61,23 +60,6 @@
         <File Path="tap.runtimeconfig.json" SourcePath="../../Shared/tap.runtimeconfig.WindowsDesktop.json" />
         <File Path="tap.exe">
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
-        </File>
-        <!-- We ship an additional 'tap.exe' file because 'tap.exe' is not overwritten on Windows.
-             It is not possible to overwrite because that executable is currently installing OpenTAP.
-             This additional 'tap.exe.new' overwrites the previous 'tap.exe' file as a post-install action
-             We still need to ship the original 'tap.exe' file in the package in case the package is being deployed
-             by manually unzipping -->
-        <File Path="Packages/OpenTAP/tap.exe.new" SourcePath="tap.exe" >
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
-        </File>
-        <!-- The tap upgrader is only necessary on Windows because we cannot overwrite tap.exe otherwise -->
-        <File Path="Packages/OpenTAP/Tap.Upgrader.runtimeconfig.json" SourcePath="Tap.Upgrader.runtimeconfig.json"/>
-        <File Path="Packages/OpenTAP/Tap.Upgrader.exe" SourcePath="Tap.Upgrader.exe">
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
-        </File>
-        <File Path="Packages/OpenTAP/Tap.Upgrader.dll" SourcePath="Tap.Upgrader.dll">
-          <SetAssemblyInfo Attributes="Version"/>
-          <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="OpenTapApiReference.chm"
               SourcePath="../../Help/OpenTapApiReference.chm"
@@ -133,9 +115,5 @@
         it with 'chmod +X' is still the preferable alternative.
       -->
         <ActionStep ActionName="install" ExeFile="chmod" Arguments="+x tap" ExpectedExitCodes="0,1" />
-    </PackageActionExtensions>
-    <PackageActionExtensions Condition="$(Platform) == Windows">
-        <ActionStep ActionName="install" ExeFile="Packages/OpenTAP/Tap.Upgrader.exe" />
-        <ActionStep ActionName="uninstall" ExeFile="Packages/OpenTAP/Tap.Upgrader.exe" />
     </PackageActionExtensions>
 </Package>
