@@ -30,7 +30,9 @@ namespace OpenTap
         [AnnotationIgnore]
         public ExternalParameters ExternalParameters { get; }
 
-        /// <summary> A collection of TestStepBase steps. </summary>
+        /// <summary>
+        /// Gets or sets a list of child TestSteps.
+        /// </summary>
         [Browsable(false)]
         [AnnotationIgnore]
         public TestStepList Steps
@@ -46,9 +48,7 @@ namespace OpenTap
             }
         }
 
-        /// <summary>
-        /// List of test steps that make up this plan.  
-        /// </summary>
+        /// <inheritdoc cref="ITestStepParent.ChildTestSteps"/>
         [AnnotationIgnore]
         public TestStepList ChildTestSteps => _Steps;
 
