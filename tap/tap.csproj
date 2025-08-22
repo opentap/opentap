@@ -54,4 +54,8 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Cli\Tap.Cli.csproj" />
+  </ItemGroup>
+
 </Project>
