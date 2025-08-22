@@ -109,13 +109,13 @@ namespace OpenTap
         /// </summary>
         [ColumnDisplayName("Type", Order : 1)]
         [Browsable(false)]
-        public string TypeName => typeName ?? (typeName = TypeData.GetTypeData(this)
-            .GetDisplayAttribute().GetFullName());
+        public string TypeName => typeName ??= TypeData.GetTypeData(this).GetDisplayAttribute().GetFullName();
 
         TestStepList childTestSteps;
+        
         /// <summary>
-        /// Gets or sets a List of child <see cref="TestStep"/>s. Any TestSteps in this list will be
-        /// executed instead of the Run method of this TestStep.
+        /// Gets or sets a List of child <see cref="TestStep"/>s. The teststeps in this list will be executed in the
+        /// <see cref="RunChildSteps(System.Collections.Generic.IEnumerable{OpenTap.ResultParameter})"/> method.
         /// </summary>
         [Browsable(false)]
         [AnnotationIgnore]
