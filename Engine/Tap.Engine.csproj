@@ -4,6 +4,8 @@
     <AssemblyName>OpenTap</AssemblyName>
     <RootNamespace>OpenTap</RootNamespace>
     <PlatformTarget>AnyCPU</PlatformTarget>
+    <AssemblyTitle>OpenTap</AssemblyTitle>
+    <AssemblyDescription>OpenTAP - Test Automation Project</AssemblyDescription>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(IsDebug)'!='true'">
@@ -14,7 +16,6 @@
   <ItemGroup>
     <Compile Include="..\Shared\AnsiColorCodeFix.cs" Link="Shared\AnsiColorCodeFix.cs" />
     <Compile Include="..\Shared\ArgumentsParser.cs" Link="Shared\ArgumentsParser.cs" />
-    <Compile Include="..\Shared\AssemblyInfo.cs" Link="Shared\AssemblyInfo.cs" />
     <Compile Include="..\Shared\ExecutorInterop.cs" Link="Shared\ExecutorInterop.cs" />
     <Compile Include="..\Shared\FileSystemHelper.cs" Link="Shared\FileSystemHelper.cs" />
     <Compile Include="..\Shared\ICliActionExtensions.cs" Link="Shared\ICliActionExtensions.cs" />

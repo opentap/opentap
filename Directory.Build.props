@@ -1,6 +1,5 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <LangVersion>latest</LangVersion>
@@ -13,6 +12,30 @@
     <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
     <TargetFrameworkVersion></TargetFrameworkVersion>
   </PropertyGroup>
+
+  <PropertyGroup>
+      <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+      <AssemblyCompany>Keysight Technologies</AssemblyCompany>
+      <AssemblyProduct>OpenTAP</AssemblyProduct>
+      <AssemblyCopyright>© Keysight Technologies 2012-2025</AssemblyCopyright>
+      <AssemblyTrademark>""</AssemblyTrademark>
+      <AssemblyCulture>""</AssemblyCulture>
+      <AssemblyConfiguration>""</AssemblyConfiguration>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(ShortVersion)' != ''">
+      <Version>$(ShortVersion)</Version>
+      <AssemblyVersion>$(ShortVersion)</AssemblyVersion>
+      <InformationalVersion>$(GitVersion)</InformationalVersion>
+      <FileVersion>$(ShortVersion).0</FileVersion>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ShortVersion)' == ''">
+      <Version>9.30.0+debug</Version>
+      <AssemblyVersion>9.30.0</AssemblyVersion>
+      <InformationalVersion>9.30.0+debug</InformationalVersion>
+      <FileVersion>9.30.0.0</FileVersion>
+  </PropertyGroup>
+
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <IsDebug>true</IsDebug>
