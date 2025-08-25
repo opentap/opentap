@@ -34,10 +34,27 @@ class Program
     {
         CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-            
+        
         // OPENTAP_INIT_DIRECTORY: Executing assembly is null when running with 'dotnet tap.dll' hence the following environment variable can be used.
-        Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", Path.GetDirectoryName(typeof(Program).Assembly.Location));
-            
+        Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.OpenTapInitDirectory, Path.GetDirectoryName(typeof(Program).Assembly.Location));
+
+        bool installCommand = args.Contains("install");
+        bool uninstallCommand = args.Contains("uninstall");
+        bool packageManagerCommand = args.Contains("packagemanager");
+
+        // "--no-isolation" can be useful for debugging package install related issues,
+        // e.g when deploying an image with "tap image install ..."
+        bool noIsolation = args.Contains("--no-isolation");
+
+        if ((installCommand || uninstallCommand || packageManagerCommand) && !noIsolation) 
+        {
+          // "trick" applications into thinking we are running isolated. This is
+          // for compatibility reasons. OpenTAP no longer starts isolated child
+          // processes since it is no longer necessary, but older versions of
+          // e.g. PackageManager will not work correctly when this is not set.
+          Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.ParentProcessExeDir, Path.GetDirectoryName(typeof(Program).Assembly.Location));
+        }
+
         var start = DateTime.Now;
         ConsoleTraceListener.SetStartupTime(start);
 
