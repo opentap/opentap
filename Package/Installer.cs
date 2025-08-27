@@ -257,76 +257,18 @@ namespace OpenTap.Package
             return (int)ExitCodes.Success;
         }
 
-        public static void RenamePackageFiles(string tapDir, PackageDef package)
-        {
-            var locId = Guid.NewGuid().ToString();
-            var loc = Path.Combine(Path.GetTempPath(), locId);
-            
-            List<(string Source, string Destination)> moves = new();
-
-            void UndoMoves()
-            {
-                foreach (var (source, destination) in moves)
-                {
-                    File.Move(destination, source);
-                }
-            }
-            
-            foreach (var packageFile in package.Files)
-            {
-                string file = packageFile.RelativeDestinationPath;
-                string source = Path.Combine(tapDir, file);
-                if (!File.Exists(source)) continue;
-                string destination = Path.Combine(loc, file);
-                try
-                {
-                    // On Windows, it is not possible to delete an open file,
-                    // but it is possible to rename / move it. We can make use
-                    // of this to allow in-place updates of in-use applications.
-                    Directory.CreateDirectory(Path.GetDirectoryName(destination));
-                    File.Move(source, destination);
-                    moves.Add((source, destination));
-                }
-                catch
-                {
-                    UndoMoves();
-                    throw;
-                }
-            }
-            
-        }
-        
         public static void RenamePackageFiles(string tapDir, List<string> packagePaths)
         {
-            var locId = Guid.NewGuid().ToString();
-            var loc = Path.Combine(Path.GetTempPath(), locId);
-            List<(string Source, string Destination)> moves = new();
-
-            void UndoMoves()
-            {
-                foreach (var (source, destination) in moves)
-                {
-                    File.Move(destination, source);
-                }
-            }
+            var mover = FileMover.Create(new Installation(tapDir));
 
             foreach (string packageFileName in packagePaths)
             {
                 foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
                 {
-                    string source = Path.Combine(tapDir, file);
-                    if (!File.Exists(source)) continue;
-                    string destination = Path.Combine(loc, file);
-                    try
+                    if (!mover.Delete(file))
                     {
-                        Directory.CreateDirectory(Path.GetDirectoryName(destination));
-                        File.Move(source, destination);
-                        moves.Add((source, destination));
-                    }
-                    catch
-                    {
-                        UndoMoves();
-                        throw;
+                        mover.Rollback();
+                        throw new Exception($"Unable to delete file '{file}'.");
                     }
                 }
             }

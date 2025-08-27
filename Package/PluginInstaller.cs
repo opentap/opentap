@@ -583,11 +583,11 @@ namespace OpenTap.Package
 
         private static ActionResult DoUninstall(PluginInstaller pluginInstaller, ActionExecuter action, PackageDef package, bool force, string target)
         {
-
             var result = ActionResult.Ok;
             var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : target;
+            var installation = new Installation(destination);
 
-            var filesToRemain = new Installation(destination).GetPackages()
+            var filesToRemain = installation.GetPackages()
                 .Where(p => p.Name != package.Name)
                 .SelectMany(p => p.Files)
                 .Select(f => f.RelativeDestinationPath)
@@ -615,20 +615,10 @@ namespace OpenTap.Package
                 result = ActionResult.Error;
             }
 
-            var locId = Guid.NewGuid().ToString();
-            var moveDestination = Path.Combine(Path.GetTempPath(), locId);
-            List<(string Source, string Destination)> moves = new();
+            var mover = FileMover.Create(installation);
             foreach (var file in package.Files)
             {
-                string fullPath;
-                if (package.IsSystemWide())
-                {
-                    fullPath = Path.Combine(PackageDef.SystemWideInstallationDirectory, file.RelativeDestinationPath);
-                }
-                else
-                {
-                    fullPath = Path.Combine(destination, file.RelativeDestinationPath);
-                }
+                string fullPath = Path.Combine(destination, file.RelativeDestinationPath);
 
                 if (filesToRemain.Contains(file.RelativeDestinationPath))
                 {
@@ -636,29 +626,11 @@ namespace OpenTap.Package
                     continue;
                 }
 
-                if (!File.Exists(fullPath)) continue;
-                
                 log.Debug("Deleting file '{0}'.", file.RelativeDestinationPath);
-                string moveTarget = Path.Combine(moveDestination, file.RelativeDestinationPath);
-                try
+                if (!mover.Delete(file))
                 {
-                    // On Windows, it is not possible to delete an open file,
-                    // but it is possible to rename / move it. We can make use
-                    // of this to allow in-place updates of in-use applications.
-                    Directory.CreateDirectory(Path.GetDirectoryName(moveTarget));
-                    File.Move(fullPath, moveTarget);
-                    moves.Add((fullPath, moveTarget));
-                }
-                catch (Exception ex)
-                {
-                    log.Error($"Error deleting file '{file.RelativeDestinationPath}': {ex.Message}");
-                    log.Debug(ex);
-                    // Undo all deletions if any move operation fails.
-                    foreach (var (src, dst) in moves)
-                    {
-                        File.Move(dst, src);
-                    }
-                    throw;
+                    mover.Rollback();
+                    throw new Exception($"Unable to delete file '{file.RelativeDestinationPath}'.");
                 }
                 
                 DeleteEmptyDirectory(new FileInfo(fullPath).Directory);
