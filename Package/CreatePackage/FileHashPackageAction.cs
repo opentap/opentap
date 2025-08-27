@@ -123,8 +123,6 @@ namespace OpenTap.Package
             foreach (var file in pkg.Files)
             {
                 var fn = Path.GetFileName(file.FileName);
-                if (pkg.Name == "OpenTAP" && (fn == "tap.exe" || fn == "tap"))
-                    continue;
 
                 var hash = file.CustomData.OfType<FileHashPackageAction.Hash>().FirstOrDefault();
                 if (hash == null)
