@@ -262,6 +262,19 @@ namespace OpenTap
                 {
                     if (file.Contains(".resources.dll"))
                         return null;
+
+                    if (loadedAssembly != null)
+                    {
+                        var existingAssembly = AssemblyData.GetExistingAssemblyData(loadedAssembly);
+                        if (existingAssembly != null) return existingAssembly;
+                    }
+
+                    if (!File.Exists(file))
+                    {
+                        log.Warning("Skipping assembly '{0}': File does not exist.", Path.GetFileName(file));
+                        return null;
+                    }
+                    
                     var thisAssembly = new AssemblyData(file, loadedAssembly);
                     
                     List<AssemblyRef> refNames = new List<AssemblyRef>();
