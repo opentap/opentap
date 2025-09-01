@@ -3,6 +3,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -124,6 +125,51 @@ namespace OpenTap.UnitTests
             {
                 yield return 1.0;
             }
+        }
+
+        [Display("Dummy Step")]
+        public class DummyTestStep : TestStep
+        {
+            public override void Run()
+            {
+            }
+        }
+        
+        [Test]
+        public void TestMovingAssembliesAtRuntime()
+        {
+            // This test verifies that a running OpenTAP instance does not break when loaded DLLs are moved.
+            static void AssertTypesAreSame(TypeData t1, TypeData t2)
+            {
+                Assert.That(t1, Is.EqualTo(t2));
+                Assert.That(t1.BaseType.Name, Is.EqualTo(t2.BaseType.Name));
+            }
+            
+            var td1 = TypeData.FromType(typeof(DummyTestStep));
+            var td2 = TypeData.FromType(typeof(DummyTestStep));
+            AssertTypesAreSame(td1, td2);
+            PluginManager.SearchAsync().Wait();
+            var td3 = TypeData.FromType(typeof(DummyTestStep));
+            AssertTypesAreSame(td1, td3);
+
+            var asm = typeof(TypeDataTest).Assembly.Location;
+            var tempLoc = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            File.Move(asm, tempLoc);
+            
+            try
+            {
+                PluginManager.SearchAsync().Wait();
+                var td4 = TypeData.FromType(typeof(DummyTestStep));
+                AssertTypesAreSame(td1, td4);
+            }
+            finally
+            {
+                File.Move(tempLoc, asm);
+            }
+            
+            PluginManager.SearchAsync().Wait();
+            var td5 = TypeData.FromType(typeof(DummyTestStep));
+            AssertTypesAreSame(td1, td5);
         }
         
         [Test]

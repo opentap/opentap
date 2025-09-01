@@ -53,26 +53,6 @@ namespace OpenTap.Package
                 FileSystemHelper.EnsureDirectoryOf(Target);
             }
 
-            if (ExecutorClient.IsExecutorMode && NoIsolation == false) // do we support running isolated?
-            {
-                if (!ExecutorClient.IsRunningIsolated) // are we already running isolated?
-                {
-                    // Detected Executor, try to run running isolated...
-                    try
-                    {
-                        RunIsolated(target: Target, isolatedAction: this);
-                        return (int)ExitCodes.Success; // we succeeded in "recursively" running everything isolated from a different process, we are done now.
-                    }
-                    catch (Exception ex)
-                    {
-                        if (this.Force)
-                            log.Warning($"Not running isolated because of error: {ex.Message}");
-                        else
-                            throw new InvalidOperationException($"Error when trying to run isolated (Use --force to try to run anyway): {ex.Message}",ex);
-                    }
-                }
-            }
-
             return base.Execute(cancellationToken);
         }
 

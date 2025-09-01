@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -104,6 +105,15 @@ namespace OpenTap
             this.preloadedAssembly = preloadedAssembly;
         }
 
+        internal static AssemblyData GetExistingAssemblyData(Assembly loadedAssembly)
+        {
+            if (loadedAssembly != null && _loadedCache.TryGetValue(loadedAssembly, out var existing))
+                return existing;
+            return null;
+        }
+
+        private static readonly ConcurrentDictionary<Assembly, AssemblyData> _loadedCache = new();
+
         /// <summary>  Optionally set for preloaded assemblies.  </summary>
         readonly Assembly preloadedAssembly;
         Assembly assembly;
@@ -112,12 +122,24 @@ namespace OpenTap
 
         /// <summary> Gets the assembly without loading it.</summary>
         internal Assembly GetCached() => assembly ?? preloadedAssembly;
-        
+
         /// <summary>
         /// Returns the System.Reflection.Assembly corresponding to this. 
         /// If the assembly has not yet been loaded, this call will load it.
         /// </summary>
         public Assembly Load()
+        {
+            var asm = _load();
+            if (asm != null)
+            {
+                // Since the assembly has been loaded, we can no longer load another version of the same assembly.
+                // We should therefore freeze this assembly location to this assembly version.
+                _loadedCache[asm] = this;
+            }
+
+            return asm;
+        }
+        private Assembly _load()
         {
             if (failedLoad)
                 return null;

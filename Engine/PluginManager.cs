@@ -325,7 +325,7 @@ namespace OpenTap
         /// <summary> Ensures that the plugin manager is initialized. </summary>
         public static void Initialize()
         {
-            // Forces the static constuctore to be called. Intentionally left empty.
+            // Forces the static constuctors to be called. Intentionally left empty.
         }
 
         /// <summary>
@@ -561,9 +561,9 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Look up for assembly locations in case Assembly.Load cannot find it. Used for resolve assembly.
+        /// Look up for assembly locations in case Assembly.Load cannot find it. Used for assembly resolution.
         /// </summary>
-        ConcurrentDictionary<string, string> asmLookup = new ConcurrentDictionary<string, string>();
+        private readonly ConcurrentDictionary<string, string> asmLookup = new();
 
         [DebuggerDisplay("{Name} {ReflectionOnly}")]
         struct resolveKey
