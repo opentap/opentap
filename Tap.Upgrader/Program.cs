@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
 
 namespace Tap.Upgrader
 {
@@ -16,24 +17,48 @@ namespace Tap.Upgrader
         {
             if (File.Exists(filename))
             {
+                var basename = Path.GetFileName(filename);
                 Directory.CreateDirectory(UninstallPath);
-                var dest = Path.Combine(UninstallPath, Guid.NewGuid().ToString());
+                var dest = Path.Combine(UninstallPath, $"{basename}.{Guid.NewGuid()}");
                 File.Move(filename, dest);
             }
         }
 
-        public static void Main()
+        private static void Retry(Action act, string error)
         {
-            // Try to clean up any files left over from previous upgrades
-            if (Directory.Exists(UninstallPath))
+            Exception ex = null;
+            for (int i = 0; i < 10; i++)
             {
                 try 
                 {
-                    Directory.Delete(UninstallPath, true);
+                    act();
+                    return;
                 }
-                catch 
+                catch (Exception e)
                 {
-                    // ignore
+                    Thread.Sleep(TimeSpan.FromMilliseconds(10));
+                    ex = e;
+                }
+            }
+
+            Console.Error.WriteLine($"{error}: {ex.Message}");
+        }
+
+        public static void Main()
+        {
+            // clean up any files left over from previous upgrades
+            if (Directory.Exists(UninstallPath))
+            {
+                foreach (var file in Directory.GetFiles(UninstallPath))
+                {
+                    try 
+                    {
+                        File.Delete(file);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error deleting file '{file}': {ex.Message}");
+                    }
                 }
             }
 
@@ -42,10 +67,10 @@ namespace Tap.Upgrader
             var tapDll = Path.Combine(Installation, "tap.dll");
             var newTapDll = Path.Combine(PackageDir, "tap.dll.new");
 
-            Uninstall(tapExe);
-            File.Copy(newTapExe, tapExe);
-            Uninstall(tapDll);
-            File.Copy(newTapDll, tapDll);
+            Retry(() => Uninstall(tapExe), $"Error deleting tap.exe");
+            Retry(() => File.Copy(newTapExe, tapExe), $"Error updating tap.exe");
+            Retry(() => Uninstall(tapDll), $"Error deleting tap.dll");
+            Retry(() => File.Copy(newTapDll, tapDll), $"Error updating tap.dll");
         }
     }
 }
