@@ -77,16 +77,16 @@ internal class ResXTranslationProvider : ITranslationProvider, IDisposable
     static string AttributeValue(XElement x, string name) => x.Attributes(name).FirstOrDefault()?.Value;
     static string ElementValue(XElement x, string name) => x.Elements(name).FirstOrDefault()?.Value;
 
-    DisplayAttribute ComputeDisplayAttribute(string key, DisplayAttribute fallback)
+    DisplayAttribute ComputeDisplayAttribute(string key, DisplayAttribute neutral)
     {
-        var name = GetString($"{key}.Name") ?? fallback.Name;
-        var description = GetString($"{key}.Description") ?? fallback.Description;
-        var group = GetString($"{key}.Group") ?? string.Join(" \\ ", fallback.Group);
-        double order = fallback.Order;
+        var name = GetString($"{key}.Name") ?? neutral.Name;
+        var description = GetString($"{key}.Description") ?? neutral.Description;
+        var group = GetString($"{key}.Group") ?? string.Join(" \\ ", neutral.Group);
+        double order = neutral.Order;
         if (GetString($"{key}.Order") is { } ord)
             if (double.TryParse(ord, out var o))
                 order = o;
-        return new DisplayAttribute(Culture, name, description, group, order, fallback.Collapsed);
+        return new DisplayAttribute(Culture, name, description, group, order, neutral.Collapsed) { NeutralDisplayAttribute = neutral };
     }
 
     DisplayAttribute ComputeDisplayAttribute(Enum e, string name)
