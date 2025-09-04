@@ -46,6 +46,11 @@ namespace OpenTap
         /// </summary>
         public bool Collapsed { get; }
 
+        /// <summary> If the owning DisplayAttribute is a translated display attribute, this property will be set to the neutral (non-translated) variant.
+        /// If the owning DisplayAttribute is not translated, this will be null.
+        /// </summary>
+        public DisplayAttribute NeutralDisplayAttribute { get; internal set; }
+
         string fullName = null;
         /// <summary> Gets the Group (or Groups) and Name concatenated with a backslash (\).</summary>
         public string GetFullName()
