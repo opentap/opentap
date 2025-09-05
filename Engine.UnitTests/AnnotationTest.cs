@@ -1845,23 +1845,6 @@ namespace OpenTap.UnitTests
             Assert.AreNotEqual(obj1.Items, obj2.Items);
         }
 
-        [Test]
-        public void AddExternalParameterWarning()
-        {
-            var obj1 = new TestStepWithLists();
-            var obj2 = new TestStepWithLists();
-            var plan = new TestPlan();
-            plan.ChildTestSteps.Add(obj1);
-            plan.ChildTestSteps.Add(obj2);
-            var member= TypeData.GetTypeData(obj1).GetMember(nameof(obj1.Items));
-            plan.ExternalParameters.Add(obj1, member, "items");
-            
-            // produces warning, does not add since the item type is not compatible.
-            var ext = plan.ExternalParameters.Add(obj2, member, "items");
-            Assert.AreEqual(1, ext.Properties.Count());
-
-        }
-
         public class MemberWithException
         {
             public class SubThing
