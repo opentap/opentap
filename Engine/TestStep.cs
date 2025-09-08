@@ -1318,8 +1318,17 @@ namespace OpenTap
         /// <summary> Takes the name of step and replaces {} tokens with the value of properties. </summary>
         public static string GetFormattedName(this ITestStep step)
         {
-            if(step.Name.Contains('{') == false || step.Name.Contains('}') == false)
-                return step.Name;
+            string name;
+
+            if(step is IFormatName _fmt)
+                name = _fmt.GetFormattedName();
+            else
+                name = step?.Name;
+
+            if (name == null) return string.Empty;
+            if(name.Contains('{') == false || name.Contains('}') == false)
+                return name;
+
             var type = TypeData.GetTypeData(step);
             if (formatterLutCache.TryGetValue(type, out var props) == false)
             {
@@ -1351,9 +1360,7 @@ namespace OpenTap
 
                 formatterLutCache.GetValue(type, _ => props);
             }
-            var name = step.Name;
-            if (name == null)
-                return ""; // Since we are returning the formatted name we should not return null.
+
             int offset = 0;
             int seek = 0;
 
@@ -1375,9 +1382,8 @@ namespace OpenTap
                 while (prop.Contains("  "))
                    prop = prop.Replace("  ", " ");
                 
-                if (props.ContainsKey(prop))
+                if (props.TryGetValue(prop, out var property))
                 {
-                    var property = props[prop];
                     var value = property.GetValue(step);
                     var unitattr = property.GetAttribute<UnitAttribute>();
                     string valueString = null;
