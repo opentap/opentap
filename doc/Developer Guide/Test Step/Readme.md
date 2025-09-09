@@ -614,6 +614,8 @@ When using the Expressions feature, it's essential to adhere to a specific synta
 6. **String Interpolation**:
     - To use expressions with strings, enclose the expression within curly braces `{ }`.
         * Example: `"The radius is {2 * π * r}."`.
+    - String interpolation can be used from a normal expression by prepending `$` to the double-quotes denoting the start of a string. 
+        * Example: `$"Port{1 + 3}" == "Port4"` - this results in the boolean 'true' value.
       
 7. **Outputs From Other Test Steps**
    - Outputs from other test steps can be used as inputs with the `@` operator.
