@@ -611,11 +611,13 @@ When using the Expressions feature, it's essential to adhere to a specific synta
     - In case of ambiguities, for example if the settings name contains operators, single-quotes (') can be used
         * Example: `'Time Delay (2)' * 2`
 
-6. **String Interpolation**:
-    - To use expressions with strings, enclose the expression within curly braces `{ }`.
+6. **Strings & String Interpolation**:
+    - To use expressions on strings, enclose the expression within curly braces `{ }`. 
         * Example: `"The radius is {2 * π * r}."`.
-    - String interpolation can be used from a normal expression by prepending `$` to the double-quotes denoting the start of a string. 
-        * Example: `$"Port{1 + 3}" == "Port4"` - this results in the boolean 'true' value.
+    - In a normal expression, that does not target a string, string can be denoted by double-quotes.
+      	* Example: `number("123")` - this parses returns the number `123` from the string `"123"`.
+    - String interpolation can be used from inside a normal expression by prepending `$` to the double-quotes denoting the start of a string. 
+        * Example: `$"Port{1 + 3}" == "Port4"` - this compares `"Port4"`, calculated by string interpolation, with just `"Port4"`.
       
 7. **Outputs From Other Test Steps**
    - Outputs from other test steps can be used as inputs with the `@` operator.
