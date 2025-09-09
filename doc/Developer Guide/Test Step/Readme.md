@@ -612,7 +612,7 @@ When using the Expressions feature, it's essential to adhere to a specific synta
         * Example: `'Time Delay (2)' * 2`
 
 6. **Strings & String Interpolation**:
-    - To use expressions on strings, enclose the expression within curly braces `{ }`. 
+    - String interpolation is the act of calculating strings by embedding expressions inside them. TO use this on a string property, enclose the expression within curly braces `{ }`. 
         * Example: `"The radius is {2 * π * r}."`.
     - In a normal expression, that does not target a string, string can be denoted by double-quotes.
       	* Example: `number("123")` - this parses returns the number `123` from the string `"123"`.
