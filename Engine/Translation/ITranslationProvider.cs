@@ -79,14 +79,38 @@ internal class ResXTranslationProvider : ITranslationProvider, IDisposable
 
     DisplayAttribute ComputeDisplayAttribute(string key, DisplayAttribute neutral)
     {
-        var name = GetString($"{key}.Name") ?? neutral.Name;
-        var description = GetString($"{key}.Description") ?? neutral.Description;
-        var group = GetString($"{key}.Group") ?? string.Join(" \\ ", neutral.Group);
+        bool translated = false;
+        string name = neutral.Name;
+        string description = neutral.Description;
+        string group = string.Join(" \\ ", neutral.Group);
         double order = neutral.Order;
-        if (GetString($"{key}.Order") is { } ord)
-            if (double.TryParse(ord, out var o))
-                order = o;
-        return new DisplayAttribute(Culture, name, description, group, order, neutral.Collapsed) { NeutralDisplayAttribute = neutral };
+
+        if (GetString($"{key}.Name") is string tname)
+        {
+            name = tname;
+            translated = true;
+        }
+        if (GetString($"{key}.Description") is string tdesc)
+        {
+            description = tdesc;
+            translated = true;
+        }
+        if (GetString($"{key}.Group") is string tgroup)
+        {
+            group = tgroup;
+            translated = true;
+        }
+        if (GetString($"{key}.Order") is string tord && double.TryParse(tord, out var o))
+        {
+            order = o;
+            translated = true;
+        }
+
+        if (translated)
+        {
+            return new DisplayAttribute(Culture, name, description, group, order, neutral.Collapsed) { NeutralDisplayAttribute = neutral };
+        }
+        return neutral;
     }
 
     DisplayAttribute ComputeDisplayAttribute(Enum e, string name)

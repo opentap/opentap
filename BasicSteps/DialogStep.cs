@@ -5,6 +5,7 @@
 using System;
 using System.ComponentModel;
 using System.Xml.Linq;
+using OpenTap.Translation;
 
 namespace OpenTap.Plugins.BasicSteps
 {
@@ -30,7 +31,7 @@ namespace OpenTap.Plugins.BasicSteps
         Cancel = 2, [Display("OK")] Ok = 1
     }
 
-    class DialogRequest : IDisplayAnnotation
+    class DialogRequest : IDisplayAnnotation, IStringLocalizer
     {
         public DialogRequest(string Title, string Message)
         {
