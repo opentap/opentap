@@ -542,7 +542,7 @@ jobs:
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     needs:
       - Build-Linux
-      # - Build-MacOS
+      - Build-MacOS
       - Build-ApiDoc
       - GetVersion
     strategy:
