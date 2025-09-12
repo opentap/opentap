@@ -2,7 +2,10 @@
 // This Source Code Form is subject to the terms of the Mozilla Public
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
+
+using System;
 using System.Linq;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 
@@ -262,7 +265,58 @@ namespace OpenTap.Engine.UnitTests
 
         }
 
+        public class SetVerdictStep : TestStep
+        {
+            public Verdict SetVerdict { get; set; } = Verdict.NotSet;
 
+            public override void Run()
+            {
+                UpgradeVerdict(SetVerdict);
+            }
+        }
 
+        [TestCase(Verdict.Pass, Verdict.Pass)]
+        [TestCase(Verdict.Fail, Verdict.Fail)]
+        [TestCase(Verdict.Error, Verdict.Error)]
+        public void TestDeadlockInReferencedPlan(Verdict inputVerdict, Verdict expectedVerdict)
+        {
+            bool wrap = false;
+            // We construct this testplan:
+            // Top
+            // -- Outer Sequence
+            // ---- Inner Sequence 
+            // ------ SetVerdictStep
+            // -- If Verdict(Inner Sequence)
+        
+            var childPlan = new TestPlan();
+            var outerSequence2 = new SequenceStep();
+            childPlan.ChildTestSteps.Add(outerSequence2);
+
+            ITestStepParent outerSequence = wrap ? outerSequence2 : childPlan;
+
+            var innerSequence = new SequenceStep();
+            var setVerdictStep = new SetVerdictStep() { SetVerdict = inputVerdict };
+            outerSequence.ChildTestSteps.Add(innerSequence);
+            innerSequence.ChildTestSteps.Add(setVerdictStep);
+
+            BreakConditionProperty.SetBreakCondition(setVerdictStep, BreakCondition.BreakOnFail | BreakCondition.BreakOnError);
+
+            var ifStep = new IfStep
+            {
+                InputVerdict =
+                {
+                    Step = innerSequence,
+                    Property = TypeData.GetTypeData(innerSequence).GetMember(nameof(innerSequence.Verdict))
+                },
+                Action = IfStep.IfStepAction.RunChildren,
+                TargetVerdict = Verdict.Fail
+            };
+            outerSequence.ChildTestSteps.Add(ifStep);
+
+            var run = childPlan.ExecuteAsync();
+            Task.WaitAny(run, Task.Delay(TimeSpan.FromSeconds(1000)));
+            Assert.That(run.Wait(0), Is.True, "Testplan timed out");
+            Assert.That(run.Result.Verdict, Is.EqualTo(expectedVerdict));
+        }
     }
 }

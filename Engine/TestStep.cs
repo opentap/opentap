@@ -1018,13 +1018,13 @@ namespace OpenTap
                         // which the mixins must be able to affect.
                         TestStepPostRunEvent.Invoke(Step);
 
+                        stepRun.AfterRun(Step);
+
                         if(stepRun.Exception is { } ex2)
                             // rethrow the exception.
                             // include the original stack trace in the exception.
                             ExceptionDispatchInfo.Capture(ex2).Throw();
 
-                        stepRun.AfterRun(Step);
-                        
                         TapThread.ThrowIfAborted();
                     }
                     finally
