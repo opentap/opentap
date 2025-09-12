@@ -109,13 +109,13 @@ namespace OpenTap
         /// </summary>
         [ColumnDisplayName("Type", Order : 1)]
         [Browsable(false)]
-        public string TypeName => typeName ?? (typeName = TypeData.GetTypeData(this)
-            .GetDisplayAttribute().GetFullName());
+        public string TypeName => typeName ??= TypeData.GetTypeData(this).GetDisplayAttribute().GetFullName();
 
         TestStepList childTestSteps;
+        
         /// <summary>
-        /// Gets or sets a List of child <see cref="TestStep"/>s. Any TestSteps in this list will be
-        /// executed instead of the Run method of this TestStep.
+        /// Gets or sets a List of child <see cref="TestStep"/>s. The teststeps in this list will be executed in the
+        /// <see cref="RunChildSteps(System.Collections.Generic.IEnumerable{OpenTap.ResultParameter})"/> method.
         /// </summary>
         [Browsable(false)]
         [AnnotationIgnore]
@@ -1018,13 +1018,13 @@ namespace OpenTap
                         // which the mixins must be able to affect.
                         TestStepPostRunEvent.Invoke(Step);
 
+                        stepRun.AfterRun(Step);
+
                         if(stepRun.Exception is { } ex2)
                             // rethrow the exception.
                             // include the original stack trace in the exception.
                             ExceptionDispatchInfo.Capture(ex2).Throw();
 
-                        stepRun.AfterRun(Step);
-                        
                         TapThread.ThrowIfAborted();
                     }
                     finally
@@ -1318,8 +1318,17 @@ namespace OpenTap
         /// <summary> Takes the name of step and replaces {} tokens with the value of properties. </summary>
         public static string GetFormattedName(this ITestStep step)
         {
-            if(step.Name.Contains('{') == false || step.Name.Contains('}') == false)
-                return step.Name;
+            string name;
+
+            if(step is IFormatName _fmt)
+                name = _fmt.GetFormattedName();
+            else
+                name = step?.Name;
+
+            if (name == null) return string.Empty;
+            if(name.Contains('{') == false || name.Contains('}') == false)
+                return name;
+
             var type = TypeData.GetTypeData(step);
             if (formatterLutCache.TryGetValue(type, out var props) == false)
             {
@@ -1351,9 +1360,7 @@ namespace OpenTap
 
                 formatterLutCache.GetValue(type, _ => props);
             }
-            var name = step.Name;
-            if (name == null)
-                return ""; // Since we are returning the formatted name we should not return null.
+
             int offset = 0;
             int seek = 0;
 
@@ -1375,9 +1382,8 @@ namespace OpenTap
                 while (prop.Contains("  "))
                    prop = prop.Replace("  ", " ");
                 
-                if (props.ContainsKey(prop))
+                if (props.TryGetValue(prop, out var property))
                 {
-                    var property = props[prop];
                     var value = property.GetValue(step);
                     var unitattr = property.GetAttribute<UnitAttribute>();
                     string valueString = null;
