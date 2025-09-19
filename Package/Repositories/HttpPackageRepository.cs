@@ -104,7 +104,7 @@ namespace OpenTap.Package
 
         Action<string, long, long> IPackageDownloadProgress.OnProgressUpdate { get; set; }
 
-        async Task DoDownloadPackage(PackageDef package, FileStream fileStream, CancellationToken cancellationToken)
+        void DoDownloadPackage(PackageDef package, FileStream fileStream, CancellationToken cancellationToken)
         {
             var totalSize = -1L;
             // this retry loop is to robustly to download the package even if the connection is intermittently lost
@@ -130,7 +130,7 @@ namespace OpenTap.Package
                     if (totalSize < 0) totalSize = responseStream.Length;
 
                     var task = responseStream.CopyToAsync(fileStream, _DefaultCopyBufferSize, cancellationToken);
-                    await ConsoleUtils.ReportProgressTillEndAsync(task, $"Downloading {package.Name}",
+                    ConsoleUtils.ReportProgressTillEnd(task, $"Downloading {package.Name}",
                         () => fileStream.Position,
                         () => totalSize,
                         (header, pos, len) =>
@@ -142,7 +142,7 @@ namespace OpenTap.Package
                 }
                 catch (Exception ex) when (ex is IOException || ex is HttpRequestException || transient)
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+                    Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).Wait(cancellationToken);
                 }
                 catch (Exception)
                 {
@@ -320,7 +320,7 @@ namespace OpenTap.Package
                         OS = package.OS
                     };
 
-                    DoDownloadPackage(packageDef, tmpFile, cancellationToken).Wait(cancellationToken);
+                    DoDownloadPackage(packageDef, tmpFile, cancellationToken);
 
                     if (cancellationToken.IsCancellationRequested == false)
                     {
