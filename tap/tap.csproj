@@ -60,6 +60,7 @@
     <ProjectReference Include="..\Package\Tap.Package.csproj" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
     <ProjectReference Include="..\BasicSteps\Tap.Plugins.BasicSteps.csproj" />
+    <ProjectReference Include="..\Tap.Upgrader\Tap.Upgrader.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
