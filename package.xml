@@ -59,10 +59,6 @@
     </Files>
     <Files Condition="$(Platform) == Windows">
         <File Path="tap.runtimeconfig.json" SourcePath="../../Shared/tap.runtimeconfig.WindowsDesktop.json" />
-        <!-- Tap.Upgrader.exe is now a noop binary, but some packages depnd on it existing.. -->
-        <File Path="Packages/OpenTAP/Tap.Upgrader.exe" SourcePath="../../tap/Tap.Upgrader.exe"> 
-          <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
-        </File>                                                                       
         <File Path="tap.exe">
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
