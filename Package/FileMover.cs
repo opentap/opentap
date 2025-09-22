@@ -11,21 +11,54 @@ internal class FileMover
         public string OriginalFile { get; } = originalFile;
         public string DeletedFile { get; } = deletedFile;
     }
-        
+
     public static FileMover Create(Installation installation)
     {
         return new FileMover(installation);
     }
 
-    private Guid Id = Guid.NewGuid();
     private readonly Installation install;
     private readonly string Target;
-    private List<Move> Moves = [];
+    private readonly List<Move> Moves = [];
 
     private FileMover(Installation installation)
     {
         install = installation;
-        Target = Path.Combine(Path.GetTempPath(), "opentap-uninstall", install.Id, Id.ToString());
+
+        var uninstallDirectory = GetUninstallDir(install);
+        Target = Path.Combine(uninstallDirectory, Guid.NewGuid().ToString());
+        Directory.CreateDirectory(Target);
+        // Ensure plugins are not loaded from the uninstall directory.
+        var ignoreFile = Path.Combine(uninstallDirectory, ".OpenTapIgnore");
+        if (!File.Exists(ignoreFile))
+            File.Create(ignoreFile);
+    }
+
+    // Previous iterations attempted to uninstall by moving files to the temp directory, but 
+    // File.Move has different semantics when moving files between storage volumes (e.g. C:\ to D:\ drive)
+    // In such cases, it will copy the file and then attempt to delete it normally. This doesn't work
+    // on Windows if the file is in use. To work around this limitation, we uninstall files to a subdirectory of
+    // the OpenTAP installation; this should ensure the file can always be moved.
+    private static string GetUninstallDir(Installation install) => Path.Combine(install.Directory, ".uninstall");
+
+    // Try to delete files from previous uninstall operations.
+    // These files could still be in use, so we just delete whatever we can.
+    public static void DeletePreviouslyUninstalledFiles(Installation install)
+    {
+        var dir = GetUninstallDir(install);
+        if (!Directory.Exists(dir)) return;
+        var subdirs = Directory.GetDirectories(dir);
+        foreach (var subdir in subdirs)
+        {
+            try
+            {
+                FileSystemHelper.DeleteDirectory(subdir);
+            }
+            catch 
+            {
+                // ignore
+            }
+        }
     }
 
     public bool Delete(PackageFile file)
