@@ -4,7 +4,7 @@ using System.IO;
 
 namespace OpenTap.Package;
 
-internal class FileMover
+internal class UninstallContext
 {
     readonly struct Move(string originalFile, string deletedFile)
     {
@@ -12,16 +12,19 @@ internal class FileMover
         public string DeletedFile { get; } = deletedFile;
     }
 
-    public static FileMover Create(Installation installation)
+    public static UninstallContext Create(Installation installation)
     {
-        return new FileMover(installation);
+        // Try to delete files from previous uninstall operations.
+        // These files could still be in use, so we just delete whatever we can.
+        DeletePreviouslyUninstalledFiles(installation);
+        return new UninstallContext(installation);
     }
 
     private readonly Installation install;
     private readonly string Target;
     private readonly List<Move> Moves = [];
 
-    private FileMover(Installation installation)
+    private UninstallContext(Installation installation)
     {
         install = installation;
 
@@ -31,7 +34,7 @@ internal class FileMover
         // Ensure plugins are not loaded from the uninstall directory.
         var ignoreFile = Path.Combine(uninstallDirectory, ".OpenTapIgnore");
         if (!File.Exists(ignoreFile))
-            File.Create(ignoreFile);
+            File.Create(ignoreFile, 0).Close();
     }
 
     // Previous iterations attempted to uninstall by moving files to the temp directory, but 
@@ -41,8 +44,6 @@ internal class FileMover
     // the OpenTAP installation; this should ensure the file can always be moved.
     private static string GetUninstallDir(Installation install) => Path.Combine(install.Directory, ".uninstall");
 
-    // Try to delete files from previous uninstall operations.
-    // These files could still be in use, so we just delete whatever we can.
     public static void DeletePreviouslyUninstalledFiles(Installation install)
     {
         var dir = GetUninstallDir(install);
@@ -88,7 +89,7 @@ internal class FileMover
         return true;
     }
 
-    public void Rollback()
+    public void UndoAllDeletions()
     {
         foreach (var move in Moves)
         {
