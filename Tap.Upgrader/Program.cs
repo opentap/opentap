@@ -1,251 +1,76 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Threading;
-using System.Xml.Linq;
 
 namespace Tap.Upgrader
 {
-    class UpgradePair
-    {
-        private static bool CompareFiles(string fileA, string fileB)
-        {
-            // open with FileShare.ReadWrite to allow other files to open them too.
-            // with this permission we can compare the files even if tap.exe is running.
-            using var handleA = File.Open(fileA, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-            using var handleB = File.Open(fileB, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-
-            var bufferA = new byte[1024];
-            var bufferB = new byte[1024];
-            while (true)
-            {
-                // load data into the buffers.
-                var readBytesA = handleA.Read(bufferA, 0, bufferA.Length);
-                var readBytesB = handleB.Read(bufferB, 0, bufferB.Length);
-
-                // this should be the same if the files has the same length.
-                if (readBytesA != readBytesB) return false;
-                // end of file was reached?
-                if (readBytesA == 0) return true;
-
-                // check if this chunk is the same.
-                if (bufferA.SequenceEqual(bufferB) == false) return false;
-            }
-        }
-
-        public bool UpgradeNeeded()
-        {
-            if (DeleteSource && File.Exists(Source)) return true; // The source must be deleted
-            if (File.Exists(Source) && File.Exists(Target))
-            {
-                try
-                {
-                    return !CompareFiles(Source, Target);
-                }
-                catch
-                {
-                    // for some reason the skip check failed.
-                    return true;
-                }
-            }
-            if (!File.Exists(Source)) return false; // the source does not exist, we cannot upgrade.
-            return true; // the target does not exist, we must upgrade.
-        }
-
-        public UpgradePair(string source, string target, bool deleteSource)
-        {
-            Source = source;
-            Target = target;
-            DeleteSource = deleteSource;
-        }
-
-        public void Install()
-        {
-            Program.RetryUntilSuccess(() =>
-            {
-                bool mustDeleteTarget = File.Exists(Target) && File.Exists(Source);
-                bool mustDeleteSource = File.Exists(Source) && DeleteSource;
-
-                if (mustDeleteTarget)
-                    File.Delete(Target);
-                if (mustDeleteSource)
-                    File.Move(Source, Target);
-                else if (File.Exists(Source))
-                    File.Copy(Source, Target);
-            }, TimeSpan.FromMinutes(10));
-        }
-
-
-        public string Source { get; set; }
-        public string Target { get; set; }
-        public bool DeleteSource { get; set; }
-    }
-
     public static class Program
     {
-        /// <summary>
-        /// Retry the action in a loop until it succeeds
-        /// </summary>
-        /// <param name="act"></param>
-        /// <param name="timeout"></param>
-        internal static void RetryUntilSuccess(Action act, TimeSpan timeout)
-        {
-            var sw = Stopwatch.StartNew();
+        // It would be preferable to move the files to the temp directory, but
+        // File.Move only works on open files if the source and destination are on the same volume.
+        // The easiest way to ensure this is to move files to be deleted to a subdirectory of the same installation.
+        private static string UninstallPath => Path.Combine(Installation, ".uninstall");
+        private static string PackageDir => Path.GetDirectoryName(Environment.ProcessPath);
+        private static string Installation => new DirectoryInfo(PackageDir).Parent.Parent.FullName;
 
-            while (sw.Elapsed < timeout)
+        private static void Uninstall(string filename)
+        {
+            if (File.Exists(filename))
             {
-                try
+                var basename = Path.GetFileName(filename);
+                Directory.CreateDirectory(UninstallPath);
+                var dest = Path.Combine(UninstallPath, $"{basename}.{Guid.NewGuid()}");
+                File.Move(filename, dest);
+            }
+        }
+
+        private static void Retry(Action act, string error)
+        {
+            Exception ex = null;
+            for (int i = 0; i < 10; i++)
+            {
+                try 
                 {
                     act();
                     return;
                 }
-                catch
+                catch (Exception e)
                 {
-                    Thread.Sleep(TimeSpan.FromMilliseconds(100));
+                    Thread.Sleep(TimeSpan.FromMilliseconds(10));
+                    ex = e;
                 }
             }
 
-        }
-        /// <summary>
-        /// Note: The order of the tap.exe files is important here! The first file can be overwritten by the second file.
-        /// This is important in niche scenarios where OpenTAP is being upgraded and downgraded between 9.17.0 and releases 9.16.4 and older.
-        /// The 'tap.exe.new' file in the root folder should always take precedence over the 'tap.exe.new' in the 'Packages' folder.
-        /// </summary>
-        internal static readonly UpgradePair[] UpgradePairs =
-        {
-            // this file is part of the payload for OpenTAP 9.17 and later
-            new UpgradePair("tap.exe.new", "../../tap.exe", false),
-            // this file is written when installing any version of OpenTAP with OpenTAP 9.17 or later
-            new UpgradePair("../../tap.exe.new", "../../tap.exe", true),
-            // .net462 no tap.dll exists.
-            //// this file is written when installing any version of OpenTAP with OpenTAP 9.17 or later
-            //new UpgradePair("../../tap.dll.new", "../../tap.dll", true),
-        };
-
-        static Dictionary<string, string> parseArgs(string[] args)
-        {
-            var result = new Dictionary<string, string>();
-            foreach (var arg in args)
-            {
-                var pivot = arg.IndexOf("=", StringComparison.CurrentCulture);
-                var key = arg.Substring(0, pivot);
-                var value = arg.Substring(pivot + 1);
-                result[key] = value;
-            }
-
-            return result;
+            Console.Error.WriteLine($"{error}: {ex.Message}");
         }
 
-        private static void WaitForFileFree(string file)
+        public static void Main()
         {
-            RetryUntilSuccess(() =>
+            // clean up any files left over from previous upgrades
+            if (Directory.Exists(UninstallPath))
             {
-                using var s = File.OpenWrite(file);
-            }, TimeSpan.FromMinutes(10));
-        }
-
-        private static bool ShouldDeleteTapDll()
-        {
-            try
-            {
-                var xmlPath = Path.GetFullPath("package.xml");
-                if (File.Exists(xmlPath) == false) return false;
-                // Check if tap.dll needs to be deleted
-                // We do this by parsing the package xml and checking if tap.dll belongs to the package
-                // This is necessary because 'tap.dll' was not part of the OpenTAP package prior to 9.17,
-                // and OpenTAP emits a warning in versions prior to 9.17 if it is present
-                var xml = XElement.Load(xmlPath);
-                var ns = xml.GetDefaultNamespace();
-                foreach (var fileEle in xml.Element(ns.GetName("Files"))?.Elements(ns.GetName("File")) ?? Array.Empty<XElement>())
+                foreach (var file in Directory.GetFiles(UninstallPath))
                 {
-                    if (fileEle.Attribute("Path")?.Value == "tap.dll")
-                        return false;
-                }
-                return true;
-            }
-            catch
-            {
-                // this shouldn't happen
-                return false;
-            }
-        }
-
-        public static void Main(string[] args)
-        {
-            var argTable = parseArgs(args);
-            if (!argTable.ContainsKey("p"))
-            {
-                try
-                {
-                    var exeDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
-                    Directory.SetCurrentDirectory(exeDir);
-                    var upgradeNeeded = UpgradePairs.Select(p => p.UpgradeNeeded());
-                    if (upgradeNeeded.Any() == false)
+                    try 
                     {
-                        Console.WriteLine("Skipping upgrade");
-                        return;
+                        File.Delete(file);
                     }
-                    // Start this process and immediately exit
-                    // This subprocess will then wait for the tap.exe instance which started this program to exit
-                    // so it can overwrite tap.exe
-                    // We also copy this executable to a temporary file which will delete itself after running
-                    // Otherwise we will cause OpenTAP reinstalls to hang while waiting for Tap.Upgrader.exe to become free
-                    var thisExe = typeof(Program).Assembly.Location;
-                    // We want the backup file to run outside of the OpenTAP installation.
-                    // Keeping it in the OpenTAP installaton causes a few small annoying problems:
-                    // 1. Immediately running a CLI action will show warnings about duplicate assemblies due to the copy
-                    // 2. The smartinstaller fails to wipe the directory because the backup file is in use
-                    var backup = Path.GetTempFileName() + ".exe";
-                    File.Copy(thisExe, backup, true);
-                    Process.Start(new ProcessStartInfo(backup)
+                    catch (Exception ex)
                     {
-                            // Specify the OpenTAP version we are installing and the directory it is being installed to
-                            Arguments = $"p=\"{exeDir}\"",
-                            CreateNoWindow = true,
-                            WindowStyle = ProcessWindowStyle.Hidden,
-                            WorkingDirectory = exeDir
-                    });
-                }
-                catch
-                {
-                    // This shouldn't happen, but if it does, there isn't really anything we can do about it
-                    // Worst case scenario the installation will complete normally without overwriting tap.exe which
-                    // shouldn't be necessary anyway in the majority of cases
+                        Console.WriteLine($"Error deleting file '{file}': {ex.Message}");
+                    }
                 }
             }
-            else
-            {
-                // We need to wait for tap.exe to be free here because the source files might not exist yet
-                // This can happen if this process was launched by an uninstall action, and the install actions which
-                // create the source files do not exist yet
-                WaitForFileFree("../../tap.exe");
-                foreach (var p in UpgradePairs)
-                {
-                    if (p.UpgradeNeeded())
-                        p.Install();
-                }
 
-                if (ShouldDeleteTapDll())
-                {
-                    var tapDllLoc = Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "../../tap.dll"));
-                    RetryUntilSuccess(() =>
-                    {
-                        File.Delete(tapDllLoc);
-                    }, TimeSpan.FromMinutes(10));
-                }
+            var tapExe = Path.Combine(Installation, "tap.exe");
+            var newTapExe = Path.Combine(PackageDir, "tap.exe.new");
+            var tapDll = Path.Combine(Installation, "tap.dll");
+            var newTapDll = Path.Combine(PackageDir, "tap.dll.new");
 
-                var thisExe = typeof(Program).Assembly.Location;
-                // Exit and delete self
-                Process.Start( new ProcessStartInfo("cmd.exe")
-                {
-                    // Start a detached 'cmd.exe' command which waits for 3 seconds and deletes this file
-                    // This shouldn't fail, but it's not the end of the world if it does.
-                    Arguments = $"/C choice /D Y /T 3 & Del \"{thisExe}\"",
-                    WindowStyle = ProcessWindowStyle.Hidden, CreateNoWindow = true
-                });
-            }
+            Retry(() => Uninstall(tapExe), $"Error deleting tap.exe");
+            Retry(() => File.Copy(newTapExe, tapExe), $"Error updating tap.exe");
+            Retry(() => Uninstall(tapDll), $"Error deleting tap.dll");
+            Retry(() => File.Copy(newTapDll, tapDll), $"Error updating tap.dll");
         }
     }
 }
