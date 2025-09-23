@@ -17,7 +17,7 @@ namespace OpenTap.Package
 {
     internal class Installer
     {
-        private static readonly TraceSource log =  OpenTap.Log.CreateSource("Installer");
+        private static readonly TraceSource log =  Log.CreateSource("Installer");
         private CancellationToken cancellationToken;
 
         internal delegate void ProgressUpdateDelegate(int progressPercent, string message);
@@ -37,7 +37,7 @@ namespace OpenTap.Package
             this.cancellationToken = cancellationToken;
             DoSleep = true;
             UnpackOnly = false;
-            PackagePaths = new List<string>();
+            PackagePaths = [];
             TapDir = tapDir?.Trim() ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             if(ExecutorClient.IsRunningIsolated)
             {
@@ -56,6 +56,7 @@ namespace OpenTap.Package
 
             try
             {
+                WaitForPackageFilesFree(TapDir, PackagePaths);
                 RenamePackageFiles(TapDir, PackagePaths);
 
                 // The packages have all been downloaded at this stage. Now we just need to install them.
@@ -181,7 +182,7 @@ namespace OpenTap.Package
                 {
                     try
                     {
-                        RenamePackageFiles(TapDir, PackagePaths);
+                        WaitForPackageFilesFree(TapDir, PackagePaths);
                     }
 
                     catch (Exception ex)
@@ -255,6 +256,158 @@ namespace OpenTap.Package
             new Installation(TapDir).AnnouncePackageChange();
 
             return (int)ExitCodes.Success;
+        }
+
+        private FileInfo[] GetFilesInUse(string tapDir, List<string> packagePaths)
+        {
+             List<FileInfo> filesInUse = [];
+ 
+             foreach (string packageFileName in packagePaths)
+             {
+                 foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
+                 {
+                     string fullPath = Path.Combine(tapDir, file);
+                     string filename = Path.GetFileName(file);
+                     if (IsFileLocked(new FileInfo(fullPath)))
+                         filesInUse.Add(new FileInfo(fullPath));
+                 }
+             }
+ 
+             // Check if the files that are in use are used by any other package
+             var packages = packagePaths.Select(p => p.EndsWith("TapPackage") ? PackageDef.FromPackage(p) : PackageDef.FromXml(p));
+             var remainingInstalledPlugins = new Installation(tapDir).GetPackages().Where(i => packages.Any(p => p.Name == i.Name) == false);
+             var filesToRemain = remainingInstalledPlugins.SelectMany(p => p.Files).Select(f => f.RelativeDestinationPath).Distinct(StringComparer.OrdinalIgnoreCase);
+             filesInUse = filesInUse.Where(f => filesToRemain.Contains(f.Name, StringComparer.OrdinalIgnoreCase) == false).ToList();
+ 
+             return filesInUse.ToArray();
+         }
+
+        private void WaitForPackageFilesFree(string tapDir, List<string> packagePaths)
+        {
+            var noninteractive = UserInput.GetInterface() is NonInteractiveUserInputInterface;
+            var filesInUse = GetFilesInUse(tapDir, packagePaths);
+
+            if (filesInUse.Length > 0)
+            {
+                var allProcesses = Process.GetProcesses().Where(p =>
+                    p.ProcessName.ToLowerInvariant().Contains("opentap") &&
+                    p.ProcessName.ToLowerInvariant().Contains("vshost") == false &&
+                    p.ProcessName != Assembly.GetExecutingAssembly().GetName().Name).ToArray();
+
+                if (allProcesses.Any())
+                {
+                    // The file could be locked by someone other than OpenTAP processes. We should not assume it's OpenTAP holding the file.
+                    log.Warning(Environment.NewLine +
+                                "To continue, try closing applications that could be using the files.");
+                    foreach (var process in allProcesses)
+                        log.Warning("- " + process.ProcessName);
+                }
+
+                var tries = 0;
+                const int maxTries = 10;
+                var delaySeconds = 3;
+                var inUseString = BuildString(filesInUse);
+                if (noninteractive)
+                    log.Warning(inUseString);
+
+                while (isPackageFilesInUse(tapDir, packagePaths))
+                {
+                    var req = new AbortOrRetryRequest("Package Files Are In Use", inUseString) {Response = AbortOrRetryResponse.Abort};
+                    UserInput.Request(req, waitForFilesTimeout, true);
+
+                    if (req.Response == AbortOrRetryResponse.Abort)
+                    {
+                        if (noninteractive && tries < maxTries)
+                        {
+                            tries += 1;
+                            log.Info($"Package files are in use. Retrying in {delaySeconds} seconds. ({tries} / {maxTries})");
+                            TapThread.Sleep(TimeSpan.FromSeconds(delaySeconds));
+                            continue;
+                        }
+
+                        OnError(new IOException(inUseString));
+                        throw new OperationCanceledException();
+                    }
+
+                    filesInUse = GetFilesInUse(tapDir, packagePaths);
+                    inUseString = BuildString(filesInUse);
+                }
+            }
+        }
+
+        private string BuildString(FileInfo[] filesInUse)
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("The following files cannot be modified because they are in use:");
+            foreach (var file in filesInUse)
+            {
+                sb.AppendLine("- " + file.FullName);
+
+                var loaded_asm = AppDomain.CurrentDomain.GetAssemblies()
+                    .FirstOrDefault(x => x.IsDynamic == false && x.Location == file.FullName);
+                if (loaded_asm != null)
+                    throw new InvalidOperationException(
+                            $"The file '{file.FullName}' is being used by this process.");
+            }
+
+            sb.AppendLine("To continue, try closing applications that could be using the files.");
+
+            return sb.ToString();
+        }
+
+        static readonly TimeSpan waitForFilesTimeout = TimeSpan.FromMinutes(2);
+
+        private bool isPackageFilesInUse(string tapDir, List<string> packagePaths)
+        {
+            foreach (string packageFileName in packagePaths)
+            {
+                foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
+                {
+                    string fullPath = Path.Combine(tapDir, file);
+                    string filename = Path.GetFileName(file);
+                    if (IsFileLocked(new FileInfo(fullPath)))
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        private bool IsFileLocked(FileInfo file)
+        {
+            // Previous iterations of this check attempted to open the file for writing on the assumption that this
+            // would also indicate that the file can be deleted. This assumption was incorrect, and today, we are interested
+            // in whether we can move the file out of the way in order to write a new file to the current location.
+            var fn = file.FullName;
+            if (!File.Exists(fn)) return false;
+            var dirname = Path.GetDirectoryName(fn);
+            var temp = Path.Combine(dirname, Guid.NewGuid().ToString());
+            try 
+            {
+                // First try to move the file to a temp location (in the same directory)
+                File.Move(fn, temp);
+                // If the move succeeded, move it back and indicate the file is not locked.
+                File.Move(temp, fn);
+                return false;
+            }
+            catch 
+            {
+                // This failure mode seems unlikely, but let's guard against it.
+                // This could only happen in the scenario where the first Move operation
+                // could not happen atomically, and was converted to a Copy -> Delete operation,
+                // where the Delete operation failed. To my knowledge, this only happens when the
+                // source and destination are on different volumes.
+                if (File.Exists(temp))
+                {
+                    try 
+                    {
+                        File.Delete(temp);
+                    }
+                    catch 
+                    {
+                    }
+                }
+                return true;
+            }
         }
 
         public static void RenamePackageFiles(string tapDir, List<string> packagePaths)
