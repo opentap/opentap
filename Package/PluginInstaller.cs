@@ -615,7 +615,7 @@ namespace OpenTap.Package
                 result = ActionResult.Error;
             }
 
-            var mover = FileMover.Create(installation);
+            var mover = UninstallContext.Create(installation);
             foreach (var file in package.Files)
             {
                 string fullPath = Path.Combine(destination, file.RelativeDestinationPath);
@@ -629,7 +629,7 @@ namespace OpenTap.Package
                 log.Debug("Deleting file '{0}'.", file.RelativeDestinationPath);
                 if (!mover.Delete(file))
                 {
-                    mover.Rollback();
+                    mover.UndoAllDeletions();
                     throw new Exception($"Unable to delete file '{file.RelativeDestinationPath}'.");
                 }
                 

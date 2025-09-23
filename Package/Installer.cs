@@ -412,7 +412,7 @@ namespace OpenTap.Package
 
         public static void RenamePackageFiles(string tapDir, List<string> packagePaths)
         {
-            var mover = FileMover.Create(new Installation(tapDir));
+            var mover = UninstallContext.Create(new Installation(tapDir));
 
             foreach (string packageFileName in packagePaths)
             {
@@ -420,7 +420,7 @@ namespace OpenTap.Package
                 {
                     if (!mover.Delete(file))
                     {
-                        mover.Rollback();
+                        mover.UndoAllDeletions();
                         throw new Exception($"Unable to delete file '{file}'.");
                     }
                 }
