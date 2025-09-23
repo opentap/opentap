@@ -55,7 +55,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\Shared\ExecutorInterop.cs" Link="Shared\ExecutorInterop.cs" />
     <ProjectReference Include="..\Cli\Tap.Cli.csproj" />
     <ProjectReference Include="..\Package\Tap.Package.csproj" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />

@@ -5,8 +5,6 @@
 using System;
 using System.Globalization;
 using System.IO;
-using OpenTap;
-using OpenTap.Cli;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
@@ -20,7 +18,7 @@ class Program
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
         
         // OPENTAP_INIT_DIRECTORY: Executing assembly is null when running with 'dotnet tap.dll' hence the following environment variable can be used.
-        Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.OpenTapInitDirectory, Path.GetDirectoryName(typeof(Program).Assembly.Location));
+        Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", Path.GetDirectoryName(typeof(Program).Assembly.Location));
         
         try
         {
@@ -55,6 +53,6 @@ class Program
     [MethodImpl(MethodImplOptions.NoInlining)]
     static void Go()
     {
-        TapEntry.Go();
+        OpenTap.Cli.TapEntry.Go();
     }
 }
