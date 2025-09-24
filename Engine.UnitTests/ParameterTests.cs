@@ -1,4 +1,6 @@
-﻿using System.Globalization;
+﻿using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 namespace OpenTap.UnitTests;
@@ -158,6 +160,180 @@ public class ParameterTests
                 {
                     step.Name = "doesn't matter";
                     (step as DelayStep).DelaySecs = 123;
+                }
+            }
+        }
+    }
+    
+    public class StepEmbeddingComplexLists : TestStep
+    {
+        public List<ComplexType> ComplexList { get; set; } = [];
+        [EmbedProperties] public EmbeddedClass Emb { get; set; } = new();
+        public override void Run() { }
+    }
+
+    public class EmbeddedClass : ValidatingObject
+    {
+        public List<ComplexType> ComplexList { get; set; } = [];
+    }
+
+    public class ComplexType
+    {
+        public int X { get; set; }
+        public string Y { get; set; }
+    }
+
+    [Test]
+    public void TestMergingComplexParameters()
+    {
+        var plan = new TestPlan();
+        var seq = new SequenceStep();
+
+        plan.ChildTestSteps.Add(seq);
+        StepEmbeddingComplexLists[] steps = [new(), new(), new()];
+        seq.ChildTestSteps.AddRange(steps);
+
+        var a = AnnotationCollection.Annotate(steps);
+        { // 1. merge ComplexList on the parent step
+            var param = a.GetMember("ComplexList");
+            var ico = param.GetIcon(IconNames.ParameterizeOnParent);
+            ico.Get<IMethodAnnotation>().Invoke();
+        }
+        
+        { // 2. merge Emb.ComplexList on test plan
+            var param = a.GetMember("Emb.ComplexList");
+            var ico = param.GetIcon(IconNames.ParameterizeOnTestPlan);
+            ico.Get<IMethodAnnotation>().Invoke();
+        }
+
+        static void AddComplexElement(AnnotationCollection mem, int x, string y)
+        {
+            var proxy = mem.Get<ICollectionAnnotation>();
+            var item = proxy.NewElement();
+            var ov = item.Get<IObjectValueAnnotation>();
+            var v = (ComplexType)ov.Value;
+            v.X = x;
+            v.Y = y;
+            proxy.AnnotatedElements = proxy.AnnotatedElements.Append(item);
+        }
+
+        { // 3. populate the parameter on the parent step
+            var aSeq = AnnotationCollection.Annotate(seq);
+            var mem = aSeq.GetMember("Parameters \\ ComplexList");
+
+            AddComplexElement(mem, 1, "Param 1");
+            AddComplexElement(mem, 2, "Param 2");
+            AddComplexElement(mem, 3, "Param 3");
+            aSeq.Write();
+
+            // Verify parameters are merged correctly
+            foreach (var step in steps)
+            {
+                Assert.That(step.ComplexList.Count, Is.EqualTo(3));
+                Assert.That(step.ComplexList[0].Y, Is.EqualTo("Param 1"));
+                Assert.That(step.ComplexList[1].Y, Is.EqualTo("Param 2"));
+                Assert.That(step.ComplexList[2].Y, Is.EqualTo("Param 3"));
+            }
+        }
+        
+        { // 4. populate the parameter on the test plan
+            var aPlan = AnnotationCollection.Annotate(plan);
+            var mem = aPlan.GetMember("Emb.ComplexList");
+
+            AddComplexElement(mem, 4, "Plan 4");
+            AddComplexElement(mem, 5, "Plan 5");
+            AddComplexElement(mem, 6, "Plan 6");
+            aPlan.Write();
+
+            // Verify parameters are merged correctly
+            foreach (var step in steps)
+            {
+                Assert.That(step.Emb.ComplexList.Count, Is.EqualTo(3));
+                Assert.That(step.Emb.ComplexList[0].Y, Is.EqualTo("Plan 4"));
+                Assert.That(step.Emb.ComplexList[1].Y, Is.EqualTo("Plan 5"));
+                Assert.That(step.Emb.ComplexList[2].Y, Is.EqualTo("Plan 6"));
+            }
+        }
+
+        { // 5. Verify that everything works correctly after serialization
+            var ser = new TapSerializer();
+            var str = ser.SerializeToString(plan);
+            plan = (TestPlan)ser.DeserializeFromString(str);
+            seq = (SequenceStep)plan.ChildTestSteps[0];
+            Assert.That(ser.Errors, Is.Empty);
+            steps = plan.ChildTestSteps[0].ChildTestSteps.Cast<StepEmbeddingComplexLists>().ToArray();
+            Assert.That(steps.Length, Is.EqualTo(3));
+
+            foreach (var step in steps)
+            {
+                Assert.That(step.ComplexList.Count, Is.EqualTo(3));
+                Assert.That(step.ComplexList[0].Y, Is.EqualTo("Param 1"));
+                Assert.That(step.ComplexList[1].Y, Is.EqualTo("Param 2"));
+                Assert.That(step.ComplexList[2].Y, Is.EqualTo("Param 3"));
+
+                Assert.That(step.Emb.ComplexList.Count, Is.EqualTo(3));
+                Assert.That(step.Emb.ComplexList[0].Y, Is.EqualTo("Plan 4"));
+                Assert.That(step.Emb.ComplexList[1].Y, Is.EqualTo("Plan 5"));
+                Assert.That(step.Emb.ComplexList[2].Y, Is.EqualTo("Plan 6"));
+            }
+
+            { // Remove elements from the parameterized list and verify the changes are propagated correctly
+                var aSeq = AnnotationCollection.Annotate(seq);
+                var mem = aSeq.GetMember("Parameters \\ ComplexList");
+                var col = mem.Get<ICollectionAnnotation>();
+                col.AnnotatedElements = col.AnnotatedElements.Skip(1);
+                aSeq.Write();
+
+                foreach (var step in steps)
+                {
+                    Assert.That(step.ComplexList.Count, Is.EqualTo(2));
+                    Assert.That(step.ComplexList[0].Y, Is.EqualTo("Param 2"));
+                    Assert.That(step.ComplexList[1].Y, Is.EqualTo("Param 3"));
+                }
+
+                { // Verify that modifications to properties of list elements are propagated
+                    aSeq.Read();
+                    col = mem.Get<ICollectionAnnotation>();
+                    var col1 = (ComplexType)col.AnnotatedElements.First().Get<IObjectValueAnnotation>().Value;
+                    col1.Y = "Modified";
+                    aSeq.Write();
+
+                    foreach (var step in steps)
+                    {
+                        Assert.That(step.ComplexList.Count, Is.EqualTo(2));
+                        Assert.That(step.ComplexList[0].Y, Is.EqualTo("Modified"));
+                        Assert.That(step.ComplexList[1].Y, Is.EqualTo("Param 3"));
+                    }
+                }
+            }
+            
+            { // Repeat the same tests for parameters merged on the test plan
+                var aPlan = AnnotationCollection.Annotate(plan);
+                var mem = aPlan.GetMember("Emb.ComplexList");
+                var col = mem.Get<ICollectionAnnotation>();
+                col.AnnotatedElements = col.AnnotatedElements.Take(2);
+                aPlan.Write();
+
+                foreach (var step in steps)
+                {
+                    Assert.That(step.Emb.ComplexList.Count, Is.EqualTo(2));
+                    Assert.That(step.Emb.ComplexList[0].Y, Is.EqualTo("Plan 4"));
+                    Assert.That(step.Emb.ComplexList[1].Y, Is.EqualTo("Plan 5"));
+                }
+
+                { // Verify that modifications to properties of list elements are propagated
+                    aPlan.Read();
+                    col = mem.Get<ICollectionAnnotation>();
+                    var col2 = (ComplexType)col.AnnotatedElements.Last().Get<IObjectValueAnnotation>().Value;
+                    col2.Y = "Modified 2";
+                    aPlan.Write();
+
+                    foreach (var step in steps)
+                    {
+                        Assert.That(step.Emb.ComplexList.Count, Is.EqualTo(2));
+                        Assert.That(step.Emb.ComplexList[0].Y, Is.EqualTo("Plan 4"));
+                        Assert.That(step.Emb.ComplexList[1].Y, Is.EqualTo("Modified 2"));
+                    }
                 }
             }
         }
