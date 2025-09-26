@@ -24,7 +24,7 @@ namespace OpenTap
         private static readonly TraceSource log = Log.CreateSource("PluginManager");
         private static ManualResetEventSlim searchTask = new ManualResetEventSlim(true);
         private static PluginSearcher searcher;
-        static TapAssemblyResolver assemblyResolver;
+        private static IAssemblyResolver assemblyResolver;
 
         /// <summary>
         /// Specifies the directories to be searched for plugins. 
@@ -280,6 +280,17 @@ namespace OpenTap
             }
         }
 
+        public static void LoadAssemblyResolver(IAssemblyResolver resolver)
+        {
+            lock (loadLock)
+            {
+                if (isLoaded) return;
+                SessionLogs.Initialize();
+                assemblyResolver = resolver;
+                isLoaded = true;
+            }
+        }
+
         static bool isLoaded = false;
         static object loadLock = new object();
         /// <summary> Sets up the PluginManager assembly resolution systems. Under normal circumstances it is not needed to call this method directly.</summary>
@@ -288,10 +299,6 @@ namespace OpenTap
             lock (loadLock)
             {
                 if (isLoaded) return;
-                isLoaded = true;
-
-                SessionLogs.Initialize();
-
                 string tapEnginePath = Assembly.GetExecutingAssembly().Location;
                 if(String.IsNullOrEmpty(tapEnginePath))
                 {
@@ -301,13 +308,8 @@ namespace OpenTap
                     tapEnginePath = Assembly.GetEntryAssembly().Location;
                 }
                 DirectoriesToSearch = new List<string> { Path.GetDirectoryName(tapEnginePath) };
-                assemblyResolver = new TapAssemblyResolver(DirectoriesToSearch);
-
-                // Custom Assembly resolvers.
-                AppDomain.CurrentDomain.GetAssemblies().ToList().ForEach(assemblyResolver.AddAssembly);
-                AppDomain.CurrentDomain.AssemblyLoad += (s, args) => assemblyResolver.AddAssembly(args.LoadedAssembly);
-                AppDomain.CurrentDomain.AssemblyResolve += (s, args) => assemblyResolver.Resolve(args.Name, false);
-                AppDomain.CurrentDomain.ReflectionOnlyAssemblyResolve += (s, args) => assemblyResolver.Resolve(args.Name, true);
+                
+                LoadAssemblyResolver(NetstandardAssemblyResolver.GetResolver());
             }
         }
         

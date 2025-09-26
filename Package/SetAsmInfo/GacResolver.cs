@@ -13,7 +13,7 @@ namespace OpenTap.Package.SetAsmInfo
     // This is based on https://github.com/jbevain/cecil/blob/master/Mono.Cecil/BaseAssemblyResolver.cs
     // This version only contains the code for GAC resolution.
     // This code is also deployed in the 'Keg' project.
-    class GacResolver : IAssemblyResolver
+    class GacResolver : Mono.Cecil.IAssemblyResolver
     {
         static readonly bool on_mono = Type.GetType("Mono.Runtime") != null;
 
