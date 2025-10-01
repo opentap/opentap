@@ -61,6 +61,10 @@ namespace OpenTap.Engine.UnitTests
 
         public class CircInst : Instrument, ICircDummyInst
         {
+            // verify that there is no issue with parameters and circular references.
+            [MetaData]
+            public string ID { get; set; } = Guid.NewGuid().ToString();
+            
             public bool Parallel { get; set; }
             [EnabledIf(nameof(Parallel), false)] 
             public IInstrument Instrument => inst;
