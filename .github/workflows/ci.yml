@@ -215,7 +215,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-      - run: dotnet publish -c Release tap
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
       - name: Rebuild
@@ -253,7 +252,6 @@ jobs:
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
-      - run: dotnet build -c Release /p:Platform=${{ matrix.Architecture }} tap
       - name: Build
         run: dotnet build -c Release /p:Platform=${{ matrix.Architecture }}
       - name: Rebuild
@@ -292,7 +290,6 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-      - run: dotnet publish -c Release tap
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
       - name: Rebuild
