@@ -218,9 +218,14 @@ namespace OpenTap
         
         static readonly TraceSource log = Log.CreateSource("Resources");
         
-        readonly List<ResourceNode> openedResources = new List<ResourceNode>();
-        readonly LockManager lockManager = new LockManager();
-        readonly ConcurrentDictionary<IResource, Task> openTasks = new ConcurrentDictionary<IResource, Task>();
+        readonly List<ResourceNode> openedResources = new();
+        readonly LockManager lockManager = new();
+        
+        // open tasks is the main work of opening a resource.
+        readonly ConcurrentDictionary<IResource, Task> openTasks = new();
+        
+        // finally tasks are for notifying that resources has been opened.
+        readonly ConcurrentDictionary<IResource, Task> finallyTasks = new();
 
         /// <summary>
         /// This event is triggered when a resource is opened. The event may block in which case the resource will remain open for the entire call.
@@ -246,15 +251,38 @@ namespace OpenTap
             {
                 ResourcePreOpenEvent.Invoke(node.Resource);
                 
-                // start a new thread to do synchronous work
                 node.Resource.Open();
 
                 resourceLog.Info(sw, "Resource \"{0}\" opened.", node.Resource);
 
+                // when there are no weak dependencies just invoke ResourceOpened directly.
+                if (node.WeakDependencies.Count <= 0)
+                {
+                    ResourceOpened?.Invoke(node.Resource);
+                    return;
+                }
+                
+                // ...otherwise, we cannot wait for weak dependencies as part of the 'OpenResource' work.
+                // Doing that will cause a dead-lock with circular resource references.
+                // ResourceOpened should only be invoked after weak dependencies has been opened mostly for legacy reasons.
+                // So we wait for weak deps and call ReosurceOpened in a new worker thread.
+                
                 var weakDeps = node.WeakDependencies.Select(dep => openTasks[dep]).ToArray();
-                Task.WaitAll(weakDeps);
+                
+                finallyTasks[node.Resource] = TapThread.StartAwaitable(() =>
+                {
+                    try
+                    {
+                        Task.WaitAll(weakDeps);
+                        ResourceOpened?.Invoke(node.Resource);
+                    }
+                    catch (Exception ex)
+                    {
+                        string msg = $"Error while opening resource \"{node.Resource}\"";
+                        throw new ExceptionCustomStackTrace(msg, null, ex);
+                    }
+                });
 
-                ResourceOpened?.Invoke(node.Resource);
             }
             catch (Exception ex)
             {
@@ -270,11 +298,23 @@ namespace OpenTap
         {
             try
             {
+                // successfully completed tasks are not worth waiting for.
+                // waiting for unsuccessfully completed tasks gives us a useful error.
+                
                 var waitFor = targets.Select(target => openTasks[target])
-                    .Where(task => !task.IsCompleted || task.IsFaulted).ToArray(); // if task is faulted keep it to throw later
-                if (waitFor.Length == 0) return;
-                // WaitAll waits until all finish even if an exception occurs in one task.
-                Task.WaitAll(waitFor, cancellationToken);
+                    .Where(task => !task.IsCompleted || task.IsFaulted).ToArray();
+                if (waitFor.Length > 0)
+                {
+                    // WaitAll waits until all finish even if an exception occurs in one task.
+                    Task.WaitAll(waitFor, cancellationToken);
+                }
+                
+                var waitForFinallyTasks = targets
+                    .Where(finallyTasks.ContainsKey)
+                    .Select(target => finallyTasks[target])
+                    .Where(task => !task.IsCompleted || task.IsFaulted).ToArray();
+                if(waitForFinallyTasks.Length > 0)
+                    Task.WaitAll(waitForFinallyTasks, cancellationToken);
             }
             catch (OperationCanceledException)
             {
