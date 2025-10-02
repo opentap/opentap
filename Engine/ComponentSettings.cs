@@ -273,7 +273,9 @@ namespace OpenTap
             list.Add(item);
         }
 
-        internal void AddRange(IEnumerable<ContainedType> items)
+        /// <summary> Adds a number of elements to the collection. </summary>
+        /// <param name="items">The items to add to the list.</param>
+        public void AddRange(IEnumerable<ContainedType> items)
         {
             foreach (var item in items)
                 Add(item);
