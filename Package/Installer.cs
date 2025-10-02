@@ -262,12 +262,13 @@ namespace OpenTap.Package
         {
              List<FileInfo> filesInUse = [];
  
+             // Get all files that we are trying to install, but are already in use in a 'locked' way.
+             // Here 'locked' means 'cannot be moved'.
              foreach (string packageFileName in packagePaths)
              {
                  foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
                  {
                      string fullPath = Path.Combine(tapDir, file);
-                     string filename = Path.GetFileName(file);
                      if (IsFileLocked(new FileInfo(fullPath)))
                          filesInUse.Add(new FileInfo(fullPath));
                  }
@@ -364,7 +365,6 @@ namespace OpenTap.Package
                 foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
                 {
                     string fullPath = Path.Combine(tapDir, file);
-                    string filename = Path.GetFileName(file);
                     if (IsFileLocked(new FileInfo(fullPath)))
                         return true;
                 }
