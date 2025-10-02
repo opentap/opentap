@@ -30,7 +30,7 @@ namespace OpenTap.Package
         /// </summary>
         [Browsable(false)]
         [CommandLineArgument("no-isolation", Description = "Avoid starting an isolated process.")]
-        [Obsolete("Package actions are no longer starting insolated.")]
+        [Obsolete("Package actions are no longer starting isolated.")]
         public bool NoIsolation { get; set; }
         
 
