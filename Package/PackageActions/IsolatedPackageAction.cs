@@ -4,7 +4,6 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -16,7 +15,7 @@ using OpenTap.Cli;
 namespace OpenTap.Package
 {
     /// <summary>
-    /// Base class for ICliActions that makes a copy of the installation to a temp dir before executing. Useful for making changes to the installation. 
+    /// Base class for ICliActions related to installing or removing packages. Useful for making changes to the installation.  Previously this made a copy of the installation to a temp dir before executing. 
     /// </summary>
     public abstract class IsolatedPackageAction : LockingPackageAction
     {
@@ -31,13 +30,14 @@ namespace OpenTap.Package
         /// </summary>
         [Browsable(false)]
         [CommandLineArgument("no-isolation", Description = "Avoid starting an isolated process.")]
+        [Obsolete("Package actions are no longer starting insolated.")]
         public bool NoIsolation { get; set; }
         
 
         /// <summary>
         /// Executes this the action. Derived types should override LockedExecute instead of this.
         /// </summary>
-        /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
+        /// <returns>Return 0 to indicate success. Otherwise, return a custom error code that will be set as the exitcode from the CLI.</returns>
         public override int Execute(CancellationToken cancellationToken)
         {
             if (String.IsNullOrEmpty(Target))
@@ -86,6 +86,7 @@ namespace OpenTap.Package
 
         private static void EnsureDirectory(string filePath) => Directory.CreateDirectory(Path.GetDirectoryName(filePath));
         
+        /// <summary> This notifies the rest of the system that the package configuration has changed. </summary>
         internal static void IncrementChangeId(string target)
         {
             var filePath = GetChangeFile(target);
@@ -103,14 +104,6 @@ namespace OpenTap.Package
                 log.Debug(ex);
             }
         }
-
-        private static string NormalizePath(string path)
-        {
-            return Path.GetFullPath(new Uri(path).LocalPath)
-                       .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
-                       .ToUpperInvariant();
-        }
-
 
         // This method is only called by the static function LockedPackageAction.RunIsolated(), which has been obsolete since 9.0
         // It is unlikely to ever be called.

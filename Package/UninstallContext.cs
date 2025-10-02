@@ -4,6 +4,7 @@ using System.IO;
 
 namespace OpenTap.Package;
 
+/// <summary> Moves files to a temporary location during uninstall. </summary>
 internal class UninstallContext
 {
     readonly struct Move(string originalFile, string deletedFile)
@@ -19,7 +20,8 @@ internal class UninstallContext
         DeletePreviouslyUninstalledFiles(installation);
         return new UninstallContext(installation);
     }
-
+    
+    private static readonly TraceSource log = Log.CreateSource("Uninstall");
     private readonly Installation install;
     private readonly string Target;
     private readonly List<Move> Moves = [];
@@ -78,10 +80,12 @@ internal class UninstallContext
                 Directory.CreateDirectory(Path.GetDirectoryName(destination));
                 File.Move(fullname, destination);
                 Moves.Add(new Move(fullname, destination));
+                log.Debug("File {0} moved to {1}.", fullname, destination);
             }
-            catch
+            catch(Exception e)
             {
-                // log maybe?
+                log.Error("Unable to move file {0} to {1}: {2}", fullname, destination, e.Message);
+                log.Debug(e);
                 return false;
             }
         }
@@ -94,6 +98,7 @@ internal class UninstallContext
         foreach (var move in Moves)
         {
             File.Move(move.DeletedFile, move.OriginalFile);
+            log.Debug("File {0} reverted to {1}.", move.DeletedFile, move.OriginalFile);
         }
     }
 }

@@ -27,10 +27,10 @@
 
   <!-- Automatic assembly versioning in pipeline-->
   <PropertyGroup Condition="'$(ShortVersion)' == ''">
-    <Version>9.4.0</Version>
-    <AssemblyVersion>9.4.0</AssemblyVersion>
-    <InformationalVersion>9.4.0</InformationalVersion>
-    <FileVersion>9.4.0.0</FileVersion> 
+    <Version>9.31.0</Version>
+    <AssemblyVersion>9.31.0</AssemblyVersion>
+    <InformationalVersion>9.31.0-alpha+developerBuild</InformationalVersion>
+    <FileVersion>9.31.0.0</FileVersion> 
   </PropertyGroup>
 
   <ItemGroup>
