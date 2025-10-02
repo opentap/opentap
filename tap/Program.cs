@@ -7,6 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Runtime.Loader;
 
 namespace tap;
 
@@ -53,6 +54,43 @@ class Program
     [MethodImpl(MethodImplOptions.NoInlining)]
     static void Go()
     {
-        OpenTap.Cli.TapEntry.Go();
+        // Hook plugin searcher
+        var ctx = new NewLoadContext();
+        var cli = ctx.LoadFromAssemblyName(new AssemblyName("OpenTap.Cli"));
+        var go = cli.GetType("OpenTap.Cli.TapEntry").GetMethod("Go", BindingFlags.Public | BindingFlags.Static);
+        Console.WriteLine("Hello");
+        go.Invoke(null, []);
+    }
+}
+
+class NewLoadContext : AssemblyLoadContext
+{
+    protected override Assembly Load(AssemblyName assemblyName)
+    {
+        string assemblyPath = _resolver.ResolveAssemblyToPath(assemblyName);
+        if (assemblyPath != null)
+        {
+            return LoadFromAssemblyPath(assemblyPath);
+        }
+
+        return null;
+    }
+
+    protected override IntPtr LoadUnmanagedDll(string unmanagedDllName)
+    {
+        string libraryPath = _resolver.ResolveUnmanagedDllToPath(unmanagedDllName);
+        if (libraryPath != null)
+        {
+            return LoadUnmanagedDllFromPath(libraryPath);
+        }
+
+        return IntPtr.Zero;
+    }
+
+    private readonly AssemblyDependencyResolver _resolver;
+
+    public NewLoadContext() : base("Root Load Context", false)
+    {
+        _resolver = new AssemblyDependencyResolver(Path.GetDirectoryName(typeof(Program).Assembly.Location));
     }
 }
