@@ -1190,7 +1190,7 @@ namespace OpenTap
                 return scpiIO3.EnableEvent(eventType, mechanism);
             }
 
-            throw new NotImplementedException();
+            throw new NotSupportedException($"{scpiIO} does not support EnableEvent");
         }
 
         /// <inheritdoc cref="IScpiIO3.DisableEvent"/>
@@ -1201,7 +1201,7 @@ namespace OpenTap
                 return scpiIO3.DisableEvent(eventType, mechanism);
             }
 
-            throw new NotImplementedException();
+            throw new NotSupportedException($"{scpiIO} does not support DisableEvent");
         }
         
         /// <inheritdoc cref="IScpiIO3.WaitOnEvent"/>
@@ -1212,7 +1212,7 @@ namespace OpenTap
                 return scpiIO3.WaitOnEvent(eventType, timeout, out outEventType);
             }
 
-            throw new NotImplementedException();
+            throw new NotSupportedException($"{scpiIO} does not support WaitOnEvent");
         }
 
         /// <summary>
