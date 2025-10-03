@@ -12,6 +12,8 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
     <TargetFrameworkVersion></TargetFrameworkVersion>
+    <!-- If no configuration is set, default to debug. -->
+    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">

@@ -20,4 +20,5 @@ using System.Runtime.InteropServices;
 // The following GUID is for the ID of the typelib if this project is exposed to COM
 [assembly: Guid("c5aa8299-a924-417e-96c1-ba90a54ba374")]
 
+[assembly: InternalsVisibleTo("tap")]
 [assembly: InternalsVisibleTo("OpenTap.Cli.UnitTests")] // This is just for unit testing

@@ -111,7 +111,11 @@ namespace OpenTap.Package
                         }
                     }
                     else if (Path.GetExtension(packageName)
-                             .Equals(".Tappackage", StringComparison.OrdinalIgnoreCase) || File.Exists(packageName))
+                             .Equals(".Tappackage", StringComparison.OrdinalIgnoreCase) 
+                             // if the file exists try installing it, but only if it has an extension.
+                             // otherwise there is a great risk that the name conflicts with a remote package name.
+                             // For example, the Editor package has a file called Editor inside it (on Linux).
+                             || (File.Exists(packageName) && Path.HasExtension(packageName)))
                     {
                         
                         var pkg = PackageDef.FromPackage(packageName);
@@ -257,8 +261,12 @@ namespace OpenTap.Package
                     {
                         // If the package we are installing is from a file, we should always use that file instead of a cached package.
                         // During development a package might not change version but still have different content.
-                        if (pkg.PackageSource is FilePackageDefSource == false && File.Exists(filename) && !ignoreCache)
+                        if (pkg.PackageSource is FilePackageDefSource == false && File.Exists(filename) &&
+                            !ignoreCache && Path.HasExtension(filename))
+                        {
+                            log.Info($"Treating {filename} as a package");
                             existingPkg = PackageDef.FromPackage(filename);
+                        }
                     }
                     catch (Exception e)
                     {

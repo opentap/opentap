@@ -17,7 +17,7 @@ namespace OpenTap.Package
 {
     internal class Installer
     {
-        private static readonly TraceSource log =  OpenTap.Log.CreateSource("Installer");
+        private static readonly TraceSource log =  Log.CreateSource("Installer");
         private CancellationToken cancellationToken;
 
         internal delegate void ProgressUpdateDelegate(int progressPercent, string message);
@@ -37,7 +37,7 @@ namespace OpenTap.Package
             this.cancellationToken = cancellationToken;
             DoSleep = true;
             UnpackOnly = false;
-            PackagePaths = new List<string>();
+            PackagePaths = [];
             TapDir = tapDir?.Trim() ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             if(ExecutorClient.IsRunningIsolated)
             {
@@ -57,6 +57,7 @@ namespace OpenTap.Package
             try
             {
                 WaitForPackageFilesFree(TapDir, PackagePaths);
+                RenamePackageFiles(TapDir, PackagePaths);
 
                 // The packages have all been downloaded at this stage. Now we just need to install them.
                 // Assume this accounts for roughly 60% of the installation process.
@@ -257,82 +258,34 @@ namespace OpenTap.Package
             return (int)ExitCodes.Success;
         }
 
-        // ignore tap.exe and tap.dll as it is not meant to be overwritten.
-        private bool exclude(string filename) => filename.ToLower() == "tap" || filename.ToLower() == "tap.exe" || filename.ToLower() == "tap.dll";
         private FileInfo[] GetFilesInUse(string tapDir, List<string> packagePaths)
         {
-            List<FileInfo> filesInUse = new List<FileInfo>();
+             List<FileInfo> filesInUse = [];
+ 
+             // Get all files that we are trying to install, but are already in use in a 'locked' way.
+             // Here 'locked' means 'cannot be moved'.
+             foreach (string packageFileName in packagePaths)
+             {
+                 foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
+                 {
+                     string fullPath = Path.Combine(tapDir, file);
+                     if (IsFileLocked(new FileInfo(fullPath)))
+                         filesInUse.Add(new FileInfo(fullPath));
+                 }
+             }
+ 
+             // Check if the files that are in use are used by any other package
+             var packages = packagePaths.Select(p => p.EndsWith("TapPackage") ? PackageDef.FromPackage(p) : PackageDef.FromXml(p));
+             var remainingInstalledPlugins = new Installation(tapDir).GetPackages().Where(i => packages.Any(p => p.Name == i.Name) == false);
+             var filesToRemain = remainingInstalledPlugins.SelectMany(p => p.Files).Select(f => f.RelativeDestinationPath).Distinct(StringComparer.OrdinalIgnoreCase);
+             filesInUse = filesInUse.Where(f => filesToRemain.Contains(f.Name, StringComparer.OrdinalIgnoreCase) == false).ToList();
+ 
+             return filesInUse.ToArray();
+         }
 
-            foreach (string packageFileName in packagePaths)
-            {
-                foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
-                {
-                    string fullPath = Path.Combine(tapDir, file);
-                    string filename = Path.GetFileName(file);
-                    if (exclude(filename))
-                        continue;
-                    if (IsFileLocked(new FileInfo(fullPath)))
-                        filesInUse.Add(new FileInfo(fullPath));
-                }
-            }
-
-            // Check if the files that are in use are used by any other package
-            var packages = packagePaths.Select(p => p.EndsWith("TapPackage") ? PackageDef.FromPackage(p) : PackageDef.FromXml(p));
-            var remainingInstalledPlugins = new Installation(tapDir).GetPackages().Where(i => packages.Any(p => p.Name == i.Name) == false);
-            var filesToRemain = remainingInstalledPlugins.SelectMany(p => p.Files).Select(f => f.RelativeDestinationPath).Distinct(StringComparer.OrdinalIgnoreCase);
-            filesInUse = filesInUse.Where(f => filesToRemain.Contains(f.Name, StringComparer.OrdinalIgnoreCase) == false).ToList();
-
-            return filesInUse.ToArray();
-        }
-
-        private void WaitForPackageFilesFreeWindows(List<string> packagePaths)
-        {
-            var allfiles = packagePaths.SelectMany(PluginInstaller.FilesInPackage)
-                .Except(x =>
-                    Path.GetFileName(x).Equals("tap.exe", StringComparison.OrdinalIgnoreCase) ||
-                    Path.GetFileName(x).Equals("tap.dll", StringComparison.OrdinalIgnoreCase)
-                )
-                .ToArray();
-
-            retry:
-            var procs = RestartManager.GetProcessesUsingFiles(allfiles);
-            if (procs.Count == 0)
-                return;
-            var msg = new StringBuilder();
-            msg.AppendLine("The following applications are blocking the operation:");
-            var procString = string.Join("", procs.Select(p => $"\n - {p}"));
-            msg.AppendLine(procString);
-            msg.AppendLine("\nPlease close these applications and try again.");
-
-            var req = new AbortOrShutdownRequest("Files In Use", msg.ToString());
-            UserInput.Request(req);
-            if (req.Response == AbortOrRetryOrShutdownResponse.Retry) 
-                goto retry;
-            else if (req.Response == AbortOrRetryOrShutdownResponse.Abort)
-            {
-                OnError(new IOException(msg.ToString()));
-                throw new OperationCanceledException(); 
-            }
-        }
         private void WaitForPackageFilesFree(string tapDir, List<string> packagePaths)
         {
             var noninteractive = UserInput.GetInterface() is NonInteractiveUserInputInterface;
-            if (OperatingSystem.Current == OperatingSystem.Windows && noninteractive == false)
-            {
-                try
-                {
-                    WaitForPackageFilesFreeWindows(packagePaths);
-                    return;
-                }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch 
-                {
-                    // fallback to old logic -- This shouldn't happen, but let's be safe.
-                }
-            }
             var filesInUse = GetFilesInUse(tapDir, packagePaths);
 
             if (filesInUse.Length > 0)
@@ -358,7 +311,7 @@ namespace OpenTap.Package
                 if (noninteractive)
                     log.Warning(inUseString);
 
-                while (isPackageFilesInUse(tapDir, packagePaths, exclude))
+                while (isPackageFilesInUse(tapDir, packagePaths))
                 {
                     var req = new AbortOrRetryRequest("Package Files Are In Use", inUseString) {Response = AbortOrRetryResponse.Abort};
                     UserInput.Request(req, waitForFilesTimeout, true);
@@ -395,7 +348,7 @@ namespace OpenTap.Package
                     .FirstOrDefault(x => x.IsDynamic == false && x.Location == file.FullName);
                 if (loaded_asm != null)
                     throw new InvalidOperationException(
-                        $"The file '{file.FullName}' is being used by this process.");
+                            $"The file '{file.FullName}' is being used by this process.");
             }
 
             sb.AppendLine("To continue, try closing applications that could be using the files.");
@@ -403,19 +356,15 @@ namespace OpenTap.Package
             return sb.ToString();
         }
 
-
         static readonly TimeSpan waitForFilesTimeout = TimeSpan.FromMinutes(2);
 
-        private bool isPackageFilesInUse(string tapDir, List<string> packagePaths, Func<string, bool> exclude = null)
+        private bool isPackageFilesInUse(string tapDir, List<string> packagePaths)
         {
             foreach (string packageFileName in packagePaths)
             {
                 foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
                 {
                     string fullPath = Path.Combine(tapDir, file);
-                    string filename = Path.GetFileName(file);
-                    if (exclude != null && exclude(filename))
-                        continue;
                     if (IsFileLocked(new FileInfo(fullPath)))
                         return true;
                 }
@@ -425,39 +374,57 @@ namespace OpenTap.Package
 
         private bool IsFileLocked(FileInfo file)
         {
-            if (!file.Exists)
-                return false;
-            FileStream stream = null;
-            try
+            // Previous iterations of this check attempted to open the file for writing on the assumption that this
+            // would also indicate that the file can be deleted. This assumption was incorrect, and today, we are interested
+            // in whether we can move the file out of the way in order to write a new file to the current location.
+            var fn = file.FullName;
+            if (!File.Exists(fn)) return false;
+            var dirname = Path.GetDirectoryName(fn);
+            var temp = Path.Combine(dirname, Guid.NewGuid().ToString());
+            try 
             {
-                stream = file.Open(FileMode.Open, FileAccess.ReadWrite, FileShare.None);
-            }
-            catch (DirectoryNotFoundException)
-            {
-                // the directory of the file doesn't even exist!
-                return false;
-            }
-            catch (FileNotFoundException)
-            {
-                // the file doesn't even exist!
+                // First try to move the file to a temp location (in the same directory)
+                File.Move(fn, temp);
+                // If the move succeeded, move it back and indicate the file is not locked.
+                File.Move(temp, fn);
                 return false;
             }
-            catch (UnauthorizedAccessException)
+            catch 
             {
-              log.Warning($"File {file.FullName} cannot be deleted by the current user. ({Environment.UserName})");
-              throw;
-            }
-            catch (IOException)
-            {
+                // This failure mode seems unlikely, but let's guard against it.
+                // This could only happen in the scenario where the first Move operation
+                // could not happen atomically, and was converted to a Copy -> Delete operation,
+                // where the Delete operation failed. To my knowledge, this only happens when the
+                // source and destination are on different volumes.
+                if (File.Exists(temp))
+                {
+                    try 
+                    {
+                        File.Delete(temp);
+                    }
+                    catch 
+                    {
+                    }
+                }
                 return true;
             }
-            finally
+        }
+
+        public static void RenamePackageFiles(string tapDir, List<string> packagePaths)
+        {
+            var mover = UninstallContext.Create(new Installation(tapDir));
+
+            foreach (string packageFileName in packagePaths)
             {
-                if (stream != null)
-                    stream.Close();
+                foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
+                {
+                    if (!mover.Delete(file))
+                    {
+                        mover.UndoAllDeletions();
+                        throw new Exception($"Unable to delete file '{file}'.");
+                    }
+                }
             }
-            //file is not locked
-            return false;
         }
 
         /// <summary>
@@ -504,29 +471,5 @@ namespace OpenTap.Package
         public string Message { get; }
         [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
         [Submit] public AbortOrRetryResponse Response { get; set; }
-    }
-    enum AbortOrRetryOrShutdownResponse
-    {
-        Abort,
-        Retry,
-    }
-
-    class AbortOrShutdownRequest
-    {
-        public AbortOrShutdownRequest(string title, string message)
-        {
-            Message = message;
-            Name = title;
-        }
-        
-        [Browsable(false)] public string Name { get; } 
-
-        [Browsable(true)]
-        [Layout(LayoutMode.FullRow)]
-        [Display("Message", Order: 1)]
-        public string Message { get; }
-
-        [Layout(LayoutMode.FullRow | LayoutMode.FloatBottom)]
-        [Submit] public AbortOrRetryOrShutdownResponse Response { get; set; }
     }
 }
