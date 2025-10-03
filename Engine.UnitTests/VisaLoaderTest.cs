@@ -13,7 +13,7 @@ public class VisaLoaderTest
         Assert.That(Visa.viClear(0), Is.EqualTo(123));
         try 
         {
-            Visa.viWaitOnEvent(0, 0, 0, out var evt, IntPtr.Zero);
+            Visa.viWaitOnEvent(0, 0, 0, out var evt, out int context);
             Assert.Fail("This should have thrown");
         }
         catch (NotSupportedException ex)
