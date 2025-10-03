@@ -2,7 +2,7 @@ namespace OpenTap;
 /// <summary>
 /// Interface to load visa functions.
 /// </summary>
-public interface IVisaFunctionLoader
+public interface IVisaFunctionLoader : ITapPlugin
 {
     /// <summary>
     /// The order in which IVisaProviders will be tested. Lower numbers go first
