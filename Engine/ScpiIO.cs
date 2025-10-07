@@ -308,8 +308,7 @@ namespace OpenTap
         
         public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType)
         {
-            var result = Visa.viWaitOnEvent(instrument, (int)eventType, timeout, out int outEvent, out int context);
-            Visa.viClose(context);
+            var result = Visa.viWaitOnEvent(instrument, (int)eventType, timeout, out int outEvent, IntPtr.Zero);
             outEventType = (ScpiEvent)outEvent;
             return MakeError(result);
         }

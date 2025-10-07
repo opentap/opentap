@@ -255,8 +255,7 @@ public struct VisaFunctions
     /// <param name="outEventType">Logical identifier of the event actually received.</param>
     /// <param name="outContext">A handle specifying the unique occurrence of an event.</param>
     /// <remarks>https://helpfiles.keysight.com/IO_Libraries_Suite/English/IOLS_Linux/VISA/Content/visa/viWaitOnEvent.htm</remarks>
-    public delegate int ViWaitOnEventDelegate(int vi, int eventType, int timeout, out int outEventType,
-        out int outContext);
+    public delegate int ViWaitOnEventDelegate(int vi, int eventType, int timeout, out int outEventType, IntPtr outContext);
     /// <inheritdoc cref="ViWaitOnEventDelegate"/>
     public ViWaitOnEventDelegate ViWaitOnEventRef;
     

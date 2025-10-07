@@ -202,8 +202,8 @@ namespace OpenTap
             => ViUninstallHandlerRef?.Invoke(vi, eventType, handler, userHandle)
             ?? throw new NotSupportedException($"{_implementor} does not support viUninstallHandler");
 
-        internal static int viWaitOnEvent(int vi, int eventType, int timeout, out int outEventType, out int outContext) 
-            => ViWaitOnEventRef?.Invoke(vi, eventType, timeout, out outEventType, out outContext)
+        internal static int viWaitOnEvent(int vi, int eventType, int timeout, out int outEventType, IntPtr outContext) 
+            => ViWaitOnEventRef?.Invoke(vi, eventType, timeout, out outEventType, outContext)
             ?? throw new NotSupportedException($"{_implementor} does not support viWaitOnEvent");
 
         internal unsafe static int viRead(int vi, ArraySegment<byte> buffer, int count, out int retCount) 
