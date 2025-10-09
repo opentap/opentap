@@ -133,7 +133,7 @@ namespace OpenTap.Package.UnitTests
                 return new List<PackageDef>{B, C};
             }
         }
-        
+
         [Test]
         public void TestOverwritePackageDetection()
         {
