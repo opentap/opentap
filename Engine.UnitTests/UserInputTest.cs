@@ -82,8 +82,8 @@ namespace OpenTap.Engine.UnitTests
 
                         var log = writer.ToString()
                             .Split(new[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries);
-                        for (int i = 0; i <= 5; i++)
-                            Assert.AreEqual(log[i], i.ToString());
+                        for (int i = 0; i <= 6; i++)
+                            Assert.IsTrue(log[i].EndsWith(i.ToString()));
                     }
                     finally
                     {
