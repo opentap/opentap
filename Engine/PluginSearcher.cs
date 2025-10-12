@@ -450,12 +450,11 @@ namespace OpenTap
             Assemblies = graph.Generate(files);
             log.Debug(timer, "Ordered {0} assemblies according to references.", Assemblies.Count());
 
-            AllTypes = new Dictionary<string, TypeData>();
-            PluginTypes = new HashSet<TypeData>();
             foreach (AssemblyData asm in Assemblies)
             {
                 PluginsInAssemblyRecursive(asm);
             }
+
             return PluginTypes;
         }
 
@@ -463,6 +462,9 @@ namespace OpenTap
 
         private void PluginsInAssemblyRecursive(AssemblyData asm)
         {
+            // This is possible if the package containing the file was uninstalled
+            if (!File.Exists(asm.Location))
+                return;
             CurrentAsm = asm;
             ReadPrivateTypesInCurrentAsm = false;
             TypesInCurrentAsm = new Dictionary<TypeDefinitionHandle, TypeData>();
@@ -519,13 +521,13 @@ namespace OpenTap
         /// All types found by the search indexed by their SearchAssembly.FullName.
         /// Null if PluginSearcher.Search has not been called.
         /// </summary>
-        internal Dictionary<string, TypeData> AllTypes;
+        internal readonly Dictionary<string, TypeData> AllTypes = [];
 
         /// <summary>
         /// Types found by the search that implement ITapPlugin.
         /// Null if PluginSearcher.Search has not been called.
         /// </summary>
-        internal HashSet<TypeData> PluginTypes;
+        internal readonly HashSet<TypeData> PluginTypes = [];
 
         private AssemblyData CurrentAsm;
         private bool ReadPrivateTypesInCurrentAsm = false;

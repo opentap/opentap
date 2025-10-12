@@ -100,5 +100,6 @@ internal class UninstallContext
             File.Move(move.DeletedFile, move.OriginalFile);
             log.Debug("File {0} reverted to {1}.", move.DeletedFile, move.OriginalFile);
         }
+        Moves.Clear();
     }
 }

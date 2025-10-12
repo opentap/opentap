@@ -704,6 +704,7 @@ namespace OpenTap
                     searcher.CacheInvalidated -= CacheInvalidatedOnCacheInvalidated;
                 searchers = searchers.Clear();
                 MemberData.InvalidateCache();
+                derivedTypesCache.Clear();
                 typeToTypeDataCache = new ConditionalWeakTable<Type, TypeData>();
             };
         }
