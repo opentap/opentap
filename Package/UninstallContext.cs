@@ -35,8 +35,10 @@ internal class UninstallContext
         Directory.CreateDirectory(Target);
         // Ensure plugins are not loaded from the uninstall directory.
         var ignoreFile = Path.Combine(uninstallDirectory, ".OpenTapIgnore");
+        // a buffersize of 0 is invalid in .NET Framework
+        int bufferSize = 1;
         if (!File.Exists(ignoreFile))
-            File.Create(ignoreFile, 0).Close();
+            File.Create(ignoreFile, bufferSize).Close();
     }
 
     // Previous iterations attempted to uninstall by moving files to the temp directory, but 
