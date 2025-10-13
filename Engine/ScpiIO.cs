@@ -8,7 +8,7 @@ namespace OpenTap
 {
     
     /// <summary> Implements Visa SCPI IO. </summary>
-    class ScpiIO : IScpiIO2
+    class ScpiIO : IScpiIO3
     {
         private bool sendEnd = true;
         private int lockTimeout = 5000;
@@ -88,7 +88,7 @@ namespace OpenTap
 
             if (!srqDelegateHandle.IsAllocated)
             {
-                srqDelegateHandle = GCHandle.Alloc(new IVisa.viEventHandler((_, _, _, _) =>
+                srqDelegateHandle = GCHandle.Alloc(new VisaFunctions.ViEventHandler((_, _, _, _) =>
                 {
                     try
                     {
@@ -102,7 +102,7 @@ namespace OpenTap
                     return Visa.VI_SUCCESS;
                 }), GCHandleType.Normal);
             }
-            RaiseError(Visa.viInstallHandler(instrument, Visa.VI_EVENT_SERVICE_REQ, (IVisa.viEventHandler)srqDelegateHandle.Target, 0));
+            RaiseError(Visa.viInstallHandler(instrument, Visa.VI_EVENT_SERVICE_REQ, (VisaFunctions.ViEventHandler)srqDelegateHandle.Target, 0));
             RaiseError(Visa.viEnableEvent(instrument, Visa.VI_EVENT_SERVICE_REQ, Visa.VI_HNDLR, Visa.VI_NULL));
         }
 
@@ -294,6 +294,23 @@ namespace OpenTap
         public ScpiIOResult Write(ArraySegment<byte> buffer, int count, ref int written)
         {
             return MakeError(Visa.viWrite(instrument, buffer, count, out written));
+        }
+        
+        public ScpiIOResult EnableEvent(ScpiEvent eventType, ScpiEventMechanism mechanism)
+        {
+            return MakeError(Visa.viEnableEvent(instrument, (int)eventType, (short)mechanism, Visa.VI_NULL));
+        }
+
+        public ScpiIOResult DisableEvent(ScpiEvent eventType, ScpiEventMechanism mechanism)
+        {
+            return MakeError(Visa.viDisableEvent(instrument, (int)eventType, (short)mechanism));
+        }
+        
+        public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType)
+        {
+            var result = Visa.viWaitOnEvent(instrument, (int)eventType, timeout, out int outEvent, IntPtr.Zero);
+            outEventType = (ScpiEvent)outEvent;
+            return MakeError(result);
         }
     }
 }

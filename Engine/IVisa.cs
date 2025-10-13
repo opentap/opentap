@@ -11,6 +11,7 @@ namespace OpenTap
     /// <summary>
     /// Interface implemented by VISA libraries
     /// </summary>
+    [Obsolete($"Use {nameof(IVisaFunctionLoader)} instead.")]
     public interface IVisa
     {
         /// <summary>Open default RM session</summary>
@@ -61,5 +62,6 @@ namespace OpenTap
         int viUnlock(int vi);
         /// <summary>Event handler prototype</summary>
         delegate int viEventHandler(int vi, int eventType, int context, int userHandle);
+
     }
 }

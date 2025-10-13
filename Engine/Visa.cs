@@ -21,137 +21,212 @@ namespace OpenTap
         // -------------------------------------------------------------------------
         public const int VI_SPEC_VERSION = 0x00500100;
 
-        public delegate int viEventHandler(int vi, int eventType, int context, int userHandle);
-
-        #region Delegates
-        private delegate int viOpenDefaultRMDelegate(out int sesn);
-        private delegate int viFindRsrcDelegate(int sesn, string expr, out int vi, out int retCount, StringBuilder desc);
-        private delegate int viFindNextDelegate(int vi, StringBuilder desc);
-        private delegate int viParseRsrcDelegate(int sesn, string desc, ref short intfType, ref short intfNum);
-        private delegate int viParseRsrcExDelegate(int sesn, string desc, ref short intfType, ref short intfNum, StringBuilder rsrcClass, StringBuilder expandedUnaliasedName, StringBuilder aliasIfExists);
-        private delegate int viOpenDelegate(int sesn, string viDesc, int mode, int timeout, out int vi);
-        private delegate int viCloseDelegate(int vi);
-        private delegate int viGetAttributeDelegate1(int vi, int attrName, out byte attrValue);
-        private delegate int viGetAttributeDelegate2(int vi, int attrName, StringBuilder attrValue);
-        private delegate int viGetAttributeDelegate3(int vi, int attrName, out int attrValue);
-        private delegate int viSetAttributeDelegate1(int vi, int attrName, byte attrValue);
-        private delegate int viSetAttributeDelegate2(int vi, int attrName, int attrValue);
-        private delegate int viStatusDescDelegate(int vi, int status, StringBuilder desc);
-        private delegate int viEnableEventDelegate(int vi, int eventType, short mechanism, int context);
-        private delegate int viDisableEventDelegate(int vi, int eventType, short mechanism);
-        private delegate int viInstallHandlerDelegate(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle);
-        private delegate int viUninstallHandlerDelegate(int vi, int eventType, IVisa.viEventHandler handler, int userHandle);
-        private delegate int viInstallHandlerDelegate2(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle);
-        private delegate int viUninstallHandlerDelegate2(int vi, int eventType, IVisa.viEventHandler handler, int userHandle);
-        private unsafe delegate int viReadDelegate(int vi, ArraySegment<byte> buffer, int count, out int retCount);
-        private unsafe delegate int viWriteDelegate(int vi, ArraySegment<byte> buffer, int count, out int retCount);
-        private delegate int viReadSTBDelegate(int vi, ref short status);
-        private delegate int viClearDelegate(int vi);
-        private delegate int viLockDelegate(int vi, int lockType, int timeout, string requestedKey, StringBuilder accessKey);
-        private delegate int viUnlockDelegate(int vi);
-
-        private static viOpenDefaultRMDelegate viOpenDefaultRMRef;
-        private static viFindRsrcDelegate viFindRsrcRef;
-        private static viFindNextDelegate viFindNextRef;
-        private static viParseRsrcDelegate viParseRsrcRef;
-        private static viParseRsrcExDelegate viParseRsrcExRef;
-        private static viOpenDelegate viOpenRef;
-        private static viCloseDelegate viCloseRef;
-        private static viGetAttributeDelegate1 viGetAttribute1Ref;
-        private static viGetAttributeDelegate2 viGetAttribute2Ref;
-        private static viGetAttributeDelegate3 viGetAttribute3Ref;
-        private static viSetAttributeDelegate1 viSetAttribute1Ref;
-        private static viSetAttributeDelegate2 viSetAttribute2Ref;
-        private static viStatusDescDelegate viStatusDescRef;
-        private static viEnableEventDelegate viEnableEventRef;
-        private static viDisableEventDelegate viDisableEventRef;
-        private static viInstallHandlerDelegate viInstallHandlerRef;
-        private static viUninstallHandlerDelegate viUninstallHandlerRef;
-        private static viReadDelegate viReadRef;
-        private static viWriteDelegate viWriteRef;
-        private static viReadSTBDelegate viReadSTBRef;
-        private static viClearDelegate viClearRef;
-        private static viLockDelegate viLockRef;
-        private static viUnlockDelegate viUnlockRef;
+        private static readonly VisaFunctions.ViOpenDefaultRmDelegate ViOpenDefaultRmRef;
+        private static readonly VisaFunctions.ViFindRsrcDelegate ViFindRsrcRef;
+        private static readonly VisaFunctions.ViFindNextDelegate ViFindNextRef;
+        private static readonly VisaFunctions.ViParseRsrcDelegate ViParseRsrcRef;
+        private static readonly VisaFunctions.ViParseRsrcExDelegate ViParseRsrcExRef;
+        private static readonly VisaFunctions.ViOpenDelegate ViOpenRef;
+        private static readonly VisaFunctions.ViCloseDelegate ViCloseRef;
+        private static readonly VisaFunctions.ViGetAttributeBDelegate ViGetAttributeBRef;
+        private static readonly VisaFunctions.ViGetAttributeSbDelegate ViGetAttributeSbRef;
+        private static readonly VisaFunctions.ViGetAttributeIDelegate ViGetAttributeIRef;
+        private static readonly VisaFunctions.ViSetAttributeBDelegate ViSetAttributeBRef;
+        private static readonly VisaFunctions.ViSetAttributeIDelegate ViSetAttributeIRef;
+        private static readonly VisaFunctions.ViStatusDescDelegate ViStatusDescRef;
+        private static readonly VisaFunctions.ViEnableEventDelegate ViEnableEventRef;
+        private static readonly VisaFunctions.ViDisableEventDelegate ViDisableEventRef;
+        private static readonly VisaFunctions.ViInstallHandlerDelegate ViInstallHandlerRef;
+        private static readonly VisaFunctions.ViUninstallHandlerDelegate ViUninstallHandlerRef;
+        private static readonly VisaFunctions.ViWaitOnEventDelegate ViWaitOnEventRef;
+        private static readonly VisaFunctions.ViReadDelegate ViReadRef;
+        private static readonly VisaFunctions.ViWriteDelegate ViWriteRef;
+        private static readonly VisaFunctions.ViReadStbDelegate ViReadStbRef;
+        private static readonly VisaFunctions.ViClearDelegate ViClearRef;
+        private static readonly VisaFunctions.ViLockDelegate ViLockRef;
+        private static readonly VisaFunctions.ViUnlockDelegate ViUnlockRef;
         
-        static TraceSource staticLog = OpenTap.Log.CreateSource("Visa");
+        static readonly TraceSource staticLog = OpenTap.Log.CreateSource("Visa");
         static Visa()
         {
-            IVisa visa = TypeData.GetDerivedTypes<IVisaProvider>()
+            var symbolLoaders = TypeData.GetDerivedTypes<IVisaFunctionLoader>()
+                .Select(t => t.CreateInstanceSafe())
+                .OfType<IVisaFunctionLoader>()
+                .Where(loader =>
+                        {
+                            try
+                            {
+                                return loader.Functions.HasValue;
+                            }
+                            catch
+                            {
+                                return false;
+                            }
+                        })
+                .Select(l => (l.Order, (object)l));
+            
+            // Old way of doing visa provider, this is here for backwards compatibility.
+            #pragma warning disable CS0618 // Type or member is obsolete.
+            var visaProviders = TypeData.GetDerivedTypes<IVisaProvider>()
                 .Select(type => type.CreateInstanceSafe())
                 .OfType<IVisaProvider>()
-                .ToArray()
-                .OrderBy(provider => provider.Order)
-                .FirstOrDefault(x => x.Visa != null)?.Visa;
-
-            if (visa == null)
-                throw new Exception("IVisaProvider unable to load VISA");
+                .Select(p => (p.Order, (object)p));
+            #pragma warning disable CS0618 // Type or member is obsolete.
             
-            staticLog.Debug("Using IVisaProvider: {0}", visa);
-
-            viOpenDefaultRMRef = visa.viOpenDefaultRM;
-            viFindRsrcRef = visa.viFindRsrc;
-            viFindNextRef = visa.viFindNext;
-            viParseRsrcRef = visa.viParseRsrc;
-            viParseRsrcExRef = visa.viParseRsrcEx;
-            viOpenRef = visa.viOpen;
-            viCloseRef = visa.viClose;
-            unsafe 
+            var loaders = symbolLoaders.Concat<(double order, object obj)>(visaProviders).ToArray();
+            
+            foreach (var loader in loaders.OrderBy(t => t.order).Select(x => x.obj))
             {
-                viReadRef = visa.viRead;
-                viWriteRef = visa.viWrite;
+                if (loader is IVisaFunctionLoader symbolLoader && symbolLoader.Functions is VisaFunctions functions)
+                {
+                    _implementor = symbolLoader;
+                    staticLog.Debug("Using IVisaSymbolLoader: {0}", symbolLoader);
+
+                    ViOpenDefaultRmRef = functions.ViOpenDefaultRmRef;
+                    ViFindRsrcRef = functions.ViFindRsrcRef;
+                    ViFindNextRef = functions.ViFindNextRef;
+                    ViParseRsrcRef = functions.ViParseRsrcRef;
+                    ViParseRsrcExRef = functions.ViParseRsrcExRef;
+                    ViOpenRef = functions.ViOpenRef;
+                    ViCloseRef = functions.ViCloseRef;
+                    ViReadRef = functions.ViReadRef;
+                    ViWriteRef = functions.ViWriteRef;
+                    ViReadStbRef = functions.ViReadStbRef;
+                    ViClearRef = functions.ViClearRef;
+                    ViLockRef = functions.ViLockRef;
+                    ViUnlockRef = functions.ViUnlockRef;
+                    ViGetAttributeBRef = functions.ViGetAttribute1Ref;
+                    ViGetAttributeSbRef = functions.ViGetAttribute2Ref;
+                    ViGetAttributeIRef = functions.ViGetAttribute3Ref;
+                    ViSetAttributeBRef = functions.ViSetAttribute1Ref;
+                    ViSetAttributeIRef = functions.ViSetAttribute2Ref;
+                    ViStatusDescRef = functions.ViStatusDescRef;
+                    ViEnableEventRef = functions.ViEnableEventRef;
+                    ViDisableEventRef = functions.ViDisableEventRef;
+                    ViInstallHandlerRef = functions.ViInstallHandlerRef;
+                    ViUninstallHandlerRef = functions.ViUninstallHandlerRef;
+                    ViWaitOnEventRef = functions.ViWaitOnEventRef;
+                    return;
+                }
+                else if (loader is IVisaProvider visaProvider && visaProvider.Visa is { } visa)
+                {
+                    _implementor = loader;
+                    staticLog.Debug("Using IVisaProvider: {0}", visa);
+
+                    ViOpenDefaultRmRef = visa.viOpenDefaultRM;
+                    ViFindRsrcRef = visa.viFindRsrc;
+                    ViFindNextRef = visa.viFindNext;
+                    ViParseRsrcRef = visa.viParseRsrc;
+                    ViParseRsrcExRef = visa.viParseRsrcEx;
+                    ViOpenRef = visa.viOpen;
+                    ViCloseRef = visa.viClose;
+                    ViReadRef = visa.viRead;
+                    ViWriteRef = visa.viWrite;
+                    ViReadStbRef = visa.viReadSTB;
+                    ViClearRef = visa.viClear;
+                    ViLockRef = visa.viLock;
+                    ViUnlockRef = visa.viUnlock;
+                    ViGetAttributeBRef = visa.viGetAttribute1;
+                    ViGetAttributeSbRef = visa.viGetAttribute2;
+                    ViGetAttributeIRef = visa.viGetAttribute3;
+                    ViSetAttributeBRef = visa.viSetAttribute1;
+                    ViSetAttributeIRef = visa.viSetAttribute2;
+                    ViStatusDescRef = visa.viStatusDesc;
+                    ViEnableEventRef = visa.viEnableEvent;
+                    ViDisableEventRef = visa.viDisableEvent;
+                    ViInstallHandlerRef = (vi, type, handler, handle) => visa.viInstallHandler(vi, type, (IVisa.viEventHandler)Delegate.CreateDelegate(typeof(VisaFunctions.ViEventHandler), handler.Target, handler.Method), handle);
+                    ViUninstallHandlerRef = (vi, type, handler, handle) => visa.viInstallHandler(vi, type, (IVisa.viEventHandler)Delegate.CreateDelegate(typeof(VisaFunctions.ViEventHandler), handler.Target, handler.Method), handle);
+                    return;
+                }
             }
-            viReadSTBRef = visa.viReadSTB;
-            viClearRef = visa.viClear;
-            viLockRef = visa.viLock;
-            viUnlockRef = visa.viUnlock;
-            viGetAttribute1Ref = visa.viGetAttribute1;
-            viGetAttribute2Ref = visa.viGetAttribute2;
-            viGetAttribute3Ref = visa.viGetAttribute3;
-            viSetAttribute1Ref = visa.viSetAttribute1;
-            viSetAttribute2Ref = visa.viSetAttribute2;
-            viStatusDescRef = visa.viStatusDesc;
-            viEnableEventRef = visa.viEnableEvent;
-            viDisableEventRef = visa.viDisableEvent;
-            viInstallHandlerRef = visa.viInstallHandler;
-            viUninstallHandlerRef = visa.viUninstallHandler;
-            
+            staticLog.Error("No Visa providers available.");
         }
-        #endregion
+        
+        private static readonly object _implementor;
 
-        internal static int viOpenDefaultRM(out int sesn) { return viOpenDefaultRMRef(out sesn); }
+        internal static int viOpenDefaultRM(out int sesn) 
+            => ViOpenDefaultRmRef?.Invoke(out sesn)
+            ?? throw new NotSupportedException($"{_implementor} does not support viOpenDefaultRM");
 
-        internal static int viFindRsrc(int sesn, string expr, out int vi, out int retCount, StringBuilder desc) { return viFindRsrcRef(sesn, expr, out vi, out retCount, desc); }
-        internal static int viFindNext(int vi, StringBuilder desc) { return viFindNextRef(vi, desc); }
+        internal static int viFindRsrc(int sesn, string expr, out int vi, out int retCount, StringBuilder desc) 
+            => ViFindRsrcRef?.Invoke(sesn, expr, out vi, out retCount, desc)
+            ?? throw new NotSupportedException($"{_implementor} does not support viFindRsrc");
+        internal static int viFindNext(int vi, StringBuilder desc) 
+            => ViFindNextRef?.Invoke(vi, desc)
+            ?? throw new NotSupportedException($"{_implementor} does not support viFindNext");
 
-        internal static int viParseRsrc(int sesn, string desc, ref short intfType, ref short intfNum) { return viParseRsrcRef(sesn, desc, ref intfType, ref intfNum); }
-        internal static int viParseRsrcEx(int sesn, string desc, ref short intfType, ref short intfNum, StringBuilder rsrcClass, StringBuilder expandedUnaliasedName, StringBuilder aliasIfExists) { return viParseRsrcExRef(sesn, desc, ref intfType, ref intfNum, rsrcClass, expandedUnaliasedName, aliasIfExists); }
+        internal static int viParseRsrc(int sesn, string desc, ref short intfType, ref short intfNum) 
+            => ViParseRsrcRef?.Invoke(sesn, desc, ref intfType, ref intfNum)
+            ?? throw new NotSupportedException($"{_implementor} does not support viParseRsrc");
+        internal static int viParseRsrcEx(int sesn, string desc, ref short intfType, ref short intfNum, StringBuilder rsrcClass, StringBuilder expandedUnaliasedName, StringBuilder aliasIfExists) 
+            => ViParseRsrcExRef?.Invoke(sesn, desc, ref intfType, ref intfNum, rsrcClass, expandedUnaliasedName, aliasIfExists)
+            ?? throw new NotSupportedException($"{_implementor} does not support viParseRsrcEx");
 
-        internal static int viOpen(int sesn, string viDesc, int mode, int timeout, out int vi) { return viOpenRef(sesn, viDesc, mode, timeout, out vi); }
-        internal static int viClose(int vi) { return viCloseRef(vi); }
+        internal static int viOpen(int sesn, string viDesc, int mode, int timeout, out int vi) 
+            => ViOpenRef?.Invoke(sesn, viDesc, mode, timeout, out vi)
+            ?? throw new NotSupportedException($"{_implementor} does not support viOpen");
+        internal static int viClose(int vi) 
+            => ViCloseRef?.Invoke(vi)
+            ?? throw new NotSupportedException($"{_implementor} does not support viClose");
 
-        internal static int viGetAttribute(int vi, int attrName, out byte attrValue) { return viGetAttribute1Ref(vi, attrName, out attrValue); }
-        internal static int viGetAttribute(int vi, int attrName, StringBuilder attrValue) { return viGetAttribute2Ref(vi, attrName, attrValue); }
-        internal static int viGetAttribute(int vi, int attrName, out int attrValue) { return viGetAttribute3Ref(vi, attrName, out attrValue); }
-        internal static int viSetAttribute(int vi, int attrName, byte attrValue) { return viSetAttribute1Ref(vi, attrName, attrValue); }
-        internal static int viSetAttribute(int vi, int attrName, int attrValue) { return viSetAttribute2Ref(vi, attrName, attrValue); }
+        internal static int viGetAttribute(int vi, int attrName, out byte attrValue) 
+            => ViGetAttributeBRef?.Invoke(vi, attrName, out attrValue)
+            ?? throw new NotSupportedException($"{_implementor} does not support viGetAttribute");
+        internal static int viGetAttribute(int vi, int attrName, StringBuilder attrValue) 
+            => ViGetAttributeSbRef?.Invoke(vi, attrName, attrValue)
+            ?? throw new NotSupportedException($"{_implementor} does not support viGetAttribute");
+        internal static int viGetAttribute(int vi, int attrName, out int attrValue) 
+            => ViGetAttributeIRef?.Invoke(vi, attrName, out attrValue)
+            ?? throw new NotSupportedException($"{_implementor} does not support viGetAttribute");
+        internal static int viSetAttribute(int vi, int attrName, byte attrValue) 
+            => ViSetAttributeBRef?.Invoke(vi, attrName, attrValue)
+            ?? throw new NotSupportedException($"{_implementor} does not support viSetAttribute");
+        internal static int viSetAttribute(int vi, int attrName, int attrValue) 
+            => ViSetAttributeIRef?.Invoke(vi, attrName, attrValue)
+            ?? throw new NotSupportedException($"{_implementor} does not support viSetAttribute");
 
-        internal static int viStatusDesc(int vi, int status, StringBuilder desc) { return viStatusDescRef(vi, status, desc); }
+        internal static int viStatusDesc(int vi, int status, StringBuilder desc) 
+            => ViStatusDescRef?.Invoke(vi, status, desc)
+            ?? throw new NotSupportedException($"{_implementor} does not support viStatusDesc");
 
-        internal static int viEnableEvent(int vi, int eventType, short mechanism, int context) { return viEnableEventRef(vi, eventType, mechanism, context); }
-        internal static int viDisableEvent(int vi, int eventType, short mechanism) { return viDisableEventRef(vi, eventType, mechanism); }
-        internal static int viInstallHandler(int vi, int eventType, IVisa.viEventHandler handler, int UserHandle) { return viInstallHandlerRef(vi, eventType, handler, UserHandle); }
-        internal static int viUninstallHandler(int vi, int eventType, IVisa.viEventHandler handler, int userHandle) { return viUninstallHandlerRef(vi, eventType, handler, userHandle); }
+        internal static int viEnableEvent(int vi, int eventType, short mechanism, int context) 
+            => ViEnableEventRef?.Invoke(vi, eventType, mechanism, context)
+            ?? throw new NotSupportedException($"{_implementor} does not support viEnableEvent");
+        internal static int viDisableEvent(int vi, int eventType, short mechanism) 
+            => ViDisableEventRef?.Invoke(vi, eventType, mechanism)
+            ?? throw new NotSupportedException($"{_implementor} does not support viDisableEvent");
+        internal static int viInstallHandler(int vi, int eventType, VisaFunctions.ViEventHandler handler, int UserHandle) 
+            => ViInstallHandlerRef?.Invoke(vi, eventType, handler, UserHandle)
+            ?? throw new NotSupportedException($"{_implementor} does not support viInstallHandler");
+        internal static int viUninstallHandler(int vi, int eventType, VisaFunctions.ViEventHandler handler, int userHandle) 
+            => ViUninstallHandlerRef?.Invoke(vi, eventType, handler, userHandle)
+            ?? throw new NotSupportedException($"{_implementor} does not support viUninstallHandler");
 
-        internal unsafe static int viRead(int vi, ArraySegment<byte> buffer, int count, out int retCount) { return viReadRef(vi, buffer, count, out retCount); }
-        internal unsafe static int viWrite(int vi, ArraySegment<byte> buffer, int count, out int retCount) { return viWriteRef(vi, buffer, count, out retCount); }
+        internal static int viWaitOnEvent(int vi, int eventType, int timeout, out int outEventType, IntPtr outContext) 
+            => ViWaitOnEventRef?.Invoke(vi, eventType, timeout, out outEventType, outContext)
+            ?? throw new NotSupportedException($"{_implementor} does not support viWaitOnEvent");
 
-        internal static int viReadSTB(int vi, ref short status) { return viReadSTBRef(vi, ref status); }
+        internal unsafe static int viRead(int vi, ArraySegment<byte> buffer, int count, out int retCount) 
+            => ViReadRef?.Invoke(vi, buffer, count, out retCount)
+            ?? throw new NotSupportedException($"{_implementor} does not support static");
+        internal unsafe static int viWrite(int vi, ArraySegment<byte> buffer, int count, out int retCount) 
+            => ViWriteRef?.Invoke(vi, buffer, count, out retCount)
+            ?? throw new NotSupportedException($"{_implementor} does not support int");
 
-        internal static int viClear(int vi) { return viClearRef(vi); }
+        internal static int viReadSTB(int vi, ref short status) 
+            => ViReadStbRef?.Invoke(vi, ref status)
+            ?? throw new NotSupportedException($"{_implementor} does not support viReadSTB");
 
-        internal static int viLock(int vi, int lockType, int timeout, string requestedKey, StringBuilder accessKey) { return viLockRef(vi, lockType, timeout, requestedKey, accessKey); }
-        internal static int viUnlock(int vi) { return viUnlockRef(vi); }
+        internal static int viClear(int vi) 
+            => ViClearRef?.Invoke(vi)
+            ?? throw new NotSupportedException($"{_implementor} does not support viClear");
+
+        internal static int viLock(int vi, int lockType, int timeout, string requestedKey, StringBuilder accessKey) 
+            => ViLockRef?.Invoke(vi, lockType, timeout, requestedKey, accessKey)
+            ?? throw new NotSupportedException($"{_implementor} does not support viLock");
+        internal static int viUnlock(int vi) 
+            => ViUnlockRef?.Invoke(vi)
+            ?? throw new NotSupportedException($"{_implementor} does not support viUnlock");
 
         #region - Constants -------------------------------------------------------------
 

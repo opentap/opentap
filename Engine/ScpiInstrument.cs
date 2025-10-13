@@ -9,6 +9,7 @@ using System.Threading;
 using System.IO;
 using System.Text.RegularExpressions;
 using System.Diagnostics;
+using System.Net;
 using System.Runtime.InteropServices;
 using System.Xml.Serialization;
 using System.Text;
@@ -365,6 +366,7 @@ namespace OpenTap
         /// </summary>
         public override void Open()
         {
+            
             if (scpiIO is ScpiIO && visa_failed)
             {
                 Log.Error("No VISA provider installed. Please install/reinstall Keysight IO Libraries, or similar VISA provider.");
@@ -1179,6 +1181,39 @@ namespace OpenTap
                 }
             }
         }
+        
+        /// <inheritdoc cref="IScpiIO3.EnableEvent"/>
+        public ScpiIOResult EnableEvent(ScpiEvent eventType, ScpiEventMechanism mechanism)
+        {
+            if (scpiIO is IScpiIO3 scpiIO3)
+            {
+                return scpiIO3.EnableEvent(eventType, mechanism);
+            }
+
+            throw new NotSupportedException($"{scpiIO} does not support EnableEvent");
+        }
+
+        /// <inheritdoc cref="IScpiIO3.DisableEvent"/>
+        public ScpiIOResult DisableEvent(ScpiEvent eventType, ScpiEventMechanism mechanism)
+        {
+            if (scpiIO is IScpiIO3 scpiIO3)
+            {
+                return scpiIO3.DisableEvent(eventType, mechanism);
+            }
+
+            throw new NotSupportedException($"{scpiIO} does not support DisableEvent");
+        }
+        
+        /// <inheritdoc cref="IScpiIO3.WaitOnEvent"/>
+        public ScpiIOResult WaitOnEvent(ScpiEvent eventType, int timeout, out ScpiEvent outEventType)
+        {
+            if (scpiIO is IScpiIO3 scpiIO3)
+            {
+                return scpiIO3.WaitOnEvent(eventType, timeout, out outEventType);
+            }
+
+            throw new NotSupportedException($"{scpiIO} does not support WaitOnEvent");
+        }
 
         /// <summary>
         /// Polls the instrument for an event.
@@ -1312,6 +1347,7 @@ namespace OpenTap
             {
                 IoTimeout = timeoutMs;
             }
+
             try
             {
                 QueryOpc();
