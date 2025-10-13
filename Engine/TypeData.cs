@@ -104,6 +104,10 @@ namespace OpenTap
                 return isValueType;
             }
         }
+
+        /// <summary> Check if the assembly defining the type is loaded. </summary>
+        public bool IsAssemblyLoaded() => Assembly?.IsLoaded() ?? false;
+
         internal TypeCode TypeCode => typeCode;
         internal bool IsNumeric
         {
@@ -297,6 +301,12 @@ namespace OpenTap
                 foreach (TypeData b in BaseTypes)
                     b.AddDerivedType(typename);
             }
+        }
+
+        internal void RemoveDerivedType(TypeData typename)
+        {
+            if (derivedTypes != null && derivedTypes.Contains(typename))
+                derivedTypes.Remove(typename);
         }
 
         internal TypeData(string typeName)

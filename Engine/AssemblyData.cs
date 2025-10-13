@@ -112,6 +112,9 @@ namespace OpenTap
 
         /// <summary> Gets the assembly without loading it.</summary>
         internal Assembly GetCached() => assembly ?? preloadedAssembly;
+
+        /// <summary> Check if the assembly is loaded. </summary>
+        internal bool IsLoaded() => (assembly ?? preloadedAssembly) != null;
         
         /// <summary>
         /// Returns the System.Reflection.Assembly corresponding to this. 
