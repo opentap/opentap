@@ -444,18 +444,18 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<TypeData> Search(IEnumerable<string> files)
         {
+            InvalidateUnloadedPlugins();
             Stopwatch timer = Stopwatch.StartNew();
             if (graph == null)
                 graph = new AssemblyDependencyGraph(Option);
             Assemblies = graph.Generate(files);
             log.Debug(timer, "Ordered {0} assemblies according to references.", Assemblies.Count());
 
-            AllTypes = new Dictionary<string, TypeData>();
-            PluginTypes = new HashSet<TypeData>();
             foreach (AssemblyData asm in Assemblies)
             {
                 PluginsInAssemblyRecursive(asm);
             }
+
             return PluginTypes;
         }
 
@@ -463,6 +463,9 @@ namespace OpenTap
 
         private void PluginsInAssemblyRecursive(AssemblyData asm)
         {
+            // This is possible if the package containing the file was uninstalled
+            if (!File.Exists(asm.Location))
+                return;
             CurrentAsm = asm;
             ReadPrivateTypesInCurrentAsm = false;
             TypesInCurrentAsm = new Dictionary<TypeDefinitionHandle, TypeData>();
@@ -516,16 +519,50 @@ namespace OpenTap
         }
 
         /// <summary>
+        /// Invalidate all plugins which have not been loaded yet. 
+        /// This will allow removing / reloading a different instance of the type
+        /// the next time Search() is called.
+        /// </summary>
+        private void InvalidateUnloadedPlugins()
+        {
+            List<TypeData> removed = [];
+            var keys = AllTypes.Where(x => x.Value.IsAssemblyLoaded() == false).ToArray();
+            foreach (var key in keys) 
+            {
+                removed.Add(key.Value);
+                AllTypes.Remove(key.Key);
+            }
+            foreach (var plugin in PluginTypes.ToArray())
+            {
+                if (plugin.IsAssemblyLoaded() == false)
+                {
+                    PluginTypes.Remove(plugin);
+                    removed.Add(plugin);
+                }
+            }
+
+            // If a type was removed, remove it as a derived type from all remaining typedata.
+            foreach (var plugin in AllTypes)
+            {
+                foreach (var r in removed)
+                {
+                    plugin.Value.RemoveDerivedType(r);
+                }
+            }
+        }
+
+
+        /// <summary>
         /// All types found by the search indexed by their SearchAssembly.FullName.
         /// Null if PluginSearcher.Search has not been called.
         /// </summary>
-        internal Dictionary<string, TypeData> AllTypes;
+        internal readonly Dictionary<string, TypeData> AllTypes = [];
 
         /// <summary>
         /// Types found by the search that implement ITapPlugin.
         /// Null if PluginSearcher.Search has not been called.
         /// </summary>
-        internal HashSet<TypeData> PluginTypes;
+        internal readonly HashSet<TypeData> PluginTypes = [];
 
         private AssemblyData CurrentAsm;
         private bool ReadPrivateTypesInCurrentAsm = false;
