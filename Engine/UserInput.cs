@@ -283,16 +283,21 @@ namespace OpenTap
             try
             {
                 var a = AnnotationCollection.Annotate(dataObject);
-                var members = a.Get<IMembersAnnotation>()?.Members;
 
-                if (members == null) return;
-                members = members.Concat(a.Get<IForwardedAnnotations>()?.Forwarded ?? Array.Empty<AnnotationCollection>());
+                AnnotationCollection[] members;
+                {
+                    var members2 = a.Get<IMembersAnnotation>()?.Members;
 
-                // Order members
-                members = members.OrderBy(m => m.Get<DisplayAttribute>()?.Name ?? m.Get<IMemberAnnotation>()?.Member.Name);
-                members = members.OrderBy(m => m.Get<DisplayAttribute>()?.Order ?? -10000);
-                members = members.OrderBy(m => m.Get<IMemberAnnotation>()?.Member?.GetAttribute<LayoutAttribute>()?.Mode == LayoutMode.FloatBottom ? 1 : 0);
-                members = members.OrderBy(m => m.Get<IMemberAnnotation>()?.Member?.HasAttribute<SubmitAttribute>() == true ? 1 : 0);
+                    if (members2 == null) return;
+                    members2 = members2.Concat(a.Get<IForwardedAnnotations>()?.Forwarded ?? Array.Empty<AnnotationCollection>());
+
+                    // Order members
+                    members2 = members2.OrderBy(m => m.Get<DisplayAttribute>()?.Name ?? m.Get<IMemberAnnotation>()?.Member.Name);
+                    members2 = members2.OrderBy(m => m.Get<DisplayAttribute>()?.Order ?? -10000);
+                    members2 = members2.OrderBy(m => m.Get<IMemberAnnotation>()?.Member?.GetAttribute<LayoutAttribute>()?.Mode == LayoutMode.FloatBottom ? 1 : 0);
+                    members2 = members2.OrderBy(m => m.Get<IMemberAnnotation>()?.Member?.HasAttribute<SubmitAttribute>() == true ? 1 : 0);
+                    members = members2.ToArray();
+                }
 
                 var display = a.Get<IDisplayAnnotation>();
 
@@ -326,6 +331,21 @@ namespace OpenTap
                     }
                     return false;
                 }
+
+                // indent readonly items to the same level
+                int readonlyIndent = 0;
+                foreach (var _message in members)
+                {
+                    var layout = _message.Get<IMemberAnnotation>()?.Member.GetAttribute<LayoutAttribute>();
+                    bool showName = layout?.Mode.HasFlag(LayoutMode.FullRow) == true ? false : true;
+                    var isReadOnly = _message.Get<IAccessAnnotation>()?.IsReadOnly ?? false;
+                    if (showName && isReadOnly)
+                    {
+                        var name = _message.Get<DisplayAttribute>()?.Name ?? "";
+                        readonlyIndent = Math.Max(name.Length, readonlyIndent);
+                    }
+                }
+                
                 foreach (var _message in members)
                 {
                     var mem = _message.Get<IMemberAnnotation>()?.Member;
@@ -337,17 +357,33 @@ namespace OpenTap
                     bool secure = _message.Get<IReflectionAnnotation>()?.ReflectionInfo.DescendsTo(typeof(SecureString)) ?? false;
                     var str = _message.Get<IStringValueAnnotation>();
                     if (str == null && !secure) continue;
-                    var name = _message.Get<DisplayAttribute>()?.Name;
+                    var name = _message.Get<DisplayAttribute>()?.Name ?? "";
 
                 start:
                     var isVisible = _message.Get<IAccessAnnotation>()?.IsVisible ?? true;
                     if (!isVisible) continue;
 
+                    var layout = _message.Get<IMemberAnnotation>()?.Member.GetAttribute<LayoutAttribute>();
+                    bool showName = layout?.Mode.HasFlag(LayoutMode.FullRow) == true ? false : true;
 
                     var isReadOnly = _message.Get<IAccessAnnotation>()?.IsReadOnly ?? false;
                     if (isReadOnly)
                     {
-                        Console.WriteLine($"{str.Value}");
+                        if (showName)
+                        {
+                            // Indent
+                            // Each text line should be indented separately
+                            var text = str.Value;
+                            var textLines = text.Replace("\r", "").Split(['\n'], StringSplitOptions.RemoveEmptyEntries);
+                            var padString = "\n" + new string(' ', readonlyIndent + ": ".Length);
+                            text = string.Join(padString, textLines);
+                            Console.WriteLine(name.PadRight(readonlyIndent) + ": " + text);
+                        }
+                        else
+                        {
+                            Console.WriteLine($"{str.Value}");
+                        }
+
                         continue;
                     }
 
@@ -383,8 +419,6 @@ namespace OpenTap
                         Console.Write(Strings.PleaseEnterNumberOrName);
                     }
 
-                    var layout = _message.Get<IMemberAnnotation>()?.Member.GetAttribute<LayoutAttribute>();
-                    bool showName = layout?.Mode.HasFlag(LayoutMode.FullRow) == true ? false : true;
                     if (pleaseEnter)
                     {
                         Console.Write(Strings.PleaseEnter);
