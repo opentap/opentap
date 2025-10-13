@@ -51,12 +51,18 @@ public class UninstallContextTest
         
     }
 
-    const string testNamespace = "TestNamespace";
-    const string testTestStep = "MytestStep";
-
-    static string CreateNewAssemblyWithTestStep(string testAssemblyName, string displayName, int majorVersion)
+    class TestAsmDef(string assemblyName, string @namespace, string className, string displayName, int majorVersion)
     {
-        var asmName = new AssemblyNameDefinition(testAssemblyName, new Version(majorVersion, 0));
+        public readonly string assemblyName = assemblyName;
+        public readonly string className = className;
+        public readonly string @namespace = @namespace;
+        public readonly string displayName = displayName;
+        public int majorVersion = majorVersion;
+    }
+
+    static string CreateNewAssemblyWithTestStep(TestAsmDef def)
+    {
+        var asmName = new AssemblyNameDefinition(def.assemblyName, new Version(def.majorVersion, 0));
         string moduleName = "TestModule";
 
         var asm = AssemblyDefinition.CreateAssembly(asmName, moduleName, ModuleKind.Dll);
@@ -68,7 +74,7 @@ public class UninstallContextTest
         // create dummy plugin
         { 
             // Create new test step
-            var t = new TypeDefinition(testNamespace, testTestStep, TypeAttributes.AnsiClass | TypeAttributes.BeforeFieldInit | TypeAttributes.Public, teststep);
+            var t = new TypeDefinition(def.@namespace, def.className, TypeAttributes.AnsiClass | TypeAttributes.BeforeFieldInit | TypeAttributes.Public, teststep);
             asm.MainModule.Types.Add(t);
 
             // Create default constructor
@@ -92,7 +98,7 @@ public class UninstallContextTest
             // Add display attribute
             {
                 Type attrType = typeof(DisplayAttribute);
-                object[] arguments = [displayName,    "Runtime Generated Step", "Cecil",        1.0,              false,        Array.Empty<string>()];
+                object[] arguments = [def.displayName,    "Runtime Generated Step", "Cecil",        1.0,              false,        Array.Empty<string>()];
                 Type[] signature = [ .. arguments.Select(x => x.GetType()) ];
                 var tCtor = t.Module.ImportReference(attrType.GetConstructor(signature));
                 var attr = new CustomAttribute(tCtor);
@@ -117,16 +123,18 @@ public class UninstallContextTest
         var uninstall = UninstallContext.Create(Installation.Current);
         try 
         {
+            var def1 = new TestAsmDef(testAssemblyName, "ns1", "stepclass", "First Name", 1);
+            var def2 = new TestAsmDef(testAssemblyName, "ns1", "stepclass", "Second Name", 2);
             // Create two different versions of the same assembly with minor changes.
-            var asm1 = CreateNewAssemblyWithTestStep(testAssemblyName, "First Name", 1);
-            var asm2 = CreateNewAssemblyWithTestStep(testAssemblyName, "Second Name", 2);
+            var asm1 = CreateNewAssemblyWithTestStep(def1);
+            var asm2 = CreateNewAssemblyWithTestStep(def2);
 
             TypeData initialTd = null;
             {
                 // Copy the assembly into the installation
                 File.Copy(asm1, asmLocation);
                 PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{testNamespace}.{testTestStep}");
+                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
                 Assert.That(td, Is.Not.Null);
                 var disp1 = td.GetDisplayAttribute();
                 Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ First Name"));
@@ -140,7 +148,7 @@ public class UninstallContextTest
             {
                 uninstall.Delete(new PackageFile() { FileName = testAssemblyName + ".dll", RelativeDestinationPath = testAssemblyName + ".dll" });
                 PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{testNamespace}.{testTestStep}");
+                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
                 Assert.That(td, Is.Not.Null);
                 Assert.That(td.AsTypeData().Type, Is.Not.Null);
             }
@@ -151,7 +159,7 @@ public class UninstallContextTest
             // Verify that the type now remains even if it was deleted
             {
                 PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{testNamespace}.{testTestStep}");
+                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
                 Assert.That(td, Is.Not.Null);
                 Type tp = td.AsTypeData().Type;
                 Assert.That(tp, Is.Not.Null);
@@ -162,7 +170,7 @@ public class UninstallContextTest
             {
                 File.Copy(asm2, asmLocation);
                 PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{testNamespace}.{testTestStep}");
+                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
                 Assert.That(td, Is.Not.Null);
                 var disp1 = td.GetDisplayAttribute();
                 Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ First Name"));
@@ -185,7 +193,7 @@ public class UninstallContextTest
                     .GetValue(newSearcher);
                 Assert.That(allTypes, Is.Not.Null);
                 Assert.That(allTypes.Count, Is.EqualTo(1));
-                Assert.That(allTypes[$"{testNamespace}.{testTestStep}"].GetDisplayAttribute().GetFullName(), Is.EqualTo("Cecil \\ Second Name"));
+                Assert.That(allTypes[$"{def1.@namespace}.{def1.className}"].GetDisplayAttribute().GetFullName(), Is.EqualTo("Cecil \\ Second Name"));
             }
         }
         finally
@@ -207,15 +215,17 @@ public class UninstallContextTest
         var uninstall = UninstallContext.Create(Installation.Current);
         try 
         {
+            var def1 = new TestAsmDef(testAssemblyName, "ns2", "stepclass", "First Name", 1);
+            var def2 = new TestAsmDef(testAssemblyName, "ns2", "stepclass", "Second Name", 2);
             // Create two different versions of the same assembly with minor changes.
-            var asm1 = CreateNewAssemblyWithTestStep(testAssemblyName, "First Name", 1);
-            var asm2 = CreateNewAssemblyWithTestStep(testAssemblyName, "Second Name", 2);
+            var asm1 = CreateNewAssemblyWithTestStep(def1);
+            var asm2 = CreateNewAssemblyWithTestStep(def2);
 
             {
                 // Copy the assembly into the installation
                 File.Copy(asm1, asmLocation);
                 PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{testNamespace}.{testTestStep}");
+                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
                 Assert.That(td, Is.Not.Null);
                 var disp1 = td.GetDisplayAttribute();
                 Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ First Name"));
@@ -227,7 +237,7 @@ public class UninstallContextTest
             {
                 uninstall.Delete(new PackageFile() { FileName = testAssemblyName + ".dll", RelativeDestinationPath = testAssemblyName + ".dll" });
                 PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{testNamespace}.{testTestStep}");
+                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
                 Assert.That(td, Is.Null);
             }
 
@@ -235,7 +245,7 @@ public class UninstallContextTest
             {
                 File.Copy(asm2, asmLocation);
                 PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{testNamespace}.{testTestStep}");
+                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
                 Assert.That(td, Is.Not.Null);
                 var disp1 = td.GetDisplayAttribute();
                 Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ Second Name"));
