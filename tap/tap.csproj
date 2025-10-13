@@ -27,10 +27,10 @@
 
   <!-- Automatic assembly versioning in pipeline-->
   <PropertyGroup Condition="'$(ShortVersion)' == ''">
-    <Version>9.4.0</Version>
-    <AssemblyVersion>9.4.0</AssemblyVersion>
-    <InformationalVersion>9.4.0</InformationalVersion>
-    <FileVersion>9.4.0.0</FileVersion> 
+    <Version>9.31.0</Version>
+    <AssemblyVersion>9.31.0</AssemblyVersion>
+    <InformationalVersion>9.31.0-alpha+developerBuild</InformationalVersion>
+    <FileVersion>9.31.0.0</FileVersion> 
   </PropertyGroup>
 
   <ItemGroup>
@@ -54,4 +54,29 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Cli\Tap.Cli.csproj" />
+    <ProjectReference Include="..\Package\Tap.Package.csproj" />
+    <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
+    <ProjectReference Include="..\BasicSteps\Tap.Plugins.BasicSteps.csproj" />
+    <ProjectReference Include="..\Tap.Upgrader\Tap.Upgrader.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <!--Detect platform-->
+    <PlatformEnv Condition="$([MSBuild]::IsOSPlatform('OSX'))">MacOS</PlatformEnv>
+    <PlatformEnv Condition="$([MSBuild]::IsOSPlatform('Linux'))">Linux</PlatformEnv>
+    <PlatformEnv Condition="$([MSBuild]::IsOSPlatform('Windows'))">Windows</PlatformEnv>
+    <!-- IsOsPlatform may not always be available on Windows -->
+    <PlatformEnv Condition="'$(OS)' == 'Windows_NT'">Windows</PlatformEnv>
+
+    <!--Detect architecture -->
+    <ArchEnv>$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)</ArchEnv> 
+  </PropertyGroup>
+
+  <!-- Install OpenTAP as a package - this is necessary for most of the package cli actions to function normally.  -->
+  <!-- CopyFilesToOutputDirectory is required for libgit native DLLs -->
+  <Target Name="InstallOpenTapAsPackage" AfterTargets="CopyFilesToOutputDirectory">
+    <Exec Command="$(OutDir)tap package create ../../package.xml -o $(OutDir)OpenTap.Debug.TapPackage --install" EnvironmentVariables="Debug=true;Sign=false;Platform=$(PlatformEnv);Architecture=$(ArchEnv.ToLower())" WorkingDirectory="$(OutDir)" />
+  </Target>
 </Project>

@@ -263,8 +263,7 @@ namespace OpenTap.Engine.UnitTests
             instr.via1.IsActive = true;
             
             var instr2 = new VirtualPortInstrument{NPorts = 2};
-            InstrumentSettings.Current.Add(instr);
-            InstrumentSettings.Current.Add(instr2);
+            InstrumentSettings.Current.AddRange([instr, instr2]);
 
             var con1 = new RfConnection
             {

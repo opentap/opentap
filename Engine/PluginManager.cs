@@ -80,18 +80,14 @@ namespace OpenTap
             public static ReadOnlyCollection<Type> GetPlugins(Type pluginBaseType)
             {
                 
-                if (searcher == null ||  lastUsedSearcher != searcher)
+                if (searcher == null)
                 {
                     lock (pluginsSelection)
                     {
                         if (searchTask == null)
                             Search(); // if a search has not yet been started, do it now.
-
-                        if (lastUsedSearcher != searcher)
-                        {
-                            lastUsedSearcher = searcher;
-                            pluginsSelection.InvalidateAll();
-                        }
+                        lastUsedSearcher = searcher;
+                        pluginsSelection.InvalidateAll();
                     }
                 }
                 return pluginsSelection.Invoke(pluginBaseType);
@@ -164,7 +160,6 @@ namespace OpenTap
         /// </summary>
         public static PluginSearcher GetSearcher()
         {
-            
             searchTask.Wait();
             if (searcher == null)
             {
@@ -251,7 +246,6 @@ namespace OpenTap
         public static Task SearchAsync()
         {
             searchTask.Reset();
-            searcher = null;
             CacheState.OnUpdated();
             TapThread.Start(Search);  
             return Task.Run(() => GetSearcher());
@@ -260,19 +254,18 @@ namespace OpenTap
         ///<summary>Searches for plugins.</summary>
         public static void Search(){
             searchTask.Reset();
-            searcher = null;
+            searcher ??= new();
             assemblyResolver.Invalidate(DirectoriesToSearch);
             CacheState.OnUpdated();
             try
             {
                 IEnumerable<string> fileNames = assemblyResolver.GetAssembliesToSearch();
-                searcher = SearchAndAddToStore(fileNames);
+                SearchAndAddToStore(fileNames);
             }
             catch (Exception e)
             {
                 log.Error("Caught exception while searching for plugins: '{0}'", e.Message);
                 log.Debug(e);
-                searcher = null;
             }
             finally
             {
@@ -337,7 +330,6 @@ namespace OpenTap
         {
             var fileNames = _fileNames.ToList();
             Stopwatch timer = Stopwatch.StartNew();
-            PluginSearcher searcher = new PluginSearcher();
             try
             {
                 var w2 = Stopwatch.StartNew();

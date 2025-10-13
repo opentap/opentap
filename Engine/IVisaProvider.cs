@@ -3,11 +3,14 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 
+using System;
+
 namespace OpenTap 
 {
     /// <summary>
     /// A mechanism for retrieving IVisa implementations.
     /// </summary>
+    [Obsolete($"Use {nameof(IVisaFunctionLoader)} instead.")]
     public interface IVisaProvider : ITapPlugin {
 
         /// <summary>

@@ -255,9 +255,7 @@ namespace OpenTap.Engine.UnitTests
 
                 var x = plan.SerializeToString();
                 InstrumentSettings.Current.Remove(instr);
-                InstrumentSettings.Current.Add(instr3);
-                InstrumentSettings.Current.Add(instr2);
-                InstrumentSettings.Current.Add(instr4);
+                InstrumentSettings.Current.AddRange([instr3, instr2, instr4]);
                 var serializer = new TapSerializer();
                 var plan2 = (TestPlan)serializer.DeserializeFromString(x);
                 var step2 = (StepA)plan2.ChildTestSteps[0];

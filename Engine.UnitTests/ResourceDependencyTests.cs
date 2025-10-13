@@ -61,8 +61,21 @@ namespace OpenTap.Engine.UnitTests
 
         public class CircInst : Instrument, ICircDummyInst
         {
-            public IInstrument inst { get; set; }
+            // verify that there is no issue with parameters and circular references.
+            [MetaData]
+            public string ID { get; set; } = Guid.NewGuid().ToString();
+            
+            public bool Parallel { get; set; }
+            [EnabledIf(nameof(Parallel), false)] 
+            public IInstrument Instrument => inst;
 
+
+            [EnabledIf(nameof(Parallel), true)]
+            [ResourceOpen(ResourceOpenBehavior.InParallel)]
+            public IInstrument Instrumentp => inst;
+
+            public IInstrument inst;
+            
             public void DoTest()
             {
                 Assert.IsTrue(inst.IsConnected);
@@ -71,28 +84,37 @@ namespace OpenTap.Engine.UnitTests
             public override void Open()
             {
                 base.Open();
-                Assert.IsTrue(inst.IsConnected);
+                if(!Parallel)
+                    Assert.IsTrue(inst.IsConnected);
             }
 
             public override void Close()
             {
-                Assert.IsTrue(inst.IsConnected);
+                if(!Parallel)
+                    Assert.IsTrue(inst.IsConnected);
                 base.Close();
             }
         }
 
-        [Test]
-        public void CircularResourceReference()
+        // when the instruments are opened in parallel, the circular resource reference should not be a problem
+        // when the instruments are not opened in the parallel, it means that the order of open/close cannot be determined.
+        [TestCase(true)]
+        [TestCase(false)]
+        public void CircularResourceReference(bool parallel)
         {
             EngineSettings.Current.ResourceManagerType = new ResourceTaskManager();
             InstrumentSettings.Current.Clear();
             try
             {
-                var inst0 = new CircInst();
-                InstrumentSettings.Current.Add(inst0);
-                InstrumentSettings.Current.Add(new CircInst { inst = InstrumentSettings.Current[0] });
-                InstrumentSettings.Current.Add(new CircInst { inst = InstrumentSettings.Current[1] });
-                inst0.inst = InstrumentSettings.Current[2];
+                var inst0 = new CircInst {Parallel = parallel};
+                var inst1 = new CircInst {Parallel = parallel};
+                var inst2 = new CircInst {Parallel = parallel};
+
+                inst0.inst = inst2;
+                inst1.inst = inst0;
+                inst2.inst = inst1;
+                
+                InstrumentSettings.Current.AddRange([inst0, inst1, inst2]);
 
                 TestPlan plan = new TestPlan();
                 var step1 = new CircTestStep() { Instrument = inst0 };
@@ -100,7 +122,8 @@ namespace OpenTap.Engine.UnitTests
                 plan.ChildTestSteps.Add(step1);
 
                 var planRun = plan.Execute();
-                Assert.AreEqual(Verdict.Error, planRun.Verdict);
+
+                Assert.AreEqual(parallel ? Verdict.NotSet : Verdict.Error, planRun.Verdict);
             }
             finally
             {
