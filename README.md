@@ -29,7 +29,7 @@ tap package install "Developer's System CE" -y
 For a guide on how to develop using OpenTAP, check out our __[Developer Guide](https://doc.opentap.io/Developer%20Guide/Introduction/#introduction)__. Note the [source](https://github.com/opentap/opentap/tree/main/doc/Developer%20Guide) can be found on GitHub as well.
 
 ## Building OpenTAP
-Most users build plugins for OpenTAP but if you are interested in building OpenTAP yourself you can clone the git repository at https://github.com/opentap/opentap and build the OpenTAP.sln solution file.
+Most users build plugins for OpenTAP but if you are interested in building OpenTAP yourself you can clone the git repository at https://github.com/opentap/opentap and build the OpenTAP.slnx solution file.
 
 ### Microsoft Windows 10
 On Windows, Visual Studio 2022 or greater is needed to build. This can be done by opening the solution and pressing F5, or Ctrl-Shift-B.
@@ -59,7 +59,7 @@ OpenTAP can be tested using NUnit.
 
 ### Windows
 
-Using Visual Studio 2022, open OpenTAP.sln and run the tests in the TestExplorer.
+Using Visual Studio 2022, open OpenTAP.slnx and run the tests in the TestExplorer.
 
 ### Linux
 
