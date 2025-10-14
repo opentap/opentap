@@ -1,0 +1,33 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+    <Platform Name="arm64" />
+  </Configurations>
+  <Folder Name="/nuget/">
+    <File Path="nuget/build/OpenTap.props" />
+    <File Path="nuget/build/OpenTap.targets" />
+    <File Path="nuget/OpenTAP.nuspec" />
+  </Folder>
+  <Folder Name="/sdk/">
+    <Project Path="sdk/OpenTap.Sdk.MSBuild/OpenTap.Sdk.MSBuild.csproj" />
+    <Project Path="sdk/OpenTap.Sdk.New/OpenTap.Sdk.New.csproj" />
+  </Folder>
+  <Project Path="BasicSteps/Tap.Plugins.BasicSteps.csproj" />
+  <Project Path="Cli/Tap.Cli.csproj" />
+  <Project Path="Engine.UnitTests/Tap.Engine.UnitTests.csproj">
+    <BuildDependency Project="Cli/Tap.Cli.csproj" />
+    <BuildDependency Project="tap/tap.csproj" />
+  </Project>
+  <Project Path="Engine/Tap.Engine.csproj" />
+  <Project Path="Package.UnitTests/Tap.Package.UnitTests.csproj" />
+  <Project Path="Package/Tap.Package.csproj" />
+  <Project Path="Tap.Upgrader/Tap.Upgrader.csproj" />
+  <Project Path="tap/tap.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|x86" Project="x86" />
+    <Platform Solution="*|arm64" Project="arm64" />
+  </Project>
+  <Project Path="templates/Templates.csproj" />
+</Solution>
