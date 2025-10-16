@@ -51,7 +51,7 @@ namespace OpenTap
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
             });
-            if (p == null) throw new Exception($"Sudo is not installed.");
+            if (p == null) throw new Exception($"sudo is not installed.");
             p.StandardInput.WriteLine(passwordQuestion.Response.ConvertToUnsecureString());
             p.WaitForExit(100);
             if (p.HasExited == false) p.Kill();
