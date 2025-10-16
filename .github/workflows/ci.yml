@@ -849,7 +849,7 @@ jobs:
       - run: mv SDK*TapPackage SDK.TapPackage
         name: Rename SDK
         working-directory: Installer/Assets
-      - run: tap installer create "opentap.installer.xml" -v --target-os win --arch x86
+      - run: tap installer create "opentap.installer.xml" -v --target-os win --arch x64
         working-directory: Installer/Assets
         env:
           TAP_SIGN_ADDRESS: ${{ secrets.TAP_SIGN_ADDRESS_INTERNAL }}
