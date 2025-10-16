@@ -58,19 +58,6 @@ namespace OpenTap
             }
         }
 
-        private static string GetTap()
-        {
-            var currentProcess = Assembly.GetExecutingAssembly().Location;
-            if (string.IsNullOrWhiteSpace(currentProcess) == false &&
-                string.Equals(Path.GetFileNameWithoutExtension(currentProcess), "tap",
-                    StringComparison.CurrentCultureIgnoreCase))
-                return currentProcess;
-
-            if (OperatingSystem.Current == OperatingSystem.Windows)
-                return Path.Combine(ExecutorClient.ExeDir, "tap.exe");
-            return Path.Combine(ExecutorClient.ExeDir, "tap");
-        }
-
         private static readonly TraceSource log = Log.CreateSource(nameof(SubProcessHost));
         internal Process LastProcessHandle;
 
@@ -100,7 +87,7 @@ namespace OpenTap
                 // Restore stdout after the server has connected
                 Console.SetOut(originalOut);
                 var lines = tmpOut.ToString()
-                    .Split(new[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries);
+                    .Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries);
 
                 foreach (var line in lines)
                 {
@@ -132,10 +119,12 @@ namespace OpenTap
 
         public Verdict Run(TestPlan step, bool elevate, CancellationToken token)
         {
+            var dotnet = ExecutorClient.Dotnet;
+            var tapDll = Path.Combine(ExecutorClient.ExeDir, "tap.dll");
             var handle = Guid.NewGuid().ToString();
-            var pInfo = new ProcessStartInfo(GetTap())
+            var pInfo = new ProcessStartInfo(dotnet)
             {
-                Arguments = $"{nameof(ProcessCliAction)} --PipeHandle \"{handle}\"",
+                Arguments = $"\"{tapDll}\" {nameof(ProcessCliAction)} --PipeHandle \"{handle}\"",
                 CreateNoWindow = true,
                 WindowStyle = ProcessWindowStyle.Hidden,
                 RedirectStandardOutput = true,
