@@ -746,6 +746,92 @@ namespace OpenTap
             }
             plugin.TypeAttributes = typeDef.Attributes;
             plugin.Assembly = CurrentAsm;
+
+            List<string> supportedPlatforms = null;
+            foreach (CustomAttributeHandle attrHandle in typeDef.GetCustomAttributes())
+            {
+                CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
+                string attributeFullName = "";
+                if (attr.Constructor.Kind == HandleKind.MethodDefinition)
+                {
+                    MethodDefinition ctor =
+                        CurrentReader.GetMethodDefinition((MethodDefinitionHandle) attr.Constructor);
+                    attributeFullName = GetFullName(CurrentReader, ctor.GetDeclaringType());
+
+                }
+                else if (attr.Constructor.Kind == HandleKind.MemberReference)
+                {
+                    var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle) attr.Constructor);
+                    attributeFullName = GetFullName(CurrentReader, ctor.Parent);
+                }
+
+                switch (attributeFullName)
+                {
+                    case "System.Runtime.Versioning.SupportedOSPlatformAttribute":
+                    {
+                        var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
+                        if (valueString.FixedArguments.Length == 1 &&  valueString.FixedArguments[0].Value is string platform) 
+                        {
+                            supportedPlatforms ??= [];
+                            supportedPlatforms.Add(platform);
+                        }
+                    }
+                        break;
+                    case "OpenTap.DisplayAttribute":
+                    {
+                        var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
+                        string displayName =
+                            GetStringIfNotNull(valueString.FixedArguments[0]
+                                .Value); // the first argument to the DisplayAttribute constructor is the display name
+                        string displayDescription = GetStringIfNotNull(valueString.FixedArguments[1].Value);
+                        string displayGroup = GetStringIfNotNull(valueString.FixedArguments[2].Value);
+                        double displayOrder = (double)valueString.FixedArguments[3].Value;
+                        bool displayCollapsed = bool.Parse(GetStringIfNotNull(valueString.FixedArguments[4].Value));
+                        string[] displayGroups = GetStringArrayIfNotNull(valueString.FixedArguments[5].Value);
+                        DisplayAttribute attrInstance = new DisplayAttribute(displayName, displayDescription,
+                            displayGroup, displayOrder, displayCollapsed, displayGroups);
+                        plugin.Display = attrInstance;
+                    }
+                        break;
+                    case "OpenTap.HelpLinkAttribute":
+                    {
+                        var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
+                        if (valueString.FixedArguments.Length == 1 && valueString.FixedArguments[0].Value is string helpLink)
+                        {
+                            plugin.HelpLink = new HelpLinkAttribute(helpLink);
+                        }
+                        else
+                        {
+                            plugin.HelpLink = new HelpLinkAttribute();
+                        }
+                    }
+                        break;
+                    case "System.ComponentModel.BrowsableAttribute":
+                    {
+                        var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
+                        plugin.IsBrowsable = bool.Parse(valueString.FixedArguments.First().Value.ToString());
+                    }
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            // If the plugin type is not compatible with this platform, don't add it.
+            if (supportedPlatforms != null)
+            {
+                bool supported = supportedPlatforms.Any(platform =>
+                {
+                    var cmp = StringComparison.OrdinalIgnoreCase;
+                    if (platform.StartsWith("windows", cmp)) return OperatingSystem.Current == OperatingSystem.Windows;
+                    if (platform.StartsWith("linux", cmp)) return OperatingSystem.Current == OperatingSystem.Linux;
+                    if (platform.StartsWith("macos", cmp)) return OperatingSystem.Current == OperatingSystem.MacOS;
+                    if (platform.StartsWith("osx", cmp)) return OperatingSystem.Current == OperatingSystem.MacOS;
+                    return false;
+                });
+                if (!supported) return null;
+            }
+
             TypesInCurrentAsm.Add(handle, plugin);
             AllTypes.Add(plugin.Name, plugin);
             if (!typeDef.BaseType.IsNil)
@@ -774,52 +860,6 @@ namespace OpenTap
                 }
             }
             plugin.FinalizeCreation();
-            
-            foreach (CustomAttributeHandle attrHandle in typeDef.GetCustomAttributes())
-            {
-                CustomAttribute attr = CurrentReader.GetCustomAttribute(attrHandle);
-                string attributeFullName = "";
-                if (attr.Constructor.Kind == HandleKind.MethodDefinition)
-                {
-                    MethodDefinition ctor =
-                        CurrentReader.GetMethodDefinition((MethodDefinitionHandle) attr.Constructor);
-                    attributeFullName = GetFullName(CurrentReader, ctor.GetDeclaringType());
-
-                }
-                else if (attr.Constructor.Kind == HandleKind.MemberReference)
-                {
-                    var ctor = CurrentReader.GetMemberReference((MemberReferenceHandle) attr.Constructor);
-                    attributeFullName = GetFullName(CurrentReader, ctor.Parent);
-                }
-
-                switch (attributeFullName)
-                {
-                    case "OpenTap.DisplayAttribute":
-                    {
-                        var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
-                        string displayName =
-                            GetStringIfNotNull(valueString.FixedArguments[0]
-                                .Value); // the first argument to the DisplayAttribute constructor is the diaplay name
-                        string displayDescription = GetStringIfNotNull(valueString.FixedArguments[1].Value);
-                        string displayGroup = GetStringIfNotNull(valueString.FixedArguments[2].Value);
-                        double displayOrder = (double)valueString.FixedArguments[3].Value;
-                        bool displayCollapsed = bool.Parse(GetStringIfNotNull(valueString.FixedArguments[4].Value));
-                        string[] displayGroups = GetStringArrayIfNotNull(valueString.FixedArguments[5].Value);
-                        DisplayAttribute attrInstance = new DisplayAttribute(displayName, displayDescription,
-                            displayGroup, displayOrder, displayCollapsed, displayGroups);
-                        plugin.Display = attrInstance;
-                    }
-                        break;
-                    case "System.ComponentModel.BrowsableAttribute":
-                    {
-                        var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
-                        plugin.IsBrowsable = bool.Parse(valueString.FixedArguments.First().Value.ToString());
-                    }
-                        break;
-                    default:
-                        break;
-                }
-            }
 
             // Check if the type is constructable by inspecting the available constructors
             if (plugin.createInstanceSet == false)
