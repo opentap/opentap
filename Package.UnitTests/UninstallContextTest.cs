@@ -22,7 +22,7 @@ public class UninstallContextTest
         {
             Assert.That(File.Exists(file.RelativeDestinationPath));
         }
-            
+
         foreach (var file in Installation.Current.GetOpenTapPackage().Files)
         {
             uninstallContext.Delete(file);
@@ -119,86 +119,80 @@ public class UninstallContextTest
         const string testAssemblyName = nameof(TestLoadDifferentPluginVersions);
         var asmLocation = Path.Combine(Installation.Current.Directory, testAssemblyName + ".dll");
         if (File.Exists(asmLocation)) File.Delete(asmLocation);
+        using var _ = Utils.WithDisposable(() => File.Delete(asmLocation));
 
         var uninstall = UninstallContext.Create(Installation.Current);
-        try 
+        var def1 = new TestAsmDef(testAssemblyName, "ns1", "stepclass", "First Name", 1);
+        var def2 = new TestAsmDef(testAssemblyName, "ns1", "stepclass", "Second Name", 2);
+        // Create two different versions of the same assembly with minor changes.
+        var asm1 = CreateNewAssemblyWithTestStep(def1);
+        var asm2 = CreateNewAssemblyWithTestStep(def2);
+
+        TypeData initialTd = null;
         {
-            var def1 = new TestAsmDef(testAssemblyName, "ns1", "stepclass", "First Name", 1);
-            var def2 = new TestAsmDef(testAssemblyName, "ns1", "stepclass", "Second Name", 2);
-            // Create two different versions of the same assembly with minor changes.
-            var asm1 = CreateNewAssemblyWithTestStep(def1);
-            var asm2 = CreateNewAssemblyWithTestStep(def2);
-
-            TypeData initialTd = null;
-            {
-                // Copy the assembly into the installation
-                File.Copy(asm1, asmLocation);
-                PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
-                Assert.That(td, Is.Not.Null);
-                var disp1 = td.GetDisplayAttribute();
-                Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ First Name"));
-                // load the plugin. By loading the plugin, we prevent the Searcher from invalidating it.
-                td.AsTypeData().Load();
-                initialTd = td.AsTypeData();
-            }
-
-
-            // Verify the type still exists after deletion
-            {
-                uninstall.Delete(new PackageFile() { FileName = testAssemblyName + ".dll", RelativeDestinationPath = testAssemblyName + ".dll" });
-                PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
-                Assert.That(td, Is.Not.Null);
-                Assert.That(td.AsTypeData().Type, Is.Not.Null);
-            }
-
-            // Uninstall the type
-            uninstall.Delete(new PackageFile() { FileName = testAssemblyName + ".dll", RelativeDestinationPath = testAssemblyName + ".dll" });
-
-            // Verify that the type now remains even if it was deleted
-            {
-                PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
-                Assert.That(td, Is.Not.Null);
-                Type tp = td.AsTypeData().Type;
-                Assert.That(tp, Is.Not.Null);
-                Assert.That(tp.Assembly.Location, Does.Not.Exist);
-            }
-
-            // Verify that the old type name is still used after updating the dll
-            {
-                File.Copy(asm2, asmLocation);
-                PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
-                Assert.That(td, Is.Not.Null);
-                var disp1 = td.GetDisplayAttribute();
-                Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ First Name"));
-            }
-
-            // Verify that the first loaded typedata is still valid
-            {
-                Assert.That(initialTd, Is.Not.Null);
-                var disp1 = initialTd.GetDisplayAttribute();
-                Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ First Name"));
-                var step = (TestStep)initialTd.CreateInstance();
-            }
-
-            // Verify that the actual file on disk is the 2nd variant
-            {
-                var newSearcher = new PluginSearcher();
-                newSearcher.Search([asmLocation]);
-                Dictionary<string, TypeData> allTypes = (Dictionary<string, TypeData>)newSearcher.GetType()
-                    .GetField("AllTypes", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
-                    .GetValue(newSearcher);
-                Assert.That(allTypes, Is.Not.Null);
-                Assert.That(allTypes.Count, Is.EqualTo(1));
-                Assert.That(allTypes[$"{def1.@namespace}.{def1.className}"].GetDisplayAttribute().GetFullName(), Is.EqualTo("Cecil \\ Second Name"));
-            }
+            // Copy the assembly into the installation
+            File.Copy(asm1, asmLocation);
+            PluginManager.Search();
+            var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
+            Assert.That(td, Is.Not.Null);
+            var disp1 = td.GetDisplayAttribute();
+            Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ First Name"));
+            // load the plugin. By loading the plugin, we prevent the Searcher from invalidating it.
+            td.AsTypeData().Load();
+            initialTd = td.AsTypeData();
         }
-        finally
+
+
+        // Verify the type still exists after deletion
         {
-            File.Delete(asmLocation);
+            uninstall.Delete(new PackageFile() { FileName = testAssemblyName + ".dll", RelativeDestinationPath = testAssemblyName + ".dll" });
+            PluginManager.Search();
+            var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
+            Assert.That(td, Is.Not.Null);
+            Assert.That(td.AsTypeData().Type, Is.Not.Null);
+        }
+
+        // Uninstall the type
+        uninstall.Delete(new PackageFile() { FileName = testAssemblyName + ".dll", RelativeDestinationPath = testAssemblyName + ".dll" });
+
+        // Verify that the type now remains even if it was deleted
+        {
+            PluginManager.Search();
+            var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
+            Assert.That(td, Is.Not.Null);
+            Type tp = td.AsTypeData().Type;
+            Assert.That(tp, Is.Not.Null);
+            Assert.That(tp.Assembly.Location, Does.Not.Exist);
+        }
+
+        // Verify that the old type name is still used after updating the dll
+        {
+            File.Copy(asm2, asmLocation);
+            PluginManager.Search();
+            var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
+            Assert.That(td, Is.Not.Null);
+            var disp1 = td.GetDisplayAttribute();
+            Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ First Name"));
+        }
+
+        // Verify that the first loaded typedata is still valid
+        {
+            Assert.That(initialTd, Is.Not.Null);
+            var disp1 = initialTd.GetDisplayAttribute();
+            Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ First Name"));
+            var step = (TestStep)initialTd.CreateInstance();
+        }
+
+        // Verify that the actual file on disk is the 2nd variant
+        {
+            var newSearcher = new PluginSearcher();
+            newSearcher.Search([asmLocation]);
+            Dictionary<string, TypeData> allTypes = (Dictionary<string, TypeData>)newSearcher.GetType()
+                .GetField("AllTypes", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+                .GetValue(newSearcher);
+            Assert.That(allTypes, Is.Not.Null);
+            Assert.That(allTypes.Count, Is.EqualTo(1));
+            Assert.That(allTypes[$"{def1.@namespace}.{def1.className}"].GetDisplayAttribute().GetFullName(), Is.EqualTo("Cecil \\ Second Name"));
         }
     }
 
@@ -211,49 +205,43 @@ public class UninstallContextTest
         // This verifies the functionality that we should be able to remove / update a plugin if it has not been loaded previously.
         var asmLocation = Path.Combine(Installation.Current.Directory, testAssemblyName + ".dll");
         if (File.Exists(asmLocation)) File.Delete(asmLocation);
+        using var _ = Utils.WithDisposable(() => File.Delete(asmLocation));
 
         var uninstall = UninstallContext.Create(Installation.Current);
-        try 
+        var def1 = new TestAsmDef(testAssemblyName, "ns2", "stepclass", "First Name", 1);
+        var def2 = new TestAsmDef(testAssemblyName, "ns2", "stepclass", "Second Name", 2);
+        // Create two different versions of the same assembly with minor changes.
+        var asm1 = CreateNewAssemblyWithTestStep(def1);
+        var asm2 = CreateNewAssemblyWithTestStep(def2);
+
         {
-            var def1 = new TestAsmDef(testAssemblyName, "ns2", "stepclass", "First Name", 1);
-            var def2 = new TestAsmDef(testAssemblyName, "ns2", "stepclass", "Second Name", 2);
-            // Create two different versions of the same assembly with minor changes.
-            var asm1 = CreateNewAssemblyWithTestStep(def1);
-            var asm2 = CreateNewAssemblyWithTestStep(def2);
-
-            {
-                // Copy the assembly into the installation
-                File.Copy(asm1, asmLocation);
-                PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
-                Assert.That(td, Is.Not.Null);
-                var disp1 = td.GetDisplayAttribute();
-                Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ First Name"));
-                bool loaded = td.AsTypeData().IsAssemblyLoaded();
-            }
-
-
-            // Verify that the type is gone after uninstalling it
-            {
-                uninstall.Delete(new PackageFile() { FileName = testAssemblyName + ".dll", RelativeDestinationPath = testAssemblyName + ".dll" });
-                PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
-                Assert.That(td, Is.Null);
-            }
-
-            // Verify that we get the new version by updating the dll
-            {
-                File.Copy(asm2, asmLocation);
-                PluginManager.Search();
-                var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
-                Assert.That(td, Is.Not.Null);
-                var disp1 = td.GetDisplayAttribute();
-                Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ Second Name"));
-            }
+            // Copy the assembly into the installation
+            File.Copy(asm1, asmLocation);
+            PluginManager.Search();
+            var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
+            Assert.That(td, Is.Not.Null);
+            var disp1 = td.GetDisplayAttribute();
+            Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ First Name"));
+            bool loaded = td.AsTypeData().IsAssemblyLoaded();
         }
-        finally
+
+
+        // Verify that the type is gone after uninstalling it
         {
-            File.Delete(asmLocation);
+            uninstall.Delete(new PackageFile() { FileName = testAssemblyName + ".dll", RelativeDestinationPath = testAssemblyName + ".dll" });
+            PluginManager.Search();
+            var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
+            Assert.That(td, Is.Null);
+        }
+
+        // Verify that we get the new version by updating the dll
+        {
+            File.Copy(asm2, asmLocation);
+            PluginManager.Search();
+            var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}");
+            Assert.That(td, Is.Not.Null);
+            var disp1 = td.GetDisplayAttribute();
+            Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ Second Name"));
         }
     }
 }
