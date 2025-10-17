@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.Versioning;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using NUnit.Framework;
@@ -51,13 +52,14 @@ public class UninstallContextTest
         
     }
 
-    class TestAsmDef(string assemblyName, string @namespace, string className, string displayName, int majorVersion)
+    class TestAsmDef(string assemblyName, string @namespace, string className, string displayName, int majorVersion, string helpLink = null)
     {
         public readonly string assemblyName = assemblyName;
         public readonly string className = className;
         public readonly string @namespace = @namespace;
         public readonly string displayName = displayName;
         public int majorVersion = majorVersion;
+        public readonly string helpLink = helpLink;
     }
 
     static string CreateNewAssemblyWithTestStep(TestAsmDef def)
@@ -99,6 +101,18 @@ public class UninstallContextTest
             {
                 Type attrType = typeof(DisplayAttribute);
                 object[] arguments = [def.displayName,    "Runtime Generated Step", "Cecil",        1.0,              false,        Array.Empty<string>()];
+                Type[] signature = [ .. arguments.Select(x => x.GetType()) ];
+                var tCtor = t.Module.ImportReference(attrType.GetConstructor(signature));
+                var attr = new CustomAttribute(tCtor);
+                var attrArguments = arguments.Select(x => new CustomAttributeArgument(t.Module.ImportReference(x.GetType()), x));
+                foreach (var arg in attrArguments) attr.ConstructorArguments.Add(arg);
+                t.CustomAttributes.Add(attr);
+            }
+            // Add HelpLink attribute
+            if (def.helpLink != null)
+            {
+                Type attrType = typeof(HelpLinkAttribute);
+                object[] arguments = [def.helpLink];
                 Type[] signature = [ .. arguments.Select(x => x.GetType()) ];
                 var tCtor = t.Module.ImportReference(attrType.GetConstructor(signature));
                 var attr = new CustomAttribute(tCtor);
@@ -243,5 +257,62 @@ public class UninstallContextTest
             var disp1 = td.GetDisplayAttribute();
             Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ Second Name"));
         }
+    }
+
+    [Test]
+    public void TestAttributeScanning()
+    {
+        const string testAssemblyName = nameof(TestAttributeScanning);
+        var asmLocation = Path.Combine(Installation.Current.Directory, testAssemblyName + ".dll");
+        if (File.Exists(asmLocation)) File.Delete(asmLocation);
+        var def1 = new TestAsmDef(testAssemblyName, "AttributeTest", "MyStepClass", "My Type", 1,
+                helpLink: "example helplink string");
+        var asm1 = CreateNewAssemblyWithTestStep(def1);
+        File.Copy(asm1, asmLocation);
+        using var _ = Utils.WithDisposable(() => File.Delete(asmLocation));
+        PluginManager.Search();
+
+        var td = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(s => s.Name == $"{def1.@namespace}.{def1.className}").AsTypeData();
+        {
+            Assert.That(td, Is.Not.Null);
+            Assert.That(td.IsAssemblyLoaded(), Is.False);
+        }
+        {
+            var disp1 = td.GetDisplayAttribute();
+            Assert.That(disp1.GetFullName(), Is.EqualTo("Cecil \\ My Type"));
+            Assert.That(td.IsAssemblyLoaded(), Is.False);
+        }
+        {
+            var disp2 = td.GetAttribute<DisplayAttribute>();
+            Assert.That(disp2.GetFullName(), Is.EqualTo("Cecil \\ My Type"));
+            Assert.That(td.IsAssemblyLoaded(), Is.False);
+        }
+        {
+            Assert.That(td.IsBrowsable, Is.True);
+            Assert.That(td.IsAssemblyLoaded(), Is.False);
+        }
+        {
+            var help = td.GetAttribute<HelpLinkAttribute>();
+            Assert.That(help, Is.Not.Null);
+            Assert.That(help.HelpLink, Is.EqualTo("example helplink string"));
+            Assert.That(td.IsAssemblyLoaded(), Is.False);
+        }
+    }
+
+    [SupportedOSPlatform("ios")]
+    public class UnsupportedStep : TestStep
+    {
+        public override void Run()
+        {
+        }
+    }
+
+    [Test]
+    public void TestUnsupportedPluginsNotScanned()
+    {
+        var typeName = TypeData.FromType(typeof(UnsupportedStep)).Name;
+        var steps = TypeData.GetDerivedTypes<ITestStep>();
+        var unsupported = steps.FirstOrDefault(x => x.Name == typeName);
+        Assert.That(unsupported, Is.Null);
     }
 }
