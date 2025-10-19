@@ -307,12 +307,24 @@ public class UninstallContextTest
         }
     }
 
-    [Test]
-    public void TestUnsupportedPluginsNotScanned()
+    [SupportedOSPlatform("osx")]
+    [SupportedOSPlatform("macos")]
+    [SupportedOSPlatform("windows")]
+    [SupportedOSPlatform("linux")]
+    public class SupportedStep : TestStep
     {
-        var typeName = TypeData.FromType(typeof(UnsupportedStep)).Name;
-        var steps = TypeData.GetDerivedTypes<ITestStep>();
-        var unsupported = steps.FirstOrDefault(x => x.Name == typeName);
-        Assert.That(unsupported, Is.Null);
+        public override void Run()
+        {
+        }
+    }
+
+    [TestCase(typeof(UnsupportedStep), false)]
+    [TestCase(typeof(SupportedStep), true)]
+    public void TestSupportedOSPlatformScanned(Type t, bool supported)
+    {
+        var td = TypeData.FromType(t);
+        var scanned = TypeData.GetDerivedTypes<ITestStep>().FirstOrDefault(x => x.Name == td.Name);
+        TypeData expected = supported ? td : null;
+        Assert.That(scanned, Is.EqualTo(expected));
     }
 }
