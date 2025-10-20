@@ -21,6 +21,9 @@ namespace OpenTap
         // Used to mark when no display attribute is present.
         static readonly DisplayAttribute noDisplayAttribute = new DisplayAttribute("<<Null>>");
 
+        // Used to mark when no helplink attribute is present.
+        static readonly HelpLinkAttribute noHelpLinkAttribute = new HelpLinkAttribute(null);
+
         /// <summary>
         /// Gets the fully qualified name of the type, including its namespace but not its assembly.
         /// </summary>
@@ -62,6 +65,33 @@ namespace OpenTap
                 return display;
             }
             internal set => display = value;
+        }
+
+        /// <summary>
+        /// Gets.the HelpLinkAttribute for this type. Null if the type does not have a HelpLinkAttribute
+        /// </summary>
+        public HelpLinkAttribute HelpLink
+        {
+            get
+            {
+                if (helpLink is null && attributes != null)
+                {
+                    helpLink = noHelpLinkAttribute;
+                    foreach (var attr in attributes)
+                    {
+                        if (attr is HelpLinkAttribute helpLinkAttr)
+                        {
+                            helpLink = helpLinkAttr;
+                            break;
+                        }
+                    }
+                }
+
+                if (ReferenceEquals(helpLink, noHelpLinkAttribute))
+                    return null;
+                return helpLink;
+            }
+            internal set => helpLink = value;
         }
 
         /// <summary> Gets a list of base types (including interfaces) </summary>
@@ -241,6 +271,7 @@ namespace OpenTap
         IMemberData[] members;
         bool hasFlags;
         DisplayAttribute display;
+        HelpLinkAttribute helpLink;
         string assemblyQualifiedName;
         bool failedLoad;
         TypeData elementType;

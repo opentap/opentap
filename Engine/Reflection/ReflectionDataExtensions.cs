@@ -115,9 +115,16 @@ namespace OpenTap
         /// <returns></returns>
         public static T GetAttribute<T>(this IReflectionData mem)
         {
-            if(typeof(T) == typeof(DisplayAttribute) && mem is TypeData td)
+            if (mem is TypeData td)
             {
-                return (T)((object)td.Display);
+                if(typeof(T) == typeof(DisplayAttribute))
+                {
+                    return (T)(object)td.Display;
+                }
+                if (typeof(T) == typeof(HelpLinkAttribute))
+                {
+                    return (T)(object)td.HelpLink;
+                }
             }
 
             var attributes = mem.Attributes;
