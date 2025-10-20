@@ -68,17 +68,7 @@ namespace OpenTap
         }
 
         static OperatingSystem current;
-        public static OperatingSystem Current
-        {
-            get
-            {
-                if (current == null)
-                {
-                    current = getCurrent();
-                }
-                return current;
-            }
-        }
+        public static OperatingSystem Current => current ??= getCurrent();
     }
     
     class MacOsArchitecture

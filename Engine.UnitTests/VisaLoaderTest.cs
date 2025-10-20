@@ -35,7 +35,6 @@ public class VisaLoaderTest
 
         public VisaFunctions? Functions => loadFunctions();
 
-        private VisaFunctions? _functions = null;
         private VisaFunctions loadFunctions()
         {
             VisaFunctions functions = new();
