@@ -64,6 +64,7 @@ namespace OpenTap.Package
                 return;
 
 
+            using var _ = CliUserInputInterface.AcquireUserInputLock();
             if (updates.Any())
             {
                 Log.Info("Updates available for:");

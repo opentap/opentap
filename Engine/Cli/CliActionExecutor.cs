@@ -221,19 +221,16 @@ namespace OpenTap.Cli
             TapThread.Start(() =>
             {
                 TapThread.Sleep(3000); // don't spend time on update checking for very short running actions (e.g. 'tap package list -i')
-                using (CliUserInputInterface.AcquireUserInputLock())
+                try
                 {
-                    try
-                    {
-                        var checkUpdatesCommands = actionTree.GetSubCommand(new[] {"package", "check-updates"});
-                        var checkUpdateAction = checkUpdatesCommands?.Type?.CreateInstance() as ICliAction;
-                        if (SelectedAction != checkUpdatesCommands?.Type)
-                            checkUpdateAction?.PerformExecute(new[] {"--startup"});
-                    }
-                    catch (Exception e)
-                    {
-                        log.Error(e);
-                    }
+                    var checkUpdatesCommands = actionTree.GetSubCommand(["package", "check-updates"]);
+                    var checkUpdateAction = checkUpdatesCommands?.Type?.CreateInstance() as ICliAction;
+                    if (SelectedAction != checkUpdatesCommands?.Type)
+                        checkUpdateAction?.PerformExecute(["--startup"]);
+                }
+                catch (Exception e)
+                {
+                    log.Error(e);
                 }
             });
 
