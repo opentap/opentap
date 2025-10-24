@@ -247,12 +247,12 @@ namespace OpenTap
         {
             searchTask.Reset();
             CacheState.OnUpdated();
-            TapThread.Start(Search);  
-            return Task.Run(() => GetSearcher());
+            return TapThread.StartAwaitable(Search);  
         }
         
         ///<summary>Searches for plugins.</summary>
-        public static void Search(){
+        public static void Search()
+        {
             searchTask.Reset();
             searcher ??= new();
             assemblyResolver.Invalidate(DirectoriesToSearch);
@@ -260,7 +260,7 @@ namespace OpenTap
             try
             {
                 IEnumerable<string> fileNames = assemblyResolver.GetAssembliesToSearch();
-                SearchAndAddToStore(fileNames);
+                searcher = SearchAndAddToStore(fileNames);
             }
             catch (Exception e)
             {
@@ -330,10 +330,13 @@ namespace OpenTap
         {
             var fileNames = _fileNames.ToList();
             Stopwatch timer = Stopwatch.StartNew();
+            // Create a new searcher based on the current searcher.
+            // Loaded plugins will be 'absorbed'. This is needed in case a loaded plugin was uninstalled.
+            var newSearcher = new PluginSearcher(searcher);
             try
             {
                 var w2 = Stopwatch.StartNew();
-                IEnumerable<TypeData> foundPluginTypes = searcher.Search(fileNames);
+                IEnumerable<TypeData> foundPluginTypes = newSearcher.Search(fileNames);
                 IEnumerable<AssemblyData> foundAssemblies = foundPluginTypes.Select(p => p.Assembly).Distinct();
                 log.Debug(w2, "Found {0} plugin assemblies containing {1} plugin types.", foundAssemblies.Count(), foundPluginTypes.Count());
 
@@ -350,17 +353,17 @@ namespace OpenTap
             }
             catch (Exception ex)
             {
-                log.Error("Plugin search failed for: " + String.Join(", ", fileNames));
+                log.Error($"Plugin search failed: {ex.Message}");
                 log.Debug(ex);
             }
+                
             log.Debug(timer, "Searched {0} Assemblies.", fileNames.Count);
 
-
-            if (GetPlugins(searcher, typeof(IInstrument).FullName).Count == 0)
+            if (GetPlugins(newSearcher, typeof(IInstrument).FullName).Count == 0)
                 log.Warning("No instruments found.");
-            if (GetPlugins(searcher, typeof(ITestStep).FullName).Count == 0)
+            if (GetPlugins(newSearcher, typeof(ITestStep).FullName).Count == 0)
                 log.Warning("No TestSteps found.");
-            return searcher;
+            return newSearcher;
         }
 
         private static Type locateType(string typeName)
