@@ -3,6 +3,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System.Collections.Generic;
+using System.Linq;
 
 namespace OpenTap
 {
@@ -20,7 +21,7 @@ namespace OpenTap
         /// <summary> Performs an implementation specific search for types. Generates ITypeData objects for all types found Types property. </summary>
         void ITypeDataSearcher.Search()
         {
-            types = PluginManager.GetSearcher().AllTypes.Values;
+            types = PluginManager.GetSearcher().AllTypes.Values.ToArray();
         }
 
         ITypeDataSource ITypeDataSourceProvider.GetSource(ITypeData typeData)

@@ -78,6 +78,12 @@ namespace OpenTap
         /// </summary>
         public PluginSearcher() { }
 
+        internal PluginSearcher(PluginSearcher copy)
+        {
+            AbsorbLoadedPlugins(copy);
+            if (AllTypes.TryGetValue(PluginMarkerType.Name, out var marker)) PluginMarkerType = marker;
+        }
+
         /// <summary>
         /// Searches assemblies for classes implementing ITapPlugin.
         /// </summary>
@@ -260,6 +266,9 @@ namespace OpenTap
                 }
                 try
                 {
+                    // This can happen if the plugin was uninstalled.
+                    // If the plugin was loaded, it was most likely also searched if we reached this point.
+                    if (!File.Exists(file)) return null;
                     if (file.Contains(".resources.dll"))
                         return null;
                     var thisAssembly = new AssemblyData(file, loadedAssembly);
@@ -420,20 +429,70 @@ namespace OpenTap
         }
 
 
+        private readonly object AddAssemblyLock = new();
         /// <summary> Adds an assembly outside the 'search' context. </summary>
         internal AssemblyData AddAssembly(string path, Assembly loadedAssembly)
         {
-            var asm = graph.AddAssemblyInfo(path, loadedAssembly);
-            PluginsInAssemblyRecursive(asm);
-            return asm;
+            // This fixes a race condition when TypeData.FromType() is called in parallel.
+            lock (AddAssemblyLock)
+            {
+                var asm = graph.AddAssemblyInfo(path, loadedAssembly);
+                PluginsInAssemblyRecursive(asm);
+                return asm;
+            }
         }
-        
-        /// <summary> Adds an assembly outside the 'search' context. </summary>
-        internal AssemblyData AddAssembly(Assembly loadedAssembly)
+
+        private TypeData PluginFromPluginRecursive(TypeData type)
         {
-            var asm = graph.AddAssemblyInfo(loadedAssembly.Location, loadedAssembly);
-            PluginsInAssemblyRecursive(asm);
-            return asm;
+            if (AllTypes.TryGetValue(type.Name, out var plugin)) return plugin;
+            plugin = type.Clone();
+
+            AllTypes.Add(plugin.Name, plugin);
+            foreach (var oldBaseType in type.BaseTypes ?? [])
+            {
+                var basetype = PluginFromPluginRecursive(oldBaseType);
+                if (basetype != null)
+                {
+                    basetype.AddDerivedType(plugin);
+                    plugin.AddBaseType(basetype);
+                    plugin.AddPluginTypes(basetype.PluginTypes);
+                }
+            }
+
+            foreach (var oldInterfaceType in type.PluginTypes ?? [])
+            {
+                var @interface = PluginFromPluginRecursive(oldInterfaceType);
+                if (@interface != null)
+                {
+                    plugin.AddPluginType(@interface);
+                }
+            }
+
+            plugin.FinalizeCreation();
+
+            if (plugin.PluginTypes != null)
+            {
+                PluginTypes.Add(plugin);
+            }
+
+            return plugin;
+        }
+
+        private void AbsorbLoadedPlugins(PluginSearcher searcher)
+        {
+            // The searcher we are currently absorbing can be mutated by calls to e.g. TypeData.FromType()
+            // We need to guard against access to searcher.AllTypes while we are absorbing it.
+            lock (searcher.AddAssemblyLock)
+            {
+                // Create new instances of all the plugins which were already loaded. 
+                // This solves problems related to scanning new plugin versions after a package upgrade.
+                // The current process should keep displaying information about the loaded plugin instead of whatever is on disk.
+                TypeData[] alreadyLoaded = [.. searcher.AllTypes.Values.Where(x => x.IsAssemblyLoaded())];
+                foreach (var m in alreadyLoaded)
+                {
+                    PluginFromPluginRecursive(m);
+                }
+            }
         }
 
         /// <summary>
@@ -444,10 +503,8 @@ namespace OpenTap
         /// </summary>
         public IEnumerable<TypeData> Search(IEnumerable<string> files)
         {
-            InvalidateUnloadedPlugins();
             Stopwatch timer = Stopwatch.StartNew();
-            if (graph == null)
-                graph = new AssemblyDependencyGraph(Option);
+            graph ??= new AssemblyDependencyGraph(Option);
             Assemblies = graph.Generate(files);
             log.Debug(timer, "Ordered {0} assemblies according to references.", Assemblies.Count());
 
@@ -517,40 +574,6 @@ namespace OpenTap
                 }
             }
         }
-
-        /// <summary>
-        /// Invalidate all plugins which have not been loaded yet. 
-        /// This will allow removing / reloading a different instance of the type
-        /// the next time Search() is called.
-        /// </summary>
-        private void InvalidateUnloadedPlugins()
-        {
-            List<TypeData> removed = [];
-            var keys = AllTypes.Where(x => x.Value.IsAssemblyLoaded() == false).ToArray();
-            foreach (var key in keys) 
-            {
-                removed.Add(key.Value);
-                AllTypes.Remove(key.Key);
-            }
-            foreach (var plugin in PluginTypes.ToArray())
-            {
-                if (plugin.IsAssemblyLoaded() == false)
-                {
-                    PluginTypes.Remove(plugin);
-                    removed.Add(plugin);
-                }
-            }
-
-            // If a type was removed, remove it as a derived type from all remaining typedata.
-            foreach (var plugin in AllTypes)
-            {
-                foreach (var r in removed)
-                {
-                    plugin.Value.RemoveDerivedType(r);
-                }
-            }
-        }
-
 
         /// <summary>
         /// All types found by the search indexed by their SearchAssembly.FullName.
