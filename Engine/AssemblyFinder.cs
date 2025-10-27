@@ -87,6 +87,13 @@ namespace OpenTap
                         var dir = dirToSearch.Dequeue();
                         try
                         {
+                            // This can happen if the package containing this directory was uninstalled.
+                            if (!Directory.Exists(dir.Info.FullName)) 
+                            {
+                                log.Debug($"Skipping directory {dir.Info.FullName}; directory was removed.");
+                                continue;
+                            }
+
                             FileInfo[] filesInDir = dir.Info.GetFiles();
                             if (filesInDir.Any(x => StrEq(x.Name, ".OpenTapIgnore")))  // .OpenTapIgnore means we should ignore this folder and sub folders w.r.t. both Assembly resolution and Plugin searching
                                 continue;
