@@ -46,10 +46,21 @@ EOF
 exit 1
 fi
 
+DOTNET_CMD=dotnet
+# check if dotnet is in PATH
+if ! command -v dotnet > /dev/null 2>&1; then
+  # if dotnet is not in path, check the location where the installer attempts to install it
+  DOTNET_CMD="$HOME/.dotnet/dotnet"
+  if [ ! -x "$DOTNET_CMD" ]; then
+    echo "dotnet could not be found."
+    exit 1
+  fi
+fi
+
 # -w checks if TapDllDir exists and is writable by the current user.
 if [ -w "$TapDllDir" ]; then
   # use exec to replace the current process instead of starting a child process
-  exec dotnet "$TapDllPath" "$@"
+  exec "$DOTNET_CMD" "$TapDllPath" "$@"
 else
   # If the user cannot write to the installation, OpenTAP will not work correctly.
   echo "User $USER does not have write access to this OpenTAP installation." >&2

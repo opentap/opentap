@@ -41,6 +41,24 @@ namespace OpenTap
 
 
         /// <summary>
+        /// Clone this typedata instance. Note that it is only partially cloned.
+        /// In particular, derived types and base types are not populated.
+        /// </summary>
+        /// <returns></returns>
+        internal TypeData Clone()
+        {
+            return new TypeData(Name)
+            {
+                IsBrowsable = IsBrowsable,
+                display = display,
+                helpLink = helpLink,
+                canCreateInstance = canCreateInstance,
+                Assembly = Assembly,
+                TypeAttributes = TypeAttributes,
+            };
+        }
+        
+        /// <summary>
         /// Gets.the DisplayAttribute for this type. Null if the type does not have a DisplayAttribute
         /// </summary>
         public DisplayAttribute Display
