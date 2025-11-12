@@ -116,8 +116,9 @@ namespace OpenTap
             get { return isConnected; }
             set
             {
+                if(value == isConnected) return;
                 isConnected = value;
-                OnPropertyChanged("IsConnected");
+                OnPropertyChanged(nameof(IsConnected));
             }
         }
 

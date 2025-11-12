@@ -128,7 +128,7 @@ namespace OpenTap
         int waiting;
         int clientCount;
         long mainStreamPosition;
-        public int Read(byte[] bytes, long subStreamPosition, int bufferOffset, int count)
+        public int Read(byte[] buffer, long subStreamPosition, int bufferOffset, int count)
         {
             if (done) return 0;
             if (readException != null)
@@ -155,7 +155,7 @@ namespace OpenTap
                     waitEvent.Wait();
                 }
                 // new blocks released. start over.
-                return Read(bytes, subStreamPosition, bufferOffset, count);
+                return Read(buffer, subStreamPosition, bufferOffset, count);
             }
 
             // read the block byte-by-byte.
@@ -166,11 +166,11 @@ namespace OpenTap
                 {
                     // End of the block reached.
                     // start Read over with new args.
-                    int r = Read(bytes, subStreamPosition + i, bufferOffset + i, count - i);
+                    int r = Read(buffer, subStreamPosition + i, bufferOffset + i, count - i);
                     if (r == 0) return i;
                     return r + i;
                 }
-                bytes[i] = currentBlock[o2];
+                buffer[i + bufferOffset] = currentBlock[o2];
             }
             return count;
         }

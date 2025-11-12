@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using NUnit.Framework;
@@ -32,7 +33,53 @@ namespace OpenTap.Engine.UnitTests
             Assert.IsTrue(run.Artifacts.Contains(file2));
             Assert.IsTrue(run.Artifacts.Any(x => Path.GetExtension(x) == ".zip"));
         }
+
+        public class ArtifactMemoryStreamStep : TestStep
+        {
+            public byte[] payload { get; set; }
+            public override void Run()
+            {
+                var ms = new MemoryStream(payload);
+                ms.Seek(0, SeekOrigin.Begin);
+                this.PlanRun.PublishArtifact(ms, "MemoryStream Artifact");
+                UpgradeVerdict(Verdict.Pass);
+            }
+        }
+
+        class MemoryStreamArtifactListener : ResultListener, IArtifactListener
+        {
+            public byte[] ExpectedPayload { get; set; }
+            public byte[] ActualPayload { get; set; }
+            public void OnArtifactPublished(TestRun run, Stream artifactStream, string artifactName)
+            {
+                var ms = new MemoryStream();
+                artifactStream.CopyTo(ms);
+                ActualPayload = ms.ToArray();
+            }
+        }
         
+        [Test]
+        public void ArtifactMemoryStreamTest([Values(1, 2, 4, 8)] int concurrentListeners, [Values(1, 1 << 10, 1 << 15, 1 << 20)] int streamLength)
+        {
+            byte[] payload = new byte[streamLength];
+            var rand = new Random();
+            rand.NextBytes(payload);
+            var step = new ArtifactMemoryStreamStep()
+            {
+                payload = payload,
+            };
+            var listeners = Enumerable.Range(0, concurrentListeners)
+                .Select(x => new MemoryStreamArtifactListener() { ExpectedPayload = step.payload }).ToArray();
+            var plan = new TestPlan()
+            {
+                ChildTestSteps = { step },
+            };
+            var run = plan.Execute(listeners);
+            Assert.That(run.Verdict, Is.EqualTo(Verdict.Pass));
+            foreach (var rl in listeners)
+                Assert.That(rl.ExpectedPayload, Is.EqualTo(rl.ActualPayload).AsCollection);
+        }
+
         [Test]
         public void ZippingLogFileTestParallel()
         {
