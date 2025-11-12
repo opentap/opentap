@@ -14,7 +14,6 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Xml;
 using OpenTap.Repository.Client;
 using OpenTap.Authentication;
@@ -31,7 +30,7 @@ namespace OpenTap.Package
 
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
         private HttpClient client;
-        private HttpClient HttpClient => client ??= GetHttpClient();
+        
         private static HttpClient GetHttpClient()
         {
             var httpClient = AuthenticationSettings.Current.GetClient(null, true);
@@ -156,7 +155,7 @@ namespace OpenTap.Package
 
         private string downloadPackagesString(string args, string data = null, string contentType = null, string accept = null)
         {
-            string xmlText = null;
+            
             try
             {
                 HttpRequestMessage httpRequestMessage = new HttpRequestMessage(HttpMethod.Get, Url + args);
@@ -167,8 +166,12 @@ namespace OpenTap.Package
                     httpRequestMessage.Method = HttpMethod.Post;
                     httpRequestMessage.Content = new StringContent(data);
                 }
-                var response = HttpClient.SendAsync(httpRequestMessage).GetAwaiter().GetResult();
-                xmlText = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+
+                using var httpClient = GetHttpClient();
+                var response = httpClient.SendAsync(httpRequestMessage).GetAwaiter().GetResult();
+                var xmlText = response.Content.ReadAsStringAsync().GetAwaiter().GetResult();
+                return xmlText;
+
             }
             catch (Exception ex)
             {
@@ -188,7 +191,6 @@ namespace OpenTap.Package
 
                 throw;
             }
-            return xmlText;
         }
 
         // The value indicates the next time at which the repo should be tried connected to.
