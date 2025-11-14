@@ -73,14 +73,10 @@
         <File Path="Packages/OpenTAP/tap.dll.new" SourcePath="tap.dll" >
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
-        <!-- The tap upgrader is only necessary on Windows because we cannot overwrite tap.exe otherwise -->
-        <File Path="Packages/OpenTAP/Tap.Upgrader.runtimeconfig.json" SourcePath="Tap.Upgrader.runtimeconfig.json"/>
+        <!-- The tap upgrader is only necessary on Windows because we cannot overwrite tap.exe otherwise.
+        We need tap upgrader in downgrade scenarios, otherwise old versions cannot overwrite tap.exe or tap.dll.-->
         <File Path="Packages/OpenTAP/Tap.Upgrader.exe" SourcePath="Tap.Upgrader.exe">
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
-        </File>
-        <File Path="Packages/OpenTAP/Tap.Upgrader.dll" SourcePath="Tap.Upgrader.dll">
-          <SetAssemblyInfo Attributes="Version"/>
-          <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="OpenTapApiReference.chm"
               SourcePath="../../Help/OpenTapApiReference.chm"

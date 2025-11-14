@@ -26,4 +26,7 @@
       <InformationalVersion>9.31.0-alpha+developerBuild</InformationalVersion>
     <FileVersion>9.31.0.0</FileVersion> 
   </PropertyGroup>
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <TargetFramework>net472</TargetFramework>
+  </PropertyGroup>
 </Project>

@@ -10,7 +10,7 @@ namespace Tap.Upgrader
         // File.Move only works on open files if the source and destination are on the same volume.
         // The easiest way to ensure this is to move files to be deleted to a subdirectory of the same installation.
         private static string UninstallPath => Path.Combine(Installation, ".uninstall");
-        private static string PackageDir => Path.GetDirectoryName(Environment.ProcessPath);
+        private static string PackageDir => Path.GetDirectoryName(typeof(Program).Assembly.Location);
         private static string Installation => new DirectoryInfo(PackageDir).Parent.Parent.FullName;
 
         private static void Uninstall(string filename)
