@@ -97,6 +97,11 @@ There are a few CLI options, which most `package` subcommands have in common:
 The default values of `os` and `architecture` are automatically configured according to the machine where OpenTAP is
 installed, and the default repository is the official OpenTAP repository, [packages.opentap.io](http://packages.opentap.io).
 
+When specifying a HTTPS-based repository, you can add a authorization token. This can be used to grant access to private packages. For example:
+```sh
+tap package install MyPackage --repository "https://package.opentap.io;token=<your authentication token>"
+```
+
 By default, all package commands apply operations in the OpenTAP installation directory, where the `tap` executable file is located. The `--target`
 option makes it possible to manage multiple `tap` versions on the same machine.
 
