@@ -162,8 +162,8 @@ namespace OpenTap.Package
 
         enum WipeInstallationResponse
         {
-            No,
             Yes,
+            No,
         }
 
         [Display("Completely wipe installation?")]
