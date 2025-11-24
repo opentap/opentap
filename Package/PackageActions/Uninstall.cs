@@ -314,8 +314,8 @@ namespace OpenTap.Package
 
     enum UninstallResponse
     {
-        No,
         Yes,
+        No,
     }
 
     [Display("Uninstall bundled package?")]
