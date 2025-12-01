@@ -59,10 +59,17 @@ namespace OpenTap.Package
 
         internal static bool TryFindParentInstallation(string targetDirectory, out string parent)
         {
+            static bool StrEq(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
             var dir = new DirectoryInfo(targetDirectory).Parent;
             while (dir != null)
             {
-                if (dir.EnumerateFiles("OpenTap.dll").Any())
+                FileInfo[] filesInDir = dir.GetFiles();
+                if (filesInDir.Any(x => StrEq(x.Name, ".OpenTapIgnore")))
+                {
+                    parent = null;
+                    return false;
+                }
+                if (filesInDir.Any(x => StrEq(x.Name, "OpenTap.dll")))
                 {
                     parent = dir.FullName;
                     return true;
