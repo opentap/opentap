@@ -247,7 +247,8 @@ namespace OpenTap
         {
             searchTask.Reset();
             CacheState.OnUpdated();
-            return TapThread.StartAwaitable(Search);  
+            TapThread.Start(Search);  
+            return Task.Run(() => GetSearcher());        
         }
         
         ///<summary>Searches for plugins.</summary>
