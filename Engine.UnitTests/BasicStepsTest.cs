@@ -208,5 +208,20 @@ namespace OpenTap.UnitTests
             // if SweepParameters.Count > 0 && across-runs mode was enabled. This could cause an exception.
             Assert.AreEqual(0, sweep.ReferencedResources.Count());
         }
+
+        [Test]
+        public void TestScpiQueryNullValidation()
+        {
+            var scpiStep = new SCPIRegexStep();
+            scpiStep.Query = null;
+            Assert.DoesNotThrow(() =>
+            {
+                foreach (var rule in scpiStep.Rules)
+                {
+                    rule.IsValid().ToString();
+                    rule.ErrorMessage.ToString();
+                }
+            });
+        }
     }
 }

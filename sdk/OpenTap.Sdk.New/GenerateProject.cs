@@ -22,8 +22,8 @@ namespace OpenTap.Sdk.New
     {
         enum CreateProjectResponse
         {
-            No,
             Yes,
+            No,
         } 
         
         class CreateProjectQuestion 

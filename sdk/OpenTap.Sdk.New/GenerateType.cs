@@ -144,7 +144,7 @@ namespace OpenTap.Sdk.New
 
     public enum RequestEnum
     {
-        No,
-        Yes
+        Yes,
+        No
     }
 }
