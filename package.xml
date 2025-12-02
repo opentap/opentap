@@ -38,6 +38,9 @@
             <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
+        <File Path="OpenTapApiReference.chm"
+              SourcePath="../../Help/OpenTapApiReference.chm"
+              Condition="$(Debug) == false"/>
     </Files>
     <!-- For debug builds. Includes debugging symbols and puts all the DLLs in the OpenTAP root directory.  -->
     <Files Condition="$(Debug) == true">
@@ -53,6 +56,7 @@
         <File Path="OpenTap.Cli.pdb"/>
         <File Path="Packages/OpenTAP/Tap.Upgrader.pdb" SourcePath="Tap.Upgrader.pdb"/>
     </Files>
+    
     <!-- Windows only files -->
     <Files Condition="$(Platform) != Windows">
         <File Path="tap.runtimeconfig.json" SourcePath="../../Shared/tap.runtimeconfig.json" />
@@ -82,9 +86,6 @@
           <SetAssemblyInfo Attributes="Version"/>
           <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
-        <File Path="OpenTapApiReference.chm"
-              SourcePath="../../Help/OpenTapApiReference.chm"
-              Condition="$(Debug) == false"/>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll.$(Architecture)"/>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.source" SourcePath="libgit2-b7bad55.source"/>
     </Files>
