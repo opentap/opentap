@@ -53,7 +53,13 @@ namespace OpenTap
             });
             if (p == null) throw new Exception($"sudo is not installed.");
             p.StandardInput.WriteLine(passwordQuestion.Response.ConvertToUnsecureString());
-            p.WaitForExit(100);
+            // Close stdin to indicate there is no more input. Otherwise the command
+            // can hang under some circumstances.
+            p.StandardInput.Close();
+            // Wait at most 10 seconds for sudo to exit.
+            // This is normally much faster, but e.g. AD PAM modules can be really slow
+            // under some circumstances.
+            p.WaitForExit(10000);
             if (p.HasExited == false) p.Kill();
             return p.HasExited && p.ExitCode == 0;
         }
