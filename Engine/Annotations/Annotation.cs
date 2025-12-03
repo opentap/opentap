@@ -3599,6 +3599,8 @@ namespace OpenTap
     /// </summary>
     internal class AnnotationResolver
     {
+        static readonly TraceSource log = Log.CreateSource("AnnotationResolver");
+
         List<IAnnotator> annotators;
         /// <summary> The current annotation. </summary>
         public AnnotationCollection Annotations { get; private set; }
@@ -3610,9 +3612,26 @@ namespace OpenTap
         public AnnotationResolver()
         {
             var annotatorTypes = PluginManager.GetPlugins<IAnnotator>();
+            
             if (Annotators == null || Annotators.Count != annotatorTypes.Count)
             {
-                Annotators = annotatorTypes.Select(x => Activator.CreateInstance(x)).OfType<IAnnotator>().ToList();
+                Annotators = annotatorTypes
+                    .Select(x =>
+                    {
+                        try
+                        {
+                            
+                            return (IAnnotator)Activator.CreateInstance(x);
+                        }
+                        catch (Exception ex)
+                        {   
+                            log.Error($"Failed to instantiate annotator: {ex.Message}");
+                            log.Debug(ex);
+                            return null;
+                        }
+                    })
+                    .Where(a => a != null)
+                    .ToList();
                 Annotators.Sort((x, y) => x.Priority.CompareTo(y.Priority));
             }
 
