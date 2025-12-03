@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>OpenTap.Plugins.BasicSteps</AssemblyName>
+    <AssemblyTitle>OpenTap.Plugins.BasicSteps</AssemblyTitle>
+    <AssemblyDescription>Basic Test Steps like loop and if.</AssemblyDescription>
     <RootNamespace>OpenTap.Plugins.BasicSteps</RootNamespace>
      <!-- Re-enable this when we actually get around to documenting all basicsteps APIs -->
     <NoWarn>CS1591</NoWarn>
@@ -11,7 +13,6 @@
     <Compile Include="..\Engine\ObjectCloner.cs">
       <Link>ObjectCloner.cs</Link>
     </Compile>
-    <Compile Include="..\Shared\AssemblyInfo.cs" Link="Shared\AssemblyInfo.cs" />
     <Compile Include="..\Shared\ExecutorInterop.cs" Link="Shared\ExecutorInterop.cs" />
     <Compile Include="..\Shared\OperatingSystem.cs" Link="Shared\OperatingSystem.cs" />
     <Compile Include="..\Shared\PipeReader.cs" Link="Shared\PipeReader.cs" />

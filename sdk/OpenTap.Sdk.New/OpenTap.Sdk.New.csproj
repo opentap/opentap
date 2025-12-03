@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <PlatformTarget>AnyCPU</PlatformTarget>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Resources\*.txt" />

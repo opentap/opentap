@@ -4,26 +4,6 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <AssemblyTitle>Tap.Upgrader</AssemblyTitle>
-  </PropertyGroup>
-
-  <!-- Automatic assembly versioning in pipeline-->
-  <PropertyGroup Condition="'$(ShortVersion)' != ''">
-    <Version>$(ShortVersion)</Version>
-    <AssemblyVersion>$(ShortVersion)</AssemblyVersion>
-    <InformationalVersion>$(GitVersion)</InformationalVersion>
-    <FileVersion>$(ShortVersion).0</FileVersion> 
-  </PropertyGroup>
-
-  <!-- Automatic assembly versioning in pipeline-->
-  <PropertyGroup Condition="'$(ShortVersion)' == ''">
-    <Version>9.31.0</Version>
-    <AssemblyVersion>9.31.0</AssemblyVersion>
-      <InformationalVersion>9.31.0-alpha+developerBuild</InformationalVersion>
-    <FileVersion>9.31.0.0</FileVersion> 
   </PropertyGroup>
 </Project>

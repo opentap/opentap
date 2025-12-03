@@ -1,6 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>OpenTap.UnitTests</AssemblyName>
+    <AssemblyTitle>OpenTap.UnitTests</AssemblyTitle>
+    <AssemblyDescription>Unit Tests for the OpenTAP Engine</AssemblyDescription>
     <RootNamespace>OpenTap.UnitTests</RootNamespace>
     <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
   </PropertyGroup>

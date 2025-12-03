@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>OpenTap.Package</AssemblyName>
+    <AssemblyTitle>OpenTap.Package</AssemblyTitle>
     <RootNamespace>OpenTap.Package</RootNamespace>
     <DocumentationFile>$(OutputPath)\OpenTap.Package.xml</DocumentationFile>
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -9,7 +10,6 @@
   <ItemGroup>
     <None Remove="PackageSchema.xsd" />
     <Compile Include="..\Shared\ArgumentsParser.cs" Link="Shared\ArgumentsParser.cs" />
-    <Compile Include="..\Shared\AssemblyInfo.cs" Link="Shared\AssemblyInfo.cs" />
     <Compile Include="..\Shared\ExecutorInterop.cs" Link="Shared\ExecutorInterop.cs" />
     <Compile Include="..\Shared\FileSystemHelper.cs" Link="Shared\FileSystemHelper.cs" />
     <Compile Include="..\Shared\ICliActionExtensions.cs" Link="Shared\ICliActionExtensions.cs" />

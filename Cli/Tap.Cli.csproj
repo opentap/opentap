@@ -2,12 +2,12 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <AssemblyName>OpenTap.Cli</AssemblyName>
+    <AssemblyTitle>OpenTap.Cli</AssemblyTitle>
     <RootNamespace>OpenTap.Cli</RootNamespace>
     <PlatformTarget>AnyCPU</PlatformTarget>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Shared\AnsiColorCodeFix.cs" Link="Shared\AnsiColorCodeFix.cs" />
-    <Compile Include="..\Shared\AssemblyInfo.cs" Link="Shared\AssemblyInfo.cs" />
     <Compile Include="..\Shared\ExecutorInterop.cs" Link="Shared\ExecutorInterop.cs" />
     <Compile Include="..\Shared\OperatingSystem.cs" Link="Shared\OperatingSystem.cs" />
   </ItemGroup>

@@ -1,8 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">  
   <PropertyGroup>    
     <AssemblyName>OpenTap.Package.UnitTests</AssemblyName>
+    <AssemblyTitle>OpenTap.Package.UnitTests</AssemblyTitle>
+    <AssemblyProduct>OpenTap.Package.UnitTests</AssemblyProduct>
     <RootNamespace>OpenTap.Package.UnitTests</RootNamespace>
     <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <AssemblyFileVersion>1.0.0.0</AssemblyFileVersion>
   </PropertyGroup>
   
   <ItemGroup>

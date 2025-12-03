@@ -1,6 +1,5 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <LangVersion>latest</LangVersion>
@@ -16,22 +15,42 @@
     <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
   </PropertyGroup>
 
+  <!-- Automatic assembly versioning in pipeline-->
+  <PropertyGroup>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <AssemblyCompany>Keysight Technologies</AssemblyCompany>
+    <AssemblyProduct>OpenTAP</AssemblyProduct>
+    <AssemblyCopyright>© Keysight Technologies 2012-2025</AssemblyCopyright>
+    <AssemblyTrademark>""</AssemblyTrademark>
+    <AssemblyCulture>""</AssemblyCulture>
+    <AssemblyConfiguration>""</AssemblyConfiguration>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(ShortVersion)' != ''">
+    <Version>$(ShortVersion)</Version>
+    <AssemblyVersion>$(ShortVersion)</AssemblyVersion>
+    <InformationalVersion>$(GitVersion)</InformationalVersion>
+    <FileVersion>$(ShortVersion).0</FileVersion> 
+  </PropertyGroup>
+
+  <!-- Automatic assembly versioning in pipeline-->
+  <PropertyGroup Condition="'$(ShortVersion)' == ''">
+    <Version>9.99.0</Version>
+    <AssemblyVersion>9.99.0</AssemblyVersion>
+    <InformationalVersion>9.99.0-alpha+developerBuild</InformationalVersion>
+    <FileVersion>9.99.0.0</FileVersion> 
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <IsDebug>true</IsDebug>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsDebug)'=='true'">
     <OutputPath>$(MSBuildThisFileDirectory)bin\Debug\</OutputPath>
-    <Optimize>false</Optimize>
-    <DebugType>full</DebugType>
-    <DebugSymbols>true</DebugSymbols>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsDebug)'!='true'">
     <OutputPath>$(MSBuildThisFileDirectory)bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
   </PropertyGroup>
 
   <Target Name="RemoveSatelliteAssemblies" AfterTargets="ResolveAssemblyReferences">
