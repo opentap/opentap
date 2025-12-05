@@ -106,7 +106,7 @@ namespace OpenTap
 
         internal void AfterClose(IEnumerable<IResourceReferences> resources, CancellationToken cancellationToken)
         {
-            foreach (ILockManager lockManager in managers.Reverse<ILockManager>())
+            foreach (ILockManager lockManager in Enumerable.Reverse(managers))
             {
                 lockManager.AfterClose(resources, cancellationToken);
             }
