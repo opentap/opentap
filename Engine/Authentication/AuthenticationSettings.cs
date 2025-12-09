@@ -46,10 +46,12 @@ namespace OpenTap.Authentication
                 throw new InvalidOperationException();
             }
 
-            public AuthenticationClientHandler(string domain = null, bool withRetryPolicy = false)
+            public AuthenticationClientHandler(string domain = null, bool withRetryPolicy = false) : this(domain, withRetryPolicy, false) { }
+            public AuthenticationClientHandler(string domain = null, bool withRetryPolicy = false, bool skipServerCertificateValidation = false)
             {
                 this.domain = domain;
                 this.withRetryPolicy = withRetryPolicy;
+                if (skipServerCertificateValidation) ServerCertificateCustomValidationCallback = (_1, _2, _3, _4) => true;
             }
             protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
                 CancellationToken cancellationToken)
@@ -113,21 +115,22 @@ namespace OpenTap.Authentication
         {
             if (Uri.IsWellFormedUriString(domain, UriKind.Absolute))
                 throw new ArgumentException("Domain should only be the host part of a URI and not a full absolute URI.", nameof(domain));
-            var client = new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy));
+
+            Uri clientBaseAddress = null;
             if (baseAddress != null)
             {
                 if (Uri.IsWellFormedUriString(baseAddress, UriKind.Absolute))
-                    client.BaseAddress = new Uri(baseAddress);
+                    clientBaseAddress = new Uri(baseAddress);
                 else if (Uri.IsWellFormedUriString(baseAddress, UriKind.Relative))
                     if (BaseAddress != null)
-                        client.BaseAddress = new Uri(new Uri(BaseAddress), baseAddress);
+                        clientBaseAddress = new Uri(new Uri(BaseAddress), baseAddress);
                     else
                         throw new ArgumentException("Address cannot be relative when AuthenticationSettings.BaseAddress is null.", nameof(baseAddress));
                 else
                     throw new ArgumentException("Address must be a well formed URL or null.", nameof(baseAddress));
             }
             else if(BaseAddress != null)
-                client.BaseAddress = new Uri(BaseAddress);
+                clientBaseAddress = new Uri(BaseAddress);
 
             if (userAgent == null)
             {
@@ -163,6 +166,11 @@ namespace OpenTap.Authentication
                     callingUseAgent += $" {assemblyData.Name}/{ver}";
                 }
             }
+
+            TokenInfo token = Tokens.FirstOrDefault(t => t.Domain == domain)
+                ?? Tokens.FirstOrDefault(t => t.Domain == clientBaseAddress.Host);
+            bool skipSsl = token?.SkipServerCertificateValidation ?? false;
+            var client = new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy, skipSsl)) { BaseAddress = clientBaseAddress };
             client.DefaultRequestHeaders.Add("User-Agent", callingUseAgent);
             return client;
         }
