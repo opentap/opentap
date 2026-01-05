@@ -715,7 +715,16 @@ namespace OpenTap
             objectFactories.Add((type, func));
         }
 
-        /// <summary> Gets all object factories. </summary>
-        public IEnumerable<(Type, Func<Type, object>)> ObjectFactories => objectFactories;
+        /// <summary>
+        /// Gets a object factory based on a type.
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        public Func<Type, object> GetObjectFactory(Type type)
+        {
+            return objectFactories
+                .FirstOrDefault(factory => type.DescendsTo(factory.Item1)).Item2;
+        }
+        
     }
 }

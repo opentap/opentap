@@ -96,9 +96,9 @@ namespace OpenTap.Plugins
                         }
                     }
 
-                    if (Serializer.ObjectFactories.FirstOrDefault(factory => t.DescendsTo(factory.Item1)) is {} value)
+                    if (Serializer.GetObjectFactory(t) is {} factory)
                     {
-                        ctor = () => value.Item2.Invoke(t) as IList;
+                        ctor = () => factory(t) as IList;
                         return true;
                     }
 
