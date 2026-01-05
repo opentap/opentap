@@ -584,8 +584,47 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(1, iterations[0]);
             Assert.IsTrue(iterations.Count() == loop.SweepPoints);
             Assert.IsTrue(iterations.Distinct().Count() == iterations.Length);
+        }
 
+        [Test]
+        public void SweepOfSweepTest()
+        {
+            var plan = new TestPlan();
+            var loopOuter = new SweepParameterStep();
+            var loopInner = new SweepParameterStep();
+            var step = new DoubleTestStep();
+            plan.ChildTestSteps.Add(loopOuter);
+            loopOuter.ChildTestSteps.Add(loopInner);
+            loopInner.ChildTestSteps.Add(step);
 
+            TypeData.GetTypeData(step).GetMember(nameof(step.Value)).Parameterize(loopInner, step, "Value");
+            loopInner.SelectedParameters.Add(loopInner.AvailableParameters.First());
+            TypeData.GetTypeData(loopInner).GetMember(nameof(loopInner.SweepValues)).Parameterize(loopOuter, loopInner, "A");
+            loopOuter.SelectedParameters.Add(loopOuter.AvailableParameters.First());
+            
+            void addSweepRow(SweepParameterStep step)
+            {
+                var a = AnnotationCollection.Annotate(step);
+                var values = a.GetMember(nameof(step.SweepValues));
+                var col = values.Get<ICollectionAnnotation>();
+                var newelem = col.NewElement();
+                col.AnnotatedElements = col.AnnotatedElements
+                    .Append(newelem);
+                a.Write();
+            }
+
+            addSweepRow(loopInner);
+            addSweepRow(loopOuter);
+            addSweepRow(loopOuter);
+            var v1 = TypeData.GetTypeData(loopOuter.SweepValues[0]).GetMember("A").GetValue(loopOuter.SweepValues[0]);
+            var v2 = TypeData.GetTypeData(loopOuter.SweepValues[1]).GetMember("A").GetValue(loopOuter.SweepValues[1]);
+            Assert.AreNotEqual(loopOuter.SweepValues[0], loopOuter.SweepValues[1]);
+            Assert.AreNotEqual(v1, v2);
+            Assert.AreEqual(2, loopOuter.SweepValues.Count);
+            Assert.AreNotEqual(loopOuter.SweepValues[0].Values["A"], loopOuter.SweepValues[1].Values["A"]);
+            
+            var err = loopOuter.Error;
+            Assert.IsTrue(string.IsNullOrWhiteSpace(err));
         }
     }
 }

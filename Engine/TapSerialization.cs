@@ -703,5 +703,19 @@ namespace OpenTap
         internal XName PropertyXmlName(string subPropName) => xmlPropertyNames.GetOrCreateValue(subPropName, name => XmlConvert.EncodeLocalName(name));
 
 
+        List<(Type, Func<Type, object>)> objectFactories = new();
+        
+        /// <summary>
+        /// Adds a factory function for when an object type cannot be constrcuted.
+        /// </summary>
+        /// <param name="type"></param>
+        /// <param name="func"></param>
+        public void AddObjectFactory(Type type, Func<object, object> func)
+        {
+            objectFactories.Add((type, func));
+        }
+
+        /// <summary> Gets all object factories. </summary>
+        public IEnumerable<(Type, Func<Type, object>)> ObjectFactories => objectFactories;
     }
 }

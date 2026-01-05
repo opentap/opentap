@@ -260,7 +260,7 @@ namespace OpenTap.Plugins.BasicSteps
         public void SetValue(object owner, object value)
         {
             var own = (SweepRow)owner;
-            own.Values[Name] = cloneIfPossible(value, own.Loop);
+            own.Values[Name] = CloneIfPossible(value, own.Loop);
         }
 
         public object GetValue(object owner)
@@ -268,13 +268,15 @@ namespace OpenTap.Plugins.BasicSteps
             var own = (SweepRow)owner;
             if(own.Values.TryGetValue(Name, out var value))
                 return value;
-            var newv = cloneIfPossible(this.innerMember.GetValue(owner), own.Loop);
+            var newv = CloneIfPossible(this.innerMember.GetValue(owner), own.Loop);
             own.Values[Name] = newv;
             return newv;
         }
         
         TapSerializer tapSerializer;
-        object cloneIfPossible(object value, object context)
+
+        
+        object CloneIfPossible(object value, object context)
         {
             if (value == null) return null;
             var valType = TypeData.GetTypeData(value);
@@ -288,10 +290,21 @@ namespace OpenTap.Plugins.BasicSteps
                     return result2;
             }
             
-            if(tapSerializer == null) tapSerializer = new TapSerializer();
+            var serializer = tapSerializer ??= new TapSerializer(); 
             try
             {
-                return tapSerializer.DeserializeFromString(tapSerializer.SerializeToString(value), valType) ?? value;
+                var xml = serializer.SerializeToString(value);
+                if (value is SweepRowCollection sr)
+                {
+                    // since SweepRowCollection has a factory function
+                    // it cannot be cloned the simple way - some additional context is needed.
+                    serializer = new TapSerializer();
+                    serializer.AddObjectFactory(typeof(SweepRowCollection), t => new SweepRowCollection(sr.Loop));
+                }
+                
+                var result2 = serializer.DeserializeFromString(xml, valType) ?? value;
+                
+                return result2;
             }
             catch
             {

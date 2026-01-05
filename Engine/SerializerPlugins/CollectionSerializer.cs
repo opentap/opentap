@@ -96,6 +96,12 @@ namespace OpenTap.Plugins
                         }
                     }
 
+                    if (Serializer.ObjectFactories.FirstOrDefault(factory => t.DescendsTo(factory.Item1)) is {} value)
+                    {
+                        ctor = () => value.Item2.Invoke(t) as IList;
+                        return true;
+                    }
+
                     ctor = null;
                     return false;
                 }
@@ -155,9 +161,7 @@ namespace OpenTap.Plugins
                 {
                     if (!_t.CanCreateInstance && !t.IsArray)
                     {
-                        var os = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
-                        var mem = os?.CurrentMember;
-                        if (mem == null) throw new Exception("Unable to get member list");
+                        
                         /* First check if there is a factory we can use. */
                         if (tryGetFactory(out var f))
                         {
@@ -166,6 +170,10 @@ namespace OpenTap.Plugins
                         } 
                         else /* otherwise try to update in place */
                         {
+                            var os = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
+                            var mem = os?.CurrentMember;
+                            if (mem == null) throw new Exception("Unable to get member list");
+                            
                             // the data has to be updated in-place.
                             var val = ((IEnumerable)mem.GetValue(os.Object)).Cast<object>();
                             var elems = element.Elements();

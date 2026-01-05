@@ -3,6 +3,7 @@ namespace OpenTap.Plugins.BasicSteps
     public class SweepRowCollection : VirtualCollection<SweepRow>
     {
         public SweepRowCollection(SweepParameterStep loop) => this.loop = loop;
+
         SweepParameterStep loop; 
         public SweepParameterStep Loop
         {
