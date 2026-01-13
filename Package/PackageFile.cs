@@ -646,7 +646,7 @@ namespace OpenTap.Package
         /// <returns></returns>
         public override string ToString()
         {
-            return String.Format("{0}|{1}", Name, Version);
+            return $"{Name}|{Version}";
         }
         
         /// <summary>
@@ -656,15 +656,28 @@ namespace OpenTap.Package
         /// <returns></returns>
         public static PackageDef FromXml(Stream stream)
         {
-            stream = ConvertXml(stream);
+            var doc = ConvertLegacyXml(stream);
 
             var serializer = new TapSerializer();
-            return (PackageDef)serializer.Deserialize(stream, type: TypeData.FromType(typeof(PackageDef)));
+            return (PackageDef)serializer.Deserialize(doc, type: TypeData.FromType(typeof(PackageDef)));
         }
 
-        static Stream ConvertXml(Stream stream)
+        
+        static XDocument ConvertLegacyXml(Stream stream)
         {
-            var root = XElement.Load(stream);
+            // For some reason(Probably because of a legacy format), this code takes XML of the following format:
+            //<Files>
+            //   <File>
+            //      <Plugins>
+            //        <Plugin>Some type</Plugin> ...
+            // And turns it into
+            //<Files>
+            //   <File>
+            //      <Plugins>
+            //        <Plugin Type="Some type"></Plugin>
+            //
+            var doc = XDocument.Load(stream, LoadOptions.SetLineInfo);
+            var root = doc.Root;
 
             var xns = root.GetDefaultNamespace();
             var filesElement = root.Element(xns.GetName("Files"));
@@ -682,14 +695,13 @@ namespace OpenTap.Package
                         if (!plugin.HasElements && !plugin.IsEmpty)
                         {
                             plugin.SetAttributeValue("Type", plugin.Value);
-                            var value = plugin.Value;
                             plugin.Value = "";
                         }
                     }
                 }
             }
 
-            return new MemoryStream(Encoding.UTF8.GetBytes(root.ToString()));
+            return doc;
         }
         
         /// <summary>

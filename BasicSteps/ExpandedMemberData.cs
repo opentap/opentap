@@ -248,10 +248,10 @@ namespace OpenTap.Plugins.BasicSteps
         {
             this.declaringType = declaringType;
             this.innerMember = innerMember;
-            ParameterizedMembers = new (object, IMemberData)[]{(declaringType.SweepParameterLoop, innerMember)};
+            ParameterizedMembers = [(declaringType.SweepParameterLoop, innerMember)];
         }
 
-        public IEnumerable<object> Attributes => innerMember.Attributes;
+        public IEnumerable<object> Attributes => innerMember.Attributes.Where(attr => !(attr is FactoryAttribute || attr is ElementFactoryAttribute));
         public string Name => innerMember.Name;
         public ITypeData DeclaringType => declaringType;
         public ITypeData TypeDescriptor => innerMember.TypeDescriptor;
@@ -277,6 +277,22 @@ namespace OpenTap.Plugins.BasicSteps
         object cloneIfPossible(object value, object context)
         {
             if (value == null) return null;
+            if (value is SweepRow sr)
+            {
+                var sr2 = new SweepRow(sr.Loop);
+                foreach (var kv in sr.Values)
+                    sr2.Values.Add(kv.Key, cloneIfPossible(kv.Value, context));
+                return sr2;
+            }
+
+            if (value is SweepRowCollection src)
+            {
+                var src2 = new SweepRowCollection(src.Loop);
+                foreach(var element in src)
+                    src2.Add((SweepRow)cloneIfPossible(element, context));
+                return src2;
+            }
+            
             var valType = TypeData.GetTypeData(value);
             var td = valType.AsTypeData();
             if (td.IsValueType)

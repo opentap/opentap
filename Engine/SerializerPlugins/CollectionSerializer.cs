@@ -105,9 +105,6 @@ namespace OpenTap.Plugins
                 {
                     try
                     {
-                        var os = Serializer.SerializerStack
-                            .OfType<ObjectSerializer>()
-                            .FirstOrDefault();
                         if (!_t.CanCreateInstance && !t.IsArray && tryGetFactory(out var f))
                         {
                             setResult(f());
@@ -250,17 +247,8 @@ namespace OpenTap.Plugins
                     else
                     {
                         values = (IList) Activator.CreateInstance(t);
-                        if (values is ComponentSettings)
-                        {
-                            // ComponentSettings must be loaded now.
-                            foreach (var item in finalValues)
-                                ((IList) values).Add(item);
-                        }
-                        else
-                        {
-                            foreach (var val in finalValues)
-                                ((IList) values).Add(val);
-                        }
+                        foreach (var val in finalValues)
+                            ((IList)values).Add(val);
                     }
                 }
                 else if (finalValues is IList lst)

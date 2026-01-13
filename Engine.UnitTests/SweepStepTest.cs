@@ -15,7 +15,6 @@ namespace OpenTap.Engine.UnitTests
     [TestFixture]
     public class SweepStepTest
     {
-
         public class IsOpenedDut : Dut
         {
             public bool IsOpened = false;
@@ -26,11 +25,13 @@ namespace OpenTap.Engine.UnitTests
                 base.Open();
                 IsOpened = true;
             }
+
             public override void Close()
             {
                 base.Close();
                 IsClosed = true;
             }
+
             public void Use()
             {
                 IsUsed = true;
@@ -43,17 +44,17 @@ namespace OpenTap.Engine.UnitTests
 
             [ResourceOpen(ResourceOpenBehavior.Ignore)]
             public IsOpenedDut Resource2 { get; set; }
-            
+
             [ResourceOpen(ResourceOpenBehavior.Ignore)]
-            public IsOpenedDut[] Resource3 { get; set; } 
+            public IsOpenedDut[] Resource3 { get; set; }
 
             public override void Run()
             {
                 Assert.IsTrue(Resource.IsConnected);
-                if(Resource2 != Resource)
+                if (Resource2 != Resource)
                     Assert.IsFalse(Resource2.IsConnected);
-                foreach(var res in Resource3)
-                    if(res != Resource)
+                foreach (var res in Resource3)
+                    if (res != Resource)
                         Assert.IsFalse(res.IsConnected);
                 Resource.Use();
             }
@@ -74,13 +75,15 @@ namespace OpenTap.Engine.UnitTests
                 var theDuts = Enumerable.Range(0, 10).Select(number => new IsOpenedDut()).ToArray();
                 var otherdut = new IsOpenedDut();
 
-                step.ChildTestSteps.Add(new IsOpenUsedTestStep() { Resource = new IsOpenedDut(), Resource2 = otherdut, Resource3 = new []{new IsOpenedDut() }});
-                step.SweepParameters.Add(new OpenTap.Plugins.BasicSteps.SweepParam(new IMemberData[] { TypeData.FromType(typeof(IsOpenUsedTestStep)).GetMember("Resource") }, theDuts));
+                step.ChildTestSteps.Add(new IsOpenUsedTestStep()
+                    {Resource = new IsOpenedDut(), Resource2 = otherdut, Resource3 = new[] {new IsOpenedDut()}});
+                step.SweepParameters.Add(new OpenTap.Plugins.BasicSteps.SweepParam(
+                    new IMemberData[] {TypeData.FromType(typeof(IsOpenUsedTestStep)).GetMember("Resource")}, theDuts));
                 var plan = new TestPlan();
                 plan.PrintTestPlanRunSummary = true;
                 plan.ChildTestSteps.Add(step);
                 var rlistener = new PlanRunCollectorListener();
-                var planRun = plan.Execute(new IResultListener[] { rlistener });
+                var planRun = plan.Execute(new IResultListener[] {rlistener});
                 Assert.AreEqual(theDuts.Length + 1, rlistener.StepRuns.Count);
                 Assert.IsTrue(planRun.Verdict == Verdict.NotSet);
                 Assert.IsTrue(theDuts.All(dut => dut.IsClosed && dut.IsOpened && dut.IsUsed));
@@ -89,8 +92,7 @@ namespace OpenTap.Engine.UnitTests
 
         public class SweepTestStep : TestStep
         {
-            [Display(" abc ")]
-            public int SweepProp { get; set; }
+            [Display(" abc ")] public int SweepProp { get; set; }
 
             public int Value { get; private set; }
 
@@ -98,13 +100,13 @@ namespace OpenTap.Engine.UnitTests
             public override void Run()
             {
                 Value += SweepProp;
-                Results.Publish("ABC", new List<string> { "abc" }, SweepProp);
+                Results.Publish("ABC", new List<string> {"abc"}, SweepProp);
             }
         }
 
         [Test]
         [Pairwise]
-        public void RunSweep([Values(true,false)] bool acrossRuns, [Values(true, false)]bool allEnabled)
+        public void RunSweep([Values(true, false)] bool acrossRuns, [Values(true, false)] bool allEnabled)
         {
             var tp = new TestPlan();
 
@@ -112,12 +114,12 @@ namespace OpenTap.Engine.UnitTests
             {
                 CrossPlan = acrossRuns ? SweepLoop.SweepBehaviour.Across_Runs : SweepLoop.SweepBehaviour.Within_Run
             };
-            
+
             var ds = new SweepTestStep();
 
             sl.ChildTestSteps.Add(ds);
-            sl.SweepParameters.Add(new SweepParam(new[] { TypeData.GetTypeData(ds).GetMember("SweepProp") }, 2,3,5,7));
-            sl.EnabledRows = new bool[] { true, allEnabled, true, true };
+            sl.SweepParameters.Add(new SweepParam(new[] {TypeData.GetTypeData(ds).GetMember("SweepProp")}, 2, 3, 5, 7));
+            sl.EnabledRows = new bool[] {true, allEnabled, true, true};
 
             tp.ChildTestSteps.Add(sl);
 
@@ -127,10 +129,11 @@ namespace OpenTap.Engine.UnitTests
                 st.Seek(0, 0);
                 tp = TestPlan.Load(st, tp.Path);
             }
+
             ds = tp.ChildTestSteps[0].ChildTestSteps[0] as SweepTestStep;
             if (acrossRuns)
             {
-                foreach(var rowEnabled in sl.EnabledRows)
+                foreach (var rowEnabled in sl.EnabledRows)
                 {
                     if (rowEnabled)
                     {
@@ -145,7 +148,8 @@ namespace OpenTap.Engine.UnitTests
                 var pr = tp.Execute();
                 Assert.IsFalse(pr.FailedToStart);
             }
-            if(allEnabled)
+
+            if (allEnabled)
                 Assert.AreEqual(17, ds.Value);
             else
                 Assert.AreEqual(14, ds.Value);
@@ -155,7 +159,7 @@ namespace OpenTap.Engine.UnitTests
         public void SweepPropertiesUpdateTest()
         {
             var savestream = new MemoryStream();
-            
+
             var tp = new TestPlan();
             {
                 var range = new SweepLoopRange()
@@ -170,33 +174,33 @@ namespace OpenTap.Engine.UnitTests
             }
 
             savestream.Seek(0, SeekOrigin.Begin);
-            
+
             // Verify that the removal event is triggered both on new and serialized sweep ranges
-            var plans = new[] { tp, TestPlan.Load(savestream, Path.GetTempFileName()) };
+            var plans = new[] {tp, TestPlan.Load(savestream, Path.GetTempFileName())};
 
             foreach (var plan in plans)
             {
                 var sweep = plan.ChildTestSteps[0] as SweepLoopRange;
-                
+
                 CollectionAssert.IsEmpty(sweep.SweepProperties);
                 var delay1 = new DelayStep();
                 var delay2 = new DelayStep();
                 sweep.ChildTestSteps.Add(delay1);
                 sweep.ChildTestSteps.Add(delay2);
-                sweep.SweepProperties = new List<IMemberData>() { TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs)) };
-                
+                sweep.SweepProperties = new List<IMemberData>()
+                    {TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs))};
+
                 // Verify that the sweep property was added
                 Assert.AreEqual(1, sweep.SweepProperties.Count);
 
                 // Removing the first delay should do nothing
                 sweep.ChildTestSteps.Remove(delay1);
                 Assert.AreEqual(1, sweep.SweepProperties.Count);
-                
+
                 // Removing the final delay should remove the property
                 sweep.ChildTestSteps.Remove(delay2);
                 CollectionAssert.IsEmpty(sweep.SweepProperties);
             }
-
         }
 
         [Test]
@@ -205,12 +209,14 @@ namespace OpenTap.Engine.UnitTests
             var tp = new TestPlan();
             var s1 = new SweepLoopRange();
             var s2 = new SweepLoopRange();
-            var s3 = new DelayStep() { DelaySecs = 0 };
+            var s3 = new DelayStep() {DelaySecs = 0};
             tp.ChildTestSteps.Add(s1);
             s1.ChildTestSteps.Add(s2);
             s2.ChildTestSteps.Add(s3);
-            s1.SweepProperties = new List<IMemberData>() { TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs)) };
-            s2.SweepProperties = new List<IMemberData>() { TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs)) };
+            s1.SweepProperties = new List<IMemberData>()
+                {TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs))};
+            s2.SweepProperties = new List<IMemberData>()
+                {TypeData.FromType(typeof(DelayStep)).GetMember(nameof(DelayStep.DelaySecs))};
 
             using (var st = new System.IO.MemoryStream())
             {
@@ -218,13 +224,13 @@ namespace OpenTap.Engine.UnitTests
                 st.Seek(0, 0);
                 tp = TestPlan.Load(st, tp.Path);
             }
+
             s1 = tp.ChildTestSteps[0] as SweepLoopRange;
             s2 = s1.ChildTestSteps[0] as SweepLoopRange;
 
             Assert.AreEqual(1, s1.SweepProperties.Count);
             Assert.AreEqual(1, s2.SweepProperties.Count);
             Assert.AreEqual(s1.SweepPropertyName, s2.SweepPropertyName);
-
         }
 
 
@@ -242,25 +248,28 @@ namespace OpenTap.Engine.UnitTests
                 sweepRange.SweepStart = 10;
                 sweepRange.SweepEnd = 30;
                 sweepRange.SweepStep = 1;
-                sweepRange.SweepProperties = new List<IMemberData>() { TypeData.FromType(typeof(SweepTestStep)).GetMember("SweepProp") };
+                sweepRange.SweepProperties = new List<IMemberData>()
+                    {TypeData.FromType(typeof(SweepTestStep)).GetMember("SweepProp")};
                 sweep = sweepRange;
-                check = Enumerable.Range(10, (int)(sweepRange.SweepEnd - sweepRange.SweepStart + 1));
+                check = Enumerable.Range(10, (int) (sweepRange.SweepEnd - sweepRange.SweepStart + 1));
             }
             else
             {
                 check = Enumerable.Range(10, 20);
                 var sweepRange = new SweepLoop();
                 var lst = new List<SweepParam>();
-                lst.Add(new SweepParam(new[] { TypeData.FromType(typeof(SweepTestStep)).GetMember("SweepProp") }, check.Cast<object>().ToArray()));
+                lst.Add(new SweepParam(new[] {TypeData.FromType(typeof(SweepTestStep)).GetMember("SweepProp")},
+                    check.Cast<object>().ToArray()));
                 sweepRange.SweepParameters = lst;
                 sweep = sweepRange;
             }
+
             var step = new SweepTestStep();
 
             tp.ChildTestSteps.Add(sweep);
             sweep.ChildTestSteps.Add(step);
-            
-            var rlistener = new PlanRunCollectorListener() { CollectResults = true };
+
+            var rlistener = new PlanRunCollectorListener() {CollectResults = true};
             bool done = false;
 
             void interruptOperations()
@@ -277,10 +286,10 @@ namespace OpenTap.Engine.UnitTests
 
             var trd = new Thread(interruptOperations);
             trd.Start();
-            var result = tp.Execute(new[] { rlistener });
+            var result = tp.Execute(new[] {rlistener});
             done = true;
             trd.Join();
-            var results = rlistener.Results.Select(x => (int)x.Result.Columns[0].Data.GetValue(0)).ToArray();
+            var results = rlistener.Results.Select(x => (int) x.Result.Columns[0].Data.GetValue(0)).ToArray();
             Assert.IsTrue(results.SequenceEqual(check));
         }
 
@@ -303,12 +312,12 @@ namespace OpenTap.Engine.UnitTests
 
             var rlistener = new PlanRunCollectorListener();
 
-            var repeat1 = new RepeatStep { Action = RepeatStep.RepeatStepAction.Fixed_Count, Count = 3 };
-            var repeat2 = new RepeatStep { Action = RepeatStep.RepeatStepAction.Fixed_Count, Count = 3 };
-            var setVer = new TestTestSteps.VerdictStep() { VerdictOutput = Verdict.Pass };
-            var checkif = new IfStep() { Action = IfStep.IfStepAction.BreakLoop, TargetVerdict = setVer.VerdictOutput};
+            var repeat1 = new RepeatStep {Action = RepeatStep.RepeatStepAction.Fixed_Count, Count = 3};
+            var repeat2 = new RepeatStep {Action = RepeatStep.RepeatStepAction.Fixed_Count, Count = 3};
+            var setVer = new TestTestSteps.VerdictStep() {VerdictOutput = Verdict.Pass};
+            var checkif = new IfStep() {Action = IfStep.IfStepAction.BreakLoop, TargetVerdict = setVer.VerdictOutput};
             var setVer2 = new TestTestSteps.VerdictStep(); // this one is never executed.
-            repeat2.ChildTestSteps.AddRange(new ITestStep[] { setVer, checkif, setVer2 });
+            repeat2.ChildTestSteps.AddRange(new ITestStep[] {setVer, checkif, setVer2});
             repeat1.ChildTestSteps.Add(repeat2);
             var plan = new TestPlan();
             plan.ChildTestSteps.Add(repeat1);
@@ -317,8 +326,7 @@ namespace OpenTap.Engine.UnitTests
             checkif.InputVerdict.Property = TypeData.FromType(typeof(TestStep)).GetMember(nameof(TestStep.Verdict));
 
 
-
-            var planrun = plan.Execute(new[] { rlistener });
+            var planrun = plan.Execute(new[] {rlistener});
             Assert.AreEqual(10, rlistener.StepRuns.Count);
             Assert.AreEqual(5, planrun.StepsWithPrePlanRun.Count);
         }
@@ -327,11 +335,12 @@ namespace OpenTap.Engine.UnitTests
         public void TestDecadeRange()
         {
             int count = 0;
-            foreach(var value in SweepLoopRange.ExponentialRange(0.1M, 1000, 10))
+            foreach (var value in SweepLoopRange.ExponentialRange(0.1M, 1000, 10))
             {
                 Assert.IsTrue(value <= 1000.0M && value >= 0.1M);
                 count++;
             }
+
             Assert.AreEqual(10, count);
         }
 
@@ -339,7 +348,8 @@ namespace OpenTap.Engine.UnitTests
         public void RepeatWithReferenceOutsideStep()
         {
             var stream = File.OpenRead("TestTestPlans/whiletest.TapPlan");
-            TestPlan plan = (TestPlan)new TapSerializer().Deserialize(stream, type: TypeData.FromType(typeof(TestPlan)));
+            TestPlan plan =
+                (TestPlan) new TapSerializer().Deserialize(stream, type: TypeData.FromType(typeof(TestPlan)));
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
         }
@@ -352,31 +362,32 @@ namespace OpenTap.Engine.UnitTests
             // but since SweepLoop and SweepLoopRange modifies its child steps this could cause an error
             // as shown by SweepRaceBugCheckStep and SweepRaceBugStep.
             var plan = new TestPlan();
-            var repeat = new RepeatStep { Count =  10, Action = RepeatStep.RepeatStepAction.Fixed_Count};
+            var repeat = new RepeatStep {Count = 10, Action = RepeatStep.RepeatStepAction.Fixed_Count};
             var loop = new SweepLoop();
             repeat.ChildTestSteps.Add(loop);
-            loop.ChildTestSteps.Add(new SweepRaceBugStep(){});
-            loop.ChildTestSteps.Add(new SweepRaceBugCheckStep(){ });
-            var steptype = TypeData.FromType(typeof(SweepRaceBugStep)); 
+            loop.ChildTestSteps.Add(new SweepRaceBugStep() { });
+            loop.ChildTestSteps.Add(new SweepRaceBugCheckStep() { });
+            var steptype = TypeData.FromType(typeof(SweepRaceBugStep));
             var member = steptype.GetMember(nameof(SweepRaceBugStep.Frequency));
-            var member2 = TypeData.FromType(typeof(SweepRaceBugCheckStep)).GetMember(nameof(SweepRaceBugCheckStep.Frequency2));
+            var member2 = TypeData.FromType(typeof(SweepRaceBugCheckStep))
+                .GetMember(nameof(SweepRaceBugCheckStep.Frequency2));
 
             var lst = new List<SweepParam>();
             double[] values = new double[] {1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-            lst.Add(new SweepParam(new[] { member}, values.Cast<object>().ToArray()));
-            lst.Add(new SweepParam(new[] { member2 }, values.Cast<object>().ToArray()));
+            lst.Add(new SweepParam(new[] {member}, values.Cast<object>().ToArray()));
+            lst.Add(new SweepParam(new[] {member2}, values.Cast<object>().ToArray()));
             loop.SweepParameters = lst;
 
             var loopRange = new SweepLoopRange();
-            
+
             loopRange.SweepStart = 1;
             loopRange.SweepEnd = 10;
             loopRange.SweepPoints = 10;
             loopRange.ChildTestSteps.Add(new SweepRaceBugStep() { });
             loopRange.ChildTestSteps.Add(new SweepRaceBugCheckStep() { });
-            loopRange.SweepProperties = new List<IMemberData> { member, member2 };
-            var repeat2 = new RepeatStep { Count = 10, Action = RepeatStep.RepeatStepAction.Fixed_Count };
-            
+            loopRange.SweepProperties = new List<IMemberData> {member, member2};
+            var repeat2 = new RepeatStep {Count = 10, Action = RepeatStep.RepeatStepAction.Fixed_Count};
+
             repeat2.ChildTestSteps.Add(loopRange);
             var parallel = new ParallelStep();
             plan.ChildTestSteps.Add(parallel);
@@ -392,40 +403,40 @@ namespace OpenTap.Engine.UnitTests
                     loopRange.Error.ToList();
                 }
             });
-            while(run == null)
+            while (run == null)
             {
                 loop.Error.ToList();
             }
-            
+
             Assert.AreEqual(Verdict.NotSet, run.Verdict);
-       }
+        }
 
         public class SweepRaceBugStep : TestStep
         {
             public double Frequency { get; set; }
             public double SharedFrequency { get; set; }
             public bool Check { get; set; }
+
             public override void Run()
             {
-                SharedFrequency = Frequency;   
+                SharedFrequency = Frequency;
             }
         }
+
         public class SweepRaceBugCheckStep : TestStep
         {
             public double Frequency2 { get; set; }
+
             public override void Run()
             {
-                
                 if ((Parent.ChildTestSteps[0] as SweepRaceBugStep).SharedFrequency != Frequency2)
                     throw new Exception("Error occured");
-                
             }
         }
 
         public class StepTypeA : TestStep
         {
-            [Display("Property", Group: "A")]
-            public double Property { get; set; }
+            [Display("Property", Group: "A")] public double Property { get; set; }
 
             public override void Run()
             {
@@ -433,11 +444,11 @@ namespace OpenTap.Engine.UnitTests
                 UpgradeVerdict(Verdict.Pass);
             }
         }
-        
+
         public class StepTypeB : TestStep
         {
-            [Display("Property", Group: "B")]
-            public double Property { get; set; }
+            [Display("Property", Group: "B")] public double Property { get; set; }
+
             public override void Run()
             {
                 if (Property != 15.0) throw new Exception();
@@ -449,19 +460,20 @@ namespace OpenTap.Engine.UnitTests
         public void SweepSameNameDifferentGroup()
         {
             var loop = new SweepLoop();
-            
+
             var a = new StepTypeA();
             var b = new StepTypeB();
             loop.ChildTestSteps.Add(a);
             loop.ChildTestSteps.Add(b);
-            
-            loop.SweepParameters.Add(new SweepParam(new []{TypeData.GetTypeData(a).GetMember(nameof(StepTypeA.Property))}, (double)5, (double)5));
-            loop.SweepParameters.Add(new SweepParam(new []{TypeData.GetTypeData(b).GetMember(nameof(StepTypeB.Property))}, (double)15, (double)15));
+
+            loop.SweepParameters.Add(new SweepParam(
+                new[] {TypeData.GetTypeData(a).GetMember(nameof(StepTypeA.Property))}, (double) 5, (double) 5));
+            loop.SweepParameters.Add(new SweepParam(
+                new[] {TypeData.GetTypeData(b).GetMember(nameof(StepTypeB.Property))}, (double) 15, (double) 15));
             var plan = new TestPlan();
             plan.Steps.Add(loop);
             var run = plan.Execute();
             Assert.AreEqual(Verdict.Pass, run.Verdict);
-
         }
 
         [Test]
@@ -478,20 +490,22 @@ namespace OpenTap.Engine.UnitTests
             sweep.ChildTestSteps.Add(step2);
 
             TypeData.GetTypeData(step).GetMember(nameof(step.LogMessage)).Parameterize(sweep, step, "A");
-            
+
             foreach (var value in testValues)
             {
-                sweep.SweepValues.Add(new SweepRow(){Values = {{"Enabled", true}, {"A", value}}});    
+                sweep.SweepValues.Add(new SweepRow() {Values = {{"Enabled", true}, {"A", value}}});
             }
 
             var runData = plan.ExecuteReturnData();
-            
+
             var stepRunData = runData.StepRuns.Where(stepRun => stepRun.TestStepId == step.Id);
             var step2RunData = runData.StepRuns.Where(stepRun => stepRun.TestStepId == step2.Id);
-            var iterationValues = stepRunData.Select(run => (int) run.Parameters.Find("Iteration", "Sweep").Value).ToArray();
+            var iterationValues = stepRunData.Select(run => (int) run.Parameters.Find("Iteration", "Sweep").Value)
+                .ToArray();
             Assert.IsTrue(iterationValues.Distinct().Count() == iterationValues.Length);
             Assert.AreEqual(1, iterationValues[0]);
-            var iterationValues2 = step2RunData.Select(run => (int) run.Parameters.Find("Iteration", "Sweep").Value).ToArray();
+            var iterationValues2 = step2RunData.Select(run => (int) run.Parameters.Find("Iteration", "Sweep").Value)
+                .ToArray();
             Assert.IsTrue(iterationValues.SequenceEqual(iterationValues2));
         }
 
@@ -500,7 +514,7 @@ namespace OpenTap.Engine.UnitTests
         {
             string[] testValuesInner = ["a", "b", "c"];
             LogSeverity[] testValuesOuter = [LogSeverity.Info, LogSeverity.Debug, LogSeverity.Warning];
-            
+
             var plan = new TestPlan();
             var innerLoop = new SweepParameterStep();
             var outerLoop = new SweepParameterStep();
@@ -514,14 +528,15 @@ namespace OpenTap.Engine.UnitTests
 
             TypeData.GetTypeData(step).GetMember(nameof(step.LogMessage)).Parameterize(innerLoop, step, "A");
             TypeData.GetTypeData(step).GetMember(nameof(step.Severity)).Parameterize(outerLoop, step, "B");
-            
+
             foreach (var value in testValuesInner)
             {
-                innerLoop.SweepValues.Add(new SweepRow(){Values = {{"Enabled", true}, {"A", value}}});    
+                innerLoop.SweepValues.Add(new SweepRow() {Values = {{"Enabled", true}, {"A", value}}});
             }
+
             foreach (var value in testValuesOuter)
             {
-                outerLoop.SweepValues.Add(new SweepRow(){Values = {{"Enabled", true}, {"B", value}}});    
+                outerLoop.SweepValues.Add(new SweepRow() {Values = {{"Enabled", true}, {"B", value}}});
             }
 
             var runData = plan.ExecuteReturnData();
@@ -529,13 +544,14 @@ namespace OpenTap.Engine.UnitTests
             var step1RunData = stepRunData[step];
             var innerLoopData = stepRunData[innerLoop];
             var outerLoopData = stepRunData[outerLoop];
-            
+
             Assert.IsTrue(outerLoopData.Count() == 1);
             Assert.IsTrue(innerLoopData.Count() == testValuesOuter.Length);
             Assert.IsTrue(step1RunData.Count() == testValuesOuter.Length * testValuesInner.Length);
 
             {
-                var iterationSweepValues = step1RunData.Select(step => (int)step.Parameters.Find("Iteration", "Sweep").Value).ToArray();
+                var iterationSweepValues = step1RunData
+                    .Select(step => (int) step.Parameters.Find("Iteration", "Sweep").Value).ToArray();
                 int index = 0;
                 for (int i = 0; i < testValuesOuter.Length; i++)
                 {
@@ -547,21 +563,22 @@ namespace OpenTap.Engine.UnitTests
                 }
             }
             {
-                var iterationSweepValues = innerLoopData.Select(step => (int)step.Parameters.Find("Iteration", "Sweep").Value).ToArray();
+                var iterationSweepValues = innerLoopData
+                    .Select(step => (int) step.Parameters.Find("Iteration", "Sweep").Value).ToArray();
 
                 for (int j = 0; j < testValuesInner.Length; j++)
                 {
-                    Assert.IsTrue(iterationSweepValues[j] == (j+1));
+                    Assert.IsTrue(iterationSweepValues[j] == (j + 1));
                 }
             }
         }
 
-        class DoubleTestStep : TestStep
+        public class DoubleTestStep : TestStep
         {
             public double Value { get; set; }
+
             public override void Run()
             {
-                
             }
         }
         [Test]
@@ -580,12 +597,164 @@ namespace OpenTap.Engine.UnitTests
             loop.SweepStep = 1;
 
             var runData = plan.ExecuteReturnData();
-            var iterations = runData.StepRuns.Where(stepRun => stepRun.TestStepId == step.Id).Select(stepRun => (int)stepRun.Parameters.Find("Iteration", "Sweep").Value).ToArray();
+            var iterations = runData.StepRuns.Where(stepRun => stepRun.TestStepId == step.Id)
+                .Select(stepRun => (int) stepRun.Parameters.Find("Iteration", "Sweep").Value).ToArray();
             Assert.AreEqual(1, iterations[0]);
             Assert.IsTrue(iterations.Count() == loop.SweepPoints);
             Assert.IsTrue(iterations.Distinct().Count() == iterations.Length);
+        }
 
+        [Test]
+        public void SweepOfSweepTest()
+        {
+            var plan = new TestPlan();
+            var loopOuter = new SweepParameterStep();
+            var loopInner = new SweepParameterStep();
+            var step = new DoubleTestStep();
+            plan.ChildTestSteps.Add(loopOuter);
+            loopOuter.ChildTestSteps.Add(loopInner);
+            loopInner.ChildTestSteps.Add(step);
 
+            TypeData.GetTypeData(step).GetMember(nameof(step.Value)).Parameterize(loopInner, step, "Value");
+            loopInner.SelectedParameters.Add(loopInner.AvailableParameters.First());
+            TypeData.GetTypeData(loopInner).GetMember(nameof(loopInner.SweepValues))
+                .Parameterize(loopOuter, loopInner, "A");
+            loopOuter.SelectedParameters.Add(loopOuter.AvailableParameters.First());
+
+            void addSweepRow(SweepParameterStep step)
+            {
+                var a = AnnotationCollection.Annotate(step);
+                var values = a.GetMember(nameof(step.SweepValues));
+                var col = values.Get<ICollectionAnnotation>();
+                var newelem = col.NewElement();
+                col.AnnotatedElements = col.AnnotatedElements
+                    .Append(newelem);
+                a.Write();
+            }
+
+            addSweepRow(loopInner);
+            addSweepRow(loopInner);
+            addSweepRow(loopOuter);
+            addSweepRow(loopOuter);
+            var v1 = (SweepRowCollection)TypeData.GetTypeData(loopOuter.SweepValues[0]).GetMember("A").GetValue(loopOuter.SweepValues[0]);
+            var v2 = (SweepRowCollection)TypeData.GetTypeData(loopOuter.SweepValues[1]).GetMember("A").GetValue(loopOuter.SweepValues[1]);
+
+            double counter = 0;
+            foreach (var row1 in loopOuter.SweepValues)
+            {
+                foreach (var row2 in (SweepRowCollection)row1.Values["A"])
+                {
+                    row2.Values["Value"] = counter;
+                    counter += 1;
+                }
+            }
+
+            Assert.AreNotEqual(loopOuter.SweepValues[0], loopOuter.SweepValues[1]);
+            Assert.AreNotEqual(v1, v2);
+            Assert.AreEqual(2, loopOuter.SweepValues.Count);
+            Assert.AreEqual(2, loopInner.SweepValues.Count);
+            Assert.AreNotEqual(loopOuter.SweepValues[0].Values["A"], loopOuter.SweepValues[1].Values["A"]);
+            {
+                var outerLoop2 = (SweepParameterStep) plan.ChildTestSteps[0];
+
+                double counter2 = 0;
+                foreach (var row1 in outerLoop2.SweepValues)
+                {
+                    foreach (var row2 in (SweepRowCollection)row1.Values["A"])
+                    {
+                        Assert.AreEqual(counter2, row2.Values["Value"]);
+                        counter2 += 1;
+                    }
+                }
+            }
+            var err = loopOuter.Error;
+            Assert.IsTrue(string.IsNullOrWhiteSpace(err));
+
+            var str = plan.SerializeToString();
+
+            var s = new TapSerializer();
+            var plan2 = (TestPlan) s.DeserializeFromString(str);
+            var errors = s.Errors.ToArray();
+
+            {
+                var outerLoop2 = (SweepParameterStep) plan2.ChildTestSteps[0];
+                Assert.AreNotEqual(outerLoop2.SweepValues[0], outerLoop2.SweepValues[1]);
+
+                double counter2 = 0;
+                foreach (var row1 in outerLoop2.SweepValues)
+                {
+                    foreach (var row2 in (SweepRowCollection)row1.Values["A"])
+                    {
+                        Assert.AreEqual(counter2, row2.Values["Value"]);
+                        counter2 += 1;
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void SweepSweepOfSweepTest()
+        {
+            var plan = new TestPlan();
+            var loopOuter = new SweepParameterStep();
+            var loopOuter2 = new SweepParameterStep();
+            var loopInner = new SweepParameterStep();
+            var step = new DoubleTestStep();
+            plan.ChildTestSteps.Add(loopOuter2);
+            loopOuter2.ChildTestSteps.Add(loopOuter);
+            loopOuter.ChildTestSteps.Add(loopInner);
+            loopInner.ChildTestSteps.Add(step);
+
+            TypeData.GetTypeData(step).GetMember(nameof(step.Value)).Parameterize(loopInner, step, "Value");
+            loopInner.SelectedParameters.Add(loopInner.AvailableParameters.First());
+            TypeData.GetTypeData(loopInner).GetMember(nameof(loopInner.SweepValues))
+                .Parameterize(loopOuter, loopInner, "A");
+            loopOuter.SelectedParameters.Add(loopOuter.AvailableParameters.First());
+
+            TypeData.GetTypeData(loopOuter).GetMember(nameof(loopOuter.SweepValues))
+                .Parameterize(loopOuter2, loopOuter, "A");
+            loopOuter2.SelectedParameters.Add(loopOuter2.AvailableParameters.First());
+
+            void addSweepRow(SweepParameterStep step)
+            {
+                var a = AnnotationCollection.Annotate(step);
+                var values = a.GetMember(nameof(step.SweepValues));
+                var col = values.Get<ICollectionAnnotation>();
+                var newelem = col.NewElement();
+                col.AnnotatedElements = col.AnnotatedElements
+                    .Append(newelem);
+                a.Write();
+            }
+
+            addSweepRow(loopInner);
+            addSweepRow(loopInner);
+            addSweepRow(loopOuter);
+            addSweepRow(loopOuter);
+            addSweepRow(loopOuter2);
+            addSweepRow(loopOuter2);
+
+            int CheckDepth(SweepRowCollection col)
+            {
+                if (col[0].Values.TryGetValue("A", out var obj2) && obj2 is SweepRowCollection sr)
+                    return CheckDepth(sr) + 1;
+                return 1;
+                
+            }
+
+            var depth = CheckDepth(loopOuter2.SweepValues);
+            
+            double counter = 0;
+            foreach (var row1 in loopOuter2.SweepValues)
+            {
+                foreach (var row2 in (SweepRowCollection)row1.Values["A"])
+                {
+                    foreach (var row3 in (SweepRowCollection)row2.Values["A"])
+                    {
+                        row3.Values["Value"] = counter;
+                        counter += 1;
+                    }
+                }
+            }
         }
     }
 }

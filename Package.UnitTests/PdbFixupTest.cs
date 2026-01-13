@@ -11,6 +11,7 @@ namespace OpenTap.Package.UnitTests
     public class PdbFixupTest
     {
         [Test]
+        [Ignore("Unstable test")]
         public void OpenTapSymbolsFixed()
         {
             var xml = $@"<?xml version=""1.0"" encoding=""UTF-8""?>

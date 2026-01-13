@@ -89,8 +89,8 @@ namespace OpenTap
     
     class TestPlanPreRunEvent : MixinEvent<ITestPlanPreRunMixin>
     {
-        public static TestPlanPreRunEventArgs Invoke(TestPlan plan) => 
-            Invoke(plan, (v, arg) => v.OnPreRun(arg), new TestPlanPreRunEventArgs(plan));
+        public static TestPlanPreRunEventArgs Invoke(TestPlan plan, TestPlanRun execStage) => 
+            Invoke(plan, (v, arg) => v.OnPreRun(arg), new TestPlanPreRunEventArgs(plan, execStage));
     }
     
     /// <summary> Event args for ITestStepPreRun mixin. </summary>
@@ -99,7 +99,14 @@ namespace OpenTap
         /// <summary> The step for which the event happens. </summary>
         public TestPlan TestPlan { get; }
 
-        internal TestPlanPreRunEventArgs(TestPlan step) => TestPlan = step;
+        /// <summary> The plan run for the given test plan. </summary>
+        public TestPlanRun PlanRun { get; }
+
+        internal TestPlanPreRunEventArgs(TestPlan step, TestPlanRun planRun)
+        {
+            TestPlan = step;
+            PlanRun = planRun;
+        }
     }
 
     class TestStepPostRunEvent : MixinEvent<ITestStepPostRunMixin>
