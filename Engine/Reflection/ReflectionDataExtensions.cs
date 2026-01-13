@@ -57,6 +57,17 @@ namespace OpenTap
             }
             return false;
         }
+        
+        public static bool IsAssignableTo(this ITypeData type, Type interfaceType)
+        {
+            while (type != null)
+            {
+                if (type is TypeData cst)
+                    return interfaceType.IsAssignableFrom(cst.Type);
+                type = type.BaseType;
+            }
+            return false;
+        }
 
         internal static bool HasAttributeInherited<T>(this IReflectionData mem) where T : class
         {

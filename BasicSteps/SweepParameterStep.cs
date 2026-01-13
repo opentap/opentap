@@ -127,7 +127,11 @@ namespace OpenTap.Plugins.BasicSteps
             foreach (var set in sets)
             {
                 var mem = rowType.GetMember(set.Name);
-
+                if (mem == null)
+                {
+                    continue;
+                    
+                }
                 // If an error is reported on all rows, only show one validation error
                 var allRowsHaveErrors = true;
                 var errorTuple = new List<(int row, string error)>();
@@ -289,13 +293,61 @@ namespace OpenTap.Plugins.BasicSteps
                 sets[i].SetValue(this, originalValues[i]);
         }
         
-        SweepRow NewElement()
+        SweepRow NewElement(bool initialize)
         {
-            return new SweepRow(this);
+            var newRow = new SweepRow(this);
+            if (false)
+            {
+                foreach (var param in this.SweepProperties)
+                {
+                    var value = param.GetValue(this);
+                    value = CloneIfPossible(value, this);
+                    newRow.Values[param.Name] = value;
+                }
+                
+            }
+            return newRow;
         }
         SweepRowCollection NewSweepRowCollection()
         {
             return new SweepRowCollection(this);
+        }
+        
+        object CloneIfPossible(object value, object context)
+        {
+            if (value == null) return null;
+            var valType = TypeData.GetTypeData(value);
+            var td = valType.AsTypeData();
+            if (td.IsValueType)
+                return value;
+            
+            if (StringConvertProvider.TryGetString(value, out string result))
+            {
+                if (StringConvertProvider.TryFromString(result, valType, context, out object result2))
+                    return result2;
+            }
+            
+            var serializer =  new TapSerializer(); 
+            try
+            {
+                var xml = serializer.SerializeToString(value);
+                if (value is SweepRowCollection sr)
+                {
+                    // since SweepRowCollection has a factory function
+                    // it cannot be cloned the simple way - some additional context is needed.
+                    serializer = new TapSerializer();
+                    serializer.AddObjectFactory(typeof(SweepRowCollection), _ => new SweepRowCollection(sr.Loop));
+                    serializer.AddObjectFactory(typeof(SweepRow), _ => new SweepRow(sr.Loop));
+                }
+                
+                var result2 = serializer.DeserializeFromString(xml, valType) ?? value;
+                
+                return result2;
+            }
+            catch
+            {
+                return value;
+            }
         }
     }
 }

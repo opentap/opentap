@@ -15,6 +15,11 @@ using System.Xml;
 
 namespace OpenTap.Plugins
 {
+    public interface IDeserializeSetValue : IMemberData
+    {
+        void SetValueDeseriaized(object owner, object value);
+    }
+        
 
     /// <summary>
     /// Implemented by serializer plugins that creates and populates members of an object.
@@ -69,18 +74,24 @@ namespace OpenTap.Plugins
             }
             if (newobj == null)
             {
-                if (t.CanCreateInstance == false)
+                if (t.CanCreateInstance == false || t.IsAssignableTo(typeof(IFactoryConstructed)))
                 {
                     // if the instance type cannot be constructed,
                     // use the instance already on the object.
                     var objectSerializer = Serializer.SerializerStack.OfType<ObjectSerializer>().FirstOrDefault();
                     var ownerMember = objectSerializer?.CurrentMember;
                     var ownerObj = objectSerializer?.Object;
-                    if (ownerMember == null || ownerObj == null)
-                    {
+                     
+                    var objectFactory = Serializer.GetObjectFactory(t.AsTypeData().Type);
+                    if (objectFactory == null && (ownerMember == null || ownerObj == null))
+                    {                        
                         throw new Exception($"Cannot create instance of {t} and no default value exists.");
                     }
-                    if (ownerMember.HasAttribute<IFactoryAttribute>())
+                    if (objectFactory != null)
+                    {
+                        newobj = objectFactory(t.AsTypeData().Type);
+                    }
+                    if (newobj == null && ownerMember.HasAttribute<IFactoryAttribute>())
                     {
                         // Use element factory if the member type is not the target type, but rather 'has a' target type.
                         // we dont need to detect if it 'has a' target type, lets just assume it.
@@ -94,6 +105,8 @@ namespace OpenTap.Plugins
                         }
                     }
 
+                    if(newobj == null && t.CanCreateInstance)
+                        newobj = t.CreateInstance([]);
                     if (newobj == null)
                     {
                         newobj = ownerMember.GetValue(ownerObj);
@@ -103,7 +116,7 @@ namespace OpenTap.Plugins
                 }
                 else
                 {
-                    newobj = t.CreateInstance(Array.Empty<object>());
+                    newobj = t.CreateInstance([]);
                 }
             }
             
@@ -241,7 +254,14 @@ namespace OpenTap.Plugins
                                 {
                                     void setValue(object x)
                                     {
-                                        property.SetValue(newobj, x);
+                                        if (property is IDeserializeSetValue deserializeSetValue)
+                                        {
+                                            deserializeSetValue.SetValueDeseriaized(newobj, x);
+                                        }
+                                        else
+                                        {
+                                            property.SetValue(newobj, x);
+                                        }
                                     }
                                     
                                     if (property.HasAttribute<DeserializeInPlaceAttribute>())

@@ -10,6 +10,15 @@ namespace OpenTap
         public string FactoryMethodName { get; }
     }
 
+    /// <summary>
+    /// This marker interface specifies that a class is primarily constructed by a factory object,
+    /// even though it may have a parameterless constructor.
+    /// </summary>
+    public interface IFactoryConstructed
+    {
+        
+    }
+
     /// <summary> Specifies that another member method can be used to create a value for a given property.</summary>
     public class FactoryAttribute : Attribute, IFactoryAttribute
     {
@@ -27,12 +36,28 @@ namespace OpenTap
         internal static object Create(object ownerObj, IFactoryAttribute factoryAttribute)
         {
             var type = ownerObj.GetType();
-            var fac = type.GetMethod(factoryAttribute.FactoryMethodName,
-                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var fac = type.GetMethod(factoryAttribute.FactoryMethodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
             // This is a bug, but showing this message in the log is much nicer than a null reference exception.
             if (fac == null)
                 throw new Exception(
                     $"Factory method '{factoryAttribute.FactoryMethodName}' not found on object of type '{type.FullName}'");
+            if (fac.GetParameters().Length == 1)
+                return fac.Invoke(ownerObj, [false]);
+            return fac.Invoke(ownerObj, []);
+        }
+        /// <summary> Creates an object by calling that target member. </summary>
+        internal static object CreateInitialized(object ownerObj, IFactoryAttribute factoryAttribute)
+        {
+            var type = ownerObj.GetType();
+            //var fac = type.GetMethod(factoryAttribute.FactoryMethodName,
+            //    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            var fac = type.GetMethod(factoryAttribute.FactoryMethodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+            // This is a bug, but showing this message in the log is much nicer than a null reference exception.
+            if (fac == null)
+                throw new Exception(
+                    $"Factory method '{factoryAttribute.FactoryMethodName}' not found on object of type '{type.FullName}'");
+            if (fac.GetParameters().Length == 1)
+                return fac.Invoke(ownerObj, [true]);
             return fac.Invoke(ownerObj, []);
         }
 

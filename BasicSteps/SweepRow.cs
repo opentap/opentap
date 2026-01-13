@@ -7,7 +7,7 @@ namespace OpenTap.Plugins.BasicSteps
 {
     
     /// <summary> An element representing a row in a sweep loop. This has a bunch of dynamically added elements.</summary>
-    public class SweepRow
+    public class SweepRow: IFactoryConstructed
     {
         /// <summary> Gets or sets if the row is enabled.</summary>
         [Display("Enabled", "Marks if this row should be included during the sweep.")]

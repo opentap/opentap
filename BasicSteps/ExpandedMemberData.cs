@@ -240,7 +240,7 @@ namespace OpenTap.Plugins.BasicSteps
         }
     }
 
-    class SweepRowMemberData : IMemberData, IParameterMemberData
+    class SweepRowMemberData : IMemberData, IParameterMemberData, IDeserializeSetValue
     {
         SweepRowTypeData declaringType;
         IMemberData innerMember;
@@ -248,10 +248,10 @@ namespace OpenTap.Plugins.BasicSteps
         {
             this.declaringType = declaringType;
             this.innerMember = innerMember;
-            ParameterizedMembers = new (object, IMemberData)[]{(declaringType.SweepParameterLoop, innerMember)};
+            ParameterizedMembers = [(declaringType.SweepParameterLoop, innerMember)];
         }
 
-        public IEnumerable<object> Attributes => innerMember.Attributes;
+        public IEnumerable<object> Attributes => innerMember.Attributes.Where(attr => !(attr is FactoryAttribute || attr is ElementFactoryAttribute));
         public string Name => innerMember.Name;
         public ITypeData DeclaringType => declaringType;
         public ITypeData TypeDescriptor => innerMember.TypeDescriptor;
@@ -262,13 +262,22 @@ namespace OpenTap.Plugins.BasicSteps
             var own = (SweepRow)owner;
             own.Values[Name] = CloneIfPossible(value, own.Loop);
         }
+        
+        public void SetValueDeseriaized(object owner, object value)
+        {
+            // when the value is set during deserializion we don't need to clone it.
+            var own = (SweepRow)owner;
+            own.Values[Name] = value;
+        }
 
         public object GetValue(object owner)
         {
             var own = (SweepRow)owner;
             if(own.Values.TryGetValue(Name, out var value))
                 return value;
-            var newv = CloneIfPossible(this.innerMember.GetValue(owner), own.Loop);
+            var newv = innerMember.GetValue(owner);
+            if (newv is Array)
+                newv = Utils.ShallowCopy(newv);
             own.Values[Name] = newv;
             return newv;
         }
@@ -299,7 +308,8 @@ namespace OpenTap.Plugins.BasicSteps
                     // since SweepRowCollection has a factory function
                     // it cannot be cloned the simple way - some additional context is needed.
                     serializer = new TapSerializer();
-                    serializer.AddObjectFactory(typeof(SweepRowCollection), t => new SweepRowCollection(sr.Loop));
+                    serializer.AddObjectFactory(typeof(SweepRowCollection), _ => new SweepRowCollection(sr.Loop));
+                    serializer.AddObjectFactory(typeof(SweepRow), _ => new SweepRow(sr.Loop));
                 }
                 
                 var result2 = serializer.DeserializeFromString(xml, valType) ?? value;

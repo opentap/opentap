@@ -1404,6 +1404,19 @@ namespace OpenTap
             // on the last attempt just call the function directly
             return function();
         }
+
+        public static object ShallowCopy(object newv)
+        {
+            if (newv is Array a)
+            {
+                var x = Array.CreateInstance(a.GetType().GetElementType(), a.Length);
+                Array.Copy(a, x, a.Length);
+                return x;
+            }
+
+            return newv;
+
+        }
     }
 
     static internal class Sequence

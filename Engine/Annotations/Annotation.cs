@@ -2207,7 +2207,7 @@ namespace OpenTap
                                 {
                                     source = (param.ParameterizedMembers.FirstOrDefault(x => x.Member.GetAttribute<ElementFactoryAttribute>() == f).Source) ?? source;
                                 }
-                                instance = FactoryAttribute.Create(source, f);
+                                instance = FactoryAttribute.CreateInitialized(source, f);
                             }
                             if(instance == null)
                             {
