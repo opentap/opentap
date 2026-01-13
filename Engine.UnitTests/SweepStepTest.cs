@@ -735,22 +735,23 @@ namespace OpenTap.Engine.UnitTests
 
             int CheckDepth(SweepRowCollection col)
             {
-                if (col[0].Values.TryGetValue("A", out var obj2) && obj2 is SweepRowCollection sr)
+                var v = TypeData.GetTypeData(col[0]).GetMember("A")?.GetValue(col[0]);
+                if(v is SweepRowCollection sr)
                     return CheckDepth(sr) + 1;
                 return 1;
                 
             }
 
             var depth = CheckDepth(loopOuter2.SweepValues);
-            
+            Assert.AreEqual(3, depth);
             double counter = 0;
             foreach (var row1 in loopOuter2.SweepValues)
             {
-                foreach (var row2 in (SweepRowCollection)row1.Values["A"])
+                foreach (var row2 in (SweepRowCollection)TypeData.GetTypeData(row1).GetMember("A")?.GetValue(row1))
                 {
-                    foreach (var row3 in (SweepRowCollection)row2.Values["A"])
+                    foreach (var row3 in  (SweepRowCollection)TypeData.GetTypeData(row2).GetMember("A")?.GetValue(row2))
                     {
-                        row3.Values["Value"] = counter;
+                        TypeData.GetTypeData(row3).GetMember("Value").SetValue(row3, counter);
                         counter += 1;
                     }
                 }
