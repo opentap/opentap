@@ -29,7 +29,6 @@ namespace OpenTap.Package
         private const int _DefaultCopyBufferSize = 81920;
 
         private static TraceSource log = Log.CreateSource("HttpPackageRepository");
-        private HttpClient client;
         
         private static HttpClient GetHttpClient()
         {
