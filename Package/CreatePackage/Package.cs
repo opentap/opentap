@@ -112,7 +112,7 @@ namespace OpenTap.Package
         {
             try
             {
-                if ((fullPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase) || fullPath.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) && File.Exists(fullPath))
+                if (File.Exists(fullPath))
                 {
                     AssemblyName testAssembly = AssemblyName.GetAssemblyName(fullPath);
                     return true;
@@ -391,11 +391,6 @@ namespace OpenTap.Package
                     }
                     if (files != null && files.Any())
                     {
-                        if (!string.IsNullOrEmpty(fileEntry.SourcePath))
-                        {
-                            log.Warning(
-                                $"Unsupported use of SourcePath and filepath wildcards for '{fileEntry.FileName}'. SourcePath will be ignored.");
-                        }
                         newEntries.AddRange(files.Select(f => new PackageFile
                         {
                             RelativeDestinationPath = f.Replace('\\', '/'),

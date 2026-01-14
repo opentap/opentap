@@ -83,7 +83,7 @@ namespace OpenTap
         }
         #region Nested Types
 
-        enum FailState
+        enum failState
         {
             Ok,
             StartFail,
@@ -108,16 +108,16 @@ namespace OpenTap
             }
         }
 
-        FailState ExecTestPlan(TestPlanRun planRun, IList<ITestStep> steps)
+        failState execTestPlan(TestPlanRun execStage, IList<ITestStep> steps)
         {
-            WaitHandle.WaitAny(new[] { planRun.PromptWaitHandle, TapThread.Current.AbortToken.WaitHandle });
+            WaitHandle.WaitAny(new[] { execStage.PromptWaitHandle, TapThread.Current.AbortToken.WaitHandle });
             bool resultListenerError = false;
-            planRun.ScheduleInResultProcessingThread<IResultListener>(resultListener =>
+            execStage.ScheduleInResultProcessingThread<IResultListener>(resultListener =>
             {
                 try
                 {
                     using (TimeoutOperation.Create(() => PrintWaitingMessage(new List<IResource>() { resultListener })))
-                        planRun.ResourceManager.WaitUntilResourcesOpened(TapThread.Current.AbortToken, resultListener);
+                        execStage.ResourceManager.WaitUntilResourcesOpened(TapThread.Current.AbortToken, resultListener);
                     try
                     {
                         // some resources might set metadata in the Open methods.
@@ -125,19 +125,19 @@ namespace OpenTap
                         // this returns quickly if its a lazy resource manager.
                         using (TimeoutOperation.Create(
                             () => PrintWaitingMessage(new List<IResource>() {resultListener})))
-                            planRun.ResourceManager.WaitUntilAllResourcesOpened(TapThread.Current.AbortToken);
+                            execStage.ResourceManager.WaitUntilAllResourcesOpened(TapThread.Current.AbortToken);
                     }
                     catch
                     {
                          // this error will also be handled somewhere else.
                     }
 
-                    planRun.WaitForSerialization();
-                    foreach(var res in planRun.PromptedResources)
-                        planRun.Parameters.AddRange(ResultParameters.GetMetadataFromObject(res));
-                    resultListener.OnTestPlanRunStart(planRun);
+                    execStage.WaitForSerialization();
+                    foreach(var res in execStage.PromptedResources)
+                        execStage.Parameters.AddRange(ResultParameters.GetMetadataFromObject(res));
+                    resultListener.OnTestPlanRunStart(execStage);
                 }
-                catch (OperationCanceledException) when(planRun.MainThread.AbortToken.IsCancellationRequested)
+                catch (OperationCanceledException) when(execStage.MainThread.AbortToken.IsCancellationRequested)
                 {
                     // test plan thread was aborted, this is OK.
                 }
@@ -151,26 +151,26 @@ namespace OpenTap
             }, true);
             
             if (resultListenerError)
-                return FailState.StartFail;
+                return failState.StartFail;
 
             var sw = Stopwatch.StartNew();
             try
             {
-                planRun.StepsWithPrePlanRun.Clear();
+                execStage.StepsWithPrePlanRun.Clear();
                 
                 // Invoke test plan pre run event mixins.
-                TestPlanPreRunEvent.Invoke(this, planRun);
+                TestPlanPreRunEvent.Invoke(this);
                 
-                if (!runPrePlanRunMethods(steps, planRun))
+                if (!runPrePlanRunMethods(steps, execStage))
                 {
-                    return FailState.StartFail;
+                    return failState.StartFail;
                 }
             }
             catch (Exception e)
             {
                 Log.Error(e.GetInnerMostExceptionMessage());
                 Log.Debug(e);
-                return FailState.StartFail;
+                return failState.StartFail;
             }
             finally{
             {
@@ -185,7 +185,7 @@ namespace OpenTap
             {
                 if (didBreak) return;
                 didBreak = true;
-                planRun.Parameters.Add(new ResultParameter(TestPlanRun.SpecialParameterNames.BreakIssuedFrom, run.Id.ToString())); 
+                execStage.Parameters.Add(new ResultParameter(TestPlanRun.SpecialParameterNames.BreakIssuedFrom, run.Id.ToString())); 
             }
 
             TestStepRun getBreakingRun(TestStepRun first)
@@ -201,7 +201,7 @@ namespace OpenTap
                 {
                     var step = steps[i];
                     if (step.Enabled == false) continue;
-                    var run = step.DoRun(planRun, planRun);
+                    var run = step.DoRun(execStage, execStage);
                     if (!run.Skipped)
                         runs.Add(run);
                     if (run.BreakConditionsSatisfied())
@@ -234,22 +234,22 @@ namespace OpenTap
                 foreach (var run in runs)
                 {
                     run.WaitForCompletion();
-                    planRun.UpgradeVerdict(run.Verdict);
+                    execStage.UpgradeVerdict(run.Verdict);
                 }    
             }
            
             Log.Debug(planRunOnlyTimer, "Test step runs finished.");
             
-            return FailState.Ok;
+            return failState.Ok;
         }
 
-        void finishTestPlanRun(TestPlanRun run, Stopwatch testPlanTimer, FailState runWentOk, TraceListener Logger, HybridStream logStream)
+        void finishTestPlanRun(TestPlanRun run, Stopwatch testPlanTimer, failState runWentOk, TraceListener Logger, HybridStream logStream)
         {
             try
             {
                 if (run != null)
                 {
-                    if (runWentOk == FailState.StartFail)
+                    if (runWentOk == failState.StartFail)
                     {
                         if (PrintTestPlanRunSummary)
                             summaryListener.OnTestPlanRunStart(run); // Call this to ensure that the correct planrun is being summarized
@@ -335,7 +335,7 @@ namespace OpenTap
                     Logger.Flush();
                     logStream.Flush();
 
-                    run.AddTestPlanCompleted(logStream, runWentOk != FailState.StartFail);
+                    run.AddTestPlanCompleted(logStream, runWentOk != failState.StartFail);
                     
                     if(PrintTestPlanRunSummary)
                         summaryListener.PrintArtifactsSummary();
@@ -632,7 +632,7 @@ namespace OpenTap
             executingPlanRun.LocalValue = execStage;
             CurrentRun = execStage;
 
-            FailState runWentOk = FailState.StartFail;
+            failState runWentOk = failState.StartFail;
 
             // ReSharper disable once InconsistentNaming
             var preRun_Run_PostRunTimer = Stopwatch.StartNew();
@@ -652,8 +652,8 @@ namespace OpenTap
                         execStage.Parameters.AddRange(ResultParameters.GetMetadataFromObject(res));
                 }
 
-                runWentOk = FailState.ExecFail; //important if test plan is aborted and runWentOk is never returned.
-                runWentOk = ExecTestPlan(execStage, steps);
+                runWentOk = failState.ExecFail; //important if test plan is aborted and runWentOk is never returned.
+                runWentOk = execTestPlan(execStage, steps);
             }
             catch (Exception e)
             {
@@ -688,7 +688,7 @@ namespace OpenTap
             }
             finally
             {
-                execStage.FailedToStart = (runWentOk == FailState.StartFail);
+                execStage.FailedToStart = (runWentOk == failState.StartFail);
 
                 try
                 {
