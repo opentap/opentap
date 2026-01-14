@@ -1,4 +1,5 @@
-﻿using System.Globalization;
+﻿using System;
+using System.Globalization;
 using NUnit.Framework;
 namespace OpenTap.UnitTests;
 
@@ -18,6 +19,28 @@ public class UnitFormatterTest
         BigFloat flt = UnitFormatter.Parse(result, unit, format, CultureInfo.InvariantCulture);
         var result2 = flt.ConvertTo(value.GetType());
         Assert.AreEqual(value, result2);
+    }
+
+    [TestCase("10000.1", 10000.1)]
+    [TestCase("-10000.1", -10000.1)]
+    [TestCase("-1000000000000.1000000000000", -1000000000000.1000000000000)]
+    public void TestBigFloat(string strValue, double approxDouble)
+    {
+        var bf = new BigFloat(strValue, CultureInfo.InvariantCulture);
+        var result = (double)bf.ConvertTo(typeof(double));
+        Assert.AreEqual(approxDouble, result, Math.Abs(approxDouble) * 0.00001);
+
+    }
+
+    [Test]
+    public void TestBigFloatPerf()
+    {
+        var culture = CultureInfo.InvariantCulture;
+        for (int i = 0; i < 10000000; i++)
+        {
+            new BigFloat("123456123456", culture);
+        }
+
     }
 
 }
