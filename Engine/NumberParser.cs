@@ -564,7 +564,6 @@ namespace OpenTap
             List<IEnumerable<BigFloat>> parts = new List<IEnumerable<BigFloat>>();
             List<BigFloat> endPart = null;
             List<BigFloat> endPartBacking = new(value.Length/2);
-            int indexer = 0;
             while(value.Length > 0)
             {
                 var separatorIndex = value.IndexOf(separator);
