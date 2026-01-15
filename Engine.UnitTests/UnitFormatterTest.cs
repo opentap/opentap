@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Globalization;
+using System.Linq;
 using NUnit.Framework;
 namespace OpenTap.UnitTests;
 
@@ -34,7 +35,6 @@ public class UnitFormatterTest
         Assert.AreEqual(approxDouble, result, Math.Abs(approxDouble) * 0.00001);
 
     }
-    
     [Test]
     public void TestBigFloatPerf()
     {
@@ -49,12 +49,23 @@ public class UnitFormatterTest
     public void TestBigFloatPerf2()
     {
         var culture = CultureInfo.InvariantCulture;
-        for (int i = 0; i < 10000000; i++)
+        for (int i = 0; i < 100000000; i++)
         {
             UnitFormatter.Parse("123456123456", "", "",culture );
         }
     }
-
+    [Test]
+    public void TestBigFloatsequencePerf()
+    {
+        var culture = CultureInfo.InvariantCulture;
+        var parser = new NumberFormatter(culture);
+        var strToParse = string.Join(",", Enumerable.Range(0, 100));
+        for (int i = 0; i < 100000; i++)
+        {
+            var parseRange = parser.Parse(strToParse);
+        }
+    }
+    
 }
 
 public class StepWithHexProperties : TestStep
