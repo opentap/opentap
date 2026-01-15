@@ -352,9 +352,6 @@ namespace OpenTap
 
 
         /// <summary> Supports parsing BigFloat without throwing an exception. Returns an exception in case something went wrong otherwise it will return a BigFloat.</summary>
-        /// <param name="value"></param>
-        /// <param name="format"></param>
-        /// <returns></returns>
         internal static BigFloat Parse(ReadOnlySpan<char> value, IFormatProvider format, out Exception outEx)
         {
             outEx = null;
@@ -390,7 +387,7 @@ namespace OpenTap
             }
         }
         
-        internal static BigFloat ParseWithLongChecked(ReadOnlySpan<char> value, IFormatProvider format, out Exception outEx)
+        static BigFloat ParseWithLongChecked(ReadOnlySpan<char> value, IFormatProvider format, out Exception outEx)
         {
             var sep = getDigitSeparator(format);
             
@@ -470,7 +467,8 @@ namespace OpenTap
                 return new BigFloat(numerator * sign, denom);
             }
         }
-        internal static BigFloat ParseWithBigInt(ReadOnlySpan<char> value, IFormatProvider format, out Exception outEx)
+        
+        static BigFloat ParseWithBigInt(ReadOnlySpan<char> value, IFormatProvider format, out Exception outEx)
         {
             outEx = null;
             var sep = getDigitSeparator(format);
