@@ -22,25 +22,37 @@ public class UnitFormatterTest
     }
 
     [TestCase("10000.1", 10000.1)]
+    [TestCase("0.1", 0.1)]
+    [TestCase("0.1111111111", 0.1111111111)]
     [TestCase("-10000.1", -10000.1)]
+    [TestCase("-99999.1", -99999.1)]
     [TestCase("-1000000000000.1000000000000", -1000000000000.1000000000000)]
     public void TestBigFloat(string strValue, double approxDouble)
     {
-        var bf = new BigFloat(strValue, CultureInfo.InvariantCulture);
+        var bf = UnitFormatter.Parse(strValue, "", "", CultureInfo.InvariantCulture);
         var result = (double)bf.ConvertTo(typeof(double));
         Assert.AreEqual(approxDouble, result, Math.Abs(approxDouble) * 0.00001);
 
     }
-
+    
     [Test]
     public void TestBigFloatPerf()
     {
         var culture = CultureInfo.InvariantCulture;
-        for (int i = 0; i < 10000000; i++)
+        for (int i = 0; i < 100000000; i++)
         {
             new BigFloat("123456123456", culture);
         }
-
+    }
+    
+    [Test]
+    public void TestBigFloatPerf2()
+    {
+        var culture = CultureInfo.InvariantCulture;
+        for (int i = 0; i < 10000000; i++)
+        {
+            UnitFormatter.Parse("123456123456", "", "",culture );
+        }
     }
 
 }
