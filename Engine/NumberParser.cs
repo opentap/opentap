@@ -76,13 +76,11 @@ namespace OpenTap
 
         public string ToString(Func<object, string> conv)
         {
-            conv = conv ?? ((v) => v.ToString());
+            conv ??= ((v) => v.ToString());
 
-            if (Step == new BigFloat(1.0) || Step == new BigFloat(-1.0))
-            {
-                return string.Format("{0} : {1}", conv(Start), conv(Stop));
-            }
-            return string.Format("{0} : {1} : {2}", conv(Start), conv(Step), conv(Stop));
+            if (Step == BigFloat.One || Step == BigFloat.NegativeOne)
+                return $"{conv(Start)} : {conv(Stop)}";
+            return $"{conv(Start)} : {conv(Step)} : {conv(Stop)}";
         }
     }
 
@@ -214,70 +212,76 @@ namespace OpenTap
             else
                 return string.Format("{0}{3}{1}{2}", final_string, level, unit ?? "", space);
         }
-        static object parse(string str, string unit, string format, CultureInfo culture)
+        static BigFloat ParseInternal(ReadOnlySpan<char> str, string unit, string format, CultureInfo culture, out Exception ex)
         {
-            if (str == null)
-                return new ArgumentNullException("str");
-            if (unit == null)
-                return new ArgumentNullException("unit");
-            if (format == null)
-                return new ArgumentNullException("format");
-            if (culture == null)
-                return new ArgumentNullException("culture");
-
-            str = str.Trim();
-
-            bool IsHex =
-                (str.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ||
-                str.StartsWith("-0x", StringComparison.OrdinalIgnoreCase));
-            int HexSkip = 2;
-
-            if ((!IsHex) &&
-               (format.StartsWith("x", StringComparison.OrdinalIgnoreCase)))
+            ReadOnlySpan<char> strSpan = str.Trim();
+            if (strSpan.Length == 0)
             {
-                IsHex = true;
-                HexSkip = 0;
+                ex = new FormatException("Invalid format");
+                return BigFloat.NaN;
+            }
+            
+            
+            int hexSkip = 0;
+            ex = null;
+
+            BigFloat multiplier;
+            // handle the minus sign.
+            if (strSpan[0] == '-')
+            {
+                multiplier = BigFloat.NegativeOne;
+                strSpan = strSpan.Slice(1);
+            }
+            else
+            {
+                multiplier = BigFloat.One;
+            }
+            
+            var isHex = strSpan.StartsWith("0x", StringComparison.OrdinalIgnoreCase);
+
+            if (isHex)
+            {
+                hexSkip = 2;
+            }
+            else if (format.StartsWith("x", StringComparison.OrdinalIgnoreCase))
+            {
+                isHex = true;
+                hexSkip = 0;
+            }
+            
+
+            if (unit.Length > 0 && strSpan.EndsWith(unit, StringComparison.OrdinalIgnoreCase))
+                strSpan = strSpan.Slice(0, strSpan.Length - unit.Length);
+            strSpan = strSpan.TrimEnd();
+            if (strSpan.Length == 0)
+            {
+                ex = new FormatException("Invalid format");
+                return BigFloat.NaN;
             }
 
-            if (unit.Length > 0 && str.EndsWith(unit, StringComparison.OrdinalIgnoreCase))
-                str = str.Remove(str.Length - unit.Length);
-            str = str.TrimEnd();
-            if (str.Length == 0)
-            {
-                return new FormatException("Invalid format");
-            }
-
-            char prefix = str[str.Length - 1];
-            BigFloat multiplier = 1.0;
-            if (levels.Contains(prefix))
+            char siPrefix = strSpan[strSpan.Length - 1];
+            
+            if (char.IsLetter(siPrefix) && levels.Contains(siPrefix))
             {
                 // Handle case of "femto" unit
-                if (!(IsHex && (prefix == 'f') && !str.EndsWith(" f", StringComparison.Ordinal)))
+                if (!(isHex && (siPrefix == 'f') && !strSpan.EndsWith(" f", StringComparison.Ordinal)))
                 {
-                    multiplier = engineeringPrefixLevel(prefix);
-                    if (str[str.Length - 1] == prefix)
-                        str = str.Substring(0, str.Length - 1).TrimEnd();
+                    multiplier *= engineeringPrefixLevel(siPrefix);
+                    if (strSpan[strSpan.Length - 1] == siPrefix)
+                        strSpan = strSpan.Slice(0, strSpan.Length - 1).TrimEnd();
                 }
             }
 
-            if (IsHex && str.StartsWith("-", StringComparison.OrdinalIgnoreCase))
-                return new BigFloat(-Int64.Parse(str.Substring(HexSkip + 1).ToUpper(), NumberStyles.HexNumber, culture)) * multiplier;
-            else if (IsHex)
-                return new BigFloat(BigInteger.Parse("0" + str.Substring(HexSkip).ToUpper(), NumberStyles.HexNumber, culture)) * multiplier;
-
-            if (str.StartsWith("0b", StringComparison.OrdinalIgnoreCase) || str.StartsWith("-0b", StringComparison.OrdinalIgnoreCase))
+            if (isHex)
             {
-                string bits = "";
-                if (str.StartsWith("-0b", StringComparison.OrdinalIgnoreCase))
-                {
-                    multiplier = -multiplier;
-                    bits = str.Substring(2);
-                }
-                else
-                {
-                    bits = str.Substring(2);
-                }
+                return new BigFloat(BigInteger.Parse("0" + strSpan.Slice(hexSkip).ToString(), NumberStyles.HexNumber,
+                    culture)) * multiplier;
+            }
 
+            if (strSpan.StartsWith("0b", StringComparison.OrdinalIgnoreCase))
+            {
+                ReadOnlySpan<char> bits = strSpan.Slice(2);
+                
                 BigInteger v = 0;
                 foreach (var bit in bits)
                 {
@@ -293,36 +297,35 @@ namespace OpenTap
                         continue;
                     else
                     {
-                        return new FormatException("Invalid binary format.");
+                        ex = new FormatException("Invalid binary format.");
+                        return BigFloat.NaN;
                     }
                 }
                 return new BigFloat(v) * multiplier;
             }
-            var r = BigFloat.Parse(str, culture);
-            if (r is BigFloat bf)
-                return bf * multiplier;
-            return r;
+            var r = BigFloat.Parse(strSpan, culture, out ex);
+            return r * multiplier;
         }
+        
         public static BigFloat Parse(string str, string unit, string format, CultureInfo culture)
         {
-            var result = parse(str, unit, format, culture);
-            if (result is BigFloat bf)
-                return bf;
-            else throw (Exception)result;
+            var result = ParseInternal(str, unit, format, culture, out var ex);
+            if (ex != null)
+                throw ex;
+            return result;
+        }
+        public static BigFloat Parse(ReadOnlySpan<char> str, string unit, string format, CultureInfo culture)
+        {
+            var result = ParseInternal(str, unit, format, culture, out var ex);
+            if (ex != null)
+                throw ex;
+            return result;
         }
 
         public static bool TryParse(string str, string unit, string format, CultureInfo culture, out BigFloat bf)
         {
-            var result = parse(str, unit, format, culture);
-            if (result is BigFloat _bf)
-            {
-                bf = _bf;
-                return true;
-            }
-            bf = default(BigFloat);
-
-            return false;
-
+            bf = ParseInternal(str, unit, format, culture, out var ex);
+            return ex == null;
         }
     }
 
@@ -481,12 +484,8 @@ namespace OpenTap
             }
         }
 
-        const bool enableFeatureFractions = false;
-        BigFloat parseNumber(string trimmed)
+        BigFloat parseNumber(ReadOnlySpan<char> trimmed)
         {
-            // support fractions e.g 1/3 disabled because its hard to convert back from 0.333333... to 1/3, so this gives problems with formatting.
-            if (enableFeatureFractions && trimmed.Contains('/'))
-                return trimmed.Split('/').Select(part => parseNumber(part.Trim())).Aggregate((x, y) => x * PreScaling / y);
             return UnitFormatter.Parse(trimmed, Unit ?? "", Format, culture) * PreScaling;
         }
 
@@ -504,7 +503,9 @@ namespace OpenTap
 
         string parseBackNumber(BigFloat number)
         {
-            return UnitFormatter.Format(number / PreScaling, UsePrefix, Unit ?? "", Format, culture, IsCompact);
+            if (PreScaling != 1.0)
+                number /= PreScaling;
+            return UnitFormatter.Format(number, UsePrefix, Unit ?? "", Format, culture, IsCompact);
         }
 
         void parseBackRange(BigFloat Start, BigFloat Step, BigFloat Stop, StringBuilder sb)
@@ -528,10 +529,10 @@ namespace OpenTap
             return string.Format("{0} : {1} : {2}", parseBackNumber(rng.Start), parseBackNumber(rng.Step), parseBackNumber(rng.Stop));
         }
 
-        Range parseRange(string formatted)
+        Range parseRange(ReadOnlySpan<char> formatted)
         {
-            var parts = formatted.Split(':').Select(s => s.Trim());
-            var rangeitems = parts.Select(parseNumber).ToArray();
+            var parts = formatted.ToString().Split(':').Select(s => s.Trim());
+            var rangeitems = parts.Select(str => parseNumber(str)).ToArray();
             Range result = null;
             if (rangeitems.Length == 3)
             {
@@ -544,7 +545,7 @@ namespace OpenTap
             }
             else
             {
-                throw new FormatException(string.Format("Unable to parse Range from {0}", formatted));
+                throw new FormatException($"Unable to parse Range from {formatted.ToString()}");
             }
             result.CheckRange();
             return result;
@@ -556,31 +557,46 @@ namespace OpenTap
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public ICombinedNumberSequence<double> Parse(string value)
+        public ICombinedNumberSequence<double> Parse(ReadOnlySpan<char> value)
         {
-            if (value == null)
-                throw new ArgumentNullException("value");
             string separator = culture.NumberFormat.NumberGroupSeparator;
-            var splits = value.Split(new string[] { separator }, StringSplitOptions.RemoveEmptyEntries);
+            
             List<IEnumerable<BigFloat>> parts = new List<IEnumerable<BigFloat>>();
-            foreach (var split in splits)
+            List<BigFloat> endPart = null;
+            List<BigFloat> endPartBacking = new(value.Length/2);
+            int indexer = 0;
+            while(value.Length > 0)
             {
-                var trimmed = split.Trim();
-                if (trimmed.Contains(':'))
+                var separatorIndex = value.IndexOf(separator);
+                if (separatorIndex == -1)
+                {
+                    separatorIndex = value.Length - 1;
+                }
+                var trimmed = value.Slice(0, separatorIndex).Trim();
+                value = value.Slice(separatorIndex + 1);
+                
+                if (trimmed.IndexOf(':') != -1)
                 {
                     Range rng = parseRange(trimmed);
+                    if (endPart != null)
+                    {
+                        parts[parts.Count - 1] = endPart.ToArray();
+                        endPart = null;
+                        endPartBacking.Clear();
+                    }
                     parts.Add(rng);
                 }
                 else
                 {
                     var result = parseNumber(trimmed);
-                    if (parts.Count == 0 || parts[parts.Count - 1] is Range)
+                    if (endPart == null)
                     {
-                        parts.Add(new List<BigFloat> { result });
+                        endPart = endPartBacking;
+                        parts.Add(endPart);
                     }
                     else
                     {
-                        ((IList<BigFloat>)parts[parts.Count - 1]).Add(result);
+                        endPart.Add(result);
                     }
                 }
             }
@@ -597,7 +613,8 @@ namespace OpenTap
                         parts2.Add(item);
                         continue;
                     }
-                    var vals = item as IList<BigFloat>;
+                    
+                    var vals = item as ICollection<BigFloat>;
                     bool reuse_last = false;
                     BigFloat start = 0, stop = 0, step = 0;
                     int nitems = 0;
@@ -607,7 +624,7 @@ namespace OpenTap
                         start = last.Start;
                         stop = last.Stop;
                         step = last.Step;
-                        nitems = (int)((((stop - start) / step) + 0.5).Rounded() + 1);
+                        nitems = ((int)((((stop - start) / step) + BigFloat.Half).Rounded())) + 1;
                         reuse_last = true;
                     }
 
@@ -637,11 +654,11 @@ namespace OpenTap
                             }
                             else if (nitems == 2)
                             {
-                                parts2.Add(new BigFloat[] { start, stop });
+                                parts2.Add([start, stop]);
                             }
                             else
                             {
-                                parts2.Add(new BigFloat[] { start });
+                                parts2.Add([start]);
                             }
                         }
                         nitems = 0;
@@ -669,9 +686,9 @@ namespace OpenTap
                         if (step == 0)
                             nextval = stop; // Avoid NaN nextval.
                         else
-                            nextval = start + (step * (1 + ((stop - start) / step).Round()));
+                            nextval = start + (BigFloat.One + ((stop - start) / step).Round()) * step;
 
-                        if ((val - nextval) == 0)
+                        if ((val == nextval))
                         {
                             stop = val;
                             nitems += 1;
@@ -688,7 +705,7 @@ namespace OpenTap
                 }
             }
             else
-                parts2 = parts.Select(x => x.ToList() as IEnumerable<BigFloat>).ToList();
+                parts2 = parts.Select(x => x.ToArray() as IEnumerable<BigFloat>).ToList();
             return new CombinedNumberSequences<BigFloat>(parts2).CastTo<double>();
 
         }
@@ -778,17 +795,15 @@ namespace OpenTap
         public string FormatRange(IEnumerable values)
         {
             if (values == null)
-                throw new ArgumentNullException("values");
+                throw new ArgumentNullException(nameof(values));
             { // Check if values is a ICombinedNumberSequence. 
               // If so, it can be parsed back faster. (without iterating through all the ranges).
-                var seqs = values as _ICombinedNumberSequence;
-                if (seqs != null)
+              if (values is _ICombinedNumberSequence seqs)
                 {
                     StringBuilder sb = StringBuilderCache.GetStringBuilder();
                     foreach (var subseq in seqs.Sequences)
                     {
-                        var range = subseq as Range;
-                        if (range != null)
+                        if (subseq is Range range)
                         {
                             if (sb.Length != 0)
                                 sb.Append(separator);
@@ -796,7 +811,7 @@ namespace OpenTap
                         }
                         else
                         {
-                            foreach (var val in subseq)
+                            foreach (var val in (BigFloat[])subseq)
                             {
                                 if (sb.Length != 0)
                                     sb.Append(separator);
@@ -822,8 +837,8 @@ namespace OpenTap
                     else
                     {
                         seq_step = sequence[1] - sequence[0];
-                        var nextVal = sequence[0] + seq_step * (1 + ((sequence.Last() - sequence[0]) / seq_step).Round());
-                        if ((nextVal - val) == BigFloat.Zero)
+                        var nextVal = sequence[0] + seq_step * (BigFloat.One + ((sequence.Last() - sequence[0]) / seq_step).Round());
+                        if (nextVal == val)
                         {
                             sequence.Add(val);
                         }
