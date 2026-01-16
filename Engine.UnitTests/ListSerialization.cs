@@ -91,7 +91,7 @@ namespace OpenTap.Engine.UnitTests
         [Test]
         public void StringListSerialization()
         {
-            TestPlan target = new TestPlan();
+            TestPlan plan = new TestPlan();
 
             var specList = new List<double> { 5, 6, 7 };
             var hashSet = new HashSet<TestEnum>(new TestEnum[] { TestEnum.C });
@@ -106,16 +106,10 @@ namespace OpenTap.Engine.UnitTests
             targetStep.Dict["asd"] = 5;
             targetStep.Dict[""] = 15;
 
-            target.Steps.Add(targetStep);
+            plan.Steps.Add(targetStep);
+            var planXml = plan.SerializeToString();
 
-            TestPlan deserialized;
-
-            using (var ms = new MemoryStream())
-            {
-                target.Save(ms);
-                ms.Seek(0, SeekOrigin.Begin);
-                deserialized = TestPlan.Load(ms, target.Path);
-            }
+            var deserialized = (TestPlan) new TapSerializer().DeserializeFromString(planXml);
             var step = deserialized.ChildTestSteps.First() as StringListStep;
 
             Assert.IsNotNull(step.TestProp);

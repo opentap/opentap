@@ -574,12 +574,19 @@ namespace OpenTap
             while(text.Length > 0)
             {
                 var separatorIndex = text.IndexOf(separator);
+                ReadOnlySpan<char> trimmed;
                 if (separatorIndex == -1)
                 {
-                    separatorIndex = text.Length - 1;
+                    trimmed = text.Trim();
+                    text = []; // final iteration.
+                    if (trimmed.Length == 0)
+                        break;
                 }
-                var trimmed = text.Slice(0, separatorIndex).Trim();
-                text = text.Slice(separatorIndex + 1);
+                else
+                {
+                    trimmed = text.Slice(0, separatorIndex).Trim();
+                    text = text.Slice(separatorIndex + 1);
+                }
                 
                 if (trimmed.IndexOf(':') != -1)
                 {
@@ -600,10 +607,8 @@ namespace OpenTap
                         endPart = endPartBacking;
                         parts.Add(endPart);
                     }
-                    else
-                    {
-                        endPart.Add(result);
-                    }
+                    
+                    endPart.Add(result);
                 }
             }
             List<IEnumerable<BigFloat>> parts2 = new List<IEnumerable<BigFloat>>();

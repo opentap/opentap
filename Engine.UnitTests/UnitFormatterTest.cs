@@ -33,7 +33,19 @@ public class UnitFormatterTest
         var bf = UnitFormatter.Parse(strValue, "", "", CultureInfo.InvariantCulture);
         var result = (double)bf.ConvertTo(typeof(double));
         Assert.AreEqual(approxDouble, result, Math.Abs(approxDouble) * 0.00001);
+    }
 
+    [TestCase("4,5,6", null)]
+    [TestCase("1:5", "1,2,3,4,5")]
+    [TestCase("1:2:5", "1,3,5")]
+    [TestCase("5:-1:1", "5,4,3,2,1")]
+    public void TestParseSequence(string sequence, string expected)
+    {
+        if (expected == null) expected = sequence;
+        var values = expected.Split(",").Select(double.Parse).ToArray();
+        var parser = new NumberFormatter(CultureInfo.InvariantCulture);
+        var values2 = parser.Parse(sequence);
+        Assert.IsTrue(values2.SequenceEqual(values));
     }
 }
 
