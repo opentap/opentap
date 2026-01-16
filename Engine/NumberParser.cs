@@ -552,27 +552,34 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Parses a string to a sequence of doubles.
+        /// Parses text to a sequence of doubles.
         /// supports ranges, sequences, units and prefixes.
         /// </summary>
-        /// <param name="value"></param>
-        /// <returns></returns>
-        public ICombinedNumberSequence<double> Parse(ReadOnlySpan<char> value)
+        public ICombinedNumberSequence<double> Parse(string text)
+        {
+            return Parse(text.AsSpan());
+        }
+
+        /// <summary>
+        /// Parses text to a sequence of doubles.
+        /// supports ranges, sequences, units and prefixes.
+        /// </summary>
+        public ICombinedNumberSequence<double> Parse(ReadOnlySpan<char> text)
         {
             string separator = culture.NumberFormat.NumberGroupSeparator;
             
             List<IEnumerable<BigFloat>> parts = new List<IEnumerable<BigFloat>>();
             List<BigFloat> endPart = null;
-            List<BigFloat> endPartBacking = new(value.Length/2);
-            while(value.Length > 0)
+            List<BigFloat> endPartBacking = new(text.Length/2);
+            while(text.Length > 0)
             {
-                var separatorIndex = value.IndexOf(separator);
+                var separatorIndex = text.IndexOf(separator);
                 if (separatorIndex == -1)
                 {
-                    separatorIndex = value.Length - 1;
+                    separatorIndex = text.Length - 1;
                 }
-                var trimmed = value.Slice(0, separatorIndex).Trim();
-                value = value.Slice(separatorIndex + 1);
+                var trimmed = text.Slice(0, separatorIndex).Trim();
+                text = text.Slice(separatorIndex + 1);
                 
                 if (trimmed.IndexOf(':') != -1)
                 {
