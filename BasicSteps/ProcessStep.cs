@@ -351,7 +351,7 @@ namespace OpenTap.Plugins.BasicSteps
                     if(AddToLog)
                         Log.Info("{0}{1}", prepend, e.Data);
                     lock(output)
-                        output.AppendLine(e.Data);
+                        output.Append(e.Data);
                 }
             }
             catch (ObjectDisposedException)
@@ -369,7 +369,7 @@ namespace OpenTap.Plugins.BasicSteps
                     if(AddToLog)
                         Log.Error("{0}{1}", prepend, e.Data);
                     lock(output)
-                        output.AppendLine(e.Data);
+                        output.Append(e.Data);
                 }
             }
             catch (ObjectDisposedException)
