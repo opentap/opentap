@@ -48,6 +48,6 @@ The following are the most commonly implemented types of annotations:
  The static method ```AnnotationCollection.Annotate``` is used to build the AnnotationCollection object. A plugin type called an "annotator" (```IAnnotator```) is the definition of classes that can be used to provide annotations for a given object. To use custom annotations an ```IAnnotator``` must be implemented to specify where the custom annotations should be inserted. A number of annotators exist and they need to be applied in a specific order, therefore the ```IAnnotator.Priority``` Property is used to control the order in which annotations are being applied. Normally, this value should just be set to '1'.
  
   
- ## Custom Controls and Annotations
+## Custom Controls and Annotations
  
  Various GUI implementations support writing new custom controls. To support this it might also be necessary to create custom annotation types. Both things are possible, but it is generally discouraged, since existing GUIs cannot know about these new annotations. If new annotation types or new types of controls are needed we encourage starting a discussion on the OpenTAP repository at [https://github.com/opentap/opentap](https://github.com/opentap/opentap). This way, we can ensure that plugins are broadly supported across multiple user interfaces.
