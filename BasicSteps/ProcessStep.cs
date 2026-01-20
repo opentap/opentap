@@ -109,15 +109,13 @@ namespace OpenTap.Plugins.BasicSteps
         [EnabledIf(nameof(WaitForEnd), true, HideIfDisabled = true)]
         public int ExitCode { get; private set; }
         
-        StringBuilder output;
-
 
         [Display("Output", Group: "Results", Order: 1.53, Collapsed: true, Description: "The result of the execution.")]
         [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
         [Output]
         [Browsable(true)]
         [Layout(LayoutMode.Normal, maxRowHeight: 1)]
-        public string Output => output?.ToString() ?? "";
+        public string Output { get; private set; }
 
 
         public ProcessStep()
@@ -160,7 +158,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         void Run0()
         {
-            output?.Clear();
+            Output = "";
             ThrowOnValidationError(true);
             if (RunElevated &&!SubProcessHost.IsAdmin())
             {
@@ -239,19 +237,18 @@ namespace OpenTap.Plugins.BasicSteps
 
             if (WaitForEnd)
             {
-                output = new StringBuilder();
                 
                 using(process)
                 using(abortRegistration)
                 {
-                    process.OutputDataReceived += OutputDataRecv;
-                    process.ErrorDataReceived += ErrorDataRecv;
 
                     Log.Debug("Starting process {0} with arguments \"{1}\"", Application, Arguments);
                     // Ensure that all asynchronous processing is completed by calling process.WaitForExit()
                     // Only the overload with no parameters has this guarantee. See remarks at
                     // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.process.waitforexit?view=netframework-4.8
                     var done = new ManualResetEventSlim(false);
+                    var done2 = new ManualResetEventSlim(false);
+                    var done3 = new ManualResetEventSlim(false);
                     var elapsed = Stopwatch.StartNew();
                     process.Exited += (s, e) =>
                     {
@@ -260,9 +257,58 @@ namespace OpenTap.Plugins.BasicSteps
                     };
 
                     process.Start();
+                    
+                    var mixedOutStream = new MemoryStream();
 
-                    process.BeginOutputReadLine();
-                    process.BeginErrorReadLine();
+                    static void processStream(ManualResetEventSlim done, Stream combinedStream, Stream inStream, Action<string> onLine)
+                    {
+                        // This function reads the stream (stdout or stderr) and writes it to the combinedStream, output.
+                        // if "onLine" is set, it also parses each line 
+                        var readBuffer = new byte[1024];
+                        List<byte> lineProcessor = new();
+                        while (true)
+                        {
+                            int read = inStream.Read(readBuffer, 0, 1024);
+                            if (read == 0) break;
+                            lock(combinedStream)
+                                combinedStream.Write(readBuffer, 0, read);
+
+                            if (onLine != null)
+                            {
+                                // we want line output
+                                var slice = readBuffer.AsSpan(0, read);
+                                while (true)
+                                {
+
+                                    var nlIdx = slice.IndexOf((byte)10); //10 = \n. 
+                                    if (nlIdx != -1)
+                                    {
+                                        var lineSlice = slice.Slice(0, nlIdx);
+                                        slice = slice.Slice(nlIdx + 1);
+
+                                        lineProcessor.AddRange(lineSlice.ToArray());
+                                        onLine(Encoding.UTF8.GetString(lineProcessor.ToArray()).TrimEnd('\r'));
+                                        lineProcessor.Clear();
+                                        
+                                    }
+                                    else
+                                    {
+                                        lineProcessor.AddRange(slice.ToArray());
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        // emit the final line (in case the output from the process did not itself end with a newline).
+                        if (onLine != null && lineProcessor.Count > 0)
+                            onLine(Encoding.UTF8.GetString(lineProcessor.ToArray()).TrimEnd('\r'));
+
+                        done.Set();
+                    }
+
+                    TapThread.Start(stdin => processStream(done2, mixedOutStream, stdin, !AddToLog ? null : line => Log.Info("{0}{1}", prepend, line)), process.StandardOutput.BaseStream);
+                    TapThread.Start(stderr => processStream(done3, mixedOutStream,stderr, !AddToLog ? null :line => Log.Error("{0}{1}", prepend, line)), process.StandardError.BaseStream);
 
                     startEvent.Set();
 
@@ -293,12 +339,22 @@ namespace OpenTap.Plugins.BasicSteps
                         }
                     }
 
+                    if (process.HasExited)
+                    {
+                        // if the process has exited wait for the output processing to finish.
+                        // if the process did not exit, then we'll never know when its done writing.
+                        // these timeouts are arbitrarily set, generally it should be done almost immediately.
+                        done2.Wait(500);
+                        done3.Wait(500);
+                    }
+
                     ExitCode = process.HasExited ? process.ExitCode : -1;
+                    
+                    Output = Encoding.UTF8.GetString(mixedOutStream.ToArray());
+                    ProcessOutput(Output);
                     if (elapsed.Elapsed.TotalMilliseconds < timeoutMs || timeoutMs == 0)
                     {
-                        var resultData = output.ToString();
-
-                        ProcessOutput(resultData);
+                        
                         if (CheckExitCode)
                         {
                             if (ExitCode != 0)
@@ -309,13 +365,6 @@ namespace OpenTap.Plugins.BasicSteps
                     }
                     else
                     {
-                        process.OutputDataReceived -= OutputDataRecv;
-                        process.ErrorDataReceived -= ErrorDataRecv;
-
-                        var resultData = output.ToString();
-
-                        ProcessOutput(resultData);
-
                         if (!TapThread.Current.Parent.AbortToken.IsCancellationRequested)
                         {
                             Log.Info("Timed out while waiting for process to end.");
@@ -339,42 +388,6 @@ namespace OpenTap.Plugins.BasicSteps
                         process.WaitForExit();
                     }
                 });
-            }
-        }
-
-        void OutputDataRecv(object sender, DataReceivedEventArgs e)
-        {
-            try
-            {
-                if (e.Data != null)
-                {
-                    if(AddToLog)
-                        Log.Info("{0}{1}", prepend, e.Data);
-                    lock(output)
-                        output.Append(e.Data);
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-                // Suppress - Test plan has been aborted and process is disconnected
-            }
-        }
-
-        void ErrorDataRecv(object sender, DataReceivedEventArgs e)
-        {
-            try
-            {
-                if (e.Data != null)
-                {
-                    if(AddToLog)
-                        Log.Error("{0}{1}", prepend, e.Data);
-                    lock(output)
-                        output.Append(e.Data);
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-                // Suppress - Test plan has been aborted and process is disconnected
             }
         }
     }
