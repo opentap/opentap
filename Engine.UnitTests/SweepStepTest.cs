@@ -638,7 +638,7 @@ namespace OpenTap.Engine.UnitTests
             addSweepRow(loopOuter);
             var v1 = (SweepRowCollection)TypeData.GetTypeData(loopOuter.SweepValues[0]).GetMember("A").GetValue(loopOuter.SweepValues[0]);
             var v2 = (SweepRowCollection)TypeData.GetTypeData(loopOuter.SweepValues[1]).GetMember("A").GetValue(loopOuter.SweepValues[1]);
-
+            
             double counter = 0;
             foreach (var row1 in loopOuter.SweepValues)
             {
@@ -754,6 +754,54 @@ namespace OpenTap.Engine.UnitTests
                         TypeData.GetTypeData(row3).GetMember("Value").SetValue(row3, counter);
                         counter += 1;
                     }
+                }
+            }
+        }
+
+        [Test]
+        public void SweepOfSweepEnabledTest()
+        {
+            var plan = new TestPlan();
+            var loopOuter = new SweepParameterStep();
+            var loopInner = new SweepParameterStep();
+            var step = new DoubleTestStep();
+            plan.ChildTestSteps.Add(loopOuter);
+            loopOuter.ChildTestSteps.Add(loopInner);
+            loopInner.ChildTestSteps.Add(step);
+
+            TypeData.GetTypeData(step).GetMember(nameof(step.Value)).Parameterize(loopInner, step, "Value");
+            loopInner.SelectedParameters.Add(loopInner.AvailableParameters.First());
+            TypeData.GetTypeData(loopInner).GetMember(nameof(loopInner.SweepValues))
+                .Parameterize(loopOuter, loopInner, "A");
+            loopOuter.SelectedParameters.Add(loopOuter.AvailableParameters.First());
+
+            void addSweepRow(SweepParameterStep step, bool enabled)
+            {
+                var a = AnnotationCollection.Annotate(step);
+                var values = a.GetMember(nameof(step.SweepValues));
+                var col = values.Get<ICollectionAnnotation>();
+                var newelem = col.NewElement();
+                col.AnnotatedElements = col.AnnotatedElements
+                    .Append(newelem);
+
+                var e = newelem.GetMember("Enabled");
+                e.Get<IObjectValueAnnotation>().Value = enabled;
+                a.Write();
+            }
+
+            addSweepRow(loopInner, true);
+            addSweepRow(loopInner, false);
+            addSweepRow(loopOuter, true);
+            addSweepRow(loopOuter, false);
+            
+            int counter = 0;
+            foreach (var row1 in loopOuter.SweepValues)
+            {
+                foreach (var row2 in (SweepRowCollection)TypeData.GetTypeData(row1).GetMember("A").GetValue(row1))
+                {
+                    bool rowEnabled = (counter % 2) == 0;
+                    Assert.AreEqual(rowEnabled, row2.Enabled);
+                    counter += 1;
                 }
             }
         }
