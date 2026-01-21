@@ -13,6 +13,12 @@ namespace OpenTap.Authentication
     public class TokenInfo
     {
         /// <summary>
+        /// If true, skip validation of SSL certificates. Avoid using this unless you know you really need it.
+        /// </summary>
+        [Browsable(false)]
+        [EditorBrowsable(EditorBrowsableState.Never)]
+        public bool SkipServerCertificateValidation { get; set; } = false;
+        /// <summary>
         /// An enumeration of known token kinds
         /// </summary>
         private enum TokenKind
