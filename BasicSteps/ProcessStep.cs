@@ -260,18 +260,19 @@ namespace OpenTap.Plugins.BasicSteps
                     
                     var mixedOutStream = new MemoryStream();
 
-                    static void processStream(ManualResetEventSlim done, Stream combinedStream, Stream inStream, Action<string> onLine)
+                    static void processStream(ManualResetEventSlim done, Stream combinedStream, StreamReader inputStream, Action<string> onLine)
                     {
                         // This function reads the stream (stdout or stderr) and writes it to the combinedStream, output.
                         // if "onLine" is set, it also parses each line 
-                        var readBuffer = new byte[1024];
-                        List<byte> lineProcessor = new();
+                        var readBuffer = new char[1024];
+                        List<char> lineProcessor = new();
                         while (true)
                         {
-                            int read = inStream.Read(readBuffer, 0, 1024);
+                            int read = inputStream.Read(readBuffer, 0, 1024);
                             if (read == 0) break;
+                            byte[] utf8String = Encoding.UTF8.GetBytes(new string(readBuffer, 0, read));
                             lock(combinedStream)
-                                combinedStream.Write(readBuffer, 0, read);
+                                combinedStream.Write(utf8String, 0, utf8String.Length);
 
                             if (onLine != null)
                             {
@@ -280,14 +281,14 @@ namespace OpenTap.Plugins.BasicSteps
                                 while (true)
                                 {
 
-                                    var nlIdx = slice.IndexOf((byte)10); //10 = \n. 
+                                    var nlIdx = slice.IndexOf('\n'); //10 = \n. 
                                     if (nlIdx != -1)
                                     {
                                         var lineSlice = slice.Slice(0, nlIdx);
                                         slice = slice.Slice(nlIdx + 1);
 
                                         lineProcessor.AddRange(lineSlice.ToArray());
-                                        onLine(Encoding.UTF8.GetString(lineProcessor.ToArray()).TrimEnd('\r'));
+                                        onLine(new string(lineProcessor.ToArray()).TrimEnd('\r'));
                                         lineProcessor.Clear();
                                         
                                     }
@@ -302,13 +303,13 @@ namespace OpenTap.Plugins.BasicSteps
 
                         // emit the final line (in case the output from the process did not itself end with a newline).
                         if (onLine != null && lineProcessor.Count > 0)
-                            onLine(Encoding.UTF8.GetString(lineProcessor.ToArray()).TrimEnd('\r'));
+                            onLine(new string(lineProcessor.ToArray()).TrimEnd('\r'));
 
                         done.Set();
                     }
 
-                    TapThread.Start(stdin => processStream(done2, mixedOutStream, stdin, !AddToLog ? null : line => Log.Info("{0}{1}", prepend, line)), process.StandardOutput.BaseStream);
-                    TapThread.Start(stderr => processStream(done3, mixedOutStream,stderr, !AddToLog ? null :line => Log.Error("{0}{1}", prepend, line)), process.StandardError.BaseStream);
+                    TapThread.Start(stdin => processStream(done2, mixedOutStream, stdin, !AddToLog ? null : line => Log.Info("{0}{1}", prepend, line)), process.StandardOutput);
+                    TapThread.Start(stderr => processStream(done3, mixedOutStream,stderr, !AddToLog ? null :line => Log.Error("{0}{1}", prepend, line)), process.StandardError);
 
                     startEvent.Set();
 
