@@ -318,7 +318,7 @@ public class EmbeddedPropertyTests
         public double GreaterThan0 { get; set; } = 1.0;
         public EmbeddedClassOnTestStep()
         {
-            Rules.Add(() => GreaterThan0 > 0, nameof(GreaterThan0));
+            Rules.Add(() => GreaterThan0 > 0, "Error", nameof(GreaterThan0));
         }
 
         public class EmbeddingClass2
@@ -407,7 +407,32 @@ public class EmbeddedPropertyTests
         seq.ChildTestSteps.Add(step);
         plan.ChildTestSteps.Add(seq);
 
-        var members = TypeData.GetTypeData(step).GetMembers().ToArray();
+        var memberParameter = TypeData.GetTypeData(step).GetMember("Emb.GreaterThan0")
+            .Parameterize(seq, step, "GreaterThan0");
+
+        memberParameter.Parameterize(plan, seq, "GreaterThan0Plan");
+        
+        Assert.IsTrue(string.IsNullOrWhiteSpace(step.Error));
+        step.Emb.GreaterThan0 = 0;
+        //Assert.IsFalse(string.IsNullOrWhiteSpace(step.Error));
+
+        {
+            var va = AnnotationCollection.Annotate(step).GetMember("Emb.GreaterThan0")
+                .Get<ValidationErrorAnnotation>();
+            Assert.IsTrue(va.Errors.Count() > 0);
+        }
+        
+        {
+            var va = AnnotationCollection.Annotate(seq).GetMember("GreaterThan0")
+                .Get<ValidationErrorAnnotation>();
+            Assert.IsTrue(va.Errors.Count() > 0);
+        }
+        {
+            var va = AnnotationCollection.Annotate(plan).GetMember("GreaterThan0Plan")
+                .Get<ValidationErrorAnnotation>();
+            Assert.IsTrue(va.Errors.Count() > 0);
+        }
+
         
     }
 }

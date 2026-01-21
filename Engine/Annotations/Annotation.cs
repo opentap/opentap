@@ -453,11 +453,19 @@ namespace OpenTap
             // The embedded member may be nested in multiple layers
             // of embeddings normally it is just one level though.
             // iterate to grab the innermost source and member.
-            while (mem is EmbeddedMemberData m2)
-            {   
-                if (source == null) return;
-                source = m2.OwnerMember.GetValue(source);
-                mem = m2.InnerMember;
+            while (true)
+            {
+                if (mem is EmbeddedMemberData m2)
+                {
+                    if (source == null) return;
+                    source = m2.OwnerMember.GetValue(source);
+                    mem = m2.InnerMember;
+                }else if (mem is ParameterMemberData pm)
+                {
+                    (source,mem) = pm.ParameterizedMembers.First();
+                }
+                else
+                    break;
             }
 
             if (source is IDataErrorInfo dataErrorInfo)
@@ -2896,19 +2904,30 @@ namespace OpenTap
                 {
                     annotation.Add(new ValidationErrorAnnotation(mem));
                 }
-                else if (member is EmbeddedMemberData emb)
+                else if (member is EmbeddedMemberData || member is ParameterMemberData)
                 {
                     // if the member is not part of a validating object, but
                     // it comes from an embedded property which is, then the annotation
                     // should also be added.
-                    while (emb != null)
+                    // also if its a parameter, we can check the error on the source object (only first source object though).
+                    var member2 = member;
+                    while (true)
                     {
-                        if (emb.InnerMember.DeclaringType.DescendsTo(typeof(IValidatingObject)))
+                        if (member2 is EmbeddedMemberData emb)
+                        {
+                            member2 = emb.InnerMember;
+                        }else if (member2 is ParameterMemberData pm)
+                        {
+                            member2 = pm.ParameterizedMembers.First().Item2;
+                        }else if (member2.DeclaringType.DescendsTo(typeof(IValidatingObject)))
                         {
                             annotation.Add(new ValidationErrorAnnotation(mem));
                             break;
                         }
-                        emb = emb.InnerMember as EmbeddedMemberData;
+                        else
+                        {
+                            break;
+                        }
                     }
                 }
 
