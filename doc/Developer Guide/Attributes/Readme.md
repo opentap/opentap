@@ -249,7 +249,7 @@ public uint IntegerValue { get; set; } = 0xA; // Displayed as: "0x0000000A"
 ```
 
 ### Opting out of range simplification with UseRanges
-This only affect sequences of elements such as Lists or Arrays. Range simplification is normally applied when you write a range of values, e.g "1,2,3,4,5". This will get simplified to "1 : 5".
+This only affects sequences of elements such as Lists or Arrays. Range simplification is normally applied when you write a range of values, e.g "1,2,3,4,5". This will get simplified to "1 : 5".
 
 You can opt out of that behavior using the UseRanges property as in the below example
 
