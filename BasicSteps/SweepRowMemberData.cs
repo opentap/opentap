@@ -45,7 +45,10 @@ class SweepRowMemberData : IMemberData, IParameterMemberData
         // so to support use cases like sweeps of sweeps, they get special treatment here.
         if (value is SweepRow sr)
         {
-            var sr2 = new SweepRow(sr.Loop);
+            var sr2 = new SweepRow(sr.Loop)
+            {
+                Enabled = sr.Enabled
+            };
             foreach (var kv in sr.Values)
                 sr2.Values.Add(kv.Key, CloneIfPossible(kv.Value, context));
             return sr2;
