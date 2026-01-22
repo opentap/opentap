@@ -270,7 +270,7 @@ namespace OpenTap
                     foreach (var innermember in members)
                     {
                         List<object> additionalAttributes = [];
-                        if (xmlIgnore) 
+                        if (xmlIgnore && !innermember.HasAttribute<XmlIgnoreAttribute>()) 
                             additionalAttributes.Add(new XmlIgnoreAttribute());
                         if (memBrowsable.HasValue && !innermember.HasAttribute<BrowsableAttribute>())
                             additionalAttributes.Add(new BrowsableAttribute(memBrowsable.Value));
