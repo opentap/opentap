@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Linq;
 using System.Xml.Serialization;
 using NUnit.Framework;
@@ -296,8 +297,8 @@ namespace OpenTap.UnitTests
             CollectionAssert.AreEqual(emb.Objects, emb2.Objects);
             
             verifyEmbedded(emb);
-            verifyEmbedded(emb2); 
-            void verifyEmbedded(object o)
+            verifyEmbedded(emb2);
+            static void verifyEmbedded(object o)
             {
                 var embedded = TypeData.GetTypeData(o).GetMembers().OfType<EmbeddedMemberData>().ToArray(); 
                 Assert.That(embedded.Length, Is.EqualTo(2));
@@ -307,6 +308,71 @@ namespace OpenTap.UnitTests
                     Assert.That(emb.HasAttribute<XmlIgnoreAttribute>(), Is.True);
                 }
             }
+        }
+
+        public class EmbeddingClass2
+        {
+            public string GetMember { get; }
+            [Browsable(true)] public string BrowsableGetMember { get; }
+            public string GetSetMember { get; set; }
+            [Browsable(false)] public string UnbrowsableGetSetMember { get; set; }
+        }
+
+        public class EmbeddedTest4
+        {
+            [Browsable(true)] 
+            [XmlIgnore]
+            [EmbedProperties]
+            public EmbeddingClass2 ExplicitlyBrowsable { get; } = new();
+
+            [Browsable(false)] 
+            [EmbedProperties]
+            public EmbeddingClass2 ExplicitlyUnbrowsable { get; } = new();
+
+            [EmbedProperties]
+            [XmlIgnore]
+            public EmbeddingClass2 XmlIgnored { get; } = new();
+        }
+
+        [Test]
+        public void TestBrowsableEmbedding()
+        {
+            var obj = new EmbeddedTest4();
+            var a = AnnotationCollection.Annotate(obj);
+
+            /* this is the rough logic used by ui implementations to determine if a property is visible */
+            static bool visible(AnnotationCollection mem)
+            {
+                var m = mem.Get<IMemberAnnotation>().Member;
+                var browsable = m.GetAttribute<BrowsableAttribute>();
+
+                // Browsable overrides everything
+                if (browsable != null) return browsable.Browsable;
+
+                var xmlIgnore = m.GetAttribute<XmlIgnoreAttribute>();
+                if (xmlIgnore != null)
+                    return false;
+                return false;
+            }
+
+            /* verify that Browsable(true) is correctly inherited by all embedded properties */
+            Assert.That(visible(a.GetMember(nameof(obj.ExplicitlyBrowsable) + "." + nameof(obj.ExplicitlyBrowsable.GetMember))),               Is.True); /* parent browsable */
+            Assert.That(visible(a.GetMember(nameof(obj.ExplicitlyBrowsable) + "." + nameof(obj.ExplicitlyBrowsable.BrowsableGetMember))),      Is.True); /* overrides browsable(true) */
+            Assert.That(visible(a.GetMember(nameof(obj.ExplicitlyBrowsable) + "." + nameof(obj.ExplicitlyBrowsable.GetSetMember))),            Is.True); /* parent browsable */
+            Assert.That(visible(a.GetMember(nameof(obj.ExplicitlyBrowsable) + "." + nameof(obj.ExplicitlyBrowsable.UnbrowsableGetSetMember))), Is.False); /* browsable(false) */
+
+            /* verify that an explicit Browsable(false) makes all embedded properties unconditonally unbrowsable */
+            Assert.That(visible(a.GetMember(nameof(obj.ExplicitlyUnbrowsable) + "." + nameof(obj.ExplicitlyUnbrowsable.GetMember))),               Is.False); /* parent browsable(false) */
+            Assert.That(visible(a.GetMember(nameof(obj.ExplicitlyUnbrowsable) + "." + nameof(obj.ExplicitlyUnbrowsable.BrowsableGetMember))),      Is.True); /* browsable(true) */
+            Assert.That(visible(a.GetMember(nameof(obj.ExplicitlyUnbrowsable) + "." + nameof(obj.ExplicitlyUnbrowsable.GetSetMember))),            Is.False); /* parent browsable(false) */
+            Assert.That(visible(a.GetMember(nameof(obj.ExplicitlyUnbrowsable) + "." + nameof(obj.ExplicitlyUnbrowsable.UnbrowsableGetSetMember))), Is.False); /* browsable(false) */
+
+            /* verify that default browsability makes embedded properties use default browsable behavior */
+            Assert.That(visible(a.GetMember(nameof(obj.XmlIgnored) + "." + nameof(obj.XmlIgnored.GetMember))),               Is.False); /* XmlIgnore makes this unbrowsable */
+            Assert.That(visible(a.GetMember(nameof(obj.XmlIgnored) + "." + nameof(obj.XmlIgnored.BrowsableGetMember))),      Is.True); /* browsable(true) overrides XmlIgnore */
+            Assert.That(visible(a.GetMember(nameof(obj.XmlIgnored) + "." + nameof(obj.XmlIgnored.GetSetMember))),            Is.False); /* XmlIgnore makes this unbrowsable */
+            Assert.That(visible(a.GetMember(nameof(obj.XmlIgnored) + "." + nameof(obj.XmlIgnored.UnbrowsableGetSetMember))), Is.False); /* browsable(false) */
+
         }
     }
 
