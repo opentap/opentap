@@ -301,7 +301,7 @@ public class EmbeddedPropertyTests
         verifyEmbedded(emb);
         verifyEmbedded(emb2);
 
-        staticvoid verifyEmbedded(object o)
+        static void verifyEmbedded(object o)
         {
             var embedded = TypeData.GetTypeData(o).GetMembers().OfType<EmbeddedMemberData>().ToArray();
             Assert.That(embedded.Length, Is.EqualTo(2));
