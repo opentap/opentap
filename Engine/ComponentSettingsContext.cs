@@ -302,7 +302,16 @@ namespace OpenTap
                     return null;
                 }
 
-                settings.Initialize();
+                try
+                {
+                    settings.Initialize();
+                }
+                catch (Exception e)
+                {
+                    log.Error("Caught exception while initializing an instance of '{0}'", settingsType.FullName);
+                    log.Debug(e);
+                    return null;
+                }
 
                 log.Debug(timer,
                     "No settings file exists for {0}. A new instance with default values has been created.",
