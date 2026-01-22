@@ -407,17 +407,22 @@ namespace OpenTap
             Parameterize(scope, s.Member, source, parameterUserRequest.SelectedName);
         }
 
-        public static bool UnmergableListType(IMemberData property)
+        public static bool UnmergableListType(ITestStepParent scope, IMemberData member)
         {
-            var propertyType = property.TypeDescriptor;
-            // merging IEnumerable is not supported (unless its a string).
+            var propertyType = member.TypeDescriptor;
+            // merging IEnumerable is supported if the element type can be cloned.
+            // This is trivially true for primitives and strings, but not for complex types such as classes.
             if (propertyType.DescendsTo(typeof(IEnumerable)))
             {
                 if (propertyType.IsA(typeof(string)) == false)
                 {
                     var elementType = propertyType.AsTypeData()?.ElementType;
                     if (elementType == null || elementType.IsNumeric == false)
-                        return true;
+                    {
+                        var value = member.GetValue(scope);
+                        var cloner = new ObjectCloner(value);
+                        return !cloner.CanClone(scope, propertyType);
+                    }
                 }
             }
 

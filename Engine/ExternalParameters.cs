@@ -139,10 +139,10 @@ namespace OpenTap
             {
                 // merge occured.
                 // See similar code in ExternalParameterSerializer.
-                if (ParameterManager.UnmergableListType(newParameter))
+                if (ParameterManager.UnmergableListType(plan, newParameter))
                 {
                     setting.Unparameterize(newParameter, step);
-                    log.Warning("Unable merge parameters {0}, since their types do not support it.", Name);
+                    log.Warning("Unable to merge parameters {0}, since their types do not support it.", Name);
                 }
             }
         
