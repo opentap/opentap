@@ -353,7 +353,7 @@ namespace OpenTap.Plugins
                                     {
                                         if (visited[j]) continue;
                                         var elem = elements[j];
-                                        var elementName = elem.Name.LocalName;
+                                        var elementName = XmlConvert.DecodeName(elem.Name.LocalName);
                                         if (elementName.Contains('.') == false)
                                         {
                                             // if the element name contains '.' it is usually a special name and hence
@@ -361,7 +361,7 @@ namespace OpenTap.Plugins
                                             //     Package.Dependencies
                                             //     TestStep.Inputs
                                             var message =
-                                                $"Unable to read element '{elem.Name.LocalName}'. The property does not exist.";
+                                                $"Unable to read element '{elementName}'. The property does not exist.";
                                             Serializer.PushError(elem, message);
                                         }
                                     }
