@@ -12,6 +12,7 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
+using OpenTap.Utilities;
 using Tap.Shared;
 
 [assembly: OpenTap.PluginAssembly(true)]
@@ -255,6 +256,7 @@ namespace OpenTap
                 
                 return asmData;
             }
+
             
             /// <summary> Manually analyze and add an assembly file. </summary>
             internal AssemblyData AddAssemblyInfo(string file, Assembly loadedAssembly = null)
@@ -271,20 +273,26 @@ namespace OpenTap
                     if (!File.Exists(file)) return null;
                     if (file.Contains(".resources.dll"))
                         return null;
-                    var thisAssembly = new AssemblyData(file, loadedAssembly);
+                    
                     
                     List<AssemblyRef> refNames = new List<AssemblyRef>();
                     using (FileStream str = new FileStream(file, FileMode.Open, FileAccess.Read))
                     {
-                        if(str.Length > int.MaxValue)
-                            return null; // otherwise PEReader() will throw.
-                        if(str.Length < 50) 
-                            return null; // Don't consider super small assemblies.
+                        var binFormat = BinaryFormatDetector.Detect(str, file);
+                    
+                        if (binFormat != ExecutableFormat.DotNet)
+                        {
+                            if(binFormat == ExecutableFormat.Unknown)
+                                log.Warning("Skipping assembly '{0}'. Unknown file type.", Path.GetFileName(file));
+                            // if its a native assembly, it could be a dynamically linked library, disguised as a DLL.
+                            return null;
+                        }
+
+                        str.Seek(0, SeekOrigin.Begin);
+                        AssemblyData thisAssembly = null;
                         using (PEReader header = new PEReader(str, PEStreamOptions.LeaveOpen))
                         {
-                            if (!header.HasMetadata)
-                                return null;
-
+                       
                             MetadataReader metadata = header.GetMetadataReader();
                             AssemblyDefinition def = metadata.GetAssemblyDefinition();
 
@@ -293,7 +301,7 @@ namespace OpenTap
                             var fileIdentifier = Option.HasFlag(Options.IncludeSameAssemblies) ? file : def.GetAssemblyName().FullName;
                             if (asmNameToAsmData.TryGetValue(fileIdentifier, out AssemblyData data))
                                 return data;
-
+                            thisAssembly = new AssemblyData(file, loadedAssembly);
                             thisAssembly.Name = metadata.GetString(def.Name);
 
                             if (string.Compare(thisAssembly.Name, Path.GetFileNameWithoutExtension(file), true) != 0)
@@ -392,8 +400,13 @@ namespace OpenTap
                                 }
                             }
                         }
-                        thisAssembly.References = (IEnumerable<AssemblyData>) refList ?? Array.Empty<AssemblyData>();
-                        Assemblies.Add(thisAssembly);
+
+                        if (thisAssembly != null)
+                        {
+                            thisAssembly.References = (IEnumerable<AssemblyData>)refList ?? Array.Empty<AssemblyData>();
+                            Assemblies.Add(thisAssembly);
+                        }
+
                         return thisAssembly;
                     }
                 }
