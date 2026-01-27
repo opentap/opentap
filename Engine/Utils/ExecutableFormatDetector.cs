@@ -17,7 +17,7 @@ internal enum ExecutableFormat
 }
 
 
-internal static class BinaryFormatDetector
+internal static class ExecutableFormatDetector
 {
     public static ExecutableFormat Detect(FileStream fs, string filePath)
     {

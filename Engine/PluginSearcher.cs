@@ -278,12 +278,12 @@ namespace OpenTap
                     List<AssemblyRef> refNames = new List<AssemblyRef>();
                     using (FileStream str = new FileStream(file, FileMode.Open, FileAccess.Read))
                     {
-                        var binFormat = BinaryFormatDetector.Detect(str, file);
+                        var binFormat = ExecutableFormatDetector.Detect(str, file);
                     
                         if (binFormat != ExecutableFormat.DotNet)
                         {
                             if(binFormat == ExecutableFormat.Unknown)
-                                log.Warning("Skipping assembly '{0}'. Unknown file type.", Path.GetFileName(file));
+                                log.Error("Skipping assembly '{0}'. Unknown file type.", Path.GetFileName(file));
                             // if its a native assembly, it could be a dynamically linked library, disguised as a DLL.
                             return null;
                         }
