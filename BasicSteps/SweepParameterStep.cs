@@ -92,11 +92,12 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
 
-        int iteration;
+        int _iteration;
+        private int _setIteration;
         
         [Output(OutputAvailability.BeforeRun)]
         [Display("Iteration", "Shows the iteration of the sweep that is currently running or about to run.", "Sweep", Order: 3)]
-        public string IterationInfo => $"{iteration} of {SweepValues.Count(x => x.Enabled)}";
+        public string IterationInfo => $"{_iteration} of {SweepValues.Count(x => x.Enabled)}";
 
         bool isRunning => GetParent<TestPlan>()?.IsRunning ?? false;
         
@@ -217,7 +218,7 @@ namespace OpenTap.Plugins.BasicSteps
         {
             validateSweepMutex.WaitOne();
             base.PrePlanRun();
-            iteration = 0;
+            _iteration = 0;
 
             if (SelectedParameters.Count <= 0)
                 throw new InvalidOperationException("No parameters selected to sweep");
@@ -235,18 +236,18 @@ namespace OpenTap.Plugins.BasicSteps
         public override void Run()
         {
             base.Run();
-            iteration = 0;
+            
             var sets = SelectedMembers.ToArray();
             var originalValues = sets.Select(set => set.GetValue(this)).ToArray();
 
             var rowType = SweepValues.Select(TypeData.GetTypeData).FirstOrDefault();
-            for (int i = 0; i < SweepValues.Count; i++)
+            for (; _iteration < SweepValues.Count; )
             {
-                SweepRow Value = SweepValues[i];
+                SweepRow Value = SweepValues[_iteration];
                 if (Value.Enabled == false) continue;
                 var AdditionalParams = new ResultParameters();
                 
-                AdditionalParams.Add("Sweep", "Iteration", iteration + 1, null);
+                AdditionalParams.Add("Sweep", "Iteration", _iteration + 1, null);
 
 
                 foreach (var set in sets)
@@ -271,11 +272,11 @@ namespace OpenTap.Plugins.BasicSteps
                     }
                     catch (TargetInvocationException ex)
                     {
-                        throw new ArgumentException($"Unable to set '{set.GetDisplayAttribute()}' to '{valueString}' on row {i}: {ex.InnerException.Message}", ex.InnerException);
+                        throw new ArgumentException($"Unable to set '{set.GetDisplayAttribute()}' to '{valueString}' on row {_iteration}: {ex.InnerException.Message}", ex.InnerException);
                     }
                 }
 
-                iteration += 1;
+                _iteration += 1;
                 // Notify that values might have changes
                 OnPropertyChanged("");
 
@@ -290,6 +291,7 @@ namespace OpenTap.Plugins.BasicSteps
 
             for (int i = 0; i < sets.Length; i++)
                 sets[i].SetValue(this, originalValues[i]);
+            _iteration = 0;
         }
         
         SweepRow NewElement()
@@ -301,7 +303,7 @@ namespace OpenTap.Plugins.BasicSteps
             return new SweepRowCollection(this);
         }
 
-        int ILoopStep.CurrentIteration { get => iteration; set => iteration = value; }
+        int ILoopStep.CurrentIteration { get => _iteration; set => _iteration = value; }
         int? ILoopStep.MaxIterations => SweepValues.Count;
     }
 }
