@@ -13,6 +13,7 @@ using System.Xml;
 using System.Xml.Linq;
 using System.Xml.Serialization;
 using OpenTap.Plugins;
+using OpenTap.Cli;
 
 namespace OpenTap
 {
@@ -528,7 +529,23 @@ namespace OpenTap
                     activeSerializers.Push(serializer);
                     if(serializer is ITapSerializerPlugin ser)
                     {
-                        if (ser.Serialize(elem, obj, type))
+                        bool success = false;
+                        try
+                        {
+                            success = ser.Serialize(elem, obj, type);
+                        }
+                        catch (ExitCodeException)
+                        {
+                            // Our package creation logic depends on the PackageDef serializer throwing an ExitCodeException.
+                            // We allow this particular exception to bubble through for compatibility
+                            throw;
+                        }
+                        catch (Exception ex)
+                        {
+                            success = false;
+                            HandleError(elem, $"Unhandled exception in serializer {serializer}", ex);
+                        }
+                        if (success)
                         {
                             if (ser is ITapSerializerPluginDependencyMarker marker)
                             {

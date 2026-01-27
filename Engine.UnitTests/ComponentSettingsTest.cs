@@ -273,5 +273,22 @@ namespace OpenTap.UnitTests
                 }
             }
         }
+
+        [Test]
+        public void TestFaultyInitializeComponentSettings()
+        {
+            Assert.IsNull(ComponentSettings.GetCurrent<FaultyInitializeComponentSettings>());
+
+        }
+        
+        
+    }
+
+    public class FaultyInitializeComponentSettings : ComponentSettings<FaultyInitializeComponentSettings>
+    {
+        public override void Initialize()
+        {
+            throw new Exception("This fails");
+        }
     }
 }

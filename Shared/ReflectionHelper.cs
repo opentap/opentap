@@ -1404,12 +1404,26 @@ namespace OpenTap
             // on the last attempt just call the function directly
             return function();
         }
+
+        /// <summary>
+        /// Fast trivial way of checking if a value type is one of a list of types
+        /// that we know can be stack cloned.
+        /// </summary>
+        public static bool IsTriviallyCloneable(object v)
+        {
+            return v switch
+            {
+                bool or short or string or DateTime or double or float or int or
+                    Enum or uint or long or ulong => true,
+                _ => false
+            };
+        }
     }
 
     static internal class Sequence
     {
         /// <summary> Turns item into a one element array, unless it is null.</summary>
-        public static T[] AsSingle<T>(this T item) => item == null ? Array.Empty<T>() : new[] {item};
+        public static T[] AsSingle<T>(this T item) => item == null ? [] : new[] {item};
         
         /// <summary>
         /// Like distinct but keeps the last item. Returns List because we need to iterate until last element anyway.

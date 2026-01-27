@@ -20,7 +20,7 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Sweep Values", "A table of values to be swept for the selected parameters.", "Sweep")]
         [HideOnMultiSelect] // todo: In the future support multi-selecting this.
         [EnabledIf(nameof(SweepValuesEnabled), true)]
-        [Unsweepable, Unmergable]
+        [Unmergable]
         [ElementFactory(nameof(NewElement))]
         [Factory(nameof(NewSweepRowCollection))]
         public SweepRowCollection SweepValues { get; set; } 
@@ -127,7 +127,10 @@ namespace OpenTap.Plugins.BasicSteps
             foreach (var set in sets)
             {
                 var mem = rowType.GetMember(set.Name);
-
+                
+                if (mem == null)
+                    continue; // corrupt data, unable to handle
+                
                 // If an error is reported on all rows, only show one validation error
                 var allRowsHaveErrors = true;
                 var errorTuple = new List<(int row, string error)>();

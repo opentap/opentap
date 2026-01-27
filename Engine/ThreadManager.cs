@@ -366,9 +366,18 @@ namespace OpenTap
         /// <param name="name">The (optional) name of the OpenTAP thread. </param>
         public static TapThread Start(Action action, string name = "")
         {
-            return Start(action, null, name);
+            return Start<object>(o => action(), null, name);
         }
 
+        /// <summary> Enqueue an action to be executed asynchronously. </summary>
+        /// <param name="action">The action to be executed.</param>
+        /// <param name="argument">The argument value for the action. </param>
+        /// <param name="name">The (optional) name of the OpenTAP thread. </param>
+        public static TapThread Start<T>(Action<T> action, T argument, string name = "")
+        {
+            return Start(() => action(argument), (Action) null, name);
+        }
+        
         internal static Task StartAwaitable(Action action, string name = "")
         {
             return StartAwaitable(action, null, name);

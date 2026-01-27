@@ -79,13 +79,11 @@ namespace OpenTap
         {
             public static ReadOnlyCollection<Type> GetPlugins(Type pluginBaseType)
             {
-                
-                if (searcher == null)
+                // If the searcher has changed, or if a search is currently happening, invalidate plugins.
+                if (searcher != lastUsedSearcher || !searchTask.Wait(0))
                 {
                     lock (pluginsSelection)
                     {
-                        if (searchTask == null)
-                            Search(); // if a search has not yet been started, do it now.
                         lastUsedSearcher = searcher;
                         pluginsSelection.InvalidateAll();
                     }

@@ -57,7 +57,7 @@ namespace OpenTap
             }
             return false;
         }
-
+        
         internal static bool HasAttributeInherited<T>(this IReflectionData mem) where T : class
         {
             if (mem is ITypeData td)
