@@ -11,7 +11,7 @@ namespace OpenTap.Plugins.BasicSteps
 {
     [AllowAnyChild]
     [Display("Sweep Parameter", "Table based loop that sweeps the value of its parameters based on a set of values.", "Flow Control")]
-    public class SweepParameterStep : SweepParameterStepBase
+    public class SweepParameterStep : SweepParameterStepBase, ILoopStep
     {
         public bool SweepValuesEnabled => SelectedParameters.Count > 0;
 
@@ -300,5 +300,8 @@ namespace OpenTap.Plugins.BasicSteps
         {
             return new SweepRowCollection(this);
         }
+
+        int ILoopStep.CurrentIteration { get => iteration; set => iteration = value; }
+        int? ILoopStep.MaxIterations => SweepValues.Count;
     }
 }

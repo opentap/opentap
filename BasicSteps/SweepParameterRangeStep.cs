@@ -10,7 +10,7 @@ namespace OpenTap.Plugins.BasicSteps
 {
     [Display("Sweep Parameter Range", "Ranged based sweep step that iterates value of its parameters based on a selected range.", "Flow Control")]
     [AllowAnyChild]
-    public class SweepParameterRangeStep : SweepParameterStepBase
+    public class SweepParameterRangeStep : SweepParameterStepBase, ILoopStep
     {
         [Display("Start", Group:"Sweep", Order: -2, Description: "The parameter value where the sweep will start.")]
         public decimal SweepStart { get; set; }
@@ -70,6 +70,7 @@ namespace OpenTap.Plugins.BasicSteps
         // the plan starts.
         bool isRunning => GetParent<TestPlan>()?.IsRunning ?? false;
         Mutex validateSweepMutex = new Mutex();
+        
         string validateSweep(decimal Value)
         {   // Mostly copied from Run
             var props = AvailableParameters.ToArray();
@@ -143,7 +144,11 @@ namespace OpenTap.Plugins.BasicSteps
             var loge = Math.Log10((double) end);
             return LinearRange((decimal)logs, (decimal)loge, points).Select(x => (decimal)Math.Pow(10, (double)x));
         }
-        
+
+
+        IEnumerable<decimal> GetRange() => SweepBehavior == SweepBehavior.Exponential
+            ? ExponentialRange(SweepStart, SweepStop, (int)SweepPoints)
+            : LinearRange(SweepStart, SweepStop, (int)SweepPoints);
         
         public override void Run()
         {
@@ -153,10 +158,7 @@ namespace OpenTap.Plugins.BasicSteps
             var originalValues = selected.Select(set => set.GetValue(this)).ToArray();
 
 
-            IEnumerable<decimal> range = LinearRange(SweepStart, SweepStop, (int)SweepPoints);
-
-            if (SweepBehavior == SweepBehavior.Exponential)
-                range = ExponentialRange(SweepStart, SweepStop, (int)SweepPoints);
+            IEnumerable<decimal> range = GetRange();
 
             var disps = selected.Select(x => x.GetDisplayAttribute()).ToList();
             string names = string.Join(", ", disps.Select(x => x.Name));
@@ -202,5 +204,13 @@ namespace OpenTap.Plugins.BasicSteps
             for (int i = 0; i < selected.Length; i++)
                 selected[i].SetValue(this, originalValues[i]);
         }
+
+        int ILoopStep.CurrentIteration
+        {
+            get => iteration;
+            set => iteration = value;
+        }
+
+        int? ILoopStep.MaxIterations => (int) SweepPoints;
     }
 }
