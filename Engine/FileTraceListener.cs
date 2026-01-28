@@ -107,7 +107,7 @@ namespace OpenTap
             if (events == null)
                 throw new ArgumentNullException(nameof(events));
 
-            System.Text.StringBuilder sb = _sb.Value;
+            StringBuilder sb = _sb.Value;
 
             sb.Clear();
             long lastTick = 0;
@@ -160,19 +160,33 @@ namespace OpenTap
                 sb.Append(" ; ");
                 if (evt.Message != null)
                 {
-                    sb.Append(evt.Message.Replace("\n", "").Replace("\r", ""));
+                    foreach(var character in evt.Message)
+                    {
+                        switch (character)
+                        {
+                            case '\n':
+                                sb.Append(' ');
+                                break;
+                            case '\r':
+                                ; // ignore these.
+                                break;
+                            default:
+                                sb.Append(character);
+                                break;
+                        }
+                    }
                 }
                 sb.AppendLine();
             }
             var logStr = sb.ToString();
             lock (fileTraceLock)
             {
-                this.Write(logStr);
+                Write(logStr);
 
                 if (Writer is StreamWriter streamWriter && (ulong)streamWriter.BaseStream.Length > FileSizeLimit)
                 {
                     if (FileSizeLimitReached != null)
-                        FileSizeLimitReached(this, new EventArgs());
+                        FileSizeLimitReached(this, EventArgs.Empty);
                 }
             }
         }
