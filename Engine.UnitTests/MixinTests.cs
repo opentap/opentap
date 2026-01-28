@@ -653,6 +653,79 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(Verdict.Error, run.Verdict);
         }
 
+        public class SomeComplexParameter
+        {
+            public bool EnableParameter { get; set; } = false;
+
+            [Output]
+            [EnabledIf(nameof(EnableParameter), true)]
+            public double A { get; set; }
+
+            [Output]
+            [EnabledIf(nameof(EnableParameter), true)]
+            public double B { get; set; }
+        }
+
+        public class EmbedPropertiesBugStep : TestStep
+        {
+            [EmbedProperties(PrefixPropertyName = false)]
+            public SomeComplexParameter Setting { get; set; } = new();
+            public override void Run() { }
+            
+            public class DummyMixin : ITestStepPreRunMixin
+            {
+                public void OnPreRun(TestStepPreRunEventArgs eventArgs)
+                {
+                }
+            }
+        }
+        
+        [TestCase(true)]
+        [TestCase(false)]
+        public void EmbeddedParameterPlusMixinTest(bool addMixin)
+        {
+            var plan = new TestPlan();
+            var seq = new SequenceStep();
+            var bugStep = new EmbedPropertiesBugStep();
+            bugStep.Setting.A = 123;
+            seq.ChildTestSteps.Add(bugStep);
+            plan.ChildTestSteps.Add(seq);
+
+            var a = AnnotationCollection.Annotate(bugStep).GetMember(nameof(SomeComplexParameter.A));
+            a.Get<IMemberAnnotation>().Member.Parameterize(seq, bugStep, "Parameter \\ A");
+
+            if (addMixin)
+            {
+                var mem = MixinFactory.LoadMixin(bugStep, new TestNumberMixinBuilder { Name = "Some Mixin" });
+                mem.SetValue(bugStep, 456);
+            }
+            
+            void verify()
+            {
+                var mem = AnnotationCollection.Annotate(seq).GetMember("Parameter \\ A").Get<IMemberAnnotation>()
+                    .Member;
+                Assert.That(bugStep.Setting.A, Is.EqualTo(123));
+                Assert.That(mem.GetValue(seq), Is.EqualTo(123));
+                if (addMixin)
+                {
+                    var mem2 = AnnotationCollection.Annotate(bugStep).GetMember("Some Mixin").Get<IMemberAnnotation>()
+                        .Member;
+                    Assert.That(mem2.GetValue(bugStep), Is.EqualTo(456));
+                }
+            }
+
+            var serializer = new TapSerializer();
+            var deserializer = new TapSerializer();
+            verify();
+            var planXml = serializer.SerializeToString(plan);
+            var plan2 = (TestPlan)deserializer.DeserializeFromString(planXml);
+            Assert.That(serializer.Errors, Is.Empty);
+            Assert.That(deserializer.Errors, Is.Empty);
+            seq = (SequenceStep)plan2.ChildTestSteps[0];
+            bugStep = (EmbedPropertiesBugStep)seq.ChildTestSteps[0];
+            verify();
+        }
+
 
     }
 
