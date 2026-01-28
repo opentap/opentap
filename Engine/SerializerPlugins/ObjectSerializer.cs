@@ -202,8 +202,11 @@ namespace OpenTap.Plugins
                             {
                                 continue; // later we might try this property again.
                             }
+
                             if (hits > 1)
-                                Log.Warning(element2, "Multiple properties named '{0}' are available to the serializer in '{1}' this might give issues in serialization.", element2.Name.LocalName, t.GetAttribute<DisplayAttribute>().Name);
+                            {
+                                Log.Warning($"Multiple properties named '{element2.Name.LocalName}' are available to the serializer in '{t.GetDisplayAttribute().Name}' this might give issues in serialization.");
+                            }
 
                             if (property.GetAttribute<DeserializeOrderAttribute>() is DeserializeOrderAttribute orderAttr)
                             {
