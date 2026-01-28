@@ -92,7 +92,6 @@ namespace OpenTap.Plugins.BasicSteps
 
         Verdict getCurrentVerdict() => TargetStep?.Verdict ?? Verdict.NotSet;
         private bool retried;
-        private int _currentIteration;
 
         Verdict iterate()
         {
