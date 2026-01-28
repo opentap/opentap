@@ -223,5 +223,111 @@ namespace OpenTap.UnitTests
                 }
             });
         }
+
+        class AccumulateAndJumpStep : TestStep
+        {
+            public int StartIteration { get; set; }
+            public int StepsExecuted { get; private set; }
+            public double DummyValue { get; set; }
+
+            public override void PrePlanRun()
+            {
+                base.PrePlanRun();
+                StepsExecuted = 0;
+            }
+
+            public override void Run()
+            {
+                if (StepsExecuted == 0)
+                {
+                    ((ILoopStep)Parent).CurrentIteration = StartIteration;
+                }
+
+                
+                StepsExecuted += 1;
+
+            }
+        }
+        
+        [Test]
+        public void JumpToRepeatIteration()
+        {
+            var plan = new TestPlan();
+            var loopStep = new RepeatStep()
+            {
+                Action = RepeatStep.RepeatStepAction.Fixed_Count,
+                Count = 10
+            };
+            
+            var accStep = new AccumulateAndJumpStep()
+            {
+                StartIteration = 7
+            };
+
+            plan.ChildTestSteps.Add(loopStep);
+            loopStep.ChildTestSteps.Add(accStep);
+            for (int i = 0; i < 2; i++)
+            {
+                plan.Execute();
+                Assert.AreEqual(4, accStep.StepsExecuted);
+            }
+            Assert.AreEqual(10, ((ILoopStep)loopStep).MaxIterations);
+        }
+        
+        [Test]
+        public void JumpToSweepRangeIteration()
+        {
+            var plan = new TestPlan();
+            var loopStep = new SweepParameterRangeStep()
+            {
+                SweepStart = 0,
+                SweepEnd = 9,
+                SweepPoints = 10
+            };
+            
+            var accStep = new AccumulateAndJumpStep()
+            {
+                StartIteration = 7
+            };
+            var member = TypeData.GetTypeData(accStep).GetMember(nameof(accStep.DummyValue));
+            var param = member.Parameterize(loopStep, accStep,"A");
+            plan.ChildTestSteps.Add(loopStep);
+            loopStep.ChildTestSteps.Add(accStep);
+
+            for (int i = 0; i < 2; i++)
+            {
+                plan.Execute();
+                Assert.AreEqual(4, accStep.StepsExecuted);
+            }
+            Assert.AreEqual(10, ((ILoopStep)loopStep).MaxIterations);
+        }
+        [Test]
+        public void JumpToSweepParameterIteration()
+        {
+            var plan = new TestPlan();
+            var loopStep = new SweepParameterStep()
+            {
+            };
+            
+            var accStep = new AccumulateAndJumpStep()
+            {
+                StartIteration = 7
+            };
+            var member = TypeData.GetTypeData(accStep).GetMember(nameof(accStep.DummyValue));
+            var param = member.Parameterize(loopStep, accStep,"A");
+            for (int i = 0; i < 10; i++)
+            {
+                loopStep.SweepValues.Add(new SweepRow(loopStep));
+            }
+            plan.ChildTestSteps.Add(loopStep);
+            loopStep.ChildTestSteps.Add(accStep);
+            for (int i = 0; i < 2; i++)
+            {
+                plan.Execute();
+                Assert.AreEqual(4, accStep.StepsExecuted);
+            }
+
+            Assert.AreEqual(10, ((ILoopStep)loopStep).MaxIterations);
+        }
     }
 }
