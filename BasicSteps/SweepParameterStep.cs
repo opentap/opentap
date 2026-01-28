@@ -93,7 +93,6 @@ namespace OpenTap.Plugins.BasicSteps
         }
 
         int _iteration;
-        private int _setIteration;
         
         [Output(OutputAvailability.BeforeRun)]
         [Display("Iteration", "Shows the iteration of the sweep that is currently running or about to run.", "Sweep", Order: 3)]
