@@ -143,13 +143,7 @@ namespace OpenTap.Plugins
 
             Guid.TryParse(elem.Attribute(Scope)?.Value, out Guid scope);
             if (!loadScopeParameter(scope, step, member, parameter))
-                Serializer.DeferLoad(() =>
-                {
-                    // the original member may have been invalidated before this defer was triggered.
-                    // fetch the member again to ensure it is up to date.
-                    var mem2 = TypeData.GetTypeData(step).GetMember(member.Name);
-                    loadScopeParameter(scope, step, mem2, parameter);
-                });
+                Serializer.DeferLoad(() => loadScopeParameter(scope, step, member, parameter));
             if (scope != Guid.Empty) return false;
             var plan = Serializer.SerializerStack.OfType<TestPlanSerializer>().FirstOrDefault()?.Plan;
             if (plan == null)
