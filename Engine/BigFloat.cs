@@ -134,8 +134,11 @@ namespace OpenTap
             int firstDigit = 0;
 
             BigInteger ten = 10;
-
-            while (digits >= 0 || firstDigitFound == false || (firstDigit - digits) < 15)
+            
+            // the most precise number we know of is a decimal, which uses G29 for roundtrip conversion. 
+            const int maxSignificantDigits = 29;
+            
+            while (digits >= 0 || firstDigitFound == false || (firstDigit - digits) < maxSignificantDigits)
             {
                 if (a == 0 && digits < 0)
                     break;
@@ -582,7 +585,7 @@ namespace OpenTap
 
         public BigFloat(float value) : this(value.ToString("r", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture) { }
 
-        public BigFloat(decimal value) : this(value.ToString("F9", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)
+        public BigFloat(decimal value) : this(value.ToString("G29", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)
         {
         }
         public BigFloat(ReadOnlySpan<char> value, IFormatProvider format = null)

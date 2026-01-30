@@ -47,6 +47,19 @@ public class UnitFormatterTest
         var values2 = parser.Parse(sequence);
         Assert.IsTrue(values2.SequenceEqual(values));
     }
+    
+    [Test]
+    public void TestDecimal()
+    {
+        string decimalValueString = "53634563090899.906123456789012";
+        var decimalValue = decimal.Parse(decimalValueString, CultureInfo.InvariantCulture);
+        var fmt = new NumberFormatter(CultureInfo.InvariantCulture);
+        var strVal = fmt.FormatNumber(decimalValue);
+        var decimalValueParsed = (decimal)fmt.ParseNumber(strVal, typeof(decimal));
+        Assert.AreEqual(decimalValueParsed, decimalValue);
+        Assert.AreEqual(decimalValueString, strVal);
+    }
+    
 }
 
 public class StepWithHexProperties : TestStep
