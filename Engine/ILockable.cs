@@ -82,23 +82,34 @@ namespace OpenTap
 
     class LockManager
     {
-        readonly ILockManager[] managers;
+        private ILockManager[] managers;
         static readonly TraceSource log = Log.CreateSource("LockManager");
-        public LockManager()
+
+        private readonly object lockobj = new();
+
+        ILockManager[] GetManagers()
         {
-            managers = PluginManager.GetPlugins<ILockManager>()
-                .OrderByDescending(t => t.GetDisplayAttribute().Order)
-                .TrySelect(t => (ILockManager)t.CreateInstance(), (ex, t) =>
+            if (managers == null)
+            {
+                lock (lockobj)
                 {
-                    log.Error("Unable to create an instance of {0}: {1}", t, ex.Message);
-                    log.Debug(ex);
-                })
-                .ToArray();
+                    managers ??= PluginManager.GetPlugins<ILockManager>()
+                        .OrderByDescending(t => t.GetDisplayAttribute().Order)
+                        .TrySelect(t => (ILockManager)t.CreateInstance(), (ex, t) =>
+                        {
+                            log.Error("Unable to create an instance of {0}: {1}", t, ex.Message);
+                            log.Debug(ex);
+                        })
+                        .ToArray();
+                }
+            }
+            return managers;
         }
+
         
         internal void BeforeOpen(IEnumerable<IResourceReferences> resources, CancellationToken cancellationToken)
         {
-            foreach (ILockManager lockManager in managers)
+            foreach (ILockManager lockManager in GetManagers())
             {
                 lockManager.BeforeOpen(resources, cancellationToken);
             }
@@ -106,7 +117,7 @@ namespace OpenTap
 
         internal void AfterClose(IEnumerable<IResourceReferences> resources, CancellationToken cancellationToken)
         {
-            foreach (ILockManager lockManager in Enumerable.Reverse(managers))
+            foreach (ILockManager lockManager in Enumerable.Reverse(GetManagers()))
             {
                 lockManager.AfterClose(resources, cancellationToken);
             }
