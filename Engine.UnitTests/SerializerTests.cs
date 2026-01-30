@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Xml.Linq;
 using NUnit.Framework;
 using OpenTap.EngineUnitTestUtils;
 using OpenTap.Package;
 using OpenTap.Plugins.BasicSteps;
-using OpenTap.UnitTests;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -493,6 +494,95 @@ namespace OpenTap.Engine.UnitTests
             Assert.That(count, Is.EqualTo(0));
             ser.Flush();
             Assert.That(count, Is.EqualTo(7));
+        }
+
+        class DuplicatedMemberData : IMemberData
+        {
+            public DuplicatedMemberData(ITypeData declaringType)
+            {
+                DeclaringType = declaringType;
+            }
+            public IEnumerable<object> Attributes => [];
+            public string Name => "DuplicatedMemberData";
+            public ITypeData DeclaringType { get; }
+            public ITypeData TypeDescriptor { get; } = TypeData.FromType(typeof(string));
+            public bool Writable => true;
+            public bool Readable => true;
+            public void SetValue(object owner, object value)
+            {
+            }
+
+            public object GetValue(object owner)
+            {
+                return "";
+            }
+        }
+
+        class TestPlanDummyTypeData : ITypeData
+        {
+            public TestPlanDummyTypeData(ITypeData inner)
+            {
+                BaseType = inner;
+                DuplicatedMembers = [new DuplicatedMemberData(this), new DuplicatedMemberData(this)];
+            }
+
+            private IMemberData[] DuplicatedMembers;
+            public IEnumerable<object> Attributes => BaseType.Attributes;
+            public string Name => BaseType.Name;
+            public ITypeData BaseType { get; }
+            public IEnumerable<IMemberData> GetMembers()
+            {
+                return [..DuplicatedMembers, .. BaseType.GetMembers()];
+            }
+
+            public IMemberData GetMember(string name)
+            {
+                if (name == DuplicatedMembers[0].Name) return DuplicatedMembers[0];
+                return BaseType.GetMember(name);
+            }
+
+            public object CreateInstance(object[] arguments) => BaseType.CreateInstance(arguments);
+
+            public bool CanCreateInstance => BaseType.CanCreateInstance;
+        }
+        
+        public class TestPlanTypeDataProvider : IStackedTypeDataProvider
+        {
+            public static bool Enabled = false;
+            public ITypeData GetTypeData(string identifier, TypeDataProviderStack stack)
+            {
+                return null;
+            }
+
+            public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
+            {
+                if (Enabled && obj is TestPlan tp)
+                {
+                    return new TestPlanDummyTypeData(stack.GetTypeData(obj));
+                }
+
+                return null;
+            }
+
+            public double Priority { get; }
+        }
+
+        [Test]
+        public void DuplicatedAttachedPropertySerializerNullBug()
+        {
+            TestPlanTypeDataProvider.Enabled = true;
+            try
+            {
+                var plan1 = new TestPlan();
+                plan1.ChildTestSteps.Add(new DelayStep() { DelaySecs = 2});
+                var str = new TapSerializer().SerializeToString(plan1);
+                var plan2 = (TestPlan)new TapSerializer().DeserializeFromString(str);
+                Assert.That(plan2.ChildTestSteps[0] is DelayStep {DelaySecs: 2});
+            }
+            finally
+            {
+                TestPlanTypeDataProvider.Enabled = false;
+            }
         }
 
         [Test]

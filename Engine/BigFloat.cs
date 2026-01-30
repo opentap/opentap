@@ -14,6 +14,21 @@ namespace OpenTap
     [TypeConverter(typeof(BigFloatConverter))]
     struct BigFloat : IFormattable, IComparable, IComparable<BigFloat>, IEquatable<BigFloat>
     {
+        /// <summary> Big float 0. </summary>
+        public static readonly BigFloat Zero = new(BigInteger.Zero, BigInteger.One);
+        /// <summary> Big float Infinity. </summary>
+        public static readonly BigFloat Infinity = new(BigInteger.One, BigInteger.Zero);
+        /// <summary> Big float negative infinity. </summary>
+        public static readonly BigFloat NegativeInfinity = new(BigInteger.MinusOne, BigInteger.Zero);
+        /// <summary> Big float not a number. </summary>
+        public static readonly BigFloat NaN = new(BigInteger.Zero, BigInteger.Zero);
+        /// <summary> Big float 1. </summary>
+        public static readonly BigFloat One = new(BigInteger.One, BigInteger.One);
+        /// <summary> Big float -1. </summary>
+        public static readonly BigFloat NegativeOne = new(BigInteger.MinusOne, BigInteger.One);
+        /// <summary> Big float 0.5. </summary>
+        public static readonly BigFloat Half = new(BigInteger.One, 2);
+        
         /// <summary> The numerator as an arbitrarily sized integer. </summary>
         BigInteger Numerator;
         /// <summary> The denominator as an arbitrarily sized integer. </summary>
@@ -29,6 +44,22 @@ namespace OpenTap
             Normalize();
         }
 
+        
+        public BigFloat(long nominator, long denominator)
+        {
+            if (denominator == 1)
+            {
+                Numerator = nominator;
+                Denominator = BigInteger.One;
+            }
+            else
+            {
+                Numerator = nominator;
+                Denominator = denominator;
+                Normalize();
+            }
+        }
+
         public BigFloat Invert()
         {
             return new BigFloat { Numerator = Denominator, Denominator = Numerator };
@@ -38,22 +69,18 @@ namespace OpenTap
         /// <returns>The normalized fraction.</returns>
         public BigFloat Normalize()
         {
+            if (Denominator.IsOne)
+                return this;
             if(Denominator == 0)
             {
                 if(Numerator > 1)
-                {
-                    Numerator = 1;
-                }else if(Numerator < -1)
-                {
-                    Numerator = -1;
-                }
-                return this;
+                    return Infinity;
+                if(Numerator < -1)
+                    return NegativeInfinity;
+                return NaN;
             }
-            else if (Denominator == Numerator)
-            {
-                Numerator = 1;
-                Denominator = 1;
-            }
+            if (Denominator == Numerator)
+                return One;
 
             if (Denominator < 0)
             {
@@ -72,17 +99,17 @@ namespace OpenTap
             Denominator = Denominator / gcd;
             return this;
         }
+        
         static char getDigitSeparator(IFormatProvider prov)
         {
-            if (prov == null)
-                prov = CultureInfo.CurrentCulture;
-            if(prov is CultureInfo)
+            switch (prov)
             {
-                return ((CultureInfo)prov).NumberFormat.NumberDecimalSeparator[0];
-            }
-            if(prov is NumberFormatInfo)
-            {
-                return ((NumberFormatInfo)prov).NumberDecimalSeparator[0];
+                case null:
+                    return CultureInfo.CurrentCulture.NumberFormat.NumberDecimalSeparator[0];
+                case CultureInfo info:
+                    return info.NumberFormat.NumberDecimalSeparator[0];
+                case NumberFormatInfo formatInfo:
+                    return formatInfo.NumberDecimalSeparator[0];
             }
             return '.';
         }
@@ -107,8 +134,11 @@ namespace OpenTap
             int firstDigit = 0;
 
             BigInteger ten = 10;
-
-            while (digits >= 0 || firstDigitFound == false || (firstDigit - digits) < 15)
+            
+            // the most precise number we know of is a decimal, which uses G29 for roundtrip conversion. 
+            const int maxSignificantDigits = 29;
+            
+            while (digits >= 0 || firstDigitFound == false || (firstDigit - digits) < maxSignificantDigits)
             {
                 if (a == 0 && digits < 0)
                     break;
@@ -322,75 +352,180 @@ namespace OpenTap
             }
         }
 
-        /// <summary> Big float 1. </summary>
-        public static readonly BigFloat One = new BigFloat(BigInteger.One, BigInteger.One);
+
 
         /// <summary> Supports parsing BigFloat without throwing an exception. Returns an exception in case something went wrong otherwise it will return a BigFloat.</summary>
-        /// <param name="value"></param>
-        /// <param name="format"></param>
-        /// <returns></returns>
-        internal static object Parse(string value, IFormatProvider format = null)
+        internal static BigFloat Parse(ReadOnlySpan<char> value, IFormatProvider format, out Exception outEx)
         {
-            if (string.Equals(value, "infinity", StringComparison.OrdinalIgnoreCase))
-                return Infinity;
-            if (string.Equals(value, "-infinity", StringComparison.OrdinalIgnoreCase))
-                return NegativeInfinity;
-            if (string.Equals(value, "nan", StringComparison.OrdinalIgnoreCase))
-                return NaN;
-            if (value.Contains("/"))
+            outEx = null;
+            try
             {
-                // parse fractions: X/Y
-                var splitted = value.Split('/');
-                if (splitted.Length != 2)
+                // the only exception ParseWithLongChecked will throw is an overflow exception.
+                // in that case, we use ParseWithBigInt since that can handle arbitrary number sizes values.
+                var result = ParseWithLongChecked(value, format, out outEx);
+                if (outEx is FormatException)
                 {
-                    return new FormatException("value contains multiple '/'");
+                    if (value.Equals("infinity", StringComparison.OrdinalIgnoreCase))
+                    {
+                        outEx = null;
+                        return Infinity;
+                    }
+                    if (value.Equals("-infinity", StringComparison.OrdinalIgnoreCase))
+                    {
+                        outEx = null;
+                        return NegativeInfinity;
+                    }
+                    if (value.Equals("nan", StringComparison.OrdinalIgnoreCase))
+                    {
+                        outEx = null;
+                        return NaN;
+                    }
                 }
-                var numerator = BigInteger.Parse(splitted[0]);
-                var denominator = BigInteger.Parse(splitted[1]);
-                return new BigFloat(numerator, denominator);
+                return result;
             }
+            catch (OverflowException)
+            {
+                // only parse the slow way if we get an overflow exception parsing the fast way.
+                return ParseWithBigInt(value, format, out outEx);
+            }
+        }
+        
+        static BigFloat ParseWithLongChecked(ReadOnlySpan<char> value, IFormatProvider format, out Exception outEx)
+        {
+            var sep = getDigitSeparator(format);
+            
+            bool dotHit = false;
+            bool exp = false;
+            long sign = 1;
+            BigFloat mantissa = Zero;
+            long denom = 1;
+            long numerator = 0;
+            
+            
+            // we use overflow checking to figure out if we can parse the fast way
+            // using longs or parse the slow way using BigInteger. 
+            // if an OverflowException gets thrown we default to using BigInteger for parsing.
+            checked
+            {
+                foreach (var chr in value)
+                {
+                    if (chr is >= '0' and <= '9')
+                    {
+                        if (dotHit)
+                            denom *= 10;
+                        int v = chr - '0';
+                        numerator = numerator * 10 + v;
+                        continue;
+                    }
+                    
+                    if (chr == '-' && numerator == 0 && sign == 1)
+                    {
+                        sign = -1;
+                        continue;
+                    }
 
+                    if (chr == sep && !dotHit && !exp)
+                    {
+                        dotHit = true;
+                        continue;
+                    }
+
+                    if ((chr == 'e' || chr == 'E') && !exp)
+                    {
+                        exp = true;
+                        mantissa = new BigFloat(numerator * sign, denom);
+                        denom = 1;
+                        numerator = 0;
+                        dotHit = false;
+                        sign = 1;
+                        continue;
+                    }
+
+                    if (char.IsWhiteSpace(chr)) continue;
+                    if ((chr == '+') && exp) continue;
+                    
+                    // all likely cases exhausted. only invalid options left.
+                    outEx = new FormatException("Format not supported.");
+                    return NaN;
+                }
+
+                outEx = null;
+                if (exp)
+                {
+                    //The scientific format "xEy" was detected, e.g 1.5e6
+                    if (numerator > 1000)
+                    {   // Extremely large numbers will cause the application to stall
+                        // the biggest number in .NET is double.Infinty: 1.7976931348623157E+308
+                        // so 1E+1000 is probably an ok max limit.
+                        outEx = new FormatException($"The value {value.ToString()} is too huge or too precise to be presented as a number.");
+                        return NaN;
+                    }
+
+                    var powerTerm = BigInteger.Pow(10, (int)numerator);
+                    if (sign < 0)
+                        return mantissa * new BigFloat(1, powerTerm);
+                    return mantissa * new BigFloat(powerTerm);
+                }
+                
+                return new BigFloat(numerator * sign, denom);
+            }
+        }
+        
+        static BigFloat ParseWithBigInt(ReadOnlySpan<char> value, IFormatProvider format, out Exception outEx)
+        {
+            outEx = null;
             var sep = getDigitSeparator(format);
             int index = 0;
             bool dotHit = false;
             bool exp = false;
-            BigInteger sign = 1;
-            BigFloat mantissa = 0;
+            long sign = 1;
+            BigFloat mantissa = Zero;
             BigInteger denom = 1;
             BigInteger nomerator = 0;
-            for (; index < value.Length; index++)
+            checked
             {
-                var chr = value[index];
-                if (chr == '-' && nomerator == 0 && sign == 1)
+
+                for (; index < value.Length; index++)
                 {
-                    sign = -1;
-                    continue;
+                    var chr = value[index];
+                    if (chr == '-' && nomerator == 0 && sign == 1)
+                    {
+                        sign = -1;
+                        continue;
+                    }
+
+                    if (chr == sep && !dotHit && !exp)
+                    {
+                        dotHit = true;
+                        continue;
+                    }
+
+                    if ((chr == 'e' || chr == 'E') && !exp)
+                    {
+                        exp = true;
+                        mantissa = new BigFloat(nomerator * sign, denom);
+                        denom = 1;
+                        nomerator = 0;
+                        dotHit = false;
+                        sign = 1;
+                        continue;
+                    }
+
+                    if (char.IsWhiteSpace(chr)) continue;
+                    if ((chr == '+') && exp) continue;
+                    if (char.IsDigit(chr) == false)
+                    {
+                        outEx = new FormatException("Format not supported.");
+                        return NaN;
+                    }
+
+                    if (dotHit)
+                        denom *= 10;
+                    int v = (chr - '0');
+                    nomerator = nomerator * 10 + v;
                 }
-                if (chr == sep && !dotHit && !exp)
-                {
-                    dotHit = true;
-                    continue;
-                }
-                if ((chr == 'e' || chr == 'E') && !exp)
-                {
-                    exp = true;
-                    mantissa = new BigFloat(nomerator * sign, denom);
-                    denom = 1;
-                    nomerator = 0;
-                    dotHit = false;
-                    sign = 1;
-                    continue;
-                }
-                if (char.IsWhiteSpace(chr)) continue;
-                if ((chr == '+') && exp) continue;
-                if (char.IsDigit(chr) == false)
-                    return new FormatException("Format not supported.");
-                if (dotHit)
-                    denom *= 10;
-                int v = (chr - '0');
-                nomerator = nomerator * 10 + v;
-            }
-                
+            
+
             if (exp)
             {
                 //The scientific format "xEy" was detected, e.g 1.5e6
@@ -398,26 +533,21 @@ namespace OpenTap
                 {   // Extremely large numbers will cause the application to stall
                     // the biggest number in .NET is double.Infinty: 1.7976931348623157E+308
                     // so 1E+1000 is probably an ok max limit.
-                    throw new FormatException($"The value {value} is too huge or too precise to be presented as a number.");
+                    outEx = new FormatException($"The value {value.ToString()} is too huge or too precise to be presented as a number.");
+                    return NaN;
                 }
 
                 var powerTerm = BigInteger.Pow(10, (int)nomerator);
                 if (sign < 0)
                     return mantissa * new BigFloat(1, powerTerm);
-                return mantissa * new BigFloat(powerTerm, 1);
+                return mantissa * new BigFloat(powerTerm);
             }
+            
             return new BigFloat(nomerator * sign, denom);
+            }
         }
 
-        /// <summary> Big float 0. </summary>
-        public static readonly BigFloat Zero = new BigFloat(BigInteger.Zero, BigInteger.One);
-        /// <summary> Big float Infinity. </summary>
-        public static readonly BigFloat Infinity = new BigFloat(BigInteger.One, BigInteger.Zero);
-        /// <summary> Big float negative infinity. </summary>
-        public static readonly BigFloat NegativeInfinity = new BigFloat(BigInteger.MinusOne, BigInteger.Zero);
-        /// <summary> Big float not a number. </summary>
-        public static readonly BigFloat NaN = new BigFloat(BigInteger.Zero, BigInteger.Zero);
-
+        
         /// <summary>
         /// Converts this value to a string.
         /// </summary>
@@ -428,71 +558,52 @@ namespace OpenTap
         {
             return ToString(formatProvider);
         }
-        static bool fastButImpreciseEnabled = false;
+        
         /// <summary> Creates a BigFloat. </summary>
         /// <param name="value"></param>
-        public BigFloat(double value) : this(value.ToString("R", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)
+        public BigFloat(double value) 
         {
-            if (fastButImpreciseEnabled)
-            { 
-                if (value == 0)
-                {
-                    Numerator = 0;
-                    Denominator = 1;
-                    return;
-                }
-                double tolerance = 1.0E-9;
-                double orig = value;
-                var bc = BigFloat.Zero;
-                BigInteger frac = BigInteger.One;
-                double frac2 = 1.0;
-                while (true)
-                {
-                    if (Math.Abs(value / orig) < tolerance)
-                        break;
-                    double a = Math.Round(value);
-                    value -= a;
-
-                    var fc = new BigFloat((BigInteger)a, frac);
-                    bc = bc + fc;
-                    frac2 *= 1000;
-                    value *= 1000.0;
-                    orig *= 1000.0;
-                    frac *= 1000;
-                }
-
-                this = bc.Normalize();
+            if (value == 1.0)
+            {
+                this = One;
+            }
+            else if (value == 0.0)
+            {
+                this = Zero;
+            }
+            else
+            {
+                this = new BigFloat(value.ToString("R", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
             }
         }
 
-        public BigFloat(BigInteger v):this(v, BigInteger.One)
+        public BigFloat(BigInteger v)
         {
-
+            Numerator = v;
+            Denominator = BigInteger.One;
         }
 
         public BigFloat(float value) : this(value.ToString("r", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture) { }
 
-        public BigFloat(decimal value) : this(value.ToString("F9", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)
+        public BigFloat(decimal value) : this(value.ToString("G29", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)
         {
         }
-        public BigFloat(string value, IFormatProvider format = null)
+        public BigFloat(ReadOnlySpan<char> value, IFormatProvider format = null)
         {
-            var result = Parse(value, format);
-            if (result is BigFloat bf)
-            {
-                this = bf;
-            }
-            else throw (Exception)result;
+            var result = Parse(value, format, out var ex);
+            if (ex != null)
+                throw ex;
+            this = result;
         }
 
-        private bool IsNan { get { return (Denominator == 0) && (Numerator == 0); } }
-        private bool IsPosInf { get { return (Denominator == 0) && (Numerator == 1); } }
-        private bool IsNegInf { get { return (Denominator == 0) && (Numerator == -1); } }
+        private bool IsNan => (Denominator == 0) && (Numerator == 0);
+        private bool IsPosInf => (Denominator == 0) && (Numerator == 1);
+        private bool IsNegInf => (Denominator == 0) && (Numerator == -1);
 
-        public BigFloat(int value) : this(value, 1) { }
-        public BigFloat(uint value) : this(value, 1) { }
-        public BigFloat(short value) : this(value, 1) { }
-        public BigFloat(long value) : this(value, 1) { }
+        public BigFloat(int value) : this((BigInteger)value) { }
+        public BigFloat(uint value) : this((BigInteger)value) { }
+        public BigFloat(short value) : this((BigInteger)value) { }
+        public BigFloat(long value) : this((BigInteger)value) { }
         public static implicit operator BigFloat(double d)
         {
             return new BigFloat(d);
@@ -500,12 +611,13 @@ namespace OpenTap
 
         public static implicit operator BigFloat(long d)
         {
-            return new BigFloat(d, 1);
+            return new BigFloat(d);
         }
 
         public static implicit operator BigFloat(int d)
         {
-            return new BigFloat(d, 1);
+            if (d == 0) return Zero;
+            return new BigFloat(d);
         }
         
         public static explicit operator int(BigFloat d)
@@ -520,15 +632,10 @@ namespace OpenTap
 
         public static bool operator ==(BigFloat a, BigFloat b)
         {
-            if ((a.Denominator == 0) || (b.Denominator == 0))
-            {
-                if (a.IsNan || b.IsNan)
-                    return false;
-                else
-                    return (a.Denominator == b.Denominator) && (a.Numerator == b.Numerator);
-            }
-            else
-                return a.Equals(b);
+            bool eq = a.Numerator == b.Numerator && a.Denominator == b.Denominator;
+            if (eq)
+                return !a.IsNan;
+            return false;
         }
 
         public static bool operator !=(BigFloat a, BigFloat b)
@@ -559,9 +666,9 @@ namespace OpenTap
             if ((a.Denominator == 0) || (b.Denominator == 0))
             {
                 if (a.IsNan || b.IsNan) return false;
-                else if (a.IsNegInf) return b.IsNegInf;
-                else if (b.IsPosInf) return a.IsPosInf;
-                else return true;
+                if (a.IsNegInf) return b.IsNegInf;
+                if (b.IsPosInf) return a.IsPosInf;
+                return true;
             }
             else
                 return a.CompareTo(b) >= 0;
@@ -572,12 +679,11 @@ namespace OpenTap
             if ((a.Denominator == 0) || (b.Denominator == 0))
             {
                 if (a.IsNan || b.IsNan) return false;
-                else if (a.IsPosInf) return b.IsPosInf;
-                else if (b.IsNegInf) return a.IsNegInf;
-                else return true;
+                if (a.IsPosInf) return b.IsPosInf;
+                if (b.IsNegInf) return a.IsNegInf;
+                return true;
             }
-            else
-                return a.CompareTo(b) <= 0;
+            return a.CompareTo(b) <= 0;
         }
 
         public static bool operator >(BigFloat a, BigFloat b)
@@ -586,13 +692,11 @@ namespace OpenTap
             {
                 if (a.IsNan || b.IsNan)
                     return false;
-                else if (a.IsPosInf) return !b.IsPosInf;
-                else if (b.IsNegInf) return !a.IsNegInf;
-                else
-                    return false;
+                if (a.IsPosInf) return !b.IsPosInf;
+                if (b.IsNegInf) return !a.IsNegInf;
+                return false;
             }
-            else
-                return a.CompareTo(b) > 0;
+            return a.CompareTo(b) > 0;
         }
 
         public static bool operator <(BigFloat a, BigFloat b)
@@ -600,19 +704,18 @@ namespace OpenTap
             if ((a.Denominator == 0) || (b.Denominator == 0))
             {
                 if (a.IsNan || b.IsNan) return false;
-                else if (a.IsNegInf) return !b.IsNegInf;
-                else if (b.IsPosInf) return !a.IsPosInf;
-                else return false;
+                if (a.IsNegInf) return !b.IsNegInf;
+                if (b.IsPosInf) return !a.IsPosInf;
+                return false;
             }
-            else
-                return a.CompareTo(b) < 0;
+            return a.CompareTo(b) < 0;
         }
         
         public BigFloat Sign()
         {
             if (Numerator >= 0)
-                return new BigFloat(1, 1);
-            return new BigFloat(-1, 1);
+                return One;
+            return NegativeOne;
         }
 
         public static BigFloat operator +(BigFloat a, BigFloat b)
@@ -638,9 +741,16 @@ namespace OpenTap
 
         public static BigFloat operator -(BigFloat a, BigFloat b)
         {
-            if (a.IsNan || b.IsNan) return NaN;
-            if (b.IsZero) return a;
-            if (a.IsZero) return new BigFloat(-b.Numerator, b.Denominator);
+            if (a.Numerator == 0)
+            {
+                if (a.Denominator == 0) return NaN;
+                if(a.IsZero) return new BigFloat(-b.Numerator, b.Denominator);
+            }
+            if (b.Numerator == 0)
+            {
+                if (b.Denominator == 0) return NaN;
+                if (b.IsZero) return a;
+            }
 
             if (a.Denominator != b.Denominator)
             {
@@ -655,41 +765,64 @@ namespace OpenTap
 
             if (a.Numerator == b.Numerator)
             {
-                if (a.IsPosInf || b.IsNegInf) return NaN;
+                if (a.Denominator == 0 || b.Denominator == 0) return NaN;
                 return Zero;
             }
 
-            return new BigFloat(a.Numerator - b.Numerator, b.Denominator).Normalize();
+            return new BigFloat(a.Numerator - b.Numerator, b.Denominator);
         }
+
         public static BigFloat operator /(BigFloat a, BigFloat b)
         {
-            if (a.IsNan || b.IsNan) return NaN;
-            else if (a.IsNegInf)
+            if (b.Numerator == 1)
             {
-                if (b.IsPosInf || b.IsNegInf) return NaN;
-                else if (b < 0) return Infinity;
-            }
-            else if (a.IsPosInf)
+                if (b == One) return a;
+            }else if (b.IsNan)
+                return NaN;
+
+            if (a.Numerator == 0)
             {
-                if (b.IsPosInf || b.IsNegInf) return NaN;
-                else if (b < 0) return NegativeInfinity;
-            }
-            else if (b == One) return a;
-            else if (a.IsZero)
-            {
+                if (a.Denominator == 0) 
+                    return NaN;
                 if (b.IsZero) return NaN;
                 return Zero;
             }
-            else if (b.IsZero)
+            if (a.Denominator == 0)
             {
+                if (a.IsNegInf)
+                {
+                    if (b.IsPosInf || b.IsNegInf) return NaN;
+                    else if (b < 0) return Infinity;
+                    return a;
+                }
+                else if (a.IsPosInf)
+                {
+                    if (b.IsPosInf || b.IsNegInf) return NaN;
+                    if (b < 0) return NegativeInfinity;
+                    return a;
+                }    
+            }
+            else if (b.Numerator == 0)
+            {
+                if (b.Denominator == 0) 
+                    return NaN;
                 return a.Numerator > 0 ? Infinity : NegativeInfinity;
             }
 
-            return new BigFloat(a.Numerator * b.Denominator, b.Numerator * a.Denominator).Normalize();
+            return new BigFloat(a.Numerator * b.Denominator, b.Numerator * a.Denominator);
         }
 
         public static BigFloat operator *(BigFloat a, BigFloat b)
         {
+            if (b.Denominator == 1)
+            {
+                if (b.Numerator == 1)
+                    return a; // this is a very common case in parsing.
+                if (b.Numerator == -1)
+                    return new BigFloat(-a.Numerator, a.Denominator);
+                return new BigFloat(a.Numerator * b.Numerator, a.Denominator);
+            }
+            
             if (a.IsNan || b.IsNan) return NaN;
             if (a.IsZero)
             {
@@ -702,8 +835,8 @@ namespace OpenTap
                 if (a.IsPosInf || a.IsNegInf) return NaN;
                 return Zero;
             }
-
-            return new BigFloat(a.Numerator * b.Numerator, a.Denominator * b.Denominator).Normalize();
+            
+            return new BigFloat(a.Numerator * b.Numerator, a.Denominator * b.Denominator);
         }
 
         public BigFloat Abs()
@@ -724,8 +857,9 @@ namespace OpenTap
         {
             if (IsNan || IsNegInf || IsPosInf) return this;
 
-            return new BigFloat(Rounded(), 1);
+            return new BigFloat(Rounded());
         }
+
         
         public static BigFloat Convert(object y, IFormatProvider prov = null)
         {

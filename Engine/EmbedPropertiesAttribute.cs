@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
@@ -78,7 +79,22 @@ namespace OpenTap
                 Name = this.innerMember.Name;
         }
         public override string ToString() => $"EmbMem:{Name}";
-        
+
+        public override bool Equals(object obj)
+        {
+            if (obj is EmbeddedMemberData emb)
+                return emb.ownerMember.Equals(ownerMember) && emb.innerMember.Equals(innerMember);
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            var hashCode = -1808396095;
+            hashCode = hashCode * -1521134295 + innerMember.GetHashCode();
+            hashCode = hashCode * -1521134295 + ownerMember.GetHashCode();
+            return hashCode;
+        }
+
         object[] attributes;
 
         /// <summary>
@@ -253,6 +269,7 @@ namespace OpenTap
                 if (member.HasAttribute<EmbedPropertiesAttribute>())
                 {
                     var xmlIgnore = member.HasAttribute<XmlIgnoreAttribute>();
+                    bool? memBrowsable = member.GetAttribute<BrowsableAttribute>()?.Browsable;
                     var members = member.TypeDescriptor.GetMembers();
                     foreach(var m in members)
                     {
@@ -265,9 +282,15 @@ namespace OpenTap
                         }
                     }
 
-                    object[] additionalAttributes = xmlIgnore ? [new XmlIgnoreAttribute()] : [];
                     foreach (var innermember in members)
+                    {
+                        List<object> additionalAttributes = [];
+                        if (xmlIgnore && !innermember.HasAttribute<XmlIgnoreAttribute>()) 
+                            additionalAttributes.Add(new XmlIgnoreAttribute());
+                        if (memBrowsable.HasValue && !innermember.HasAttribute<BrowsableAttribute>())
+                            additionalAttributes.Add(new BrowsableAttribute(memBrowsable.Value));
                         embeddedMembers.Add(new EmbeddedMemberData(member, innermember, additionalAttributes));
+                    }
                 }
             }
             currentlyListing.Remove(this);

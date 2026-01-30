@@ -248,6 +248,18 @@ It is generally recommended to use the unsigned integer types when you want to e
 public uint IntegerValue { get; set; } = 0xA; // Displayed as: "0x0000000A"
 ```
 
+### Opting out of range simplification with UseRanges
+This only affects sequences of elements such as Lists or Arrays. Range simplification is normally applied when you write a range of values, e.g "1,2,3,4,5". This will get simplified to "1 : 5".
+
+You can opt out of that behavior using the UseRanges property as in the below example
+
+#### Example:
+
+```csharp
+[Unit("Hz", true, UseRanges: false)]
+public double[] DoubleArray { get; set; } = [1,2,3,4,5]; // displayed as "1, 2, 3, 4, 5".
+```
+
 ### Additional Notes
 
 * If no unit is required, use an empty string (`""`) for the `Unit`.

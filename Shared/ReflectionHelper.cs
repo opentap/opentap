@@ -1043,18 +1043,16 @@ namespace OpenTap
         /// <summary>
         /// Returns true if the source is longer than count elements.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="source"></param>
-        /// <param name="count"></param>
-        /// <returns></returns>
-        public static bool IsLongerThan<T>(this IEnumerable<T> source, long count)
+        public static bool IsLongerThan(this IEnumerable source, long count)
         {
+            if (source is ICollection col)
+                return col.Count > count;
             foreach (var _ in source)
                 if (--count < 0)
                     return true;
             return false;
         }
-
+        
         /// <summary>
         /// Creates a HashSet from an IEnumerable.
         /// </summary>
@@ -1404,12 +1402,91 @@ namespace OpenTap
             // on the last attempt just call the function directly
             return function();
         }
+
+        /// <summary>
+        /// Fast trivial way of checking if a value type is one of a list of types
+        /// that we know can be stack cloned.
+        /// </summary>
+        public static bool IsTriviallyCloneable(object v)
+        {
+            return v switch
+            {
+                bool or short or string or DateTime or double or float or int or
+                    Enum or uint or long or ulong => true,
+                _ => false
+            };
+        }
+
+        static bool FastCompare<T>(IList<T> l1, IList<T> l2) where T : struct, IEquatable<T>
+        {
+            if (l1.Count != l2.Count) return false;
+
+            // This looks like an object call, but the JIT devirtualizes it for value types.
+            var comparer = EqualityComparer<T>.Default;
+            var count = l1.Count;
+
+            for (int i = 0; i < count; i++)
+            {
+                if (!comparer.Equals(l1[i], l2[i]))
+                    return false;
+            }
+            return true;
+        }
+
+        public static bool CompareEnumerable(IEnumerable ie1, IEnumerable ie2)
+        {
+            if (ie1 == ie2)
+                return true;
+            if (ie1 is IList c1 && ie2 is IList c2)
+            {
+                
+                var l1 = c1.Count;
+                var l2 = c2.Count;
+                if (l1 != l2) return false;
+                {
+                    if (ie1 is IList<double> list1 && ie2 is IList<double> list2)
+                        return FastCompare(list1, list2);
+                }
+                {
+                    if (ie1 is IList<int> list1 && ie2 is IList<int> list2)
+                        return FastCompare(list1, list2);
+                }
+                {
+                    if (ie1 is IList<float> list1 && ie2 is IList<float> list2)
+                        return FastCompare(list1, list2);
+                }
+                
+                for (int i = 0; i < l1; i++)
+                {
+                    if (Equals(c1[i], c2[i]) == false)
+                        return false;
+                }
+
+                return true;
+            }
+
+            {
+                var en1 = ie1.GetEnumerator();
+                var en2 = ie2.GetEnumerator();
+                while (true)
+                {
+                    var nextok = en1.MoveNext();
+                    if (en2.MoveNext() != nextok)
+                        return false;
+                    if (!nextok) return true;
+                    if (!Equals(en1.Current, en2.Current))
+                        return false;
+                    
+                }
+            }
+            
+        }
     }
 
     static internal class Sequence
     {
         /// <summary> Turns item into a one element array, unless it is null.</summary>
-        public static T[] AsSingle<T>(this T item) => item == null ? Array.Empty<T>() : new[] {item};
+        public static T[] AsSingle<T>(this T item) => item == null ? [] : new[] {item};
         
         /// <summary>
         /// Like distinct but keeps the last item. Returns List because we need to iterate until last element anyway.

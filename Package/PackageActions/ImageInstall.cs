@@ -59,7 +59,14 @@ namespace OpenTap.Package
 
             var imageString = ImagePath;
             if (File.Exists(imageString))
+            {
                 imageString = File.ReadAllText(imageString);
+                // If an image file contains \0 its not a valid XML or JSON file.
+                if (imageString.Contains('\0'))
+                    throw new ArgumentException($"Specified file '{ImagePath}' is not a valid JSON or XML file. Consider postfixing the package name with ':version' if applicable.", nameof(ImagePath));
+            }else if (imageString.EndsWith(".xml", StringComparison.OrdinalIgnoreCase) || imageString.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
+                throw new ArgumentException($"'{ImagePath}' was not found.", nameof(ImagePath));
+
             var imageSpecifier = ImageSpecifier.FromString(imageString);
 
             // image specifies any repositories?

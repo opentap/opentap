@@ -12,5 +12,6 @@ Development requires the following software:
 
 ## Suggested Resources
 VISA driver e.g. Keysight I/O libraries for instrument communication
+
 ### PathWave Test Automation
 Together with OpenTAP it is recommended to use a Graphical User Interface. Keysight Technologies offers both an enterprise and community version of [PathWave Test Automation Developer's System](https://www.keysight.com/find/tapinstall) that provides a highly flexible graphical user interface and code examples.
