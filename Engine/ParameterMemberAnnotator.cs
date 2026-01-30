@@ -103,7 +103,13 @@ namespace OpenTap
             annotation.Add(new SubMember(subannotation, bigList, member));
             var subMembers = subannotation.Get<IMembersAnnotation>();
             var firstmem = parameterizedMembers.First().Item2;
-            var thismember = subMembers.Members.FirstOrDefault(x => x.Get<IMemberAnnotation>().Member == firstmem);
+            
+            // Most of the time, ReferenceEquals is sufficient here, so we prefer it because it is much more efficient.
+            // Object equality is required specifically in the case when a parameter member has been invalidated because the cache
+            // in EmbeddedPropertiesAttribute was invalidated. This happens when a mixin is added to a step which uses
+            // embedded properties and those properties are also parameterized somewhere.
+            var thismember = subMembers.Members.FirstOrDefault(x => ReferenceEquals(x.Get<IMemberAnnotation>().Member, firstmem))
+                             ?? subMembers.Members.FirstOrDefault(x => Equals(x.Get<IMemberAnnotation>().Member, firstmem));
             if (thismember == null) return;
 
             annotation.RemoveType<IAccessAnnotation>();

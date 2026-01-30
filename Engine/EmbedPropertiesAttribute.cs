@@ -79,7 +79,22 @@ namespace OpenTap
                 Name = this.innerMember.Name;
         }
         public override string ToString() => $"EmbMem:{Name}";
-        
+
+        public override bool Equals(object obj)
+        {
+            if (obj is EmbeddedMemberData emb)
+                return emb.ownerMember.Equals(ownerMember) && emb.innerMember.Equals(innerMember);
+            return false;
+        }
+
+        public override int GetHashCode()
+        {
+            var hashCode = -1808396095;
+            hashCode = hashCode * -1521134295 + innerMember.GetHashCode();
+            hashCode = hashCode * -1521134295 + ownerMember.GetHashCode();
+            return hashCode;
+        }
+
         object[] attributes;
 
         /// <summary>
