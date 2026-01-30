@@ -40,7 +40,7 @@ namespace OpenTap.Package
             }
         }
         /// <summary> SHA1 hash of a file in a package. </summary>
-        public class Hash : ICustomPackageData
+        public class Hash : ICustomPackageData, INonDynamicType
         {
             /// <summary> Creates a new instance of Hash. </summary>
             public Hash(byte[] hash)

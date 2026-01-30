@@ -68,7 +68,7 @@ namespace OpenTap
     /// as children of the TestStep in the TestStepList.Parent field.
     /// </summary>
     [DebuggerDisplay("TestStepList {Count}")]
-    public class TestStepList : ObservableCollection<ITestStep>
+    public class TestStepList : ObservableCollection<ITestStep>, INonDynamicType
     {
         /// <summary>
         /// When true, the nesting rules defined by <see cref="AllowAsChildInAttribute"/> and 

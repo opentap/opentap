@@ -13,6 +13,13 @@ using System.Threading.Tasks;
 namespace OpenTap
 {
     /// <summary>
+    /// Marks a type as something that will never be dynamically extended as an OpenTAP plugin.
+    /// </summary>
+    public interface INonDynamicType
+    {
+    
+    }
+    /// <summary>
     /// Representation of a C#/dotnet type including its inheritance hierarchy. Part of the object model used in the PluginManager
     /// </summary>
     [DebuggerDisplay("{Name}")]
@@ -573,22 +580,31 @@ namespace OpenTap
                    (Name.GetHashCode() + 836431542) * 678129773;
         }
 
-        static TypeData IntType = FromType(typeof(int));
-        static TypeData DoubleType = FromType(typeof(double));
-        private static TypeData StringType = FromType(typeof(string));
-        private static TypeData BoolType = FromType(typeof(bool));
+        class TypeCache
+        {
+            public static TypeData IntType = FromType(typeof(int));
+            public static  TypeData DoubleType = FromType(typeof(double));
+            public  static TypeData StringType = FromType(typeof(string));
+            public  static TypeData BoolType = FromType(typeof(bool));
+            public  static TypeData TestStepListType = FromType(typeof(TestStepList));
+        }
 
         /// <summary> Get the type info of an object. </summary>
         public static ITypeData GetTypeData(object obj)
         { 
+            
             // Primitive types cannot meaningfully be extended, so they will always have the same type data.
             switch (obj)
             {
                 case null: return NullTypeData.Instance;
-                case int: return IntType;
-                case double: return DoubleType;
-                case string: return StringType;
-                case bool: return BoolType;
+                case int: return TypeCache.IntType;
+                case double: return TypeCache.DoubleType;
+                case string: return TypeCache.StringType;
+                case bool: return TypeCache.BoolType;
+                case TestStepList: return TypeCache.TestStepListType;
+                case Array: return FromType(obj.GetType());
+                case Enum: return FromType(obj.GetType());
+                case INonDynamicType: return FromType(obj.GetType());
             }
             var cache = TypeDataCache.Current;
             if (cache != null && cache.TryGetValue(obj, out var cachedValue))

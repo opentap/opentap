@@ -12,7 +12,7 @@ namespace OpenTap
     /// <summary>
     /// Represents a specific setting/mode/position of a switch.
     /// </summary>
-    public class SwitchPosition : ViaPoint
+    public class SwitchPosition : ViaPoint, INonDynamicType
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="SwitchPosition"/> class.
@@ -28,7 +28,7 @@ namespace OpenTap
     /// Base class representing a point through which a connection passes. There is a list of these in <see cref="Connection.Via"/>.
     /// These usually represent a state that a connection switch element/instrument can be in. Implementations include <see cref="SwitchPosition"/> and <see cref="SwitchMatrixPath"/>
     /// </summary>
-    public abstract class ViaPoint : IEquatable<ViaPoint>, IConstResourceProperty
+    public abstract class ViaPoint : IEquatable<ViaPoint>, IConstResourceProperty, INonDynamicType
     {
         /// <summary>
         /// The name of this state/mode/position in the switch. (Should be unique among <see cref="ViaPoint"/> objects on the same device/resource).

@@ -11,7 +11,7 @@ namespace OpenTap
     /// Species a OpenTAP Serializer plugin.
     /// </summary>
     [Display("Serializer")]
-    public interface ITapSerializerPlugin : ITapPlugin
+    public interface ITapSerializerPlugin : ITapPlugin, INonDynamicType
     {
         
         /// <summary>

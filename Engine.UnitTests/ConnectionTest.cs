@@ -162,7 +162,7 @@ namespace OpenTap.Engine.UnitTests
             
         }
         
-        public class ViaPointCollection : IReadOnlyList<RevolverSwitchPosition>
+        public class ViaPointCollection : IReadOnlyList<RevolverSwitchPosition>, INonDynamicType
         {
             readonly RevolverSwitchPosition[] points;
             public ViaPointCollection(Instrument device, int count)

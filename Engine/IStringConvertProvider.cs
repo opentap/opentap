@@ -20,7 +20,7 @@ namespace OpenTap
     /// FromString(GetString(value), value.GetType()) shall always return a non-null value, if GetString(value) returns a non-null value.
     /// </remarks>
     [Display("String Converter")]
-    public interface IStringConvertProvider : ITapPlugin
+    public interface IStringConvertProvider : ITapPlugin, INonDynamicType
     {
         /// <summary>
         /// Returns a string when the implementation supports converting the value. Otherwise, returns null.
