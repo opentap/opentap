@@ -1043,18 +1043,16 @@ namespace OpenTap
         /// <summary>
         /// Returns true if the source is longer than count elements.
         /// </summary>
-        /// <typeparam name="T"></typeparam>
-        /// <param name="source"></param>
-        /// <param name="count"></param>
-        /// <returns></returns>
-        public static bool IsLongerThan<T>(this IEnumerable<T> source, long count)
+        public static bool IsLongerThan(this IEnumerable source, long count)
         {
+            if (source is ICollection col)
+                return col.Count > count;
             foreach (var _ in source)
                 if (--count < 0)
                     return true;
             return false;
         }
-
+        
         /// <summary>
         /// Creates a HashSet from an IEnumerable.
         /// </summary>
@@ -1429,7 +1427,7 @@ namespace OpenTap
 
             for (int i = 0; i < count; i++)
             {
-                if (comparer.Equals(l1[i], l2[i]))
+                if (!comparer.Equals(l1[i], l2[i]))
                     return false;
             }
             return true;

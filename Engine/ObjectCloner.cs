@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace OpenTap
@@ -37,6 +38,7 @@ namespace OpenTap
         
         public bool TryClone(object context, ITypeData targetType, bool skipIfPossible, out object clone)
         {
+            clone = null;
             if (ReferenceEquals(targetType, typeOfValue) && valueType || value == null)
             {
                 clone = value;
@@ -48,6 +50,37 @@ namespace OpenTap
             {
                 try
                 {
+                    if (value.GetType().IsPrimitive)
+                    {
+                        clone = value;
+                        return true;
+                    }
+
+                    // fast trivial cloning
+                    (clone, var isTrivial) = (value) switch {
+                        // Arrays
+                        double[] val => ((object)val.ToArray(), true),
+                        float[] val  => (val.ToArray(), true),
+                        byte[] val   => (val.ToArray(), true),
+                        int[] val    => (val.ToArray(), true),
+                        string[] val => (val.ToArray(), true),
+
+                        // Lists
+                        List<double> val => (val.ToList(), true),
+                        List<int> val    => (val.ToList(), true),
+                        List<float> val  => (val.ToList(), true),
+                        List<string> val => (val.ToList(), true),
+
+                        // String (Strings are immutable, so simple assignment is a "clone")
+                        string val => (val, true),
+
+                        // Default case
+                        _ => (null, false)
+                    };
+                    
+                    if (isTrivial)
+                        return true;
+                    
                     if (strConvertSuccess == null)
                         strConvertSuccess = StringConvertProvider.TryGetString(value, out convertString);
                     if (strConvertSuccess == true)
