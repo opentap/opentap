@@ -776,12 +776,15 @@ namespace OpenTap
                             continue;
                         if (selectedValue is IEnumerable ie1 && !(selectedValue is string))
                         {
+                           
+                            
                             // if the two lists has the same content it is fine to just return one of them.
                             // upon writing the two values will be cloned back.
                             // if they are not the same, null should be returned to signal this.
                             if (thisVal is IEnumerable ie2)
                             {
-                                if (ie2.Cast<object>().SequenceEqual(ie1.Cast<object>()))
+                                
+                                if (Utils.CompareEnumerable(ie2, ie1))
                                     continue;
                             }
 

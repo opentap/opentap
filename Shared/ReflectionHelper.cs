@@ -1418,6 +1418,71 @@ namespace OpenTap
                 _ => false
             };
         }
+
+        static bool FastCompare<T>(IList<T> l1, IList<T> l2) where T : struct, IEquatable<T>
+        {
+            if (l1.Count != l2.Count) return false;
+
+            // This looks like an object call, but the JIT devirtualizes it for value types.
+            var comparer = EqualityComparer<T>.Default;
+            var count = l1.Count;
+
+            for (int i = 0; i < count; i++)
+            {
+                if (comparer.Equals(l1[i], l2[i]))
+                    return false;
+            }
+            return true;
+        }
+
+        public static bool CompareEnumerable(IEnumerable ie1, IEnumerable ie2)
+        {
+            if (ie1 == ie2)
+                return true;
+            if (ie1 is IList c1 && ie2 is IList c2)
+            {
+                
+                var l1 = c1.Count;
+                var l2 = c2.Count;
+                if (l1 != l2) return false;
+                {
+                    if (ie1 is IList<double> list1 && ie2 is IList<double> list2)
+                        return FastCompare(list1, list2);
+                }
+                {
+                    if (ie1 is IList<int> list1 && ie2 is IList<int> list2)
+                        return FastCompare(list1, list2);
+                }
+                {
+                    if (ie1 is IList<float> list1 && ie2 is IList<float> list2)
+                        return FastCompare(list1, list2);
+                }
+                
+                for (int i = 0; i < l1; i++)
+                {
+                    if (Equals(c1[i], c2[i]) == false)
+                        return false;
+                }
+
+                return true;
+            }
+
+            {
+                var en1 = ie1.GetEnumerator();
+                var en2 = ie2.GetEnumerator();
+                while (true)
+                {
+                    var nextok = en1.MoveNext();
+                    if (en2.MoveNext() != nextok)
+                        return false;
+                    if (!nextok) return true;
+                    if (!Equals(en1.Current, en2.Current))
+                        return false;
+                    
+                }
+            }
+            
+        }
     }
 
     static internal class Sequence
