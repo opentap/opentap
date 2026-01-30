@@ -573,11 +573,23 @@ namespace OpenTap
                    (Name.GetHashCode() + 836431542) * 678129773;
         }
 
-        
+        static TypeData IntType = FromType(typeof(int));
+        static TypeData DoubleType = FromType(typeof(double));
+        private static TypeData StringType = FromType(typeof(string));
+        private static TypeData BoolType = FromType(typeof(bool));
+
         /// <summary> Get the type info of an object. </summary>
         public static ITypeData GetTypeData(object obj)
-        {
-            if (obj == null) return NullTypeData.Instance;
+        { 
+            // Primitive types cannot meaningfully be extended, so they will always have the same type data.
+            switch (obj)
+            {
+                case null: return NullTypeData.Instance;
+                case int: return IntType;
+                case double: return DoubleType;
+                case string: return StringType;
+                case bool: return BoolType;
+            }
             var cache = TypeDataCache.Current;
             if (cache != null && cache.TryGetValue(obj, out var cachedValue))
                 return cachedValue;
