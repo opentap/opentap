@@ -682,7 +682,7 @@ namespace OpenTap.UnitTests
         
         [TestCase(true)]
         [TestCase(false)]
-        public void EmbeddedParameterPlusMixinTest(bool addMixin)
+        public void EmbeddedParameterPlusMixinSerializerTest(bool addMixin)
         {
             var plan = new TestPlan();
             var seq = new SequenceStep();
@@ -724,6 +724,57 @@ namespace OpenTap.UnitTests
             seq = (SequenceStep)plan2.ChildTestSteps[0];
             bugStep = (EmbedPropertiesBugStep)seq.ChildTestSteps[0];
             verify();
+        }
+
+        [Test]
+        public void EmbeddedParameterPlusMixinEnabledIfTest()
+        {
+            var plan = new TestPlan();
+            var seq = new SequenceStep();
+            var bugStep = new EmbedPropertiesBugStep();
+            bugStep.Setting.A = 123;
+            seq.ChildTestSteps.Add(bugStep);
+            plan.ChildTestSteps.Add(seq);
+            
+            var a = AnnotationCollection.Annotate(bugStep).GetMember(nameof(SomeComplexParameter.A));
+            a.Get<IMemberAnnotation>().Member.Parameterize(seq, bugStep, "Parameter \\ A");
+
+            void verify()
+            {
+                bugStep.Setting.EnableParameter = true;
+                var a = AnnotationCollection.Annotate(seq);
+                var mem = a.GetMember("Parameter \\ A");
+                Assert.That(a.GetMember("Parameter \\ A").Get<IAccessAnnotation>().IsReadOnly, Is.False);
+                
+                bugStep.Setting.EnableParameter = false;
+                a.Read();
+                Assert.That(a.GetMember("Parameter \\ A").Get<IAccessAnnotation>().IsReadOnly, Is.True);
+            }
+            
+            // 1. Check that the embedded EnableParameter is wired up to the parameter's enabled state
+            verify();
+            // 2. Check that the wiring is still correct after adding a mixin
+            var mixin = MixinFactory.LoadMixin(bugStep, new TestNumberMixinBuilder { Name = "Some Mixin" });
+            Assert.That(TypeData.GetTypeData(bugStep).GetMember(mixin.Name), Is.Not.Null);
+            verify();
+            // 3. Check that the wiring is still correct after removing a mixin
+            MixinFactory.UnloadMixin(bugStep, mixin);
+            Assert.That(TypeData.GetTypeData(bugStep).GetMember(mixin.Name), Is.Null);
+            verify();
+
+
+            // 4. Check that the wiring is still correct after reloading the test plan
+            {
+                var serializer = new TapSerializer();
+                var deserializer = new TapSerializer();
+                var planXml = serializer.SerializeToString(plan);
+                var plan2 = (TestPlan)deserializer.DeserializeFromString(planXml);
+                Assert.That(serializer.Errors, Is.Empty);
+                Assert.That(deserializer.Errors, Is.Empty);
+                seq = (SequenceStep)plan2.ChildTestSteps[0];
+                bugStep = (EmbedPropertiesBugStep)seq.ChildTestSteps[0];
+                verify();
+            }
         }
 
 
