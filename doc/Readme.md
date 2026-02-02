@@ -68,7 +68,7 @@ This example shows how to install OpenTAP on ARM64 Ubuntu 24.04 running on a Ras
 
 ```bash
 # Install dotnet and unzip
-sudo apt install -y dotnet-sdk-8.0 unzip
+sudo apt install -y dotnet-sdk-9.0 unzip
 
 # Download the latest OpenTAP release
 curl -Lo opentap.zip 'https://packages.opentap.io/4.0/Objects/Packages/OpenTAP?os=Linux&architecture=arm64'
