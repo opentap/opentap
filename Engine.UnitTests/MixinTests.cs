@@ -11,17 +11,26 @@ namespace OpenTap.UnitTests
     [TestFixture]
     public class MixinTests
     {
-        [Test]
-        public void TestLoadingMixins()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TestLoadAndRunMixinEvents(bool error)
         {
             var plan = new TestPlan();
-            var step = new LogStep();
+            TestStep step = new LogStep();
+            if (error)
+                step = new ThrowingStep();
             plan.ChildTestSteps.Add(step);
 
             MixinFactory.LoadMixin(step, new MixinTestBuilder
             {
                 TestMember = "123"
             });
+            
+            MixinFactory.LoadMixin(plan, new MixinTestBuilder
+            {
+                TestMember = "1234"
+            });
+
             
             plan.Execute();
 
@@ -31,9 +40,12 @@ namespace OpenTap.UnitTests
             var step2 = plan2.ChildTestSteps[0];
             var onPostRunCalled = TypeData.GetTypeData(step2).GetMember("TestMixin.OnPostRunCalled").GetValue(step2);
             var onPreRunCalled = TypeData.GetTypeData(step2).GetMember("TestMixin.OnPreRunCalled").GetValue(step2);
-            
+            var onPostPlanRunCalled = TypeData.GetTypeData(plan).GetMember("TestMixin.OnPostPlanRunCalled").GetValue(plan);
+            var onPrePlanRunCalled = TypeData.GetTypeData(plan).GetMember("TestMixin.OnPrePlanRunCalled").GetValue(plan);
             Assert.AreEqual(true, onPostRunCalled);
             Assert.AreEqual(true, onPreRunCalled);
+            Assert.AreEqual(true, onPrePlanRunCalled);
+            Assert.AreEqual(true, onPostPlanRunCalled);
         }
 
         [Test]
@@ -780,7 +792,7 @@ namespace OpenTap.UnitTests
 
     }
 
-    public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin
+    public class MixinTest : IMixin, ITestStepPostRunMixin, ITestStepPreRunMixin, IAssignOutputMixin, ITestPlanPreRunMixin, ITestPlanPostRunMixin
     {
         public bool OnPostRunCalled { get; set; }
         public bool OnPreRunCalled { get; set; }
@@ -805,6 +817,20 @@ namespace OpenTap.UnitTests
             OnAssignOutputCalled = true;
             OutputStringValue = args.Value.ToString();
         }
+
+        public void OnPreRun(TestPlanPreRunEventArgs eventArgs)
+        {
+            OnPrePlanRunCalled = true;
+        }
+
+        public bool OnPrePlanRunCalled { get; private set; }
+
+        public void OnPostRun(TestPlanPostRunEventArgs eventArgs)
+        {
+            OnPostPlanRunCalled = true;
+        }
+
+        public bool OnPostPlanRunCalled { get; private set; }
     }
     
     [MixinBuilder(typeof(ITestStepParent))]
