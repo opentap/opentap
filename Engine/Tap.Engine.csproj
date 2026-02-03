@@ -3,6 +3,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>OpenTap</AssemblyName>
     <RootNamespace>OpenTap</RootNamespace>
+    <LangVersion>9</LangVersion>
   </PropertyGroup>
   
   <PropertyGroup Condition="'$(IsDebug)'!='true'">
