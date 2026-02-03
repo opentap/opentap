@@ -180,7 +180,9 @@ namespace OpenTap.Package
         {
             repositoryDir = Path.GetFullPath(repositoryDir);
             RepoDir = repositoryDir;
-            while (!Directory.Exists(Path.Combine(repositoryDir, ".git")))
+            /* if this is a normal git repository, .git is a directory containing the local index. if this is a git worktree,
+             * .git is a text file containing the path to the real index. libgit is able to handle both cases perfectly. */
+            while (!Directory.Exists(Path.Combine(repositoryDir, ".git")) && !File.Exists(Path.Combine(repositoryDir, ".git")))
             {
                 repositoryDir = Path.GetDirectoryName(repositoryDir);
                 if (repositoryDir == null)
