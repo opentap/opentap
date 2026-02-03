@@ -39,7 +39,7 @@ curl -Lo opentap.linux https://packages.opentap.io/4.0/Objects/www/OpenTAP?os=Li
 # Make it executable
 chmod +x ./opentap.linux
 # Run the installer
-sudo ./opentap.linux --quiet
+./opentap.linux --quiet
 ```
 
 The installer is likely to work on other Linux distributions, but additional dependencies
