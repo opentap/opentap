@@ -257,7 +257,7 @@ namespace OpenTap
             CacheState.OnUpdated();
             try
             {
-                IEnumerable<string> fileNames = assemblyResolver.GetAssembliesToSearch();
+                string[] fileNames = assemblyResolver.GetAssembliesToSearch();
                 searcher = SearchAndAddToStore(fileNames);
             }
             catch (Exception e)
@@ -323,10 +323,9 @@ namespace OpenTap
         /// Searches the files in fileNames for dlls implementing <see cref="ITapPlugin"/>
         /// and puts the implementation in the appropriate list.
         /// </summary>
-        /// <param name="_fileNames">List of files to search.</param>
-        static PluginSearcher SearchAndAddToStore(IEnumerable<string> _fileNames)
+        /// <param name="fileNames">List of files to search.</param>
+        static PluginSearcher SearchAndAddToStore(string[] fileNames)
         {
-            var fileNames = _fileNames.ToList();
             Stopwatch timer = Stopwatch.StartNew();
             // Create a new searcher based on the current searcher.
             // Loaded plugins will be 'absorbed'. This is needed in case a loaded plugin was uninstalled.
@@ -355,7 +354,7 @@ namespace OpenTap
                 log.Debug(ex);
             }
                 
-            log.Debug(timer, "Searched {0} Assemblies.", fileNames.Count);
+            log.Debug(timer, "Searched {0} Assemblies.", fileNames.Length);
 
             if (GetPlugins(newSearcher, typeof(IInstrument).FullName).Count == 0)
                 log.Warning("No instruments found.");
