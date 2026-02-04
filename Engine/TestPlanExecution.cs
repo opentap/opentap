@@ -299,6 +299,8 @@ namespace OpenTap
                     }
                     run.Duration = testPlanTimer.Elapsed;
                 }
+                
+                TestPlanPostRunEvent.Invoke(this, run);
 
                 if (run != null)
                 {
