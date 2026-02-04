@@ -4,7 +4,9 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using OpenTap.Plugins;
 
 namespace OpenTap
 {
@@ -82,7 +84,7 @@ namespace OpenTap
         {
             ITestStepParent context = Context;
             
-            IEnumerable<(string, object)> getMacro()
+            IEnumerable<(string Name, object Value)> getMacro()
             {
                 // note: macros are case-insensitive.
 
@@ -137,11 +139,19 @@ namespace OpenTap
                         yield return (v.MacroName, path);
                     }
                 }
-
-                
             }
             
-            return ReplaceMacros(Text, getMacro().Select(x => (x.Item1, StringConvertProvider.GetString(x.Item2))));
+            return ReplaceMacros(Text, getMacro().Select(x =>
+            {
+                string str = x.Value switch
+                {
+                    int i => i.ToString(),
+                    string s => s,
+                    DateTime dt => new ConvertibleStringConvertProvider().GetString(dt, CultureInfo.InvariantCulture),
+                    _ => StringConvertProvider.GetString(x.Value)
+                };
+                return (x.Name, str);
+            }));
         }
 
         /// <summary> Expands the text.</summary>
