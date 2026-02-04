@@ -22,8 +22,10 @@ We recommend that you [download the Developer's System](https://www.keysight.com
 > Note: Dotnet installed using [Snap](https://docs.microsoft.com/en-us/dotnet/core/install/linux-snap) is NOT supported.
 The Snap permissions for dotnet does not permit it to read *hidden* files (files or directories starting with a '.') which breaks core functionality of OpenTAP.
 
-#### Ubuntu 20.04
-For Ubuntu 20.04 and up, we provide an installer similar to the windows installer.
+#### Ubuntu 24.04
+> Although this may work on other Linux distributions, we recommend using Ubuntu 24.04.
+
+On Ubuntu we provide a graphical installer. 
 
 1. Download the [installer](https://packages.opentap.io/4.0/Objects/www/OpenTAP?os=Linux&format=full).
 2. Make the installer executable: `chmod +x path-to-installer`
@@ -37,7 +39,7 @@ curl -Lo opentap.linux https://packages.opentap.io/4.0/Objects/www/OpenTAP?os=Li
 # Make it executable
 chmod +x ./opentap.linux
 # Run the installer
-sudo ./opentap.linux --quiet
+./opentap.linux --quiet
 ```
 
 The installer is likely to work on other Linux distributions, but additional dependencies
@@ -66,7 +68,7 @@ This example shows how to install OpenTAP on ARM64 Ubuntu 24.04 running on a Ras
 
 ```bash
 # Install dotnet and unzip
-sudo apt install -y dotnet-sdk-8.0 unzip
+sudo apt install -y dotnet-sdk-9.0 unzip
 
 # Download the latest OpenTAP release
 curl -Lo opentap.zip 'https://packages.opentap.io/4.0/Objects/Packages/OpenTAP?os=Linux&architecture=arm64'

@@ -101,6 +101,28 @@ namespace OpenTap
 
         internal TestPlanPreRunEventArgs(TestPlan step) => TestPlan = step;
     }
+    
+    class TestPlanPostRunEvent : MixinEvent<ITestPlanPostRunMixin>
+    {
+        public static TestPlanPostRunEventArgs Invoke(TestPlan plan, TestPlanRun run) => 
+            Invoke(plan, (v, arg) => v.OnPostRun(arg), new TestPlanPostRunEventArgs(plan, run));
+    }
+    
+    /// <summary> Event args for the test plan post run mixin event. </summary>
+    public sealed class TestPlanPostRunEventArgs
+    {
+        /// <summary> The plan for which the event happens. </summary>
+        public TestPlan TestPlan { get; }
+        
+        /// <summary> The plan run for which this event happens. </summary>
+        public TestPlanRun Run { get; }
+
+        internal TestPlanPostRunEventArgs(TestPlan step, TestPlanRun run)
+        {
+            TestPlan = step;
+            Run = run;
+        }
+    }
 
     class TestStepPostRunEvent : MixinEvent<ITestStepPostRunMixin>
     {
@@ -171,10 +193,17 @@ namespace OpenTap
         void OnPreOpen(ResourcePreOpenEventArgs eventArgs);
     }
 
-    /// <summary> This mixin is activated just before a step is executed. It allows modifying the test step run. </summary>
+    /// <summary> This mixin is activated just before a plan is executed. It allows modifying the test plan run. </summary>
     public interface ITestPlanPreRunMixin : IMixin
     {
-        /// <summary> Invoked before test step run.</summary>
+        /// <summary> Invoked before test plan run.</summary>
         void OnPreRun(TestPlanPreRunEventArgs eventArgs);
+    }
+    
+    /// <summary> This mixin is activated just after a step is executed. It allows modifying the test plan run. </summary>
+    public interface ITestPlanPostRunMixin : IMixin
+    {
+        /// <summary> Invoked after test plan run.</summary>
+        void OnPostRun(TestPlanPostRunEventArgs eventArgs);
     }
 }

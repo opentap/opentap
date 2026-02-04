@@ -42,7 +42,7 @@ namespace OpenTap.Plugins.BasicSteps
         public uint SweepPoints { get; set; }
 
         private int _iteration = 0;
-        private int _setIteration = 0;
+        private int? _setIteration = 0;
         [Output(OutputAvailability.BeforeRun)]
         [Display("Iteration", "Shows the iteration of the sweep that is currently running or about to run.", "Sweep", Order: 1.5)]
         public string IterationInfo => $"{_iteration} of {SweepPoints}";
@@ -170,12 +170,17 @@ namespace OpenTap.Plugins.BasicSteps
                 names = $"{{{names}}}";
 
             _iteration = 0;
-            foreach (var Value in range)
+            foreach (var currentValue in range)
             {
                 _iteration++;
-                if (_setIteration >= _iteration)
-                    continue;
-                var val = StringConvertProvider.GetString(Value, CultureInfo.InvariantCulture);
+                if (_setIteration is { } setIterationTo)
+                {
+                    if (setIterationTo >= _iteration)
+                        continue;
+                    _setIteration = null;
+                }
+
+                var val = StringConvertProvider.GetString(currentValue, CultureInfo.InvariantCulture);
                 foreach (var set in selected)
                 {
                     try
@@ -185,7 +190,7 @@ namespace OpenTap.Plugins.BasicSteps
                     }
                     catch (TargetInvocationException ex)
                     {
-                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name, ex.InnerException.Message, Value);
+                        Log.Error("Unable to set '{0}' to value '{2}': {1}", set.GetDisplayAttribute().Name, ex.InnerException.Message, currentValue);
                         Log.Debug(ex.InnerException);
                     }
                 }
@@ -195,9 +200,9 @@ namespace OpenTap.Plugins.BasicSteps
                 var AdditionalParams = new ResultParameters();
                 AdditionalParams.Add("Sweep", "Iteration", _iteration, null);
                 foreach (var disp in disps)
-                    AdditionalParams.Add(new ResultParameter(disp.Group.FirstOrDefault() ?? "", disp.Name, Value));
+                    AdditionalParams.Add(new ResultParameter(disp.Group.FirstOrDefault() ?? "", disp.Name, currentValue));
 
-                Log.Info("Running child steps with {0} = {1} ", names, Value);
+                Log.Info("Running child steps with {0} = {1} ", names, currentValue);
 
                 var runs = RunChildSteps(AdditionalParams, BreakLoopRequested, throwOnBreak: false).ToArray();
                 if (BreakLoopRequested.IsCancellationRequested) break;
@@ -208,13 +213,12 @@ namespace OpenTap.Plugins.BasicSteps
             }
             for (int i = 0; i < selected.Length; i++)
                 selected[i].SetValue(this, originalValues[i]);
-            
-            _setIteration = 0;
+            _setIteration = null;
         }
 
         int ILoopStep.CurrentIteration
         {
-            get => _iteration;
+            get => _setIteration ?? _iteration;
             set =>_setIteration = value;
         }
 
