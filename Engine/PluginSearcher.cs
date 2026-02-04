@@ -143,6 +143,8 @@ namespace OpenTap
                 return $"{v.FileMajorPart}.{v.FileMinorPart}.{v.FileBuildPart}";
             }
 
+            private static StringComparison PathComparison = OperatingSystem.Current == OperatingSystem.Linux ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+            private static StringComparer PathComparer = OperatingSystem.Current == OperatingSystem.Linux ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase;
             /// <summary>
             /// Returns a list of assemblies and their dependencies/references. 
             /// The list is sorted such that a dependency is before the assembly/assemblies that depend on it.
@@ -150,11 +152,11 @@ namespace OpenTap
             public List<AssemblyData> Generate(string[] files)
             {
                 if (nameToFileMap == null)
-                    nameToFileMap = files.ToLookup(Path.GetFileNameWithoutExtension);
+                    nameToFileMap = files.ToLookup(Path.GetFileNameWithoutExtension, PathComparer);
                 else
                 {
                     var existingFiles = nameToFileMap.SelectMany(g => g.Select(s => s));
-                    nameToFileMap = existingFiles.Concat(files).Distinct().ToLookup(Path.GetFileNameWithoutExtension);
+                    nameToFileMap = existingFiles.Concat(files).Distinct().ToLookup(Path.GetFileNameWithoutExtension, PathComparer);
                 }
 
                 // print a warning if the same assembly is loaded more than once.
@@ -162,7 +164,7 @@ namespace OpenTap
                 {
                     var count = entry.Count();
                     if (count == 1) continue;
-                    if (entry.Key.EndsWith(".resources") && entry.Key.StartsWith("Microsoft.CodeAnalysis"))
+                    if (entry.Key.EndsWith(".resources", PathComparison) && entry.Key.StartsWith("Microsoft.CodeAnalysis", PathComparison))
                         continue; // This improves the performance in debug builds, where lots of locale resource files are present.
                     
                     var versions = new HashSet<string>();
