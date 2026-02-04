@@ -89,13 +89,15 @@ namespace OpenTap.Plugins.BasicSteps
             Rules.Add(() => TargetStep != null || Action == RepeatStepAction.Fixed_Count, "No step selected", "TargetStep");
         }
         int _iteration;
-        private bool _noResetIteration;
+        private int? _setIteration;
 
         Verdict getCurrentVerdict() => TargetStep?.Verdict ?? Verdict.NotSet;
         private bool retried;
 
         Verdict Iterate()
         {
+            
+
             TapThread.Current.AbortToken.ThrowIfCancellationRequested();
             if (ClearVerdict)
                 Verdict = Verdict.NotSet;
@@ -111,6 +113,12 @@ namespace OpenTap.Plugins.BasicSteps
             foreach (var r in runs)
             {
                 r.WaitForCompletion();
+            }
+            
+            if (_setIteration is { } setIteration)
+            {
+                _iteration = setIteration;
+                _setIteration = null;
             }
 
             if (runs.LastOrDefault()?.BreakConditionsSatisfied() == true)
@@ -134,10 +142,16 @@ namespace OpenTap.Plugins.BasicSteps
         public override void Run()
         {
             base.Run();
-            if(!_noResetIteration)
+            if (_setIteration is { } setIteration)
+            {
+                _iteration = setIteration;
+                _setIteration = null;
+            }
+            else
+            {
                 _iteration = 0;
-            _noResetIteration = false;
-            
+            }
+
             if (Action != RepeatStepAction.Fixed_Count && TargetStep == null)
                 throw new ArgumentException("Could not locate target test step");
 
@@ -191,12 +205,8 @@ namespace OpenTap.Plugins.BasicSteps
 
         int ILoopStep.CurrentIteration
         {
-            get => _iteration;
-            set
-            {
-                _noResetIteration = true;
-                _iteration = value;
-            }
+            get => _setIteration ?? _iteration;
+            set =>_setIteration = value;
         }
 
         int? ILoopStep.MaxIterations => Action == RepeatStepAction.Fixed_Count ? (int)Count : null;

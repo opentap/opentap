@@ -93,6 +93,7 @@ namespace OpenTap.Plugins.BasicSteps
         }
 
         int _iteration;
+        private int? _setIteration;
         
         [Output(OutputAvailability.BeforeRun)]
         [Display("Iteration", "Shows the iteration of the sweep that is currently running or about to run.", "Sweep", Order: 3)]
@@ -240,6 +241,8 @@ namespace OpenTap.Plugins.BasicSteps
             var originalValues = sets.Select(set => set.GetValue(this)).ToArray();
 
             var rowType = SweepValues.Select(TypeData.GetTypeData).FirstOrDefault();
+            _iteration = _setIteration ?? 0;
+            _setIteration = null;
             for (; _iteration < SweepValues.Count; )
             {
                 SweepRow Value = SweepValues[_iteration];
@@ -286,6 +289,12 @@ namespace OpenTap.Plugins.BasicSteps
                 runs.ForEach(r => r.WaitForCompletion());
                 if (runs.LastOrDefault()?.BreakConditionsSatisfied() == true)
                     break;
+                if (_setIteration is {} setIteration)
+                {
+                    _iteration = setIteration;
+                    _setIteration = null;
+                }
+                
             }
 
             for (int i = 0; i < sets.Length; i++)
@@ -302,7 +311,11 @@ namespace OpenTap.Plugins.BasicSteps
             return new SweepRowCollection(this);
         }
 
-        int ILoopStep.CurrentIteration { get => _iteration; set => _iteration = value; }
+        int ILoopStep.CurrentIteration
+        {
+            get => _setIteration ?? _iteration;
+            set =>_setIteration = value;
+        }
         int? ILoopStep.MaxIterations => SweepValues.Count;
     }
 }
