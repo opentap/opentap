@@ -89,11 +89,12 @@ namespace OpenTap.Plugins.BasicSteps
             Rules.Add(() => TargetStep != null || Action == RepeatStepAction.Fixed_Count, "No step selected", "TargetStep");
         }
         int _iteration;
+        private bool _noResetIteration;
 
         Verdict getCurrentVerdict() => TargetStep?.Verdict ?? Verdict.NotSet;
         private bool retried;
 
-        Verdict iterate()
+        Verdict Iterate()
         {
             TapThread.Current.AbortToken.ThrowIfCancellationRequested();
             if (ClearVerdict)
@@ -133,7 +134,9 @@ namespace OpenTap.Plugins.BasicSteps
         public override void Run()
         {
             base.Run();
-            _iteration = 0;
+            if(!_noResetIteration)
+                _iteration = 0;
+            _noResetIteration = false;
             
             if (Action != RepeatStepAction.Fixed_Count && TargetStep == null)
                 throw new ArgumentException("Could not locate target test step");
@@ -165,20 +168,20 @@ namespace OpenTap.Plugins.BasicSteps
             {
                 case RepeatStepAction.While:
                 {
-                    while (iterate() == TargetVerdict && _iteration < loopCount && !BreakLoopRequested.IsCancellationRequested) { }
+                    while (Iterate() == TargetVerdict && _iteration < loopCount && !BreakLoopRequested.IsCancellationRequested) { }
 
                     break;
                 }
                 case RepeatStepAction.Until:
                 {
-                    while (iterate() != TargetVerdict && _iteration < loopCount && !BreakLoopRequested.IsCancellationRequested) { }
+                    while (Iterate() != TargetVerdict && _iteration < loopCount && !BreakLoopRequested.IsCancellationRequested) { }
 
                     break;
                 }
                 case RepeatStepAction.Fixed_Count:
                 {
                     while (_iteration < loopCount && !BreakLoopRequested.IsCancellationRequested) 
-                        iterate();
+                        Iterate();
                     break;
                 }
                 default:
@@ -189,7 +192,11 @@ namespace OpenTap.Plugins.BasicSteps
         int ILoopStep.CurrentIteration
         {
             get => _iteration;
-            set => _iteration = value;
+            set
+            {
+                _noResetIteration = true;
+                _iteration = value;
+            }
         }
 
         int? ILoopStep.MaxIterations => Action == RepeatStepAction.Fixed_Count ? (int)Count : null;
