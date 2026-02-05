@@ -62,7 +62,7 @@ The root element of the configuration file is `Package` and it supports the foll
 The configuration files can also contain certain elements. These elements add additional information about the package and can have their own attributes.
 
 #### Description Element
-The **Description** element can be used to write a short description about the plugin. Custom elements like `Organization` or `Status` can be added the provide additional highlighted information. For example:
+The **Description** element can be used to write a short description about the plugin. Custom elements like `Organization` or `Status` can be added the provide additional highlighted information.
 For example:
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
