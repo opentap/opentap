@@ -190,27 +190,6 @@ namespace OpenTap.Cli
                 return (int)ExitCodes.UnknownCliAction;
             }
 
-            try
-            {
-                // setup logging to be relative to the executing assembly.
-                // at this point SessionLogs.Initialize has already been called (PluginManager.Load).
-                // so the log is already being saved at a different location.
-                var logpath = EngineSettings.Current.SessionLogPath.Expand(date: Process.GetCurrentProcess().StartTime);
-                bool isPathRooted = Path.IsPathRooted(logpath);
-                if (isPathRooted == false)
-                {
-                    var dir = ExecutorClient.ExeDir;
-                    logpath = Path.Combine(dir, logpath);
-                }
-
-                SessionLogs.Rename(logpath);
-            }
-            catch (Exception e)
-            {
-                log.Error("Path defined in Engine settings contains invalid characters: {0}", EngineSettings.Current.SessionLogPath);
-                log.Debug(e);
-            }
-
             // Find selected command
             var actionTree = new CliActionTree();
             var selectedcmd = actionTree.GetSubCommand(args);
