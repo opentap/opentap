@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Linq;
 using NUnit.Framework;
 using OpenTap.Plugins.BasicSteps;
 namespace OpenTap.UnitTests;
@@ -180,5 +181,51 @@ public class ParameterTests
         aMember.Remove();
         Assert.IsNull(TypeData.GetTypeData(seq).GetMember("A 1")); 
     }
-    
+
+    public class StepWithErrorAnnotation : TestStep
+    {
+        public string ErrorMessage { get; set; }
+
+        public StepWithErrorAnnotation()
+        {
+            Rules.Add(() => ErrorMessage == null, () => ErrorMessage, nameof(ErrorMessage));
+        }
+
+        public override void Run() { }
+    }
+
+    [Test]
+    public void TestErrorsAfterRemovingParameter()
+    {
+        var plan = new TestPlan();
+        var step = new StepWithErrorAnnotation() { ErrorMessage = "Test Error" };
+        plan.ChildTestSteps.Add(step);
+
+        var a = AnnotationCollection.Annotate(step);
+        var mem = a.GetMember(nameof(step.ErrorMessage));
+
+        { /* verify errors on the step */
+            var errors = mem.Get<IErrorAnnotation>().Errors.ToArray();
+            Assert.That(errors.Length, Is.EqualTo(1));
+            Assert.That(errors[0], Is.EqualTo(step.ErrorMessage));
+        }
+
+        // parameterize the property with the validation error
+        ParameterManager.Parameterize(plan, mem.Get<IMemberAnnotation>().Member, [step], "Test Parameter");
+
+        a = AnnotationCollection.Annotate(plan);
+        mem = a.GetMember("Test Parameter");
+
+        { /* verify errors promoted to the parent */
+            var errors = mem.Get<IErrorAnnotation>().Errors.ToArray();
+            Assert.That(errors.Length, Is.EqualTo(1));
+            Assert.That(errors[0], Is.EqualTo(step.ErrorMessage));
+        }
+
+        /* remove the parameter and verify Errors() is empty */
+        mem.GetIcon(IconNames.RemoveParameter).Get<IMethodAnnotation>().Invoke();
+        mem.Read();
+        a.Read();
+        Assert.That(mem.Get<IErrorAnnotation>().Errors, Is.Empty);
+    }
 }

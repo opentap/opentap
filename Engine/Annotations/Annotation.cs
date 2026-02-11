@@ -462,7 +462,10 @@ namespace OpenTap
                     mem = m2.InnerMember;
                 }else if (mem is ParameterMemberData pm)
                 {
-                    (source,mem) = pm.ParameterizedMembers.First();
+                    (source,mem) = pm.ParameterizedMembers.FirstOrDefault();
+                    // This happens when the last parameter is removed (ParameterizedMembers is empty)
+                    // In this case, error should be unset.
+                    if (mem == null) error = null;
                 }
                 else
                     break;
