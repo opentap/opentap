@@ -805,5 +805,25 @@ namespace OpenTap.Engine.UnitTests
                 }
             }
         }
+
+        // In 9.32.0, this caused an infinite loop due to the way iterations were calculated in sweep parameters tep.
+        [Test]
+        public void SweepDisabledInfiniteLoop()
+        {
+            var plan = new TestPlan();
+            var sweep = new SweepParameterStep();
+            var delay = new DelayStep() { DelaySecs = 0.0 };
+            plan.ChildTestSteps.Add(sweep);
+            sweep.ChildTestSteps.Add(delay);
+
+            TypeData.GetTypeData(delay).GetMember(nameof(delay.DelaySecs)).Parameterize(sweep, delay, "A");
+            
+            sweep.SweepValues.Add(new SweepRow() { Enabled = true });
+            sweep.SweepValues.Add(new SweepRow() { Enabled = false });
+            sweep.SweepValues.Add(new SweepRow() { Enabled = true });
+            
+            var run = plan.Execute();
+            Assert.AreNotEqual(Verdict.Error, run.Verdict);
+        }
     }
 }
