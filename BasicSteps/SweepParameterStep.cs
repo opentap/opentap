@@ -94,10 +94,10 @@ namespace OpenTap.Plugins.BasicSteps
 
         int _iteration;
         private int? _setIteration;
-        
+         
         [Output(OutputAvailability.BeforeRun)]
         [Display("Iteration", "Shows the iteration of the sweep that is currently running or about to run.", "Sweep", Order: 3)]
-        public string IterationInfo => $"{_iteration} of {SweepValues.Count(x => x.Enabled)}";
+        public string IterationInfo => $"{SweepValues.Take(_iteration).Count(x => x.Enabled)}    of {SweepValues.Count(x => x.Enabled)}";
 
         bool isRunning => GetParent<TestPlan>()?.IsRunning ?? false;
         
@@ -246,7 +246,11 @@ namespace OpenTap.Plugins.BasicSteps
             for (; _iteration < SweepValues.Count; )
             {
                 SweepRow Value = SweepValues[_iteration];
-                if (Value.Enabled == false) continue;
+                if (Value.Enabled == false)
+                {
+                    _iteration++;
+                    continue;
+                }
                 var AdditionalParams = new ResultParameters();
                 
                 AdditionalParams.Add("Sweep", "Iteration", _iteration + 1, null);
