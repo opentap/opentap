@@ -97,7 +97,7 @@ namespace OpenTap.Plugins.BasicSteps
          
         [Output(OutputAvailability.BeforeRun)]
         [Display("Iteration", "Shows the iteration of the sweep that is currently running or about to run.", "Sweep", Order: 3)]
-        public string IterationInfo => $"{SweepValues.Take(_iteration).Count(x => x.Enabled)}    of {SweepValues.Count(x => x.Enabled)}";
+        public string IterationInfo => $"{SweepValues.Take(_iteration).Count(x => x.Enabled)} of {SweepValues.Count(x => x.Enabled)}";
 
         bool isRunning => GetParent<TestPlan>()?.IsRunning ?? false;
         
