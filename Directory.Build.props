@@ -3,7 +3,7 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-    <LangVersion>latest</LangVersion>
+    <LangVersion>13</LangVersion>
     <Configurations>Debug;Release</Configurations>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>

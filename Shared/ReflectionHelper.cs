@@ -1612,6 +1612,9 @@ namespace OpenTap
             }
             return 0;
         }
+
+        public static bool Equals(this ReadOnlySpan<char> span, string other, StringComparison comparisonType) =>
+            span.Equals(other.AsSpan(), comparisonType);
         
         public static int ProcessPattern<T1, T2, T3, T4, T5, T6>(IEnumerator objs, Action<T1> f1, Action<T2> f2, Action<T3> f3, Action<T4> f4 , Action<T5> f5, Action<T6> f6 )
         {
