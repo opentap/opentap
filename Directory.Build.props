@@ -3,6 +3,11 @@
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <!-- NOTE:
+         We cannot use langversion 14 or newer due to compatibility issues with .NET Framework.
+         One identified problem is the implicit conversion from arrays / strings to spans.
+         This changes the behavior of overload resolution in some cases.
+    -->
     <LangVersion>13</LangVersion>
     <Configurations>Debug;Release</Configurations>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
