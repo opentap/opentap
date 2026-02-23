@@ -34,7 +34,7 @@ namespace OpenTap.Cli
             ap.AllOptions.Add("verbose", 'v', false, "Show verbose/debug-level log messages.");
             ap.AllOptions.Add("color", 'c', false, "Color messages according to their severity.");
             ap.AllOptions.Add("quiet", 'q', false, "Quiet console logging.");
-            ap.AllOptions.Add("log", description: "Specify log file location. Default is ./SessionLogs.");
+            ap.AllOptions.Add("log", description: "Specify a file path for the log file.");
 
             var argToProp = new Dictionary<string, IMemberData>();
             var unnamedArgToProp = new List<IMemberData>();
