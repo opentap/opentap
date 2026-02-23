@@ -4,8 +4,6 @@ Release Notes - OpenTAP 9.31.0
 Highlights
 ---------
 
-## OpenTAP 9.31
-
 ### Features
 
 * Packages can now be updated or removed even if their files are in use
