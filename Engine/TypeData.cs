@@ -364,11 +364,20 @@ namespace OpenTap
             IsBrowsable = true;
         }
 
+        private static bool AssemblyHasLocation(Assembly a)
+        {
+            // The Location getter throws if Dynamic is set, so we must check IsDynamic first
+            if (a.IsDynamic) return false;
+            return !string.IsNullOrEmpty(a.Location);
+        }
+
         TypeData(Type type, PluginSearcher searcher): this(type.FullName)
         {
             this.type = type;
-            if(type.Assembly.IsDynamic == false)
+            if (AssemblyHasLocation(type.Assembly))
+            {
                 this.Assembly = searcher.GetAssemblyData(type.Assembly);
+            }
             else
             {
                 this.Assembly = new AssemblyData(null, type.Assembly);
@@ -819,8 +828,7 @@ namespace OpenTap
                     // This can occur for some types inside mscorlib such as System.Net.IPAddress.
                     try
                     {
-                        if (type.Assembly != null && type.Assembly.IsDynamic == false &&
-                            type.Assembly.Location != null)
+                        if (AssemblyHasLocation(type.Assembly))
                         {
                             searcher.AddAssembly(type.Assembly.Location, type.Assembly);
                             if (searcher.AllTypes.TryGetValue(type.FullName, out td))
