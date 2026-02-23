@@ -237,7 +237,7 @@ namespace OpenTap
                 multiplier = BigFloat.One;
             }
             
-            var isHex = strSpan.StartsWith("0x", StringComparison.OrdinalIgnoreCase);
+            var isHex = strSpan.StartsWith("0x".AsSpan(), StringComparison.OrdinalIgnoreCase);
 
             if (isHex)
             {
@@ -250,7 +250,7 @@ namespace OpenTap
             }
             
 
-            if (unit.Length > 0 && strSpan.EndsWith(unit, StringComparison.OrdinalIgnoreCase))
+            if (unit.Length > 0 && strSpan.EndsWith(unit.AsSpan(), StringComparison.OrdinalIgnoreCase))
                 strSpan = strSpan.Slice(0, strSpan.Length - unit.Length);
             strSpan = strSpan.TrimEnd();
             if (strSpan.Length == 0)
@@ -264,7 +264,7 @@ namespace OpenTap
             if (char.IsLetter(siPrefix) && levels.Contains(siPrefix))
             {
                 // Handle case of "femto" unit
-                if (!(isHex && (siPrefix == 'f') && !strSpan.EndsWith(" f", StringComparison.Ordinal)))
+                if (!(isHex && (siPrefix == 'f') && !strSpan.EndsWith(" f".AsSpan(), StringComparison.Ordinal)))
                 {
                     multiplier *= engineeringPrefixLevel(siPrefix);
                     if (strSpan[strSpan.Length - 1] == siPrefix)
@@ -278,7 +278,7 @@ namespace OpenTap
                     culture)) * multiplier;
             }
 
-            if (strSpan.StartsWith("0b", StringComparison.OrdinalIgnoreCase))
+            if (strSpan.StartsWith("0b".AsSpan(), StringComparison.OrdinalIgnoreCase))
             {
                 ReadOnlySpan<char> bits = strSpan.Slice(2);
                 
@@ -309,7 +309,7 @@ namespace OpenTap
         
         public static BigFloat Parse(string str, string unit, string format, CultureInfo culture)
         {
-            var result = ParseInternal(str, unit, format, culture, out var ex);
+            var result = ParseInternal(str.AsSpan(), unit, format, culture, out var ex);
             if (ex != null)
                 throw ex;
             return result;
@@ -324,7 +324,7 @@ namespace OpenTap
 
         public static bool TryParse(string str, string unit, string format, CultureInfo culture, out BigFloat bf)
         {
-            bf = ParseInternal(str, unit, format, culture, out var ex);
+            bf = ParseInternal(str.AsSpan(), unit, format, culture, out var ex);
             return ex == null;
         }
     }
@@ -532,7 +532,7 @@ namespace OpenTap
         Range parseRange(ReadOnlySpan<char> formatted)
         {
             var parts = formatted.ToString().Split(':').Select(s => s.Trim());
-            var rangeitems = parts.Select(str => parseNumber(str)).ToArray();
+            var rangeitems = parts.Select(str => parseNumber(str.AsSpan())).ToArray();
             Range result = null;
             if (rangeitems.Length == 3)
             {
@@ -566,7 +566,7 @@ namespace OpenTap
         /// </summary>
         public ICombinedNumberSequence<double> Parse(ReadOnlySpan<char> text)
         {
-            string separator = culture.NumberFormat.NumberGroupSeparator;
+            var separator = culture.NumberFormat.NumberGroupSeparator.AsSpan();
             
             List<IEnumerable<BigFloat>> parts = new List<IEnumerable<BigFloat>>();
             List<BigFloat> endPart = null;
@@ -772,7 +772,7 @@ namespace OpenTap
             try
             {
                 
-                return parseNumber(str).ConvertTo(t);
+                return parseNumber(str.AsSpan()).ConvertTo(t);
             }
             catch (OverflowException)
             {

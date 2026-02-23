@@ -353,6 +353,7 @@ namespace OpenTap
         }
 
 
+        internal static BigFloat Parse(string value, IFormatProvider format, out Exception outEx) => Parse(value.AsSpan(), format, out outEx);
 
         /// <summary> Supports parsing BigFloat without throwing an exception. Returns an exception in case something went wrong otherwise it will return a BigFloat.</summary>
         internal static BigFloat Parse(ReadOnlySpan<char> value, IFormatProvider format, out Exception outEx)
@@ -588,6 +589,11 @@ namespace OpenTap
         public BigFloat(decimal value) : this(value.ToString("G29", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)
         {
         }
+
+        internal BigFloat(string value, IFormatProvider format = null) : this(value.AsSpan(), format)
+        {
+        }
+
         public BigFloat(ReadOnlySpan<char> value, IFormatProvider format = null)
         {
             var result = Parse(value, format, out var ex);

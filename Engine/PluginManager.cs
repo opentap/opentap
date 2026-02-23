@@ -685,9 +685,11 @@ namespace OpenTap
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             { // unable to resolve, this is OK.
-
+                log.Debug("Unable to find match for {0}", name);
+                log.Debug(ex);
+                return null;
             }
             log.Debug("Unable to find match for {0}", name);
             return null;
