@@ -22,8 +22,8 @@ namespace OpenTap
     public partial class TestPlan : INotifyPropertyChanged, ITestStepParent
     {
         internal static readonly TraceSource Log = OpenTap.Log.CreateSource(nameof(TestPlan));        
-        TestStepList _Steps;
-        ITestPlanRunMonitor[] monitors; // For locking/unlocking or generally monitoring test plan start/stop.
+        TestStepList _steps;
+        ITestPlanRunMonitor[] _monitors; // For locking/unlocking or generally monitoring test plan start/stop.
         
         /// <summary>  Field for external test plan parameters. </summary>
         [XmlIgnore]
@@ -37,12 +37,12 @@ namespace OpenTap
         [AnnotationIgnore]
         public TestStepList Steps
         {
-            get => _Steps;
+            get => _steps;
             set
             {
-                if (value == _Steps) return;
-                _Steps = value;
-                _Steps.Parent = this;
+                if (value == _steps) return;
+                _steps = value;
+                _steps.Parent = this;
                 OnPropertyChanged(nameof(Steps));
                 OnPropertyChanged(nameof(ChildTestSteps));
             }
@@ -50,7 +50,7 @@ namespace OpenTap
 
         /// <inheritdoc cref="ITestStepParent.ChildTestSteps"/>
         [AnnotationIgnore]
-        public TestStepList ChildTestSteps => _Steps;
+        public TestStepList ChildTestSteps => _steps;
 
 
         /// <summary>
@@ -178,8 +178,8 @@ namespace OpenTap
         /// <summary> </summary>
         public TestPlan()
         {
-            _Steps = new TestStepList();
-            _Steps.Parent = this;
+            _steps = new TestStepList();
+            _steps.Parent = this;
             ExternalParameters = new ExternalParameters(this);
         }
         
