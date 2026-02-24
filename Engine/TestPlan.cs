@@ -97,7 +97,7 @@ namespace OpenTap
         [AnnotationIgnore]
         public bool IsInBreak => breakRefCount > 0; 
 
-        int  breakRefCount = 0;
+        int breakRefCount = 0;
 
         /// <summary>   Raises the <see cref="BreakOffered"/> event. </summary>
         /// <remarks> If called by Tap internal code at the start of a run, the TestStepRun.Verdict will be equal to pending.</remarks>
