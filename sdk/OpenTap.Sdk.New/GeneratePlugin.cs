@@ -37,7 +37,7 @@ namespace OpenTap.Sdk.New
 
         }
     }
-    [Display("instrument", "C# template for a Instrument plugin.", Groups: new[] { "sdk", "new" })]
+    [Display("instrument", "C# template for an Instrument plugin.", Groups: new[] { "sdk", "new" })]
     public class GenerateInstrument : GenerateType
     {
         [UnnamedCommandLineArgument("name", Required = true, Description = "The name of the new Instrument.")]

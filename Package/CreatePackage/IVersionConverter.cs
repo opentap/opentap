@@ -22,7 +22,7 @@ namespace OpenTap.Package
     }
 
     [Display("ConvertMajorMinorBuildRevision", 
-        "Supports a four value number (x.x.x.x) which will be interpreted as Major.Minor.BuildMetadata.Patch. This is compatible with Microsofts definition of version numbers (e.g. for .NET assemblies), see https://docs.microsoft.com/en-us/dotnet/api/system.version",
+        "Supports a four value number (x.x.x.x) which will be interpreted as Major.Minor.BuildMetadata.Patch. This is compatible with Microsoft's definition of version numbers (e.g. for .NET assemblies), see https://docs.microsoft.com/en-us/dotnet/api/system.version",
         Order: 2)]
     internal class MajorMinorBuildRevisionVersionConverter : IVersionTryConverter
     {
