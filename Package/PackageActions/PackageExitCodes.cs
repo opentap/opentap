@@ -9,7 +9,7 @@ namespace OpenTap.Package
         /// <summary>
         /// Errors occured while creating package
         /// </summary>
-        [Display("Package Create Error", "Errors occured while creating package")]
+        [Display("Package Create Error", "Errors occurred while creating package")]
         PackageCreateError = 30,
         /// <summary>
         /// Invalid data in package definition

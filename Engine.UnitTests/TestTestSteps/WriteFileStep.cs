@@ -47,7 +47,7 @@ namespace OpenTap.Engine.UnitTests.TestTestSteps
         }
     }
 
-    [Display("Expect", Description: "Expects  verdict in the child step.", Group: "Tests")]
+    [Display("Expect", Description: "Expects a verdict in the child step.", Group: "Tests")]
     [AllowAnyChild]
     public class ExpectStep : TestStep
     {

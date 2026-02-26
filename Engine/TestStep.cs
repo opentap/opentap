@@ -84,10 +84,10 @@ namespace OpenTap
         /// May not be null.
         /// </summary>
         [ColumnDisplayName(nameof(Name), Order : -100)]
-        [Display("Step Name", "The name of the test step, this value can be used to identifiy a test step. " +
+        [Display("Step Name", "The name of the test step, this value can be used to identify a test step. " +
                               "Test step names are not guaranteed to be unique. " +
                               "Name can include names of a setting of the step, this property will dynamically be " +
-                              "replaced with it's current value in some views.", Group: "Common", Order: 20001, Collapsed: true)]
+                              "replaced with its current value in some views.", Group: "Common", Order: 20001, Collapsed: true)]
         [Unsweepable]
         [MetaData(Frozen = true)]
         public string Name
