@@ -30,18 +30,18 @@ public class UninstallContextTest
         }
 
         // After deleting the files verify that all files are deleted.
-        bool verifyAllFilesDeleted = true;
+        List<string> stillExistingFiles = new();
         foreach (var file in Installation.Current.GetOpenTapPackage().Files)
         {
             if (File.Exists(file.RelativeDestinationPath))
             {
-                verifyAllFilesDeleted = false;
+                stillExistingFiles.Add(file.RelativeDestinationPath);
             }
         }
         
         uninstallContext.UndoAllDeletions();
 
-        Assert.That(verifyAllFilesDeleted, Is.True);
+        Assert.That(string.Join(",", stillExistingFiles), Is.Empty);
         
         // finally after undo, verify that all files are back.
         foreach (var file in Installation.Current.GetOpenTapPackage().Files)
