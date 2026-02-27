@@ -55,12 +55,7 @@ namespace OpenTap.Authentication
         public string Domain 
         { 
             get => domain; 
-            set
-            {
-                if (Uri.IsWellFormedUriString(value, UriKind.Absolute))
-                    throw new ArgumentException("Domain should only be the host part of a URI and not a full absolute URI.");
-                domain = value;
-            }
+            set => domain = value;
         }
 
         private Dictionary<string, string> _Claims;
