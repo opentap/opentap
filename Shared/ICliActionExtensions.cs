@@ -123,11 +123,6 @@ namespace OpenTap.Cli
                 return (int)ExitCodes.Success;
             }
 
-            if (!overrides.Contains("log") && args.Contains("log"))
-            {
-                SessionLogs.Rename(args.Argument("log"));
-            }
-
             foreach (var opts in args)
             {
                 if (argToProp.ContainsKey(opts.Key) == false) continue;

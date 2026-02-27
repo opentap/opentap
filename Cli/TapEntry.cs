@@ -55,6 +55,7 @@ internal class TapEntry
         AppDomain.CurrentDomain.ProcessExit += (s, e) => cliTraceListener.Flush();
 
         PluginManager.Search();
+        SessionLogs.SetLogPathFromEngineSettings();
         DebuggerAttacher.TryAttach();
         CliActionExecutor.Execute();
     }
