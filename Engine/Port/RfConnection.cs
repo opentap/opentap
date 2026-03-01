@@ -108,51 +108,14 @@ namespace OpenTap
         /// </summary>
         public double GetInterpolatedCableLoss(double frequency)
         {
-            // If there are no cable loss points configured assume no loss.
-            if (CableLoss.Count == 0) return 0.0;
-            
-            // If there is only one point there is nothing to interpolate
-            if (CableLoss.Count == 1) return CableLoss[0].Loss;
-            
-            // Sort the loss table by frequency.
-            // only do so if it actually needs to be sorted.
-            if(!CableLoss.IsSortedBy(loss => loss.Frequency))
-                CableLoss = CableLoss.OrderBy(loss => loss.Frequency).ToList();
-            
-            // for searching.
-            var loss = new CableLossPoint { Frequency = frequency };
-            
-            // Find the index by binary search.
-            // if the result >= 0 it means an exact match was found.
-            // if the result <0 it means that the match lies somewhere between two points or at the bounds.
-            int index = CableLoss.BinarySearch(loss, CableLossPoint.FrequencyComparer.Instance);
-            
-            // Calculate loss using linear interpolation or nearest neighbour when outside the bounds.
-            if (index < 0)
+            var cableLoss = CableLoss.GetInterpolatedCableLoss(frequency);
+            foreach (var via in Via)
             {
-                // the match is at the bounds.
-                // that means the index found is the first element greater than the searched frequency.
-                // hence 0 -> the result is less than the minimum (nearest interpolation)
-                // and count -> the result is greater than the maximum. (nearest interpolation).
-                // otherwise interpolate between index -1 and index.
-                index = ~index;
+                if (via is IDynamicLossViapoint lossVia)
+                    cableLoss += lossVia.GetLoss(frequency);
             }
-            else
-            { 
-                // exact match.
-                return CableLoss[index].Loss;
-            }
-            if (index == 0)
-                return CableLoss[0].Loss;
-            if (index == CableLoss.Count)
-                return CableLoss[index - 1].Loss;
-            
-            CableLossPoint below = CableLoss[index - 1]; //Check for below, or if value exists.
-            CableLossPoint above = CableLoss[index];
-
-           // linear interpolation.
-           return below.Loss + (frequency - below.Frequency) * (above.Loss - below.Loss) / (above.Frequency - below.Frequency);
-           
+            return cableLoss;
         }
     }
+
 }

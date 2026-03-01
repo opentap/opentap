@@ -28,7 +28,7 @@ namespace OpenTap
     /// Base class representing a point through which a connection passes. There is a list of these in <see cref="Connection.Via"/>.
     /// These usually represent a state that a connection switch element/instrument can be in. Implementations include <see cref="SwitchPosition"/> and <see cref="SwitchMatrixPath"/>
     /// </summary>
-    public abstract class ViaPoint : IEquatable<ViaPoint>, IConstResourceProperty
+    public abstract class ViaPoint : IEquatable<ViaPoint>, IConstResourceProperty, IViaPoint
     {
         /// <summary>
         /// The name of this state/mode/position in the switch. (Should be unique among <see cref="ViaPoint"/> objects on the same device/resource).
@@ -82,7 +82,7 @@ namespace OpenTap
         /// <summary>
         /// Determines whether the specified object is equal to the current object.
         /// </summary>
-        public bool Equals(ViaPoint other)
+        public virtual bool Equals(ViaPoint other)
         {
             if (other == null)
                 return false;
@@ -256,35 +256,4 @@ namespace OpenTap
             return path;
         }
     }
-
-
-    ///// <summary>
-    ///// Represents a specific row for a setting/mode of a switch matrix.
-    ///// </summary>
-    //public class SwitchMatrixRow : ViaPoint
-    //{
-    //    /// <summary>
-    //    /// Initializes a new instance of the <see cref="SwitchMatrixRow"/> class.
-    //    /// </summary>
-    //    public SwitchMatrixRow(Instrument device, string name)
-    //    {
-    //        Device = device;
-    //        Name = name;
-    //    }
-    //}
-
-    ///// <summary>
-    ///// Represents a specific column for a setting/mode of a switch matrix.
-    ///// </summary>
-    //public class SwitchMatrixColumn : ViaPoint
-    //{
-    //    /// <summary>
-    //    /// Initializes a new instance of the <see cref="SwitchMatrixColumn"/> class.
-    //    /// </summary>
-    //    public SwitchMatrixColumn(Instrument device, string name)
-    //    {
-    //        Device = device;
-    //        Name = name;
-    //    }
-    //}
 }
