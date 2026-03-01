@@ -477,5 +477,64 @@ namespace OpenTap.UnitTests
                 File.Delete(planName);
             }
         }
+
+        string MakeSubPlan(int n)
+        {
+            
+            var subPlan = n > 0 ? MakeSubPlan(n - 1) : null;
+            string planName = "sub_plan" + n + ".TapPlan";
+
+            var plan = new TestPlan();
+            var step = new DelayStep();
+            plan.ChildTestSteps.Add(step);
+            plan.Save(planName);
+            TypeData.GetTypeData(step).GetMember(nameof(step.DelaySecs)).Parameterize(plan, step, "delay");
+            if (n > 0)
+            {
+                var refPlan = new TestPlanReference();
+                refPlan.Filepath.Text = subPlan;
+                plan.ChildTestSteps.Add(refPlan);
+                refPlan.LoadTestPlan();
+                TypeData.GetTypeData(refPlan).GetMember("delay").Parameterize(plan, refPlan, "delay");
+            }
+            plan.Save(planName);
+            return planName;
+        }
+
+        IEnumerable<IMemberData> UnrollMemberData(IParameterMemberData p)
+        {
+            List<IMemberData> members = new List<IMemberData>();
+            foreach (var mem in p.ParameterizedMembers)
+            {
+                if (mem.Member is IParameterMemberData p2)
+                    members.AddRange(UnrollMemberData(p2));
+                else
+                    members.Add(mem.Member);
+            }
+
+            return members;
+        }
+        
+        [TestCase(1)]
+        [TestCase(2)]
+        [TestCase(3)]
+        [TestCase(4)]
+        [TestCase(8)]
+        public void TestPlanReferenceSubSubPlanTest(int n)
+        {
+            var planName = MakeSubPlan(n);
+            var plan = TestPlan.Load(planName);
+            var param = (IParameterMemberData)TypeData.GetTypeData(plan).GetMember("delay");
+            var ps = UnrollMemberData(param);
+            Assert.AreEqual(n + 1, ps.Count());
+            param.SetValue(plan, 0.01);
+            var allDelays = plan.ChildTestSteps.RecursivelyGetAllTestSteps(TestStepSearch.All).OfType<DelayStep>();
+            foreach (var delay in allDelays)
+            {
+                Assert.AreEqual(0.01, delay.DelaySecs);
+            }
+            Assert.AreEqual(n + 1, allDelays.Count());
+
+        }
     }
 }
