@@ -161,6 +161,10 @@ namespace OpenTap
                 // Invoke test plan pre run event mixins.
                 TestPlanPreRunEvent.Invoke(this, planRun);
                 
+                // if the mixin purposefully sets the error, abort here.
+                if (planRun.Verdict >= Verdict.Error)
+                    return FailState.StartFail;
+                
                 if (!RunPrePlanRunMethods(steps, planRun))
                 {
                     return FailState.StartFail;

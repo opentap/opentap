@@ -123,7 +123,7 @@ namespace OpenTap
         /// Upgrades <see cref="Verdict"/>.
         /// </summary>
         /// <param name="verdict"></param>
-        internal void UpgradeVerdict(Verdict verdict)
+        public void UpgradeVerdict(Verdict verdict)
         {
             // locks are slow. 
             // Hence first check if a verdict upgrade is needed, then do the actual upgrade.
