@@ -30,28 +30,21 @@ namespace OpenTap
         );
 
         [DllImport("libc", EntryPoint = "link")]
-        static unsafe extern bool CreateHardLinkLin(
-            char *target,
-            char *linkpath
-        );
+        static extern bool CreateHardLinkUnix(IntPtr target, IntPtr linkpath);
 
-        static unsafe void CreateHardLink(string targetFile, string linkName)
+        static void CreateHardLink(string targetFile, string linkName)
         {
             if (OperatingSystem.Current == OperatingSystem.Windows)
             {
                 CreateHardLinkWin(linkName, targetFile, IntPtr.Zero);
             }
-            else if (OperatingSystem.Current == OperatingSystem.Linux)
+            else if (OperatingSystem.Current == OperatingSystem.Linux || OperatingSystem.Current == OperatingSystem.MacOS)
             {
                 IntPtr target = Marshal.StringToCoTaskMemAnsi(targetFile);
                 IntPtr link = Marshal.StringToCoTaskMemAnsi(linkName);
-                CreateHardLinkLin((char*)target, (char*)link);
+                CreateHardLinkUnix(target, link);
                 Marshal.FreeCoTaskMem(target);
                 Marshal.FreeCoTaskMem(link);
-            }
-            else if (OperatingSystem.Current == OperatingSystem.MacOS)
-            {
-                Process.Start("ln", $"\"{targetFile}\" \"{linkName}\"");
             }
             else
             {
