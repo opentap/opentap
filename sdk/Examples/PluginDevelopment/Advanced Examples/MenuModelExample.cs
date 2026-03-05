@@ -72,7 +72,7 @@ namespace OpenTap.PluginDevelopment.Advanced_Examples
         public bool IsAlreadyDefaultValues => Source.All(source =>
             Equals(member.GetValue(source), member.GetAttribute<DefaultValueAttribute>()?.Value));
         
-        [Display("Revert to default", "Revert the value to it's default.")]
+        [Display("Revert to default", "Revert the value to its default.")]
         // The is IconAnnotation is not generally important, it can be used by
         // user interfaces to identify which icon to associate with the action, if applicable.
         [IconAnnotation("MenuModelExample.RevertToDefault")]

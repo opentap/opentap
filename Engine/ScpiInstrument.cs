@@ -169,7 +169,7 @@ namespace OpenTap
         /// <summary>
         /// The timeout used by the underlying VISA driver when communicating with the instrument [ms].
         /// </summary>
-        [Display("I/O Timeout", Groups: new []{"VISA"}, Order: 1, Description: "The timeout used in the VISA driver when communicating with the instrument. (Default is 2 s and resolutions is 1 ms)")]
+        [Display("I/O Timeout", Groups: new []{"VISA"}, Order: 1, Description: "The timeout used in the VISA driver when communicating with the instrument. (Default is 2 s and resolution is 1 ms)")]
         [Unit("s", PreScaling: 1000, UseEngineeringPrefix: true)]
         public int IoTimeout
         {
