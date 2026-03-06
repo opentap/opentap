@@ -25,7 +25,7 @@ namespace OpenTap.Plugins.PluginDevelopment
     {
         // Properties work the same way here as in Test Steps.
         // Public properties with get and set methods are configurable by the TAP GUI user.
-        [Display("Creation Time", Description: "This is the time. It's default value is the time at which the settings file was first created.")]
+        [Display("Creation Time", Description: "This is the time. Its default value is the time at which the settings file was first created.")]
         public DateTime DemoTime { get; set; }
 
         [Display("My Integer", Description: "Some integer.")]

@@ -46,7 +46,7 @@ namespace OpenTap.Plugins.PluginDevelopment
         }
     }
 
-    [Display("ToolC", Groups: new[] { "_Example Menu", "SubGroupExample" }, Order: 3, Description: "A  menu choice under subgroup to ExampleMenu top level menu.")]
+    [Display("ToolC", Groups: new[] { "_Example Menu", "SubGroupExample" }, Order: 3, Description: "A menu choice under subgroup to ExampleMenu top level menu.")]
     public class ToolMenuC : IMenuItem
     {
         private TraceSource _log = Log.CreateSource("CustomMenus");

@@ -9,7 +9,7 @@ namespace OpenTap
     public enum BreakCondition
     {
         /// <summary> Inherit behavior from parent or engine settings. </summary>
-        [Display("Inherit", "Inherit behavior from the parent step. If no parent step exist or specify a behavior, the Engine setting 'Stop Test Plan Run If' is used.")]
+        [Display("Inherit", "Inherit behavior from the parent step. If no parent step exists or specifies a behavior, the Engine setting 'Stop Test Plan Run If' is used.")]
         Inherit = 1,
         /// <summary> If a step completes with verdict 'Error', stop execution of any subsequent steps at this level, and return control to the parent step. </summary>
         [Display("Break on Error", "If a step completes with verdict 'Error', skip execution of subsequent steps and return control to the parent step.")]

@@ -20,7 +20,7 @@ namespace PluginDevelopment.Advanced_Examples
         }
     }
 
-    [Display("New Delay Step", "Demonstrates an new version of test step which is wanted to migrate." +
+    [Display("New Delay Step", "Demonstrates a new version of test step which is wanted to migrate." +
                                " To test this, try creating an 'Old Delay Step', save and load. The New Delay Step should have been created.",
         Groups: new[] { "Examples", "Plugin Development", "Advanced Examples" })]
     public class NewDelayStep : TestStep

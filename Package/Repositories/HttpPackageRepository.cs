@@ -307,12 +307,9 @@ namespace OpenTap.Package
         public void DownloadPackage(IPackageIdentifier package, string destination, CancellationToken cancellationToken)
         {
             var tmpPath = destination + "." + Guid.NewGuid().ToString();
-            //Use DeleteOnClose to auto-magically remove the file when the stream or application is closed.
-            using (var tmpFile = new FileStream(tmpPath, FileMode.Create, FileAccess.ReadWrite,
-                FileShare.Delete | FileShare.Read, 4096, FileOptions.DeleteOnClose))
+            try
             {
-
-                try
+                using (var tmpFile = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.Read, 4096))
                 {
                     var packageDef = package as PackageDef ?? new PackageDef
                     {
@@ -323,24 +320,25 @@ namespace OpenTap.Package
                     };
 
                     DoDownloadPackage(packageDef, tmpFile, cancellationToken);
+                }
 
-                    if (cancellationToken.IsCancellationRequested == false)
-                    {
-                        tmpFile.Flush();
-                        File.Delete(destination);
-                        File.Copy(tmpFile.Name, destination);
-                    }
-                }
-                catch (Exception)
+                if (cancellationToken.IsCancellationRequested == false)
                 {
-                    if (cancellationToken.IsCancellationRequested == false)
-                        log.Warning("Download failed.");
-                    throw;
+                    File.Delete(destination);
+                    File.Move(tmpPath, destination);
                 }
-                finally
-                {
-                    File.Delete(tmpFile.Name);
-                }
+            }
+            catch (Exception)
+            {
+                if (cancellationToken.IsCancellationRequested == false)
+                    log.Warning("Download failed.");
+                throw;
+            }
+            finally
+            {
+                // Clean up the temp file if it still exists (e.g. on failure or cancellation).
+                // On success, File.Move already removed it from tmpPath.
+                File.Delete(tmpPath);
             }
         }
 

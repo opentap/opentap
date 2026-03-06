@@ -85,7 +85,7 @@ namespace OpenTap
         /// Gets or sets the maximum allowed latency for result propagation. When the limit is reached, the test plan run pauses while the results are propagated to the Result Listeners. 
         /// Result processing time is an estimated value based on previous processing delays.
         /// </summary>
-        [Display("Result Latency Limit", Group: "Advanced", Collapsed: true, Order: 100.1, Description: "The maximum allowed latency for result propagation.  Reaching this limit will result in a temporary pause in the test plan while the results are being propagated to the ResultListeners. Result processing time is an estimated value based on previous processing delays.")]
+        [Display("Result Latency Limit", Group: "Advanced", Collapsed: true, Order: 100.1, Description: "The maximum allowed latency for result propagation. Reaching this limit will result in a temporary pause in the test plan while the results are being propagated to the ResultListeners. Result processing time is an estimated value based on previous processing delays.")]
         [Unit("s")]
         [Browsable(false)]
         public double ResultLatencyLimit { get; set; }
