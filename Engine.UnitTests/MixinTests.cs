@@ -237,6 +237,21 @@ namespace OpenTap.UnitTests
                 Assert.AreEqual("123", aMemberValue);
             }
         }
+        
+        [Test]
+        public void TestMixinOnTestPlanError()
+        {
+            var plan1 = new TestPlan();
+            var step1 = new SequenceStep();
+            plan1.ChildTestSteps.Add(step1);
+            MixinFactory.LoadMixin(plan1, new MixinTestBuilder()
+            {
+                TestMember = nameof(plan1.Locked),
+                FailOnRun = true
+            });
+            var run = plan1.Execute();
+            Assert.AreEqual(Verdict.Error, run.Verdict);            
+        }
 
         public class MixinOrder1 : ITestStepPreRunMixin,ITestStepPostRunMixin
         {
@@ -799,6 +814,8 @@ namespace OpenTap.UnitTests
         public bool OnAssignOutputCalled { get; set; }
         public string OutputStringValue { get; set; }
         
+        public bool FailOnTestPlanPreRun { get; set; }
+        
         [Browsable(true)]
         public string MixinLoadValue { get; }
 
@@ -821,6 +838,10 @@ namespace OpenTap.UnitTests
         public void OnPreRun(TestPlanPreRunEventArgs eventArgs)
         {
             OnPrePlanRunCalled = true;
+            if (FailOnTestPlanPreRun)
+            {
+                eventArgs.PlanRun.UpgradeVerdict(Verdict.Error);
+            }
         }
 
         public bool OnPrePlanRunCalled { get; private set; }
@@ -842,6 +863,8 @@ namespace OpenTap.UnitTests
         }
         
         public string TestMember { get; set; }
+        public bool FailOnRun { get; set; }
+        
         public void Initialize(ITypeData targetType)
         {
             
@@ -855,7 +878,10 @@ namespace OpenTap.UnitTests
             {
                 throw new Exception("Target type already has a TestMixin member.");
             }
-            return new MixinMemberData(this, () => new MixinTest(TestMember))
+            return new MixinMemberData(this, () => new MixinTest(TestMember)
+            {
+                FailOnTestPlanPreRun = FailOnRun
+            })
             {
                 TypeDescriptor = TypeData.FromType(typeof(MixinTest)),
                 Attributes = GetAttributes().ToArray(),
