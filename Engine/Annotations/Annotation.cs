@@ -591,7 +591,7 @@ namespace OpenTap
             this.annotation = annotation;
         }
 
-        public IEnumerable<string> Errors { get; private set; }
+        public IEnumerable<string> Errors { get; private set; } = [];
     }
 
     class NumberSequenceAnnotation : IStringValueAnnotation, ICopyStringValueAnnotation, IErrorAnnotation
