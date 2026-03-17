@@ -151,6 +151,10 @@ namespace OpenTap
         {
             if (string.IsNullOrWhiteSpace(VisaAddress)) return false;
             
+            // if the instrument is connected there is no reason to check this value.
+            //    it could even cause issues if the instrument is busy for a long time.
+            if (IsConnected) return true;
+            
             // Ignore this validation if the visa address is a valid ip address
             if (Regex.IsMatch(VisaAddress, IpPattern)) return true;
             validator.CheckConstraints();
