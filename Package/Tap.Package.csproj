@@ -28,6 +28,9 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="PackageSchema.xsd" />
+    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/linux-musl-x64/native/libgit2-b7bad55.so" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so.musl-x64" />
+    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/linux-musl-arm/native/libgit2-b7bad55.so" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so.musl-arm" />
+    <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/linux-musl-arm64/native/libgit2-b7bad55.so" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so.musl-arm64" />
     <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/linux-x64/native/libgit2-b7bad55.so" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so.x64" />
     <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/linux-arm/native/libgit2-b7bad55.so" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so.arm" />
     <Content Include="$(NugetPackageRoot)/libgit2sharp.nativebinaries/2.0.315-alpha.0.9/runtimes/linux-arm64/native/libgit2-b7bad55.so" CopyToOutputDirectory="PreserveNewest" Link="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so.arm64" />

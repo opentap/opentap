@@ -93,6 +93,7 @@
     <Files Condition="$(Platform) == Linux">
         <File Path="tap" SourcePath="tap.sh"/>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so.$(Architecture)"/>
+        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so.musl-$(Architecture)"/>
     </Files>
     <!-- MacOS files -->
     <Files Condition="$(Platform) == MacOS">
