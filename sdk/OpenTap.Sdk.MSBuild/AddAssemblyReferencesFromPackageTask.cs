@@ -267,6 +267,11 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 var asm = Separator == "\\" ? asmPath.Replace("/", Separator) : asmPath.Replace("\\", Separator);
 
                 Result.AppendLine($"    <Reference Include=\"{Path.GetFileNameWithoutExtension(asmPath)}\">");
+                /* setting private to false stops the compiler from copying the assembly into the root of the build directory.
+                 * This is not required because OpenTAP's resolver can still find them in their subdirectories, and including
+                 * them in the output folder triggers warnings about duplicate assemblies. It also breaks other features in debug builds
+                 * such as InstallationCurrent.FindPackageContaining{Type/File}(); */
+                Result.AppendLine($"      <Private>false</Private>"); 
                 Result.AppendLine($"      <HintPath>{OutDir}{asm}</HintPath>");
                 Result.AppendLine("    </Reference>");
             }
