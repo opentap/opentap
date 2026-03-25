@@ -6,6 +6,7 @@ using System.Runtime.Versioning;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using NUnit.Framework;
+using OpenTap.EngineUnitTestUtils;
 
 namespace OpenTap.Package.UnitTests;
 
@@ -16,6 +17,9 @@ public class UninstallContextTest
     [Test]
     public void TestDeleteFile()
     {
+        using var _ = Session.Create(SessionOptions.RedirectLogging);
+        var ll = new TestTraceListener();
+        Log.AddListener(ll);
         var uninstallContext = UninstallContext.Create(Installation.Current);
 
         // initially verify that all the files exist.
@@ -40,6 +44,9 @@ public class UninstallContextTest
         }
         
         uninstallContext.UndoAllDeletions();
+
+        Assert.That(ll.ErrorMessage, Is.Empty);
+        Assert.That(ll.WarningMessage, Is.Empty);
 
         Assert.That(string.Join(",", stillExistingFiles), Is.Empty);
         
