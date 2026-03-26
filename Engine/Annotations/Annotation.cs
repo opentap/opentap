@@ -2348,7 +2348,7 @@ namespace OpenTap
                     var values = value.Cast<object>().ToArray();
                     for (int i = 0; i < values.Length; i++)
                     {
-                        if (anot.Length < i)
+                        if (i < anot.Length)
                         {
                             var val = anot[i].Get<IObjectValueAnnotation>();
                             val.Value = values[i];
