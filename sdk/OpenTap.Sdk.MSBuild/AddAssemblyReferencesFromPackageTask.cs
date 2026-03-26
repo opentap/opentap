@@ -101,6 +101,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         internal const string DefaultInclude = "**";
 
         internal string PackageName { get; }
+        internal bool Private { get; } = false;
         private ITaskItem TaskItem { get; }
         private AddAssemblyReferencesFromPackage Owner { get; set; }
 
@@ -110,6 +111,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             this.Owner = owner;
             TaskItem = item;
             PackageName = item.ItemSpec;
+            var privateMetadata = item.GetMetadata("Private");
+            /* default to private=false, which means the assembly will not be copied to $(OutDir) */
+            Private = string.Equals(privateMetadata, "true", StringComparison.OrdinalIgnoreCase);
             includePatterns = includePatterns.Distinct().Where(x => !string.IsNullOrWhiteSpace(x));
             excludePatterns = excludePatterns.Distinct().Where(x => !string.IsNullOrWhiteSpace(x));
             Globs = includePatterns.Select(x => new GlobWrapper(x, true)).Concat(
@@ -225,7 +229,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         private Regex dllRx = new Regex("<File +.*Path=\"(?<name>.+\\.dll)\"");
 
         [Output] 
-        public string[] Assemblies { get; set; }
+        public ITaskItem[] Assemblies { get; set; }
 
         [Required]
         public string PackageInstallDir { get; set; }
@@ -254,12 +258,14 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         private string Separator { get; set; }
         private bool ShouldAppendSeparator { get; set; }
 
-        private void WriteItemGroup(IEnumerable<string> assembliesInPackage)
+        private void WriteItemGroup(IEnumerable<string> assembliesInPackage, bool isPrivate)
         {
             Result.AppendLine("  <ItemGroup>");
 
             var OutDir = "$(OutDir)";
             if (ShouldAppendSeparator) OutDir += Separator;
+
+            var privateValue = isPrivate ? "true" : "false";
 
             foreach (var asmPath in assembliesInPackage)
             {
@@ -267,6 +273,11 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 var asm = Separator == "\\" ? asmPath.Replace("/", Separator) : asmPath.Replace("\\", Separator);
 
                 Result.AppendLine($"    <Reference Include=\"{Path.GetFileNameWithoutExtension(asmPath)}\">");
+                /* setting private to false stops the compiler from copying the assembly into the root of the build directory.
+                 * This is not required because OpenTAP's resolver can still find them in their subdirectories, and including
+                 * them in the output folder triggers warnings about duplicate assemblies. It also breaks other features in debug builds
+                 * such as InstallationCurrent.FindPackageContaining{Type/File}(); */
+                Result.AppendLine($"      <Private>{privateValue}</Private>"); 
                 Result.AppendLine($"      <HintPath>{OutDir}{asm}</HintPath>");
                 Result.AppendLine("    </Reference>");
             }
@@ -306,7 +317,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             // Task instances are sometimes reused by the build engine -- ensure 'document' is reinstantiated
             _document = null;
 
-            Assemblies = new string[] { };
+            Assemblies = [];
             try
             {
                 // Distincting the tasks is not necessary, but it is a much more helpful warning than 
@@ -338,10 +349,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                     Log.LogMessage($"{task.PackageName} Include=\"{includeGlobString}\" Exclude=\"{excludeGlobString}\"");
                 }
 
-                foreach (var globTask in globTasks)
-                {
-                    HandlePackage(globTask);
-                }
+                Assemblies = [.. globTasks.SelectMany(HandlePackage)];
             }
             catch (Exception e)
             {
@@ -358,7 +366,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             return true;
         }
 
-        private void HandlePackage(GlobTask globTask)
+        private List<ITaskItem> HandlePackage(GlobTask globTask)
         {
             var assembliesInPackage = new List<string>();
 
@@ -368,7 +376,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             {
                 globTask.LogWarningWithLineNumber(
                     $"No package named '{globTask.PackageName}'.");
-                return;
+                return [];
             }
 
             var dllsInPackage = dllRx.Matches(File.ReadAllText(packageDefPath)).Cast<Match>()
@@ -406,11 +414,18 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             if (!assembliesInPackage.Any())
             {
                 globTask.LogWarningWithLineNumber($"No references added from package '{globTask.PackageName}'.");
+                return [];
             }
             else
             {
-                WriteItemGroup(assembliesInPackage);
-                Assemblies = Assemblies.Concat(assembliesInPackage).ToArray();
+                WriteItemGroup(assembliesInPackage, globTask.Private);
+                var privateValue = globTask.Private ? "true" : "false";
+                return [.. assembliesInPackage.Select(asm =>
+                {
+                    var item = new TaskItem(asm);
+                    item.SetMetadata("Private", privateValue);
+                    return (ITaskItem)item;
+                })];
             }
         }
 

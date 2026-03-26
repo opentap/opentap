@@ -106,8 +106,12 @@
 
     <!-- Generate a list of all packages that should be referenced -->
     <ItemGroup>
-      <OpenTapPackagesToReference Include="@(AdditionalOpenTapPackage->WithMetadataValue('Reference', 'true'))"/>
-      <OpenTapPackagesToReference Include="@(OpenTapPackageReference)" Exclude="@(OpenTapPackageReference->WithMetadataValue('Reference', 'false'))"/>
+      <OpenTapPackagesToReference Include="@(AdditionalOpenTapPackage->WithMetadataValue('Reference', 'true'))">
+        <Private Condition="'%(AdditionalOpenTapPackage.Private)' == ''">false</Private>
+      </OpenTapPackagesToReference>
+      <OpenTapPackagesToReference Include="@(OpenTapPackageReference)" Exclude="@(OpenTapPackageReference->WithMetadataValue('Reference', 'false'))">
+        <Private Condition="'%(OpenTapPackageReference.Private)' == ''">false</Private>
+      </OpenTapPackagesToReference>
     </ItemGroup>
 
     <!-- Generate a list of xml files for packages that should be referenced. 
@@ -159,7 +163,13 @@
     </AddAssemblyReferencesFromPackage>
     <Touch Files="$(MSBuildThisFileFullPath)"/>
     <ItemGroup>
-      <Reference Include="@(_OpenTapPackagesReferences-> '$(OutDir)%(Identity)')"/>
+      <Reference Include="@(_OpenTapPackagesReferences-> '$(OutDir)%(Identity)')">
+        <!-- setting private to false stops the compiler from copying the assembly into the root of the build directory. -->
+        <!-- This is not required because OpenTAP's resolver can still find them in their subdirectories, and including -->
+        <!-- them in the output folder triggers warnings about duplicate assemblies. It also breaks other features in debug builds -->
+        <!-- such as InstallationCurrent.FindPackageContaining{Type/File}(); -->
+        <Private>%(Private)</Private>
+      </Reference>
     </ItemGroup>
   </Target>
 
@@ -192,3 +202,4 @@
   </Target>
 
 </Project>
+
