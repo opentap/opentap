@@ -410,6 +410,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -425,8 +427,49 @@ jobs:
           name: package-templates
           path: sdk-template
       - name: Install Templates
-        run: dotnet new --install ./sdk-template/*.nupkg
+        run: dotnet new install ./sdk-template/*.nupkg
       - run: chmod +x bin/Release/tap
+      - name: Test GitVersion
+        run: ./bin/Release/tap sdk gitversion
+        # The .pdb files are in use for some reason during `tap package install`
+      - run: rm ./bin/Release/*.pdb
+      - run: bin/Release/tap package install ./bin/Release/dbg.zip -f --no-isolation
+      - run: bin/Release/tap run tests/regression.TapPlan --verbose --color
+
+  TestLinuxMuslPlan:
+    runs-on:
+      group: OpenTAP-SpokeVPC
+      labels:  [Linux, X64]
+    container: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+    needs:
+    - Build-Linux
+    - Package-Templates
+    strategy:
+      matrix:
+        retries: [ 0, 1 ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: Linux-bin
+          path: bin/Release/
+      - name: Download Template package
+        uses: actions/download-artifact@v4
+        with:
+          name: package-templates
+          path: sdk-template
+      - name: Install Templates
+        run: dotnet new install ./sdk-template/*.nupkg
+        # the tap binary is a native glibc binary, so it won't work in musl.
+        # in the final package we ship tap.sh, so it's fine to replace it for this test.
+      - run: cp ./LinuxInstall/tap.sh ./bin/Release/tap
+      - run: chmod +x bin/Release/tap
+      - name: Test GitVersion
+        run: sh ./bin/Release/tap sdk gitversion
         # The .pdb files are in use for some reason during `tap package install`
       - run: rm ./bin/Release/*.pdb
       - run: bin/Release/tap package install ./bin/Release/dbg.zip -f --no-isolation
@@ -455,7 +498,7 @@ jobs:
           name: package-templates
           path: sdk-template
       - name: Install Templates
-        run: dotnet new --install ./sdk-template/*.nupkg
+        run: dotnet new install ./sdk-template/*.nupkg
       - run: chmod +x bin/Release/tap
         # The .pdb files are in use for some reason during `tap package install`
       - run: rm ./bin/Release/*.pdb
