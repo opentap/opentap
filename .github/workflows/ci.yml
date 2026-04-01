@@ -31,7 +31,7 @@ jobs:
       # The get-gitversion action installs OpenTAP and fetches with fetch-depth: 0
       - name: GitVersion
         id: gitversion
-        uses: opentap/get-gitversion@1ecd47ca05a3124a5f2479e0bfd0665f93359b2a # v1.1
+        uses: opentap/get-gitversion@e0ec3d89f2d2b598ca382dd04d5259b927502988 #main
       - name: SmartInstallerVersion
         id: smartInstallerVersion
         run: echo "VER=$SMARTINSTALLER_IMAGE" >> $GITHUB_OUTPUT
