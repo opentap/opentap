@@ -284,6 +284,50 @@ namespace OpenTap.UnitTests
             }
         }
 
+        public class MultiInstrumentStep : TestStep
+        {
+            public List<DummyInstrument> Instruments { get; set; } = [];
+            public override void Run()
+            {
+            }
+        }
+
+        [Test]
+        public void TestMultiSelectIndexError()
+        {
+            using var _ = Session.Create(SessionOptions.OverlayComponentSettings);
+
+            var plan = new TestPlan();
+            var dummyStep = new MultiInstrumentStep();
+            plan.ChildTestSteps.Add(dummyStep);
+
+            InstrumentSettings.Current.Add(new DummyInstrument() { Name = "Dummy 1" });
+            InstrumentSettings.Current.Add(new DummyInstrument() { Name = "Dummy 2" });
+            InstrumentSettings.Current.Add(new DummyInstrument() { Name = "Dummy 3" });
+            InstrumentSettings.Current.Add(new DummyInstrument() { Name = "Dummy 4" });
+
+            var a = AnnotationCollection.Annotate(dummyStep);
+            var mem = a.GetMember(nameof(dummyStep.Instruments));
+            var avail = mem.Get<IAvailableValuesAnnotation>();
+            var availArray = avail.AvailableValues.Cast<object>().ToArray();
+            var multi = mem.Get<IMultiSelect>();
+            var values = avail.AvailableValues;
+
+            /* verify there are 4 available values and 0 values are selected */
+            Assert.That(availArray.Length, Is.EqualTo(4));
+            Assert.That(multi.Selected.Count(), Is.EqualTo(0));
+
+            /* select 2 values */
+            List<object> selection = [ availArray.First(), availArray.Last() ];
+            multi.Selected = selection;
+            a.Write();
+            a.Read();
+
+            /* verify there are 4 available values and 2 values are selected */
+            Assert.That(availArray.Length, Is.EqualTo(4));
+            Assert.That(multi.Selected.Count(), Is.EqualTo(2));
+        }
+
         public class ClassWithMacroString
         {
             public MacroString String { get; set; } = new MacroString();
