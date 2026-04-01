@@ -31,7 +31,7 @@ jobs:
       # The get-gitversion action installs OpenTAP and fetches with fetch-depth: 0
       - name: GitVersion
         id: gitversion
-        uses: opentap/get-gitversion@bump-opentap
+        uses: opentap/get-gitversion@e0ec3d89f2d2b598ca382dd04d5259b927502988 #main
       - name: SmartInstallerVersion
         id: smartInstallerVersion
         run: echo "VER=$SMARTINSTALLER_IMAGE" >> $GITHUB_OUTPUT
@@ -93,17 +93,17 @@ jobs:
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Setup OpenTAP
-        uses: opentap/setup-opentap@main
+        uses: opentap/setup-opentap@d178a37a089bf73bd99da5b68a00b3d96e6d4517 # v1.0
         with:
           version: 9.23.0
           packages: 'DocumentationGeneration:1.0.2'
           additional-repository: 'https://test-automation.pw.keysight.com/api/packages'
           additional-repository-token: '${{ secrets.KS8500_REPO_TOKEN }}'
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - run: tap generate-pdf "doc/Developer Guide/Readme.md" --toc --skip-first-file --out "sdk/Examples/OpenTAP Developer Guide.pdf" --frontpage "doc/Developer Guide/Frontpage.html" --frontpage-file "doc/Developer Guide/Frontpage.png"
       - name: Upload binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: doc-devguide
           retention-days: 5
@@ -119,7 +119,7 @@ jobs:
       image: ghcr.io/opentap/oci-images/build-doxygen:latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - run: |
           mkdir Help API
           ver=$(grep ^version .gitversion | sed 's/version[ ]*=[ ]*//' | cut -d. -f 1-2)
@@ -132,13 +132,13 @@ jobs:
           mv OpenTapApiReference.chm $rootdir/Help/
           cp -r . $rootdir/API/
       - name: Upload binaries (CHM)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: doc-api-chm
           retention-days: 5
           path: Help/OpenTapApiReference.chm
       - name: Upload binaries (HTML)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: doc-api-html
           retention-days: 5
@@ -153,16 +153,16 @@ jobs:
       - Build-ApiDoc
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Prepare
         run: rm 'doc/User Guide/Readme.md' 'doc/Developer Guide/Readme.md'
       - name: Download API Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: doc-api-html
           path: API
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
         with:
           node-version: 20
           cache: npm
@@ -180,7 +180,7 @@ jobs:
       - name: Copy API
         run: cp -r API public/api
       - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           publish_dir: public
@@ -188,7 +188,7 @@ jobs:
           publish_branch: main
           external_repository: opentap/opentap.github.io
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: pages
           retention-days: 5
@@ -205,14 +205,14 @@ jobs:
       GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
-        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2. See https://github.com/actions/checkout/issues/290
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
           dotnet-version: '10.0.x'
       - name: Build
@@ -228,7 +228,7 @@ jobs:
       - name: Copy Debug Package 
         run: cp ./bin/Release/OpenTap.Debug.TapPackage ./bin/Release/publish/dbg.zip
       - name: Upload binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: Linux-bin
           retention-days: 5
@@ -246,12 +246,12 @@ jobs:
       GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
-        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2. See https://github.com/actions/checkout/issues/290
       - name: Build
         run: dotnet build -c Release /p:Platform=${{ matrix.Architecture }}
       - name: Rebuild
@@ -265,7 +265,7 @@ jobs:
       - name: cat tap.runtimeconfig.json 
         run: get-content ./bin/Release/tap.runtimeconfig.json
       - name: Upload binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: win-${{ matrix.architecture }}-bin
           retention-days: 5
@@ -280,14 +280,14 @@ jobs:
       GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
-        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2. See https://github.com/actions/checkout/issues/290
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
           dotnet-version: '10.0.x'
       - name: Build
@@ -303,7 +303,7 @@ jobs:
       - name: Copy Debug Package 
         run: cp ./bin/Release/OpenTap.Debug.TapPackage ./bin/Release/publish/dbg.zip
       - name: Upload binaries
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: MacOS-bin
           retention-days: 5
@@ -321,14 +321,14 @@ jobs:
         retries: [ 0, 1 ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
-        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: win-x64-bin
           path: bin/
@@ -342,14 +342,14 @@ jobs:
     needs: Build-Win
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
-        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: win-x64-bin
           path: bin/Release
@@ -370,19 +370,19 @@ jobs:
         retries: [ 0, 1 ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
-        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: win-x64-bin
           path: bin/Release/
       - name: Download Template package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: package-templates
           path: sdk-template
@@ -391,7 +391,7 @@ jobs:
       - name: Test
         working-directory: bin/Release
         run: ./tap.exe run ../../tests/regression.TapPlan --verbose --color
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: ${{ failure() }}
         with:
           name: regression-files
@@ -409,18 +409,18 @@ jobs:
         retries: [ 0, 1 ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
           dotnet-version: '10.0.x'
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: Linux-bin
           path: bin/Release/
       - name: Download Template package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: package-templates
           path: sdk-template
@@ -439,18 +439,18 @@ jobs:
       - Package-Templates
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
           dotnet-version: '10.0.x'
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: MacOS-bin
           path: bin/Release/
       - name: Download Template package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: package-templates
           path: sdk-template
@@ -478,34 +478,34 @@ jobs:
       - GetVersion
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
-        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
+        run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2. See https://github.com/actions/checkout/issues/290
       - name: Download x64 binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: win-x64-bin
           path: bin/Release-x64/
       - name: Download x86 binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: win-x86-bin
           path: bin/Release-x86/
       - name: Download arm64 binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: win-arm64-bin
           path: bin/Release-arm64/
       - name: Download API Reference
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: doc-api-chm
           path: Help/
       - name: Caching Signing tools
-        uses: actions/cache@v4
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         id: cache
         with:
           path: ./sign.TapPackage
@@ -533,7 +533,7 @@ jobs:
           Platform: "Windows"
           Architecture:  "${{ matrix.Architecture }}"
         run: ..\Release-x64\tap.exe package create -v -c ../../package.xml -o ../../OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.${{ matrix.Architecture }}.Windows.TapPackage          
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: win-${{ matrix.Architecture }}-package
           retention-days: 14
@@ -569,24 +569,24 @@ jobs:
         with:
           fetch-depth: 0
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
           dotnet-version: '10.0.x'
       - name: Fix tags
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
       - name: Download linux binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: Linux-bin
           path: bin/Linux-x64/
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ matrix.os }}-bin
           path: bin/output/
       - name: Download API Reference
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: doc-api-chm
           path: Help/
@@ -603,7 +603,7 @@ jobs:
           Sign: false
       - name: Rename package
         run: cp bin/output/Packages/OpenTAP.${{ matrix.os }}.${{ matrix.arch }}.TapPackage OpenTAP.${{ needs.GetVersion.outputs.GitVersion }}.${{ matrix.os }}.${{ matrix.arch }}.TapPackage
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{ matrix.os }}-${{ matrix.arch }}-package
           retention-days: 14
@@ -625,7 +625,7 @@ jobs:
           Set-Content .\templates\src\project\ProjectName.csproj (Get-Content .\templates\src\project\ProjectName.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
       - name: Package
         run: dotnet pack ./templates/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: package-templates
           retention-days: 14
@@ -648,22 +648,22 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: win-x64-bin
           path: bin/Release/
       - name: Download Developer Guide
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: doc-devguide
           path: sdk/Examples/
       - name: Download API Reference
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: doc-api-chm
           path: Help/
       - name: Download Template package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: package-templates
           path: bin/Release/Packages2/SDK/
@@ -691,7 +691,7 @@ jobs:
           Set-Content Packages/SDK/Examples/Directory.Build.props $content
           ./tap package create -v -c ../../sdk/sdk.package.xml
           Move-Item "*.TapPackage" "../.."
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: package-sdk
           retention-days: 14
@@ -706,12 +706,12 @@ jobs:
     needs:
       - Package-Cross
     steps:
-      - uses: opentap/setup-opentap@v1.0
+      - uses: opentap/setup-opentap@d178a37a089bf73bd99da5b68a00b3d96e6d4517 # v1.0
         with:
           version: 9.21.1
           packages: 'Package Diff:0.1.0-beta.21'
       - name: Download package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: Linux-x64-package
           path: .
@@ -736,42 +736,42 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/v')
         run: git fetch -f origin ${{ github.ref }}:${{ github.ref }} # Fixes an issue with actions/checkout@v4. See https://github.com/actions/checkout/issues/290
       - name: Download binaries
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: win-x64-bin
           path: bin/Release/
       - name: Download win-x86 package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: win-x86-package
           path: .
       - name: Download win-x64 package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: win-x64-package
           path: .
       # - name: Download win-arm64 package
-      #   uses: actions/download-artifact@v4
+      #   uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       #   with:
       #     name: win-arm64-package
       #     path: .
       - name: Download Linux arm package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: Linux-arm64-package
           path: .
       - name: Download Linux x64 package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: Linux-x64-package
           path: .
       - name: Download MacOS x64 package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: MacOS-x64-package
           path: .
       - name: Download MacOS arm64 package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: MacOS-arm64-package
           path: .
@@ -810,7 +810,7 @@ jobs:
           Invoke-WebRequest -Method Get -Uri "https://dist.nuget.org/win-x86-commandline/v5.7.1/nuget.exe" -OutFile nuget.exe
           echo "Pack nuget"
           .\nuget pack OpenTAP.nuspec -OutputDirectory ../
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: nuget-package
           retention-days: 14
@@ -835,14 +835,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Download Windows package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: win-x64-package
           path: .
       - run: mv OpenTAP.*.Windows.TapPackage Installer/Assets/OpenTAP.TapPackage
       - run: echo "${{ secrets.SIGN_SERVER_CERT }}" > $GITHUB_WORKSPACE/sign.cer
       - name: Download SDK package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: package-sdk
           path: Installer/Assets
@@ -856,7 +856,7 @@ jobs:
           TAP_SIGN_AUTH: ${{ secrets.TAP_SIGN_AUTH }}
           TAP_SIGN_CERT: ${{ github.workspace }}/sign.cer
       - run: mv Installer/Assets/setup.exe OpenTAP.${{needs.GetVersion.outputs.LongVersion}}.exe
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: installer-windows
           retention-days: 14
@@ -874,7 +874,7 @@ jobs:
       - GetVersion
     steps: 
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: installer-windows
       - name: Rename Artifact 
@@ -908,14 +908,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Download Linux package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: Linux-x64-package
           path: .
       - run: mv OpenTAP.*.Linux.*.TapPackage Installer/Assets/OpenTAP.TapPackage
         name: Rename package
       - name: Download SDK package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: package-sdk
           path: Installer/Assets
@@ -926,7 +926,7 @@ jobs:
         working-directory: Installer/Assets
         name: Build installer
       - run: mv Installer/Assets/Installer Installer/Assets/OpenTAP
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: installer-linux
           retention-days: 14
@@ -944,7 +944,7 @@ jobs:
       - GetVersion
     steps:
       - name: Download Artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: installer-linux
       - name: Upload Installer 
@@ -982,7 +982,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Download Linux package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: Linux-x64-package
           path: .
@@ -1000,7 +1000,7 @@ jobs:
         if: contains(github.ref, 'refs/tags/v')
         run: echo "TAG_NAME=${{needs.GetVersion.outputs.ShortVersion}}" >> $GITHUB_ENV
       - name: Docker Build
-        uses: aevea/action-kaniko@master
+        uses: aevea/action-kaniko@be5ce625a52485739db88cc75ebb8a9f8d269bd4 # v0.14.0
         with:
           image: opentapio/opentap
           username: ${{ secrets.DOCKER_USER }}
@@ -1021,7 +1021,7 @@ jobs:
       - Package-NuGet
     steps:
       - name: Download nuget package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: nuget-package
           path: .
@@ -1036,7 +1036,7 @@ jobs:
       - Package-Templates
     steps:
       - name: Download Template package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: package-templates
           path: .
@@ -1056,47 +1056,47 @@ jobs:
       - Package-SDK
     steps:
       - name: Download Windows-x86 package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: win-x86-package
           path: ./publish/
       - name: Download Windows-x64 package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: win-x64-package
           path: ./publish/
       # - name: Download Windows-arm64 package
-      #   uses: actions/download-artifact@v4
+      #   uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
       #   with:
       #     name: win-arm64-package
       #     path: ./publish/
       - name: Download MacOS-x64 package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: MacOS-x64-package
           path: ./publish/
       - name: Download MacOS-arm64 package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: MacOS-arm64-package
           path: ./publish/
       - name: Download Linux-x64 package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: Linux-x64-package
           path: ./publish/
       - name: Download Linux-arm64 package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: Linux-arm64-package
           path: ./publish/
       - name: Download Linux-arm package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: Linux-arm-package
           path: ./publish/
       - name: Download SDK package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: package-sdk
           path: ./publish/
@@ -1110,7 +1110,7 @@ jobs:
       - name: Debug
         run: ls -la ./publish
       - name: Setup OpenTAP
-        uses: opentap/setup-opentap@main
+        uses: opentap/setup-opentap@d178a37a089bf73bd99da5b68a00b3d96e6d4517 # v1.0
         with:
           version: 9.23.0
           packages: 'Repository Client:1.0.3-beta.9+15a03b2b'
@@ -1124,18 +1124,18 @@ jobs:
       - Package-SDK
     steps:
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
           dotnet-version: '10.0.x'
       - name: Download SDK package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: package-sdk
           path: ./sdk-package/
       - name: Unzip SDK package
         run: unzip ./sdk-package/SDK.*.TapPackage
       - name: Download nuget package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: nuget-package
           path: ./Packages/SDK/Examples/nuget-package
@@ -1154,11 +1154,11 @@ jobs:
       - Package-SDK
     steps:
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
           dotnet-version: '10.0.x'
       - name: Download SDK package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: package-sdk
           path: ./sdk-package/
@@ -1167,7 +1167,7 @@ jobs:
       - name: Unzip SDK package
         run: unzip SDK.zip
       - name: Download nuget package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: nuget-package
           path: ./Packages/SDK/Examples/nuget-package
