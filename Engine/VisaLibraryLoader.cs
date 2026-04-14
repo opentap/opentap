@@ -14,6 +14,8 @@ namespace OpenTap
     /// </summary>
     internal class VisaLibraryLoader : IVisaFunctionLoader
     {
+        private const string OPENTAP_LIBVISA_LOCATION_ENV = "OPENTAP_LIBVISA_LOCATION";
+        
         double IVisaFunctionLoader.Order => 10000;
 
         [DllImport("kernel32.dll")]
@@ -57,31 +59,35 @@ namespace OpenTap
 
         public VisaFunctions? Functions { get; }
 
+        private static readonly string[] _linuxPaths = [ "./libvisa32.so", "./libvisa.so", "libvisa32.so", "libvisa.so", "libiovisa.so", "./libiovisa.so" ];
+        private static readonly string[] _macOsPaths = ["./VISA", "/Library/Frameworks/VISA.framework/VISA" ];
+
         // Required by .NET to catch AccessViolationException.
         [System.Runtime.ExceptionServices.HandleProcessCorruptedStateExceptions]
         public VisaFunctions? Load()
         {
             try
             {
+                var customLibVisa = Environment.GetEnvironmentVariable(OPENTAP_LIBVISA_LOCATION_ENV);
                 Func<string, IntPtr> loadSym;
                 if (OperatingSystem.Current == OperatingSystem.Windows)
                 {
-                    var libHandle = LoadLibrary("visa32.dll");
+                    IntPtr libHandle = IntPtr.Zero;
+                    if (!string.IsNullOrEmpty(customLibVisa))
+                        libHandle = LoadLibrary(customLibVisa);
+                    
+                    if(libHandle == IntPtr.Zero)
+                        libHandle = LoadLibrary("visa32.dll");
                     loadSym = name => GetProcAddress(libHandle, name);
                 }
-                else if (OperatingSystem.Current == OperatingSystem.Linux)
+                else if (OperatingSystem.Current == OperatingSystem.Linux || OperatingSystem.Current == OperatingSystem.MacOS)
                 {
-                    string[] paths =
-                    {
-                        "./libvisa32.so", "./libvisa.so", "libvisa32.so", "libvisa.so", "libiovisa.so", "./libiovisa.so"
-                    };
-                    var libHandle = paths.Select(LibDl.Load).FirstOrDefault(x => x != IntPtr.Zero);
-                    loadSym = (name) => LibDl.Sym(libHandle, name);
-                }
-                else if (OperatingSystem.Current == OperatingSystem.MacOS)
-                {
-                    string[] paths = { "./VISA", "/Library/Frameworks/VISA.framework/VISA" };
-                    var libHandle = paths.Select(LibDl.Load).FirstOrDefault(x => x != IntPtr.Zero);
+                    var paths = OperatingSystem.Current == OperatingSystem.Linux ? _linuxPaths : _macOsPaths;
+                    IntPtr libHandle = IntPtr.Zero;
+                    if (!string.IsNullOrEmpty(customLibVisa))
+                        libHandle = LibDl.Load(customLibVisa);
+                    if(libHandle == IntPtr.Zero)
+                        libHandle = paths.Select(LibDl.Load).FirstOrDefault(x => x != IntPtr.Zero);
                     loadSym = (name) => LibDl.Sym(libHandle, name);
                 }
                 else
