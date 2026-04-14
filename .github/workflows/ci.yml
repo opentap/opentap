@@ -964,15 +964,18 @@ jobs:
       - name: Set tag (release)
         if: contains(github.ref, 'refs/tags/v')
         run: echo "TAG_NAME=${{needs.GetVersion.outputs.ShortVersion}}" >> $GITHUB_ENV
-      - name: Docker Build
-        uses: aevea/action-kaniko@be5ce625a52485739db88cc75ebb8a9f8d269bd4 # v0.14.0
+      - name: Log in to Docker Hub
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
-          image: opentapio/opentap
-          username: ${{ secrets.DOCKER_USER }}
-          password: ${{ secrets.DOCKER_PASS }}
+            username: ${{ secrets.DOCKER_USER }}
+            password: ${{ secrets.DOCKER_PASS }}
+      - name: Build and push
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6
+        with:
+          context: docker/Linux
           target: ${{ matrix.target }}
-          tag: ${{env.TAG_NAME}}${{ matrix.tag-suffix }}
-          path: docker/Linux
+          push: true
+          tags: opentapio/opentap:${{env.TAG_NAME}}${{ matrix.tag-suffix }}
 
 
   ###############
