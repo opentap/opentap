@@ -20,9 +20,7 @@ Failed to run as a self-contained app.
 ```
 
 To resolve this, download and install the [.NET 9
-Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) (or the .NET 9
-SDK, which includes the runtime).
-
+SDK](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) 
 ### How the Runtime Is Selected
 
 The .NET runtime used is determined by the **host executable** that starts the

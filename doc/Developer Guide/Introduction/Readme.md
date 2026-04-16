@@ -9,7 +9,7 @@ Development requires the following software:
 
 - Visual Studio 2022 or above
 - OpenTAP
-- [.NET 9 Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) (required when OpenTAP is installed via package upgrade rather than an installer)
+- [.NET 9 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) (required when OpenTAP is installed via package upgrade rather than an installer)
 
 > **Note:** If you are upgrading from an earlier version (e.g. 9.28), .NET 9 is **not** automatically installed during the upgrade. You must install .NET 9 before running `tap`. See [Migrating to .NET 9](../Migrating%20to%20.NET%209/Readme.md) for details.
 
