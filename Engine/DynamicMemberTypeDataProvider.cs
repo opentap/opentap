@@ -935,14 +935,15 @@ namespace OpenTap
 
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
+            if (!(obj is ITestStepParent))
+                return null;
+                
             var subtype = stack.GetTypeData(obj);
             var result = getStepTypeData(subtype);
             if (TestStepTypeData.DynamicMembers.GetValue(obj) is ImmutableDictionary<string, IMemberData> obj2 && obj2.Count != 0)
                 return dict2.GetValue(obj, o => new DynamicTestStepTypeData(result, o));
-            if (obj is ITestStepParent)
-                return result;
             
-            return null;
+            return result;
         }
         public double Priority => 10;
     }

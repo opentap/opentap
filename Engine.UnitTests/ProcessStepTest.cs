@@ -58,7 +58,7 @@ namespace OpenTap.UnitTests
             var plan = new TestPlan();
             var processStep = new ProcessStep()
             {
-                Application = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "tap.exe"),
+                Application = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), tapExe),
                 WorkingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                 Arguments = "test envvariables print",
                 RegularExpressionPattern = new Enabled<string>()
@@ -85,7 +85,7 @@ namespace OpenTap.UnitTests
             var plan = new TestPlan();
             var processStep = new ProcessStep()
             {
-                Application = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "tap.exe"),
+                Application = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), tapExe),
                 WorkingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                 Arguments = $"test fail --error {exitCode}",
             };
@@ -95,13 +95,14 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(processStep.Output.Contains($"Failing with exit code {exitCode}"));
         }
 
+        private string tapExe = System.OperatingSystem.IsWindows() ? "tap.exe" : "tap";
         [Test]
         public void ProcessStepTimeoutTest()
         {
             var plan = new TestPlan();
             var processStep = new ProcessStep() 
             {
-                Application = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "tap.exe"),
+                Application = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), tapExe),
                 WorkingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
                 Arguments = $"test fail",
                 Timeout = 50, // ms
@@ -124,7 +125,7 @@ namespace OpenTap.UnitTests
             var plan = new TestPlan();
             var processStep = new ProcessStep()
             {
-                Application = "tap.exe",
+                Application = tapExe,
                 WorkingDirectory = "",
                 Arguments = $"test fail --error 0",
                 Timeout = 50000, // ms
