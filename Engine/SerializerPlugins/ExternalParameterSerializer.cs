@@ -144,6 +144,13 @@ namespace OpenTap.Plugins
             Guid.TryParse(elem.Attribute(Scope)?.Value, out Guid scope);
             if (!loadScopeParameter(scope, step, member, parameter))
                 Serializer.DeferLoad(() => loadScopeParameter(scope, step, member, parameter));
+
+            // For parameterized outputs we only need to restore the parameterization relation.
+            // The value itself is not serialized (see Serialize above) and the output does not
+            // have a public setter, so attempting to deserialize a value would fail.
+            if (member != null && member.Writable == false && member.HasAttribute<OutputAttribute>())
+                return true;
+
             if (scope != Guid.Empty) return false;
             var plan = Serializer.SerializerStack.OfType<TestPlanSerializer>().FirstOrDefault()?.Plan;
             if (plan == null)
@@ -247,6 +254,15 @@ namespace OpenTap.Plugins
             elem.SetAttributeValue(Parameter, parentMember.parameterMember.Name);
             if (parentMember.parameterParent is ITestStep parentStep)
                 elem.SetAttributeValue(Scope, parentStep.Id.ToString());
+
+            // For parameterized outputs, we only serialize the fact that the output is
+            // parameterized (the Parameter/Scope attributes); we do NOT serialize the value
+            // because outputs are written by the step during a run, not by the user/serializer.
+            // Also, outputs typically have non-public setters so the value could not be
+            // round-tripped anyway.
+            if (member.Writable == false && member.HasAttribute<OutputAttribute>())
+                return true;
+
             // skip
             try
             {

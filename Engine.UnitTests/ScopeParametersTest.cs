@@ -902,6 +902,109 @@ namespace OpenTap.UnitTests
             // all the values should be inserted at the same key location.
             Assert.AreEqual(1, dict.Count);
         }
-        
+
+        /// <summary>
+        /// Test step exposing an [Output] whose setter is non-public, as is typical for outputs.
+        /// </summary>
+        public class OutputProducerStep : TestStep
+        {
+            [Output]
+            public double Measurement { get; private set; }
+
+            public double MeasurementToProduce { get; set; } = 42.0;
+
+            public override void Run()
+            {
+                Measurement = MeasurementToProduce;
+            }
+        }
+
+        /// <summary>
+        /// Reads a value via a public (writable) property - can be connected to an output via an
+        /// input/output relation, or simply have the value set by a parameter.
+        /// </summary>
+        public class OutputConsumerStep : TestStep
+        {
+            public double Value { get; set; }
+            public override void Run()
+            {
+                Log.Info("Consumed value: {0}", Value);
+            }
+        }
+
+        [Test]
+        public void ParameterizeOutputOnParentScope()
+        {
+            // Verify that an [Output] property (with a non-public setter) can be parameterized
+            // onto a parent scope. This exposes the output at the parent scope.
+            var plan = new TestPlan();
+            var seq = new SequenceStep();
+            var producer = new OutputProducerStep();
+            seq.ChildTestSteps.Add(producer);
+            plan.ChildTestSteps.Add(seq);
+
+            var outputMember = TypeData.GetTypeData(producer).GetMember(nameof(producer.Measurement));
+            Assert.IsNotNull(outputMember);
+            Assert.IsTrue(outputMember.HasAttribute<OutputAttribute>());
+
+            // Before: the output is not writable via the normal setter.
+            Assert.IsFalse(outputMember.Writable);
+
+            // Should be considered a valid parameter now despite Writable==false.
+            Assert.IsTrue(ParameterManager.CanParameter(outputMember, new ITestStepParent[] { producer }));
+
+            const string paramName = "Exposed Measurement";
+            var parameter = outputMember.Parameterize(seq, producer, paramName);
+            Assert.IsNotNull(parameter);
+
+            // The parameter is advertised as writable so that serialization treats it normally,
+            // but setting its value is a safe no-op (outputs are written by Run()).
+            Assert.IsTrue(parameter.Writable);
+
+            // GetValue on the parameter should reflect the output value on the source.
+            producer.Run();
+            Assert.AreEqual(42.0, (double)parameter.GetValue(seq));
+
+            // SetValue should be a no-op for the output (no exception, value unchanged).
+            parameter.SetValue(seq, 0.0);
+            Assert.AreEqual(42.0, producer.Measurement);
+        }
+
+        [Test]
+        public void ParameterizedOutputSerialization()
+        {
+            // Verify that a plan with a parameterized output can be round-tripped through the
+            // serializer and the parameterization is preserved.
+            var plan = new TestPlan();
+            var seq = new SequenceStep();
+            var producer = new OutputProducerStep();
+            seq.ChildTestSteps.Add(producer);
+            plan.ChildTestSteps.Add(seq);
+
+            const string paramName = "Exposed Measurement";
+            var outputMember = TypeData.GetTypeData(producer).GetMember(nameof(producer.Measurement));
+            outputMember.Parameterize(seq, producer, paramName);
+
+            // Serialize/deserialize.
+            var xml = new TapSerializer().SerializeToString(plan);
+            Assert.IsTrue(xml.Contains("Parameter=\"" + paramName + "\""),
+                "Expected the serialized XML to contain the Parameter attribute for the output.");
+
+            var plan2 = (TestPlan)new TapSerializer().DeserializeFromString(xml);
+            var seq2 = (SequenceStep)plan2.ChildTestSteps[0];
+            var producer2 = (OutputProducerStep)seq2.ChildTestSteps[0];
+
+            var param2 = TypeData.GetTypeData(seq2).GetMember(paramName);
+            Assert.IsNotNull(param2, "Parameter was not preserved during deserialization.");
+            Assert.IsInstanceOf<ParameterMemberData>(param2);
+
+            var outputMember2 = TypeData.GetTypeData(producer2).GetMember(nameof(producer2.Measurement));
+            Assert.IsTrue(DynamicMember.IsParameterized(outputMember2, producer2),
+                "The output was not restored as parameterized after deserialization.");
+
+            // After running, the parameter should reflect the output value of the producer.
+            producer2.Run();
+            Assert.AreEqual(42.0, (double)param2.GetValue(seq2));
+        }
     }
 }
