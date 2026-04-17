@@ -916,19 +916,23 @@ namespace OpenTap.UnitTests
             public override void Run()
             {
                 Measurement = MeasurementToProduce;
+                UpgradeVerdict(Verdict.Pass);
             }
         }
 
         /// <summary>
-        /// Reads a value via a public (writable) property - can be connected to an output via an
-        /// input/output relation, or simply have the value set by a parameter.
+        /// Reads a value into a public (writable) property and records what it saw.
+        /// Can be connected to an output via an InputOutputRelation.
         /// </summary>
         public class OutputConsumerStep : TestStep
         {
             public double Value { get; set; }
+            public double SeenValue { get; private set; } = double.NaN;
+
             public override void Run()
             {
-                Log.Info("Consumed value: {0}", Value);
+                SeenValue = Value;
+                UpgradeVerdict(Verdict.Pass);
             }
         }
 
@@ -936,59 +940,75 @@ namespace OpenTap.UnitTests
         public void ParameterizeOutputOnParentScope()
         {
             // Verify that an [Output] property (with a non-public setter) can be parameterized
-            // onto a parent scope. This exposes the output at the parent scope.
+            // onto a parent scope. This matches the scenario from the issue:
+            //   Sequence
+            //       Producer        <-- has [Output] Measurement
+            //   Consumer             <-- sibling of Sequence, consumes the exposed parameter
+            // The output is exposed on Sequence via parameterization, then connected to
+            // Consumer.Value via an InputOutputRelation.
             var plan = new TestPlan();
             var seq = new SequenceStep();
-            var producer = new OutputProducerStep();
+            var producer = new OutputProducerStep { MeasurementToProduce = 42.0 };
+            var consumer = new OutputConsumerStep();
             seq.ChildTestSteps.Add(producer);
             plan.ChildTestSteps.Add(seq);
+            plan.ChildTestSteps.Add(consumer);
 
             var outputMember = TypeData.GetTypeData(producer).GetMember(nameof(producer.Measurement));
             Assert.IsNotNull(outputMember);
             Assert.IsTrue(outputMember.HasAttribute<OutputAttribute>());
-
-            // Before: the output is not writable via the normal setter.
+            // The output is not writable via the normal setter.
             Assert.IsFalse(outputMember.Writable);
-
-            // Should be considered a valid parameter now despite Writable==false.
+            // But it should be a valid parameter candidate now.
             Assert.IsTrue(ParameterManager.CanParameter(outputMember, new ITestStepParent[] { producer }));
 
             const string paramName = "Exposed Measurement";
             var parameter = outputMember.Parameterize(seq, producer, paramName);
             Assert.IsNotNull(parameter);
 
-            // GetValue on the parameter should reflect the output value on the source.
-            producer.Run();
-            Assert.AreEqual(42.0, (double)parameter.GetValue(seq));
+            // Connect the parameterized output on Sequence to Consumer.Value.
+            var inputMember = TypeData.GetTypeData(consumer).GetMember(nameof(consumer.Value));
+            InputOutputRelation.Assign(consumer, inputMember, seq, parameter);
 
-            // SetValue should be a no-op for the output (no exception, value unchanged).
-            parameter.SetValue(seq, 0.0);
-            Assert.AreEqual(42.0, producer.Measurement);
+            // Run the plan. The producer must produce the value, and it must reach the consumer
+            // through the parameterized output.
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict, "Test plan did not pass.");
+            Assert.AreEqual(42.0, consumer.SeenValue,
+                "The consumer did not observe the value from the parameterized output.");
         }
 
         [Test]
         public void ParameterizedOutputSerialization()
         {
-            // Verify that a plan with a parameterized output can be round-tripped through the
-            // serializer and the parameterization is preserved.
+            // Verify that a plan with a parameterized output connected to a consumer can be
+            // round-tripped through the serializer, and executing the deserialized plan still
+            // propagates the output value through the parameterization.
             var plan = new TestPlan();
             var seq = new SequenceStep();
-            var producer = new OutputProducerStep();
+            var producer = new OutputProducerStep { MeasurementToProduce = 123.0 };
+            var consumer = new OutputConsumerStep();
             seq.ChildTestSteps.Add(producer);
             plan.ChildTestSteps.Add(seq);
+            plan.ChildTestSteps.Add(consumer);
 
             const string paramName = "Exposed Measurement";
             var outputMember = TypeData.GetTypeData(producer).GetMember(nameof(producer.Measurement));
-            outputMember.Parameterize(seq, producer, paramName);
+            var parameter = outputMember.Parameterize(seq, producer, paramName);
 
-            // Serialize/deserialize.
+            var inputMember = TypeData.GetTypeData(consumer).GetMember(nameof(consumer.Value));
+            InputOutputRelation.Assign(consumer, inputMember, seq, parameter);
+
+            // Serialize.
             var xml = new TapSerializer().SerializeToString(plan);
             Assert.IsTrue(xml.Contains("Parameter=\"" + paramName + "\""),
                 "Expected the serialized XML to contain the Parameter attribute for the output.");
 
+            // Deserialize.
             var plan2 = (TestPlan)new TapSerializer().DeserializeFromString(xml);
             var seq2 = (SequenceStep)plan2.ChildTestSteps[0];
             var producer2 = (OutputProducerStep)seq2.ChildTestSteps[0];
+            var consumer2 = (OutputConsumerStep)plan2.ChildTestSteps[1];
 
             var param2 = TypeData.GetTypeData(seq2).GetMember(paramName);
             Assert.IsNotNull(param2, "Parameter was not preserved during deserialization.");
@@ -998,9 +1018,12 @@ namespace OpenTap.UnitTests
             Assert.IsTrue(DynamicMember.IsParameterized(outputMember2, producer2),
                 "The output was not restored as parameterized after deserialization.");
 
-            // After running, the parameter should reflect the output value of the producer.
-            producer2.Run();
-            Assert.AreEqual(42.0, (double)param2.GetValue(seq2));
+            // Run the deserialized plan. The input/output relation should still be in place and
+            // the value should propagate from producer -> parameter -> consumer.
+            var run = plan2.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict, "Deserialized test plan did not pass.");
+            Assert.AreEqual(123.0, consumer2.SeenValue,
+                "The consumer did not observe the value from the parameterized output after round-tripping through the serializer.");
         }
     }
 }
