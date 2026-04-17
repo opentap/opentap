@@ -1025,5 +1025,62 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(123.0, consumer2.SeenValue,
                 "The consumer did not observe the value from the parameterized output after round-tripping through the serializer.");
         }
+        
+        class SelectOutputFromUserInput : IUserInputInterface, IUserInterface
+        {
+            public bool WasInvoked;
+            public string SelectName { get; set; }
+            public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+            {
+                var datas = AnnotationCollection.Annotate(dataObject);
+                var selectedName = datas.GetMember("Output");
+                var avail = selectedName.Get<IAvailableValuesAnnotationProxy>();
+                Assert.That(avail.AvailableValues.Count(), Is.EqualTo(1));
+                WasInvoked = true;
+            }
+
+            public void NotifyChanged(object obj, string property) { }
+        }
+
+        [TestCase(IconNames.ParameterizeOnParent)]
+        [TestCase(IconNames.ParameterizeOnTestPlan)]
+        public void TestCanParameterizeOutput(string scope)
+        {
+            using var _ = Session.Create(SessionOptions.OverlayComponentSettings);
+            var singleInput = new SelectOutputFromUserInput();
+            UserInput.SetInterface(singleInput);
+            
+            var plan = new TestPlan();
+            var parentStep = new SequenceStep();
+            var outputStep = new OutputProducerStep();
+            var inputStep = new OutputConsumerStep();
+
+            plan.ChildTestSteps.Add(parentStep);
+            parentStep.ChildTestSteps.Add(outputStep);
+            plan.ChildTestSteps.Add(inputStep);
+
+            var a = AnnotationCollection.Annotate(outputStep);
+            var oMem = a.GetMember(nameof(outputStep.Measurement));
+            var menu = oMem.Get<MenuAnnotation>().MenuItems.ToLookup(m => m.Get<IIconAnnotation>().IconName);
+            Assert.That(menu[IconNames.ParameterizeOnParent].Count(), Is.EqualTo(1));
+            Assert.That(menu[IconNames.Parameterize].Count(), Is.EqualTo(1));
+            Assert.That(menu[IconNames.ParameterizeOnTestPlan].Count(), Is.EqualTo(1)); 
+            menu[scope].Single().Get<IMethodAnnotation>().Invoke();
+
+            var a2 = AnnotationCollection.Annotate(inputStep);
+            var iMem = a2.GetMember(nameof(inputStep.Value));
+            var menu2 = iMem.Get<MenuAnnotation>().MenuItems.ToLookup(m => m.Get<IIconAnnotation>().IconName);
+            Assert.That(menu2[IconNames.AssignOutput].Count(), Is.EqualTo(1));
+            Assert.That(singleInput.WasInvoked, Is.False);
+            menu2[IconNames.AssignOutput].Single().Get<IMethodAnnotation>().Invoke();
+            Assert.That(singleInput.WasInvoked, Is.True);
+
+            outputStep.MeasurementToProduce = 123;
+            plan.Execute();
+            Assert.That(inputStep.Value, Is.EqualTo(123));
+            outputStep.MeasurementToProduce = 456;
+            plan.Execute();
+            Assert.That(inputStep.Value, Is.EqualTo(456));
+        }
     }
 }
