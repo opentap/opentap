@@ -957,10 +957,6 @@ namespace OpenTap.UnitTests
             var parameter = outputMember.Parameterize(seq, producer, paramName);
             Assert.IsNotNull(parameter);
 
-            // The parameter is advertised as writable so that serialization treats it normally,
-            // but setting its value is a safe no-op (outputs are written by Run()).
-            Assert.IsTrue(parameter.Writable);
-
             // GetValue on the parameter should reflect the output value on the source.
             producer.Run();
             Assert.AreEqual(42.0, (double)parameter.GetValue(seq));

@@ -290,10 +290,8 @@ namespace OpenTap
         /// if the first member is an int, subsequent members can be other numeric types or string as well. </summary>
         public ITypeData TypeDescriptor => member.TypeDescriptor;
 
-        /// <summary> If this member is writable. Usually true for parameters.
-        /// This is also true when the inner member is an output so that the parameterization
-        /// can be serialized, even though SetValue acts as a no-op in that case. </summary>
-        public bool Writable => member.Writable || member.HasAttribute<OutputAttribute>();
+        /// <summary> If this member is writable. Usually true for parameters.</summary>
+        public bool Writable => member.Writable;
         /// <summary> If this member is readable. Usually true for parameters. </summary>
         public bool Readable => member.Readable;
         /// <summary> The declared name of this parameter. This parameter can be referred to by this name. It may contain spaces etc. </summary>
