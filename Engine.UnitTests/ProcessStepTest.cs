@@ -99,7 +99,7 @@ namespace OpenTap.UnitTests
         public void ProcessStepTimeoutTest()
         {
             var plan = new TestPlan();
-            var processStep = new ProcessStep()
+            var processStep = new ProcessStep() 
             {
                 Application = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "tap.exe"),
                 WorkingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),

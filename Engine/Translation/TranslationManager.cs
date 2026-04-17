@@ -126,8 +126,8 @@ public static class TranslationManager
     private static string _translate(this IStringLocalizer stringLocalizer, string neutral,
         [CallerMemberName] string key = null, CultureInfo language = null)
     {
-        language ??= EngineSettings.Current.Language;
-        if (language.Equals(NeutralLanguage) || string.IsNullOrWhiteSpace(key))
+        language ??= ((EngineSettings)ComponentSettings.GetCurrentFromCache(typeof(EngineSettings)))?.Language;
+        if (language != null && language.Equals(NeutralLanguage) || string.IsNullOrWhiteSpace(key))
             return neutral;
         var type = stringLocalizer.GetType();
         if (type.IsGenericType)

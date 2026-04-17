@@ -18,7 +18,7 @@ namespace OpenTap
         public static string DisplayName => strings.Translate("Break Conditions");
         public static string StepDescription => strings.Translate("When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step, test plan, or engine settings.");
         public static string Group => strings.Translate("Common");
-        public static string TestPlanDescription = strings.Translate("When enabled, specify new break conditions. When disabled conditions are inherited from the engine settings.");
+        public static string TestPlanDescription => strings.Translate("When enabled, specify new break conditions. When disabled conditions are inherited from the engine settings.");
     }
 
     /// <summary>  This interface speeds up accessing dynamic members as it avoids having to access a global table to store the information. </summary>
