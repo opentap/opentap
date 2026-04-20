@@ -691,7 +691,117 @@ namespace OpenTap
                 log.Debug(ex);
                 return null;
             }
+            // Try to resolve from the Global Assembly Cache as a last resort.
+            var gacAssembly = resolveFromGac(name);
+            if (gacAssembly != null)
+                return gacAssembly;
+
             log.Debug("Unable to find match for {0}", name);
+            return null;
+        }
+
+        /// <summary>
+        /// Attempts to resolve an assembly from the Windows Global Assembly Cache (GAC).
+        /// </summary>
+        Assembly resolveFromGac(string name)
+        {
+            if (Environment.OSVersion.Platform != PlatformID.Win32NT)
+                return null;
+
+            var requestedName = new AssemblyName(name);
+            var token = requestedName.GetPublicKeyToken();
+            if (token == null || token.Length == 0)
+                return null;
+
+            var windir = Environment.GetEnvironmentVariable("WINDIR");
+            if (string.IsNullOrEmpty(windir))
+                return null;
+
+            var tokenStr = BitConverter.ToString(token).Replace("-", "").ToLowerInvariant();
+            var version = requestedName.Version?.ToString() ?? "0.0.0.0";
+
+            // GAC root paths and their subdirectory/prefix combinations.
+            // "assembly" uses no version prefix; "Microsoft.NET\assembly" uses "v4.0_" prefix.
+            // Note: tuples are avoided here because they can trigger assembly resolution for System.ValueTuple.dll.
+            var gacRootPaths = new[] { Path.Combine(windir, "assembly"), Path.Combine(windir, "Microsoft.NET", "assembly") };
+            var gacPrefixes = new[] { "", "v4.0_" };
+            var gacSubdirs = new[] { "GAC_MSIL", "GAC_32", "GAC_64", "GAC" };
+
+            string bestFallbackFile = null;
+            Version bestFallbackVersion = null;
+
+            for (int i = 0; i < gacRootPaths.Length; i++)
+            {
+                foreach (var subdir in gacSubdirs)
+                {
+                    var asmDir = Path.Combine(gacRootPaths[i], subdir, requestedName.Name);
+                    if (!Directory.Exists(asmDir))
+                        continue;
+
+                    // Try exact version match first.
+                    var exactFolder = gacPrefixes[i] + version + "__" + tokenStr;
+                    var exactFile = Path.Combine(asmDir, exactFolder, requestedName.Name + ".dll");
+                    if (File.Exists(exactFile))
+                    {
+                        log.Debug("Found GAC match for {0} in {1}", name, exactFile);
+                        try
+                        {
+                            var asm = Assembly.LoadFrom(exactFile);
+                            if (asm != null)
+                                return asm;
+                        }
+                        catch (Exception ex)
+                        {
+                            log.Debug("Unable to load {0}. {1}", exactFile, ex.Message);
+                        }
+                    }
+
+                    // Collect the highest-versioned fallback candidate with matching public key token.
+                    try
+                    {
+                        var suffix = "__" + tokenStr;
+                        foreach (var dir in Directory.GetDirectories(asmDir))
+                        {
+                            var dirName = Path.GetFileName(dir);
+                            if (!dirName.EndsWith(suffix))
+                                continue;
+
+                            var versionPart = dirName.Substring(gacPrefixes[i].Length, dirName.Length - gacPrefixes[i].Length - suffix.Length);
+                            if (!Version.TryParse(versionPart, out var candidateVersion))
+                                continue;
+
+                            if (bestFallbackVersion == null || candidateVersion > bestFallbackVersion)
+                            {
+                                var candidateFile = Path.Combine(dir, requestedName.Name + ".dll");
+                                if (File.Exists(candidateFile))
+                                {
+                                    bestFallbackVersion = candidateVersion;
+                                    bestFallbackFile = candidateFile;
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        log.Debug("Error enumerating GAC directories in {0}. {1}", asmDir, ex.Message);
+                    }
+                }
+            }
+
+            // Fall back to the highest available version if no exact match was found.
+            if (bestFallbackFile != null)
+            {
+                log.Debug("Found GAC fallback for {0} in {1} (version {2})", name, bestFallbackFile, bestFallbackVersion);
+                try
+                {
+                    return Assembly.LoadFrom(bestFallbackFile);
+                }
+                catch (Exception ex)
+                {
+                    log.Debug("Unable to load {0}. {1}", bestFallbackFile, ex.Message);
+                }
+            }
+
             return null;
         }
 

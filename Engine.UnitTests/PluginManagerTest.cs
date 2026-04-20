@@ -458,6 +458,29 @@ namespace OpenTap.Engine.UnitTests
         }
         
         [Test]
+        [Platform("Win")]
+        public void ResolveAssemblyFromGac()
+        {
+            // System.Speech is a well-known assembly that exists in the Windows GAC
+            // but is not part of the normal .NET search paths.
+            // Full name: System.Speech, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35
+            var asm = Assembly.Load("System.Speech, Version=4.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35");
+            Assert.IsNotNull(asm, "System.Speech should be resolved from the GAC on Windows.");
+            Assert.AreEqual("System.Speech", asm.GetName().Name);
+        }
+
+        [Test]
+        [Platform("Win")]
+        public void ResolveAssemblyFromGacVersionFallback()
+        {
+            // Request a version that does not exist in the GAC. The resolver should
+            // fall back to the highest available version with the same public key token.
+            var asm = Assembly.Load("System.Speech, Version=99.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35");
+            Assert.IsNotNull(asm, "System.Speech should be resolved from the GAC via version fallback on Windows.");
+            Assert.AreEqual("System.Speech", asm.GetName().Name);
+        }
+
+        [Test]
         public void PluginInitializerTest()
         {
             
