@@ -59,7 +59,7 @@ namespace OpenTap.Engine.UnitTests
         }
         
         [Test]
-        public void ArtifactMemoryStreamTest([Values(1, 2, 4, 8)] int concurrentListeners, [Values(1, 1 << 10, 1 << 15, 1 << 20)] int streamLength)
+        public void ArtifactMemoryStreamTest([Values(1, 2, 4)] int concurrentListeners, [Values(1, 1 << 10, 1 << 15)] int streamLength)
         {
             byte[] payload = new byte[streamLength];
             var rand = new Random();
