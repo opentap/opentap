@@ -56,7 +56,8 @@ namespace OpenTap.Package
                 repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
             }
 
-            Name = AutoCorrectPackageNames.Correct(new[] { Name }, repositories)[0];
+            if(!string.IsNullOrEmpty(Name))
+                Name = AutoCorrectPackageNames.Correct([Name], repositories)[0];
 
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
