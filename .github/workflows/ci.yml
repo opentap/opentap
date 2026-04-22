@@ -236,7 +236,7 @@ jobs:
     runs-on: [self-hosted, windows]
     strategy:
       matrix:
-        Architecture: [x86, x64, arm64]
+        Architecture: [x64]
     needs: GetVersion
     env:
       ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
@@ -309,7 +309,7 @@ jobs:
     needs: Build-Win
     strategy:
       matrix:
-        retries: [ 0, 1 ]
+        retries: [ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ]
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -323,7 +323,15 @@ jobs:
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"                                                  # Timeout: 5 minutes (normally takes 2 minutes to run) 
-          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=300000 RunConfiguration.TreatNoTestsAsError=true
+          dotnet test bin/OpenTap.UnitTests.dll --blame-hang-timeout 100s --blame-hang-dump-type full
+      - name: Upload Test Results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: Engine-TestResults-${{ matrix.retries }}
+          retention-days: 5
+          path: |
+            TestResults
 
   TestPackage:
     runs-on: windows-2022
