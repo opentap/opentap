@@ -33,7 +33,8 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(IsDebug)'!='true'">
-    <OutputPath>$(MSBuildThisFileDirectory)bin\Release\</OutputPath>
+    <OutputPath Condition="'$(TargetArch)'==''">$(MSBuildThisFileDirectory)bin\Release</OutputPath>
+    <OutputPath Condition="'$(TargetArch)'!=''">$(MSBuildThisFileDirectory)bin\$(TargetArch)</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
