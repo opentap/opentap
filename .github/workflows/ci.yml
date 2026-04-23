@@ -323,7 +323,15 @@ jobs:
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"                                                  # Timeout: 5 minutes (normally takes 2 minutes to run) 
-          dotnet test bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=300000 RunConfiguration.TreatNoTestsAsError=true
+          dotnet test bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" --blame-hang-timeout 100s --blame-hang-dump-type full -- RunConfiguration.TreatNoTestsAsError=true
+      - name: Upload Test Results
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: Engine-TestResults-${{ matrix.retries }}
+          retention-days: 5
+          path: |
+            TestResults
 
   TestPackage:
     runs-on: windows-2022
