@@ -236,7 +236,7 @@ jobs:
     runs-on: [self-hosted, windows]
     strategy:
       matrix:
-        Architecture: [x64]
+        Architecture: [x86, x64, arm64]
     needs: GetVersion
     env:
       ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
