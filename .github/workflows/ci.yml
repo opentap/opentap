@@ -323,7 +323,7 @@ jobs:
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"                                                  # Timeout: 5 minutes (normally takes 2 minutes to run) 
-          dotnet vstest bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=300000 RunConfiguration.TreatNoTestsAsError=true
+          dotnet test bin/OpenTap.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=300000 RunConfiguration.TreatNoTestsAsError=true
 
   TestPackage:
     runs-on: windows-2022
