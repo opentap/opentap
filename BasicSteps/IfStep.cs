@@ -71,7 +71,6 @@ namespace OpenTap.Plugins.BasicSteps
                         break;
                     case IfStepAction.AbortTestPlan:
                         Log.Info("Condition is true, aborting TestPlan run.");
-                        string msg = String.Format("TestPlan aborted by \"If\" Step ({2} of {0} was {1})", InputVerdict.Step.Name, InputVerdict.Value, InputVerdict.PropertyName);
                         PlanRun.MainThread.Abort();
                         break;
                     case IfStepAction.ContinueLoop:
