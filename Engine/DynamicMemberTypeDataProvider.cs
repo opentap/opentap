@@ -260,10 +260,16 @@ namespace OpenTap
 
             var cloner = new ObjectCloner(value);
 
-            member.SetValue(source, cloner.Clone(true, source, member.TypeDescriptor));
+            // When the inner member is an output (or otherwise not writable), we cannot assign
+            // a value to it through the normal setter. Such members are written by the step's Run
+            // method. Skip writing rather than throw, so that parameterized outputs behave as
+            // "read-through" views from the source to the parameter.
+            if (member.Writable)
+                member.SetValue(source, cloner.Clone(true, source, member.TypeDescriptor));
 
             foreach (var (addContext, addMember) in additionalMembers)
             {
+                if (addMember.Writable == false) continue;
                 var cloned = cloner.Clone(false, addContext, addMember.TypeDescriptor);
                 if (cloned != null)
                     addMember.SetValue(addContext, cloned); // This will throw an exception if it is not assignable.

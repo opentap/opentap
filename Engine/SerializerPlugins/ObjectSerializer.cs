@@ -191,7 +191,15 @@ namespace OpenTap.Plugins
                             int hits = 0;
                             foreach (var p in propertyMatches)
                             {
-                                if (p.Writable || p.HasAttribute<XmlIgnoreAttribute>())
+                                // Non-writable [Output] properties can still appear in XML when they are
+                                // parameterized on a parent scope - we need to match them here so that
+                                // the ExternalParameterSerializer plugin gets a chance to read the
+                                // Parameter/Scope attributes and reconstruct the parameterization.
+                                bool isOutputWithParameter = p.Writable == false
+                                                             && p.HasAttribute<OutputAttribute>()
+                                                             && (element2.Attribute("Parameter") != null ||
+                                                                 element2.Attribute("external") != null);
+                                if (p.Writable || p.HasAttribute<XmlIgnoreAttribute>() || isOutputWithParameter)
                                 {
                                     property = p;
                                     hits++;
@@ -312,7 +320,15 @@ namespace OpenTap.Plugins
                                                 property = t2.GetMembers().FirstOrDefault(x => x.Name == elementName);
                                         }
                                         catch { }
-                                        if (property == null || property.Writable == false)
+                                        if (property == null)
+                                        {
+                                            continue;
+                                        }
+                                        bool isOutputWithParameter = property.Writable == false
+                                                                     && property.HasAttribute<OutputAttribute>()
+                                                                     && (propertyElement.Attribute("Parameter") != null ||
+                                                                         propertyElement.Attribute("external") != null);
+                                        if (property.Writable == false && !isOutputWithParameter)
                                         {
                                             continue;
                                         }
@@ -821,7 +837,16 @@ namespace OpenTap.Plugins
                     foreach (IMemberData subProp in properties)
                     {
                         if (subProp.HasAttribute<XmlIgnoreAttribute>()) continue;
-                        if (subProp.Readable && subProp.Writable && null == subProp.GetAttribute<XmlAttributeAttribute>())
+                        // Normally we skip non-writable properties (they cannot be deserialized),
+                        // but an [Output] property that is parameterized on a parent scope must still
+                        // emit its XML element so that the parameterization attribute can be written.
+                        // The value is not serialized - see ExternalParameterSerializer.
+                        bool isParameterizedOutput = subProp.Readable
+                                                     && subProp.Writable == false
+                                                     && subProp.HasAttribute<OutputAttribute>()
+                                                     && obj is ITestStepParent parameterizedOutputOwner
+                                                     && DynamicMember.IsParameterized(subProp, parameterizedOutputOwner);
+                        if (subProp.Readable && (subProp.Writable || isParameterizedOutput) && null == subProp.GetAttribute<XmlAttributeAttribute>())
                         {
                             var oldProp = CurrentMember;
                             CurrentMember = subProp;

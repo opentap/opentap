@@ -902,6 +902,185 @@ namespace OpenTap.UnitTests
             // all the values should be inserted at the same key location.
             Assert.AreEqual(1, dict.Count);
         }
+
+        /// <summary>
+        /// Test step exposing an [Output] whose setter is non-public, as is typical for outputs.
+        /// </summary>
+        public class OutputProducerStep : TestStep
+        {
+            [Output]
+            public double Measurement { get; private set; }
+
+            public double MeasurementToProduce { get; set; } = 42.0;
+
+            public override void Run()
+            {
+                Measurement = MeasurementToProduce;
+                UpgradeVerdict(Verdict.Pass);
+            }
+        }
+
+        /// <summary>
+        /// Reads a value into a public (writable) property and records what it saw.
+        /// Can be connected to an output via an InputOutputRelation.
+        /// </summary>
+        public class OutputConsumerStep : TestStep
+        {
+            public double Value { get; set; }
+            public double SeenValue { get; private set; } = double.NaN;
+
+            public override void Run()
+            {
+                SeenValue = Value;
+                UpgradeVerdict(Verdict.Pass);
+            }
+        }
+
+        [Test]
+        public void ParameterizeOutputOnParentScope()
+        {
+            // Verify that an [Output] property (with a non-public setter) can be parameterized
+            // onto a parent scope. This matches the scenario from the issue:
+            //   Sequence
+            //       Producer        <-- has [Output] Measurement
+            //   Consumer             <-- sibling of Sequence, consumes the exposed parameter
+            // The output is exposed on Sequence via parameterization, then connected to
+            // Consumer.Value via an InputOutputRelation.
+            var plan = new TestPlan();
+            var seq = new SequenceStep();
+            var producer = new OutputProducerStep { MeasurementToProduce = 42.0 };
+            var consumer = new OutputConsumerStep();
+            seq.ChildTestSteps.Add(producer);
+            plan.ChildTestSteps.Add(seq);
+            plan.ChildTestSteps.Add(consumer);
+
+            var outputMember = TypeData.GetTypeData(producer).GetMember(nameof(producer.Measurement));
+            Assert.IsNotNull(outputMember);
+            Assert.IsTrue(outputMember.HasAttribute<OutputAttribute>());
+            // The output is not writable via the normal setter.
+            Assert.IsFalse(outputMember.Writable);
+            // But it should be a valid parameter candidate now.
+            Assert.IsTrue(ParameterManager.CanParameter(outputMember, new ITestStepParent[] { producer }));
+
+            const string paramName = "Exposed Measurement";
+            var parameter = outputMember.Parameterize(seq, producer, paramName);
+            Assert.IsNotNull(parameter);
+
+            // Connect the parameterized output on Sequence to Consumer.Value.
+            var inputMember = TypeData.GetTypeData(consumer).GetMember(nameof(consumer.Value));
+            InputOutputRelation.Assign(consumer, inputMember, seq, parameter);
+
+            // Run the plan. The producer must produce the value, and it must reach the consumer
+            // through the parameterized output.
+            var run = plan.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict, "Test plan did not pass.");
+            Assert.AreEqual(42.0, consumer.SeenValue,
+                "The consumer did not observe the value from the parameterized output.");
+        }
+
+        [Test]
+        public void ParameterizedOutputSerialization()
+        {
+            // Verify that a plan with a parameterized output connected to a consumer can be
+            // round-tripped through the serializer, and executing the deserialized plan still
+            // propagates the output value through the parameterization.
+            var plan = new TestPlan();
+            var seq = new SequenceStep();
+            var producer = new OutputProducerStep { MeasurementToProduce = 123.0 };
+            var consumer = new OutputConsumerStep();
+            seq.ChildTestSteps.Add(producer);
+            plan.ChildTestSteps.Add(seq);
+            plan.ChildTestSteps.Add(consumer);
+
+            const string paramName = "Exposed Measurement";
+            var outputMember = TypeData.GetTypeData(producer).GetMember(nameof(producer.Measurement));
+            var parameter = outputMember.Parameterize(seq, producer, paramName);
+
+            var inputMember = TypeData.GetTypeData(consumer).GetMember(nameof(consumer.Value));
+            InputOutputRelation.Assign(consumer, inputMember, seq, parameter);
+
+            // Serialize.
+            var xml = new TapSerializer().SerializeToString(plan);
+            Assert.IsTrue(xml.Contains("Parameter=\"" + paramName + "\""),
+                "Expected the serialized XML to contain the Parameter attribute for the output.");
+
+            // Deserialize.
+            var plan2 = (TestPlan)new TapSerializer().DeserializeFromString(xml);
+            var seq2 = (SequenceStep)plan2.ChildTestSteps[0];
+            var producer2 = (OutputProducerStep)seq2.ChildTestSteps[0];
+            var consumer2 = (OutputConsumerStep)plan2.ChildTestSteps[1];
+
+            var param2 = TypeData.GetTypeData(seq2).GetMember(paramName);
+            Assert.IsNotNull(param2, "Parameter was not preserved during deserialization.");
+            Assert.IsInstanceOf<ParameterMemberData>(param2);
+
+            var outputMember2 = TypeData.GetTypeData(producer2).GetMember(nameof(producer2.Measurement));
+            Assert.IsTrue(DynamicMember.IsParameterized(outputMember2, producer2),
+                "The output was not restored as parameterized after deserialization.");
+
+            // Run the deserialized plan. The input/output relation should still be in place and
+            // the value should propagate from producer -> parameter -> consumer.
+            var run = plan2.Execute();
+            Assert.AreEqual(Verdict.Pass, run.Verdict, "Deserialized test plan did not pass.");
+            Assert.AreEqual(123.0, consumer2.SeenValue,
+                "The consumer did not observe the value from the parameterized output after round-tripping through the serializer.");
+        }
         
+        class SelectOutputFromUserInput : IUserInputInterface, IUserInterface
+        {
+            public bool WasInvoked;
+            public string SelectName { get; set; }
+            public void RequestUserInput(object dataObject, TimeSpan Timeout, bool modal)
+            {
+                var datas = AnnotationCollection.Annotate(dataObject);
+                var selectedName = datas.GetMember("Output");
+                var avail = selectedName.Get<IAvailableValuesAnnotationProxy>();
+                Assert.That(avail.AvailableValues.Count(), Is.EqualTo(1));
+                WasInvoked = true;
+            }
+
+            public void NotifyChanged(object obj, string property) { }
+        }
+
+        [TestCase(IconNames.ParameterizeOnParent)]
+        [TestCase(IconNames.ParameterizeOnTestPlan)]
+        public void TestCanParameterizeOutput(string scope)
+        {
+            using var _ = Session.Create(SessionOptions.OverlayComponentSettings);
+            var singleInput = new SelectOutputFromUserInput();
+            UserInput.SetInterface(singleInput);
+            
+            var plan = new TestPlan();
+            var parentStep = new SequenceStep();
+            var outputStep = new OutputProducerStep();
+            var inputStep = new OutputConsumerStep();
+
+            plan.ChildTestSteps.Add(parentStep);
+            parentStep.ChildTestSteps.Add(outputStep);
+            plan.ChildTestSteps.Add(inputStep);
+
+            var a = AnnotationCollection.Annotate(outputStep);
+            var oMem = a.GetMember(nameof(outputStep.Measurement));
+            var menu = oMem.Get<MenuAnnotation>().MenuItems.ToLookup(m => m.Get<IIconAnnotation>().IconName);
+            Assert.That(menu[IconNames.ParameterizeOnParent].Count(), Is.EqualTo(1));
+            Assert.That(menu[IconNames.Parameterize].Count(), Is.EqualTo(1));
+            Assert.That(menu[IconNames.ParameterizeOnTestPlan].Count(), Is.EqualTo(1)); 
+            menu[scope].Single().Get<IMethodAnnotation>().Invoke();
+
+            var a2 = AnnotationCollection.Annotate(inputStep);
+            var iMem = a2.GetMember(nameof(inputStep.Value));
+            var menu2 = iMem.Get<MenuAnnotation>().MenuItems.ToLookup(m => m.Get<IIconAnnotation>().IconName);
+            Assert.That(menu2[IconNames.AssignOutput].Count(), Is.EqualTo(1));
+            Assert.That(singleInput.WasInvoked, Is.False);
+            menu2[IconNames.AssignOutput].Single().Get<IMethodAnnotation>().Invoke();
+            Assert.That(singleInput.WasInvoked, Is.True);
+
+            outputStep.MeasurementToProduce = 123;
+            plan.Execute();
+            Assert.That(inputStep.Value, Is.EqualTo(123));
+            outputStep.MeasurementToProduce = 456;
+            plan.Execute();
+            Assert.That(inputStep.Value, Is.EqualTo(456));
+        }
     }
 }
