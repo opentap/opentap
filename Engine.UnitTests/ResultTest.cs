@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -297,6 +298,7 @@ namespace OpenTap.UnitTests
         
         public class MultiGroupParametersStep : TestStep
         {
+            public Dut Dut { get; set; }
             [Display("Single", Group: "OnlyGroup")]
             public int SingleGroup { get; set; } = 1;
 
@@ -315,7 +317,11 @@ namespace OpenTap.UnitTests
         [Test]
         public void TestResultParametersMultipleGroups()
         {
-            var step = new MultiGroupParametersStep();
+            var dummyDut = new DummyDut() { ID = "X", Comment = "Y" };
+            var step = new MultiGroupParametersStep()
+            {
+                Dut = dummyDut
+            };
             var parameters = ResultParameters.GetParams(step);
 
             var single = parameters.FirstOrDefault(p => p.Name == "Single");
@@ -324,15 +330,25 @@ namespace OpenTap.UnitTests
 
             var multi = parameters.FirstOrDefault(p => p.Name == "Multi");
             Assert.IsNotNull(multi);
-            Assert.AreEqual("Outer / Inner", multi.Group);
+            Assert.AreEqual("Outer \\ Inner", multi.Group);
 
             var triple = parameters.FirstOrDefault(p => p.Name == "Triple");
             Assert.IsNotNull(triple);
-            Assert.AreEqual("A / B / C", triple.Group);
+            Assert.AreEqual("A \\ B \\ C", triple.Group);
 
             var none = parameters.FirstOrDefault(p => p.Name == "NoGroup");
             Assert.IsNotNull(none);
             Assert.AreEqual("", none.Group);
+
+            var dutId = parameters.FirstOrDefault(p => p.Name == "Dut/ID");
+            Assert.IsNotNull(dutId);
+            Assert.AreEqual("DUT", dutId.Group);
+            Assert.AreEqual("X", dutId.Value);
+            
+            var dutComment = parameters.FirstOrDefault(p => p.Name == "Dut/Comment");
+            Assert.IsNotNull(dutComment);
+            Assert.AreEqual("DUT", dutComment.Group);
+            Assert.AreEqual("Y", dutComment.Value);
         }
 
         [Test]
