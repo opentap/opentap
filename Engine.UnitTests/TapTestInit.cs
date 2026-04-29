@@ -6,43 +6,40 @@ using NUnit.Framework;
 using System;
 using System.Globalization;
 using System.Reflection;
+using OpenTap;
 
-namespace OpenTap.Engine.UnitTests
+[SetUpFixture]
+public class TapTestInit
 {
-  
-    [SetUpFixture]
-    public class TapTestInit
+    [OneTimeSetUp]
+    public void AssemblyInit()
     {
-        [OneTimeSetUp]
-        public static void AssemblyInit()
-        {
             
-            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
-            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-            EngineSettings.LoadWorkingDirectory(System.IO.Path.GetDirectoryName(typeof(TestStep).Assembly.Location));
-            ThreadManager.IdleThreadCount = 0;
-            SessionLogs.SkipStartupInfo = true;
+        CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+        CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+        EngineSettings.LoadWorkingDirectory(System.IO.Path.GetDirectoryName(typeof(TestStep).Assembly.Location));
+        ThreadManager.IdleThreadCount = 0;
+        SessionLogs.SkipStartupInfo = true;
             
-            PluginManager.SearchAsync().Wait();
-            SessionLogs.Initialize(string.Format("OpenTap.Engine.UnitTests {0}.TapLog", DateTime.Now.ToString("HH-mm-ss.fff")));
+        PluginManager.SearchAsync().Wait();
+        SessionLogs.Initialize(string.Format("OpenTap.Engine.UnitTests {0}.TapLog", DateTime.Now.ToString("HH-mm-ss.fff")));
 
-            Assembly engine = Assembly.GetAssembly(typeof(ITestStep));
-             OpenTap.Log.CreateSource("UnitTest").Info("OpenTAP version '{0}' initialized {1}", PluginManager.GetOpenTapAssembly().SemanticVersion, DateTime.Now.ToString("MM/dd/yyyy"));
-        }
+        Assembly engine = Assembly.GetAssembly(typeof(ITestStep));
+        OpenTap.Log.CreateSource("UnitTest").Info("OpenTAP version '{0}' initialized {1}", PluginManager.GetOpenTapAssembly().SemanticVersion, DateTime.Now.ToString("MM/dd/yyyy"));
+    }
 
-        [OneTimeTearDown]
-        public static void AssemblyCleanup()
+    [OneTimeTearDown]
+    public void AssemblyCleanup()
+    {
+        SessionLogs.Flush();
+        Log.Flush();
+        Assert.IsTrue(Session.RootSession == Session.Current);
+        if (TapThread.Current.AbortToken.IsCancellationRequested)
         {
-            SessionLogs.Flush();
-            Log.Flush();
-            Assert.IsTrue(Session.RootSession == Session.Current);
-            if (TapThread.Current.AbortToken.IsCancellationRequested)
-            {
-                Assert.Fail("This should not occur.");
-            }
-            
-            //Session.RootSession.Dispose();
-            //Session.RootSession.DisposeSessionLocals();
+            Assert.Fail("This should not occur.");
         }
+            
+        //Session.RootSession.Dispose();
+        //Session.RootSession.DisposeSessionLocals();
     }
 }

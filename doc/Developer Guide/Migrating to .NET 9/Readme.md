@@ -4,6 +4,34 @@ With the release of **OpenTAP 9.29**, the runtime has been upgraded from **.NET 
 This change brings significant performance improvements, better cross-platform support, and many new APIs.
 Unfortunately, it also introduces subtle behavior changes, and the removal of legacy APIs.
 
+## .NET 9 Runtime Prerequisite
+
+**OpenTAP 9.29 and later requires .NET 9 to be installed on the system.** This
+issue only affects upgrades performed via `tap package install`, which does not
+install system-level prerequisites. If you use an installer (e.g. `.exe` or
+`.msi`), the .NET 9 runtime is included automatically.
+
+If .NET 9 is missing, you will see errors indicating missing runtime libraries,
+for example:
+
+```text
+A fatal error was encountered. The library 'hostpolicy.dll' required to execute the application was not found in 'C:\Program Files\dotnet\'.
+Failed to run as a self-contained app.
+```
+
+To resolve this, download and install the [.NET 9
+SDK](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) 
+### How the Runtime Is Selected
+
+The .NET runtime used is determined by the **host executable** that starts the
+process. Plugins built against .NET Framework continue to work regardless of
+which runtime the host targets. For example, if you upgrade OpenTAP to 9.32 but
+keep Editor 9.28 (which targets .NET Framework), the Editor process still runs
+on .NET Framework — even though OpenTAP 9.32 is installed. Running `tap` from
+OpenTAP 9.29+ launches a .NET 9 process, and newer host applications (such as
+PathWave Test Automation) may also target .NET 9. You only need the .NET 9
+runtime installed if you are using a host executable that targets it.
+
 This guide highlights common problems and workarounds specifically related to
 OpenTAP, and is not meant to be comprehensive. For a comprehensive list of
 breaking changes, see [the official

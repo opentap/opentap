@@ -950,6 +950,10 @@ namespace OpenTap
             {
                 TestStepPath = Step.GetStepPath()
             };
+            if (readInputsError != null)
+            {
+                stepRun.Exception = readInputsError;
+            }
 
             // evaluate pre run mixins
             var prerun = TestStepPreRunEvent.Invoke(Step);
@@ -992,8 +996,6 @@ namespace OpenTap
                         TapThread.Current.AbortToken);
                     try
                     {
-                        if (readInputsError != null)
-                            ExceptionDispatchInfo.Capture(readInputsError).Throw();
                         
                         if (Step is TestStep _step)
                             _step.Results = new ResultSource(stepRun, Step.PlanRun);
@@ -1155,14 +1157,9 @@ namespace OpenTap
             }
         }
 
-        // this dictionary may be accessed by multiple threads, so it is best to use ConcurrentDictionary.
-        static readonly Cache<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]> 
-            membersLookup = new Cache<(TypeData target, ITypeData source), (IMemberData, bool hasEnabledAttribute)[]>(() => PluginManager.CacheState);
 
-        static (IMemberData, bool hasEnabledAttribute)[] GetSettingsLookup(TypeData targetType, ITypeData sourceType)
+        static (IMemberData, bool hasEnabledAttribute)[] GetSettingsLookupNoCache(TypeData targetType, ITypeData sourceType)
         {
-            if(membersLookup.TryGetValue((targetType, sourceType), out var value))
-                return value;
             var propertyInfos = sourceType.GetMembers();
             // if the target type is 'object' we accept any type as a value. 
             bool anyType = Equals(TypeData.FromType(typeof(object)), targetType);
@@ -1190,7 +1187,34 @@ namespace OpenTap
                 }
             }
 
-            return membersLookup.AddValue((targetType, sourceType), (result?.ToArray() ?? Array.Empty<(IMemberData, bool)>()));
+            return result?.ToArray() ?? Array.Empty<(IMemberData, bool)>();
+        }
+
+        private static Dictionary<TypeData,
+                ConditionalWeakTable<ITypeData, (IMemberData, bool hasEnabledAttribute)[]>>
+            _membersLookup0 = new();
+        private static readonly object _upgradeLock = new();
+
+        
+        static (IMemberData, bool hasEnabledAttribute)[] GetSettingsLookup(TypeData targetType, ITypeData sourceType)
+        {
+            if (!_membersLookup0.TryGetValue(targetType, out var membersLookup))
+            {
+                membersLookup = new();
+
+                lock (_upgradeLock)
+                {
+                    Dictionary<TypeData,
+                        ConditionalWeakTable<ITypeData, (IMemberData, bool hasEnabledAttribute)[]>> d2 
+                        = new (_membersLookup0)
+                        {
+                            [targetType] = membersLookup
+                        };
+                    
+                    _membersLookup0 = d2;
+                }
+            }
+            return membersLookup.GetValue(sourceType, (s) => GetSettingsLookupNoCache(targetType, s));
         }
         
         
@@ -1205,7 +1229,7 @@ namespace OpenTap
         /// <returns></returns>
         internal static void GetObjectSettings<T,T2,T3>(T2 item, bool onlyEnabled, Func<T, IMemberData, T3> transform, HashSet<T3> itemSet, TypeData targetType = null)
         {
-            if (transform == null) transform = (t, data) => (T3)(object)t; 
+            if (transform == null) transform = (t, _) => (T3)(object)t; 
             if(targetType == null) targetType = TypeData.FromType(typeof(T));
             var enabledAttributes = new List<EnabledIfAttribute>();
 

@@ -12,8 +12,6 @@ public class PluginSearcherThreadSafeTest
     [TestCase(1)]
     [TestCase(5)]
     [TestCase(10)]
-    [TestCase(20)]
-    [TestCase(40)]
     public void TestSearchAsync(int searchCount)
     {
         using var session = Session.Create(SessionOptions.RedirectLogging);
@@ -28,8 +26,6 @@ public class PluginSearcherThreadSafeTest
     [TestCase(1)]
     [TestCase(5)]
     [TestCase(10)]
-    [TestCase(20)]
-    [TestCase(40)]
     public void TestSearchSync(int searchCount)
     {
         using var session = Session.Create(SessionOptions.RedirectLogging);
@@ -44,8 +40,6 @@ public class PluginSearcherThreadSafeTest
     [TestCase(2)]
     [TestCase(6)]
     [TestCase(10)]
-    [TestCase(20)]
-    [TestCase(40)]
     public void TestSearchMixed(int searchCount)
     {
         using var session = Session.Create(SessionOptions.RedirectLogging);

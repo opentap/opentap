@@ -113,6 +113,8 @@ namespace OpenTap
                 var uname = process?.StandardOutput.ReadToEnd();
                 if (uname.Contains("armv7"))
                     Current = arm;
+                else if (uname.Contains("aarch64"))
+                    Current = arm64;
                 else if (uname.Contains("arm64"))
                     Current = arm64;
                 else

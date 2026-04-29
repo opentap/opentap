@@ -303,6 +303,7 @@ namespace OpenTap
     /// </summary>
     public class ResultParameters : IReadOnlyList<ResultParameter>
     {
+        static readonly TraceSource log = OpenTap.Log.CreateSource("ResultParameters");
         struct resultParameter
         {
             public string Name;
@@ -374,7 +375,7 @@ namespace OpenTap
 
         static void getMetadataFromObject(object res, string nestedName, ICollection<ResultParameter> output)
         {
-            GetPropertiesFromObject(res, output, nestedName, true);
+            GetPropertiesFromObject(res, output, out _, nestedName, true);
         }
 
         /// <summary>
@@ -570,7 +571,11 @@ namespace OpenTap
                     var name = display.Name.Trim();
                     string group = "";
 
-                    if (display.Group.Length == 1) group = display.Group[0].Trim();
+                    if (display.Group.Length == 1) 
+                        group = display.Group[0].Trim();
+                    else if (display.Group.Length == 0)
+                        group = "";
+                    else group = string.Join(DisplayAttribute.GroupSeparator, display.Group.Select(grp => grp.Trim()));
                     group = metadataAttr?.Group ?? group;
                     name = metadataAttr?.Name ?? name;
 
@@ -581,22 +586,35 @@ namespace OpenTap
 
         
         
-        static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, string namePrefix = "", bool metadataOnly = false, ITypeData type = null)
+        static void GetPropertiesFromObject(object obj, ICollection<ResultParameter> output, out Exception error, string namePrefix = "", bool metadataOnly = false, ITypeData type = null)
         {
+            error = null;
             if (obj == null)
                 return;
             type ??= TypeData.GetTypeData(obj);
             foreach (var (prop, group, name, metadata) in ParameterCache.GetParametersMap(type, metadataOnly))
             {
-                object value = prop.GetValue(obj);
+                object value;
+                try
+                {
+                    value = prop.GetValue(obj);
+                }
+                catch (Exception ex)
+                {
+                    log.Warning("Error reading property '{0}' from '{1}': {2}", prop.Name, type.Name, ex.Message);
+                    log.Debug(ex);
+                    error ??= ex;
+                    continue;
+                }
                 if (value == null)
                     continue;
                 GetParams(group, namePrefix + name, value, metadata, output);
             }
         }
 
-        internal static void UpdateParams(ResultParameters parameters, object obj, string namePrefix = "", ITypeData type = null)
+        internal static void UpdateParams(ResultParameters parameters, object obj, out Exception error, string namePrefix = "", ITypeData type = null)
         {
+            error = null;
             if (obj == null)
                 return;
             type ??= TypeData.GetTypeData(obj);
@@ -605,7 +623,18 @@ namespace OpenTap
             {
                 if (prop.GetAttribute<MetaDataAttribute>()?.Frozen == true) continue; 
                 var name = namePrefix + _name;
-                object value = prop.GetValue(obj);
+                object value;
+                try
+                {
+                    value = prop.GetValue(obj);
+                }
+                catch (Exception ex)
+                {
+                    log.Warning("Error reading property '{0}' from '{1}': {2}", prop.Name, type.Name, ex.Message);
+                    log.Debug(ex);
+                    error ??= ex;
+                    continue;
+                }
                 if (value == null)
                     continue;
                 
@@ -613,7 +642,8 @@ namespace OpenTap
                 {
                     string resval = value.ToString();
                     parameters.Overwrite(name, resval, group, metadata);
-                    UpdateParams(parameters, value, name);
+                    UpdateParams(parameters, value, out var nestedError, name);
+                    error ??= nestedError;
                     continue;
                 }
                 
@@ -631,16 +661,21 @@ namespace OpenTap
         /// Returns a <see cref="ResultParameters"/> list with one entry for every setting of the inputted 
         /// TestStep.
         /// </summary>
-        internal static ResultParameters GetParams(ITestStep step, ITypeData type = null)
+        internal static ResultParameters GetParams(ITestStep step, ITypeData type, out Exception error)
         {
             if (step == null)
                 throw new ArgumentNullException(nameof(step));
             var parameters = new List<ResultParameter>(5);
-            GetPropertiesFromObject(step, parameters, type: type);
+            GetPropertiesFromObject(step, parameters, out error, type: type);
             
             if (parameters.Count == 0)
                 return new ResultParameters();
             return new ResultParameters(parameters);
+        }
+        
+        internal static ResultParameters GetParams(ITestStep step, ITypeData type = null)
+        {
+            return GetParams(step, type, out _);
         }
         
         /// <summary>

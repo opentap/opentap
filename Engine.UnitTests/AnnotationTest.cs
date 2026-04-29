@@ -284,6 +284,50 @@ namespace OpenTap.UnitTests
             }
         }
 
+        public class MultiInstrumentStep : TestStep
+        {
+            public List<DummyInstrument> Instruments { get; set; } = [];
+            public override void Run()
+            {
+            }
+        }
+
+        [Test]
+        public void TestMultiSelectIndexError()
+        {
+            using var _ = Session.Create(SessionOptions.OverlayComponentSettings);
+
+            var plan = new TestPlan();
+            var dummyStep = new MultiInstrumentStep();
+            plan.ChildTestSteps.Add(dummyStep);
+
+            InstrumentSettings.Current.Add(new DummyInstrument() { Name = "Dummy 1" });
+            InstrumentSettings.Current.Add(new DummyInstrument() { Name = "Dummy 2" });
+            InstrumentSettings.Current.Add(new DummyInstrument() { Name = "Dummy 3" });
+            InstrumentSettings.Current.Add(new DummyInstrument() { Name = "Dummy 4" });
+
+            var a = AnnotationCollection.Annotate(dummyStep);
+            var mem = a.GetMember(nameof(dummyStep.Instruments));
+            var avail = mem.Get<IAvailableValuesAnnotation>();
+            var availArray = avail.AvailableValues.Cast<object>().ToArray();
+            var multi = mem.Get<IMultiSelect>();
+            var values = avail.AvailableValues;
+
+            /* verify there are 4 available values and 0 values are selected */
+            Assert.That(availArray.Length, Is.EqualTo(4));
+            Assert.That(multi.Selected.Count(), Is.EqualTo(0));
+
+            /* select 2 values */
+            List<object> selection = [ availArray.First(), availArray.Last() ];
+            multi.Selected = selection;
+            a.Write();
+            a.Read();
+
+            /* verify there are 4 available values and 2 values are selected */
+            Assert.That(availArray.Length, Is.EqualTo(4));
+            Assert.That(multi.Selected.Count(), Is.EqualTo(2));
+        }
+
         public class ClassWithMacroString
         {
             public MacroString String { get; set; } = new MacroString();
@@ -2648,6 +2692,53 @@ namespace OpenTap.UnitTests
                 annotation.Value = "test123";
             });
             Assert.AreEqual(1, annotation.Errors.Count());
+        }
+
+        public class AvailableValuesMultiStep : TestStep
+        {
+            public List<string> ListOfAvailableValues { get; set; } = new List<string> { "One", "Two", "Three" };
+
+            [AvailableValues(nameof(ListOfAvailableValues))]
+            public List<string> SelectedValues { get; set; } = new List<string>();
+
+            public override void Run() { }
+        }
+
+        /// <summary>
+        /// When more than one step exposing a List<string>; with [AvailableValues] is selected at once,
+        /// modifying the SelectedValues setting should still work.
+        /// </summary>
+        [Test]
+        public void SelectedValuesCanBeModifiedWithMultipleStepsSelected()
+        {
+            var step1 = new AvailableValuesMultiStep();
+            var step2 = new AvailableValuesMultiStep();
+
+            var a = AnnotationCollection.Annotate(new object[] { step1, step2 });
+            var mem = a.GetMember(nameof(AvailableValuesMultiStep.SelectedValues));
+            Assert.IsNotNull(mem, "SelectedValues member should be annotated for multi-selected steps.");
+
+            var avail = mem.Get<IAvailableValuesAnnotation>();
+            Assert.IsNotNull(avail, "Available values annotation should be available on multi-selection.");
+            var availArray = avail.AvailableValues.Cast<object>().ToArray();
+            Assert.AreEqual(3, availArray.Length);
+
+            var multi = mem.Get<IMultiSelect>();
+            Assert.IsNotNull(multi, "IMultiSelect should be available on multi-selection.");
+            Assert.AreEqual(0, multi.Selected.Cast<object>().Count());
+
+            // Select two values across both steps.
+            multi.Selected = new List<object> { availArray[0], availArray[2] };
+            a.Write();
+            a.Read();
+
+            // The change should be reflected in both underlying steps.
+            CollectionAssert.AreEquivalent(new[] { "One", "Three" }, step1.SelectedValues);
+            CollectionAssert.AreEquivalent(new[] { "One", "Three" }, step2.SelectedValues);
+            Assert.IsFalse(ReferenceEquals(step1.SelectedValues, step2.SelectedValues));
+
+            // And the annotation should report two values selected.
+            Assert.AreEqual(2, multi.Selected.Cast<object>().Count());
         }
     }
 }

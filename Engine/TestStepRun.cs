@@ -249,8 +249,6 @@ namespace OpenTap
         /// <summary>  Called by TestStep.DoRun before running the step. </summary>
         internal void StartStepRun()
         {
-            if (Verdict != Verdict.NotSet)
-                throw new ArgumentOutOfRangeException(nameof(Verdict), "StepRun.StartStepRun has already been called once.");
             StepThread = TapThread.Current;
             StartTime = DateTime.Now;
             StartTimeStamp = Stopwatch.GetTimestamp();
@@ -261,7 +259,11 @@ namespace OpenTap
         {
             
             // update values in the run. 
-            ResultParameters.UpdateParams(Parameters, step);
+            ResultParameters.UpdateParams(Parameters, step, out var updateError);
+            if (updateError != null)
+            {
+                step.Verdict = Verdict.Error;
+            }
             
             Duration = runDuration; // Requires update after TestStepRunStart and before TestStepRunCompleted
             UpgradeVerdict(step.Verdict);
@@ -283,13 +285,15 @@ namespace OpenTap
             TestStepName = step.GetFormattedName();
             stepTypeData = TypeData.GetTypeData(step);
             TestStepTypeName = stepTypeData.AsTypeData().AssemblyQualifiedName;
-            Parameters = ResultParameters.GetParams(step, stepTypeData);
+            Parameters = ResultParameters.GetParams(step, stepTypeData, out var paramError);
+            if (paramError != null)
+                Exception = paramError;
             Verdict = Verdict.NotSet;
         }
         
         internal void UpdateParams()
         {
-            ResultParameters.UpdateParams(Parameters, _step, type: stepTypeData);
+            ResultParameters.UpdateParams(Parameters, _step, out _, type: stepTypeData);
         }
         
         /// <summary>

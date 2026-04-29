@@ -507,9 +507,14 @@ namespace OpenTap
             if (property.HasAttribute<UnparameterizableAttribute>())
                 return false;
 
+            // Outputs may have non-public setters (Writable==false), but we still want to
+            // allow parameterizing them so that the output value can be made accessible at a
+            // parent scope. See OutputAttribute.
+            bool isOutput = property.HasAttribute<OutputAttribute>();
             foreach (var x in steps)
             {
-                if (property.Readable == false || property.Writable == false) return false;
+                if (property.Readable == false) return false;
+                if (property.Writable == false && !isOutput) return false;
                 if (x is ITestStep step && step.IsReadOnly)
                     return false;
                 if (checkTestPlan && x is TestPlan) return false;

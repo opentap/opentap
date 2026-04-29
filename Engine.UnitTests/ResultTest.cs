@@ -2,8 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.ComponentModel;
 using System.Threading;
 using NUnit.Framework;
+using OpenTap.Engine.UnitTests;
 using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.UnitTests
@@ -295,6 +297,61 @@ namespace OpenTap.UnitTests
             }
         }
         
+        public class MultiGroupParametersStep : TestStep
+        {
+            public Dut Dut { get; set; }
+            [Display("Single", Group: "OnlyGroup")]
+            public int SingleGroup { get; set; } = 1;
+
+            [Display("Multi", Groups: new[] { "Outer", "Inner" })]
+            public int MultiGroup { get; set; } = 2;
+
+            [Display("Triple", Groups: new[] { "A", "B", "C" })]
+            public int TripleGroup { get; set; } = 3;
+
+            [Display("NoGroup")]
+            public int NoGroup { get; set; } = 4;
+
+            public override void Run() { }
+        }
+
+        [Test]
+        public void TestResultParametersMultipleGroups()
+        {
+            var dummyDut = new DummyDut() { ID = "X", Comment = "Y" };
+            var step = new MultiGroupParametersStep()
+            {
+                Dut = dummyDut
+            };
+            var parameters = ResultParameters.GetParams(step);
+
+            var single = parameters.FirstOrDefault(p => p.Name == "Single");
+            Assert.IsNotNull(single);
+            Assert.AreEqual("OnlyGroup", single.Group);
+
+            var multi = parameters.FirstOrDefault(p => p.Name == "Multi");
+            Assert.IsNotNull(multi);
+            Assert.AreEqual("Outer \\ Inner", multi.Group);
+
+            var triple = parameters.FirstOrDefault(p => p.Name == "Triple");
+            Assert.IsNotNull(triple);
+            Assert.AreEqual("A \\ B \\ C", triple.Group);
+
+            var none = parameters.FirstOrDefault(p => p.Name == "NoGroup");
+            Assert.IsNotNull(none);
+            Assert.AreEqual("", none.Group);
+
+            var dutId = parameters.FirstOrDefault(p => p.Name == "Dut/ID");
+            Assert.IsNotNull(dutId);
+            Assert.AreEqual("DUT", dutId.Group);
+            Assert.AreEqual("X", dutId.Value);
+            
+            var dutComment = parameters.FirstOrDefault(p => p.Name == "Dut/Comment");
+            Assert.IsNotNull(dutComment);
+            Assert.AreEqual("DUT", dutComment.Group);
+            Assert.AreEqual("Y", dutComment.Value);
+        }
+
         [Test]
         public void TestResultsOptimizeBug()
         {
@@ -327,5 +384,142 @@ namespace OpenTap.UnitTests
             }
         }
         
+        [Display("Throwing Property Instrument")]
+        public class ThrowingPropertyInstrument : Instrument
+        {
+            [Browsable(false)]
+            [System.Xml.Serialization.XmlIgnore]
+            public bool ShouldThrow { get; set; }
+
+            [Display("Value")]
+            public double Value
+            {
+                get
+                {
+                    if (ShouldThrow)
+                        throw new InvalidOperationException("Device is detached");
+                    return 42.0;
+                }
+                set { }
+            }
+
+            public override void Open() { base.Open(); ShouldThrow = false; }
+            public override void Close() { ShouldThrow = false; base.Close(); }
+        }
+
+        [Display("Throwing Property Step")]
+        public class ThrowingPropertyStep : TestStep
+        {
+            public ThrowingPropertyInstrument Instrument { get; set; }
+
+            public override void Run()
+            {
+                Instrument.ShouldThrow = true;
+                UpgradeVerdict(Verdict.Pass);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that an exception thrown from an instrument property getter during
+        /// post-Run() ResultParameters.UpdateParams() gives the step Verdict.Error but
+        /// does not bypass break conditions — sibling steps still execute.
+        /// Reproduces GitHub issue #2307.
+        /// </summary>
+        [Test]
+        public void PropertyGetterExceptionInUpdateParamsGivesErrorVerdictAndRespectBreakConditions()
+        {
+            var instrument = new ThrowingPropertyInstrument();
+            InstrumentSettings.Current.Add(instrument);
+            try
+            {
+                var plan = new TestPlan();
+                var sequence = new SequenceStep();
+                plan.ChildTestSteps.Add(sequence);
+
+                var throwingStep = new ThrowingPropertyStep { Instrument = instrument };
+                // Set break condition to "Do not break" so sibling steps still run.
+                BreakConditionProperty.SetBreakCondition(throwingStep, (BreakCondition)0);
+                sequence.ChildTestSteps.Add(throwingStep);
+
+                var logStep = new LogStep();
+                sequence.ChildTestSteps.Add(logStep);
+
+                var rl = new RecordAllResultListener();
+                var run = plan.Execute(new[] { rl });
+
+                var stepRuns = rl.Runs.Values.OfType<TestStepRun>().ToList();
+
+                // The throwing step should have Verdict.Error from the property getter exception.
+                var throwingRun = stepRuns.FirstOrDefault(r => r.TestStepId == throwingStep.Id);
+                Assert.IsNotNull(throwingRun, "Throwing step run should exist");
+                Assert.AreEqual(Verdict.Error, throwingRun.Verdict,
+                    "Throwing step should get Verdict.Error from property getter exception in UpdateParams");
+
+                // The log step should still have been executed (break conditions respected).
+                var logRun = stepRuns.FirstOrDefault(r => r.TestStepId == logStep.Id);
+                Assert.IsNotNull(logRun, "Log step should have been executed — break conditions must be respected");
+
+                // The plan verdict should be Error (propagated from the step).
+                Assert.AreEqual(Verdict.Error, run.Verdict);
+            }
+            finally
+            {
+                InstrumentSettings.Current.Remove(instrument);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that when a property getter throws during TestStepRun construction
+        /// (GetParams), the step gets Verdict.Error and does not execute Run().
+        /// </summary>
+        [Test]
+        public void PropertyGetterExceptionInGetParamsGivesErrorVerdictWithoutRunning()
+        {
+            var instrument = new ThrowingPropertyInstrument { ShouldThrow = true };
+            InstrumentSettings.Current.Add(instrument);
+            try
+            {
+                var plan = new TestPlan();
+                var throwingStep = new ThrowingPropertyStep { Instrument = instrument };
+                plan.ChildTestSteps.Add(throwingStep);
+
+                var rl = new RecordAllResultListener();
+                var run = plan.Execute(new[] { rl });
+
+                // The step should have a run with Verdict.Error.
+                var stepRuns = rl.Runs.Values.OfType<TestStepRun>().ToList();
+                var throwingRun = stepRuns.FirstOrDefault(r => r.TestStepId == throwingStep.Id);
+                Assert.IsNotNull(throwingRun, "Step run should still be created even with property getter error");
+                Assert.AreEqual(Verdict.Error, throwingRun.Verdict,
+                    "Step should get Verdict.Error when GetParams encounters a property getter exception");
+            }
+            finally
+            {
+                InstrumentSettings.Current.Remove(instrument);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that ResultParameters.GetParams handles property getter exceptions
+        /// gracefully — returns parameters for non-failing properties and does not throw.
+        /// </summary>
+        [Test]
+        public void GetParamsHandlesPropertyGetterException()
+        {
+            var instrument = new ThrowingPropertyInstrument { ShouldThrow = true };
+            InstrumentSettings.Current.Add(instrument);
+            try
+            {
+                var step = new ThrowingPropertyStep { Instrument = instrument };
+                // GetParams reads properties including instrument properties.
+                // Should not throw even though the instrument property getter throws.
+                var parameters = ResultParameters.GetParams(step);
+                Assert.IsNotNull(parameters);
+            }
+            finally
+            {
+                InstrumentSettings.Current.Remove(instrument);
+            }
+        }
     }
 }

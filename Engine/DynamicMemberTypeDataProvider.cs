@@ -7,10 +7,20 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Xml.Serialization;
+using OpenTap.Translation;
 
 
 namespace OpenTap
 {
+    internal class BreakConditionStrings : IStringLocalizer
+    {
+        static readonly BreakConditionStrings strings = new();
+        public static string DisplayName => strings.Translate("Break Conditions");
+        public static string StepDescription => strings.Translate("When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step, test plan, or engine settings.");
+        public static string Group => strings.Translate("Common");
+        public static string TestPlanDescription => strings.Translate("When enabled, specify new break conditions. When disabled conditions are inherited from the engine settings.");
+    }
+
     /// <summary>  This interface speeds up accessing dynamic members as it avoids having to access a global table to store the information. </summary>
     interface IDynamicMembersProvider
     {
@@ -250,10 +260,16 @@ namespace OpenTap
 
             var cloner = new ObjectCloner(value);
 
-            member.SetValue(source, cloner.Clone(true, source, member.TypeDescriptor));
+            // When the inner member is an output (or otherwise not writable), we cannot assign
+            // a value to it through the normal setter. Such members are written by the step's Run
+            // method. Skip writing rather than throw, so that parameterized outputs behave as
+            // "read-through" views from the source to the parameter.
+            if (member.Writable)
+                member.SetValue(source, cloner.Clone(true, source, member.TypeDescriptor));
 
             foreach (var (addContext, addMember) in additionalMembers)
             {
+                if (addMember.Writable == false) continue;
                 var cloned = cloner.Clone(false, addContext, addMember.TypeDescriptor);
                 if (cloned != null)
                     addMember.SetValue(addContext, cloned); // This will throw an exception if it is not assignable.
@@ -740,9 +756,7 @@ namespace OpenTap
                 DefaultValue = BreakCondition.Inherit,
                 Attributes = new Attribute[]
                 {
-                    new DisplayAttribute("Break Conditions",
-                        "When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step, test plan, or engine settings.",
-                        "Common", 20001.1),
+                    new DisplayAttribute(BreakConditionStrings.DisplayName, BreakConditionStrings.StepDescription, BreakConditionStrings.Group, 20001.1),
                     new UnsweepableAttribute(), new NonMetaDataAttribute(), new DefaultValueAttribute(BreakCondition.Inherit)
                 },
                 DeclaringType = TypeData.FromType(typeof(ITestStep)),
@@ -760,8 +774,7 @@ namespace OpenTap
                 DefaultValue = BreakCondition.Inherit,
                 Attributes = new Attribute[]
                 {
-                    new DisplayAttribute("Break Conditions",
-                        "When enabled, specify new break conditions. When disabled conditions are inherited from the engine settings.", Order: 3),
+                    new DisplayAttribute(BreakConditionStrings.DisplayName, BreakConditionStrings.TestPlanDescription, Order: 3),
                     new UnsweepableAttribute(), new EnabledIfAttribute("Locked", false), new NonMetaDataAttribute(), new DefaultValueAttribute(BreakCondition.Inherit)
                 },
                 DeclaringType = TypeData.FromType(typeof(TestPlan)),
@@ -928,14 +941,15 @@ namespace OpenTap
 
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
+            if (!(obj is ITestStepParent))
+                return null;
+                
             var subtype = stack.GetTypeData(obj);
             var result = getStepTypeData(subtype);
             if (TestStepTypeData.DynamicMembers.GetValue(obj) is ImmutableDictionary<string, IMemberData> obj2 && obj2.Count != 0)
                 return dict2.GetValue(obj, o => new DynamicTestStepTypeData(result, o));
-            if (obj is ITestStepParent)
-                return result;
             
-            return null;
+            return result;
         }
         public double Priority => 10;
     }

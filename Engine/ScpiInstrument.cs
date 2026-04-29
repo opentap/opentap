@@ -643,6 +643,10 @@ namespace OpenTap
 
                     return text;
                 }
+                else if (firstChar == TerminationCharacter)
+                {
+                    return firstChar.ToString();
+                }
                 else
                 {
                     string theRest = LockRetry(() => ReadString());

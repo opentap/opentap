@@ -11,6 +11,8 @@ using System.Collections.Generic;
 using System;
 using System.IO;
 using Tap.Shared;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace OpenTap.Package
 {
@@ -125,6 +127,25 @@ namespace OpenTap.Package
         }
         
         private const string GIT_HASH = "b7bad55";
+
+        static class GlibCHelper
+        {
+            [DllImport("libc")]
+            public static extern IntPtr gnu_get_libc_version();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        static bool IsGlibc()
+        {
+            try 
+            {
+                return GlibCHelper.gnu_get_libc_version() != IntPtr.Zero;
+            }
+            catch 
+            {
+                return false;
+            }
+        }
         
         void ensureLibgit2Present()
         {
@@ -151,8 +172,10 @@ namespace OpenTap.Package
                 sourceFile += $".{(Environment.Is64BitProcess ? CpuArchitecture.x64 : CpuArchitecture.x86)}";
             if (OperatingSystem.Current == OperatingSystem.MacOS)
                 sourceFile += $".{MacOsArchitecture.Current.Architecture}";
-            if (OperatingSystem.Current == OperatingSystem.Linux)
+            if (OperatingSystem.Current == OperatingSystem.Linux && IsGlibc())
                 sourceFile += $".{LinuxArchitecture.Current.Architecture}";
+            else if (OperatingSystem.Current == OperatingSystem.Linux)
+                sourceFile += $".musl.{LinuxArchitecture.Current.Architecture}";
 
             try
             {
