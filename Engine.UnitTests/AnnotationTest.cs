@@ -2693,5 +2693,52 @@ namespace OpenTap.UnitTests
             });
             Assert.AreEqual(1, annotation.Errors.Count());
         }
+
+        public class AvailableValuesMultiStep : TestStep
+        {
+            public List<string> ListOfAvailableValues { get; set; } = new List<string> { "One", "Two", "Three" };
+
+            [AvailableValues(nameof(ListOfAvailableValues))]
+            public List<string> SelectedValues { get; set; } = new List<string>();
+
+            public override void Run() { }
+        }
+
+        /// <summary>
+        /// When more than one step exposing a List<string>; with [AvailableValues] is selected at once,
+        /// modifying the SelectedValues setting should still work.
+        /// </summary>
+        [Test]
+        public void SelectedValuesCanBeModifiedWithMultipleStepsSelected()
+        {
+            var step1 = new AvailableValuesMultiStep();
+            var step2 = new AvailableValuesMultiStep();
+
+            var a = AnnotationCollection.Annotate(new object[] { step1, step2 });
+            var mem = a.GetMember(nameof(AvailableValuesMultiStep.SelectedValues));
+            Assert.IsNotNull(mem, "SelectedValues member should be annotated for multi-selected steps.");
+
+            var avail = mem.Get<IAvailableValuesAnnotation>();
+            Assert.IsNotNull(avail, "Available values annotation should be available on multi-selection.");
+            var availArray = avail.AvailableValues.Cast<object>().ToArray();
+            Assert.AreEqual(3, availArray.Length);
+
+            var multi = mem.Get<IMultiSelect>();
+            Assert.IsNotNull(multi, "IMultiSelect should be available on multi-selection.");
+            Assert.AreEqual(0, multi.Selected.Cast<object>().Count());
+
+            // Select two values across both steps.
+            multi.Selected = new List<object> { availArray[0], availArray[2] };
+            a.Write();
+            a.Read();
+
+            // The change should be reflected in both underlying steps.
+            CollectionAssert.AreEquivalent(new[] { "One", "Three" }, step1.SelectedValues);
+            CollectionAssert.AreEquivalent(new[] { "One", "Three" }, step2.SelectedValues);
+            Assert.IsFalse(ReferenceEquals(step1.SelectedValues, step2.SelectedValues));
+
+            // And the annotation should report two values selected.
+            Assert.AreEqual(2, multi.Selected.Cast<object>().Count());
+        }
     }
 }
