@@ -2735,6 +2735,7 @@ namespace OpenTap.UnitTests
             // The change should be reflected in both underlying steps.
             CollectionAssert.AreEquivalent(new[] { "One", "Three" }, step1.SelectedValues);
             CollectionAssert.AreEquivalent(new[] { "One", "Three" }, step2.SelectedValues);
+            Assert.IsFalse(ReferenceEquals(step1.SelectedValues, step2.SelectedValues));
 
             // And the annotation should report two values selected.
             Assert.AreEqual(2, multi.Selected.Cast<object>().Count());
