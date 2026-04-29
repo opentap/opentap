@@ -1885,6 +1885,14 @@ namespace OpenTap
                             }
                         }
                     }
+
+                    // When multi-selecting, the IObjectValueAnnotation is a MergedValueAnnotation
+                    // whose value is the first selected object's collection. Mutating it in place
+                    // does not propagate to the other selected objects. Re-assigning the value
+                    // triggers MergedValueAnnotation to clone the collection across all merged
+                    // members. See issue #1528.
+                    if (!rdonly && objValue is MergedValueAnnotation)
+                        objValue.Value = lst2;
                 }
                 isWriting = true;
                 try
