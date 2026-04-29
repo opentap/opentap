@@ -950,6 +950,10 @@ namespace OpenTap
             {
                 TestStepPath = Step.GetStepPath()
             };
+            if (readInputsError != null)
+            {
+                stepRun.Exception = readInputsError;
+            }
 
             // evaluate pre run mixins
             var prerun = TestStepPreRunEvent.Invoke(Step);
@@ -992,8 +996,6 @@ namespace OpenTap
                         TapThread.Current.AbortToken);
                     try
                     {
-                        if (readInputsError != null)
-                            ExceptionDispatchInfo.Capture(readInputsError).Throw();
                         
                         if (Step is TestStep _step)
                             _step.Results = new ResultSource(stepRun, Step.PlanRun);
