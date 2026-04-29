@@ -249,13 +249,6 @@ namespace OpenTap
         /// <summary>  Called by TestStep.DoRun before running the step. </summary>
         internal void StartStepRun()
         {
-            if (Verdict != Verdict.NotSet)
-            {
-                if(Exception == null)   
-                    Exception = new ArgumentOutOfRangeException(nameof(Verdict),
-                        "StepRun.StartStepRun has already been called once.");
-            }
-
             StepThread = TapThread.Current;
             StartTime = DateTime.Now;
             StartTimeStamp = Stopwatch.GetTimestamp();
