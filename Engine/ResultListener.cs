@@ -570,7 +570,11 @@ namespace OpenTap
                     var name = display.Name.Trim();
                     string group = "";
 
-                    if (display.Group.Length == 1) group = display.Group[0].Trim();
+                    if (display.Group.Length == 1) 
+                        group = display.Group[0].Trim();
+                    else if (display.Group.Length == 0)
+                        group = "";
+                    else group = string.Join(DisplayAttribute.GroupSeparator, display.Group.Select(grp => grp.Trim()));
                     group = metadataAttr?.Group ?? group;
                     name = metadataAttr?.Name ?? name;
 
