@@ -2705,13 +2705,11 @@ namespace OpenTap.UnitTests
         }
 
         /// <summary>
-        /// Regression test for opentap/opentap#1528:
-        /// "Available Values Example: SelectedValues cannot be modified in case of multiple steps selected".
-        /// When more than one step exposing a List&lt;string&gt; with [AvailableValues] is selected at once,
+        /// When more than one step exposing a List<string>; with [AvailableValues] is selected at once,
         /// modifying the SelectedValues setting should still work.
         /// </summary>
         [Test]
-        public void Issue1528_SelectedValuesCanBeModifiedWithMultipleStepsSelected()
+        public void SelectedValuesCanBeModifiedWithMultipleStepsSelected()
         {
             var step1 = new AvailableValuesMultiStep();
             var step2 = new AvailableValuesMultiStep();
