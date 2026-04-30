@@ -168,7 +168,7 @@
         <!-- This is not required because OpenTAP's resolver can still find them in their subdirectories, and including -->
         <!-- them in the output folder triggers warnings about duplicate assemblies. It also breaks other features in debug builds -->
         <!-- such as InstallationCurrent.FindPackageContaining{Type/File}(); -->
-        <Private>%(Private)</Private>
+        <Private>%(_OpenTapPackagesReferences.Private)</Private>
       </Reference>
     </ItemGroup>
   </Target>
