@@ -102,7 +102,7 @@ namespace OpenTap
             var names = name.Split('\\');
             Target = target;
             DeclaringType = TypeData.GetTypeData(target);
-            parameterMembers = new ParameterMembers(source, member, ImmutableHashSet<(object Source, IMemberData Member)>.Empty);
+            parameterMembers = new ParameterMembers(source, member, []);
             
             Name = name;
 
@@ -163,9 +163,9 @@ namespace OpenTap
         {
             public readonly object Source;
             public readonly IMemberData Member;
-            public readonly ImmutableHashSet<(object Source, IMemberData Member)> Additional;
+            public readonly HashSet<(object Source, IMemberData Member)> Additional;
             
-            public ParameterMembers(object source, IMemberData member, ImmutableHashSet<(object Source, IMemberData Member)> additionalMembers)
+            public ParameterMembers(object source, IMemberData member, HashSet<(object Source, IMemberData Member)> additionalMembers)
             {
                 Source = source;
                 Member = member;
@@ -181,21 +181,25 @@ namespace OpenTap
                 if (Equals(newSource, Source) && Equals(newMember, Member))
                     return this;
                 
-                return new ParameterMembers(Source, Member, Additional.Add((newSource, newMember)));
+                var a2 = new HashSet<(object, IMemberData)>(Additional) { (newSource, newMember) };
+                return new ParameterMembers(Source, Member, a2);
             }
 
             public ParameterMembers Remove(object removeSource, IMemberData removeMember)
             {
+                var a2 = new HashSet<(object, IMemberData)>(Additional);
                 if (Equals(Source, removeSource) && Equals(Member, removeMember))
                 {
-                    if (Additional.IsEmpty)
+                    if (Additional.Count == 0)
                     {
-                        return new ParameterMembers(null, removeMember, ImmutableHashSet<(object Source, IMemberData Member)>.Empty);
+                        return new ParameterMembers(null, removeMember, []);
                     }
                     var fst = Additional.First();
-                    return new ParameterMembers(fst.Source, fst.Member, Additional.Remove(fst));
+                    a2.Remove(fst);
+                    return new ParameterMembers(fst.Source, fst.Member, a2);
                 }
-                return new ParameterMembers(Source,Member , Additional.Remove((removeSource, removeMember)));    
+                a2.Remove((removeSource, removeMember));
+                return new ParameterMembers(Source,Member , a2);
             }
             
             public IEnumerator<(object, IMemberData)> GetEnumerator()
