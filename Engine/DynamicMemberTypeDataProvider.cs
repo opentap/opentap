@@ -24,7 +24,7 @@ namespace OpenTap
     /// <summary>  This interface speeds up accessing dynamic members as it avoids having to access a global table to store the information. </summary>
     interface IDynamicMembersProvider
     {
-        IImmutableDictionary<string, IMemberData> DynamicMembers { get; set; }
+        IDictionary<string, IMemberData> DynamicMembers { get; set; }
     }
 
     interface IDynamicMemberValue
@@ -102,7 +102,7 @@ namespace OpenTap
             var names = name.Split('\\');
             Target = target;
             DeclaringType = TypeData.GetTypeData(target);
-            parameterMembers = new ParameterMembers(source, member, ImmutableHashSet<(object Source, IMemberData Member)>.Empty);
+            parameterMembers = new ParameterMembers(source, member, []);
             
             Name = name;
 
@@ -163,9 +163,9 @@ namespace OpenTap
         {
             public readonly object Source;
             public readonly IMemberData Member;
-            public readonly ImmutableHashSet<(object Source, IMemberData Member)> Additional;
+            public readonly HashSet<(object Source, IMemberData Member)> Additional;
             
-            public ParameterMembers(object source, IMemberData member, ImmutableHashSet<(object Source, IMemberData Member)> additionalMembers)
+            public ParameterMembers(object source, IMemberData member, HashSet<(object Source, IMemberData Member)> additionalMembers)
             {
                 Source = source;
                 Member = member;
@@ -181,21 +181,25 @@ namespace OpenTap
                 if (Equals(newSource, Source) && Equals(newMember, Member))
                     return this;
                 
-                return new ParameterMembers(Source, Member, Additional.Add((newSource, newMember)));
+                var a2 = new HashSet<(object, IMemberData)>(Additional) { (newSource, newMember) };
+                return new ParameterMembers(Source, Member, a2);
             }
 
             public ParameterMembers Remove(object removeSource, IMemberData removeMember)
             {
+                var a2 = new HashSet<(object, IMemberData)>(Additional);
                 if (Equals(Source, removeSource) && Equals(Member, removeMember))
                 {
-                    if (Additional.IsEmpty)
+                    if (Additional.Count == 0)
                     {
-                        return new ParameterMembers(null, removeMember, ImmutableHashSet<(object Source, IMemberData Member)>.Empty);
+                        return new ParameterMembers(null, removeMember, []);
                     }
                     var fst = Additional.First();
-                    return new ParameterMembers(fst.Source, fst.Member, Additional.Remove(fst));
+                    a2.Remove(fst);
+                    return new ParameterMembers(fst.Source, fst.Member, a2);
                 }
-                return new ParameterMembers(Source,Member , Additional.Remove((removeSource, removeMember)));    
+                a2.Remove((removeSource, removeMember));
+                return new ParameterMembers(Source,Member , a2);
             }
             
             public IEnumerator<(object, IMemberData)> GetEnumerator()
@@ -461,8 +465,11 @@ namespace OpenTap
         /// <summary> Adds a dynamic member to the object. </summary>
         public static void AddDynamicMember(object target, IMemberData member)
         {
-            var members = (ImmutableDictionary<string, IMemberData>)DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
-            var newMembers = members.SetItem(member.Name, member);
+            var members = (Dictionary<string, IMemberData>)DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
+            var newMembers = new Dictionary<string, IMemberData>(members)
+            {
+                [member.Name] = member
+            };
             DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, newMembers);
             BumpTypeDataKey(target);
         }
@@ -470,15 +477,17 @@ namespace OpenTap
         /// <summary> Removes a dynamic member to the object. </summary>
         public static void RemoveDynamicMember(object target, IMemberData member)
         {
-            var members = (ImmutableDictionary<string, IMemberData>)DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
-            DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, members.Remove(member.Name));
+            var members = (Dictionary<string, IMemberData>)DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
+            var newMembers = new Dictionary<string, IMemberData>(members);
+            newMembers.Remove(member.Name);
+            DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.SetValue(target, newMembers);
             BumpTypeDataKey(target);
         }
 
         /// <summary> Returns all members of an object. </summary>
         internal static IEnumerable<IMemberData> GetDynamicMembers(object target)
         {
-            var members = (ImmutableDictionary<string, IMemberData>)DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
+            var members = (Dictionary<string, IMemberData>)DynamicMemberTypeDataProvider.TestStepTypeData.DynamicMembers.GetValue(target);
             return members.Values;
         }
 
@@ -658,7 +667,7 @@ namespace OpenTap
             {
                 if (owner is IDynamicMembersProvider bc)
                 {
-                    bc.DynamicMembers = (IImmutableDictionary<string, IMemberData>)value;
+                    bc.DynamicMembers = (Dictionary<string, IMemberData>)value;
                     return;
                 }
 
@@ -667,11 +676,11 @@ namespace OpenTap
 
             public override object GetValue(object owner)
             {
-                IImmutableDictionary<string, IMemberData> result;
+                IDictionary<string, IMemberData> result;
                 if (owner is IDynamicMembersProvider bc)
                     result = bc.DynamicMembers;
                 else
-                    result = (IImmutableDictionary<string, IMemberData>)base.GetValue(owner);
+                    result = (Dictionary<string, IMemberData>)base.GetValue(owner);
 
                 return result;
             }
@@ -812,7 +821,7 @@ namespace OpenTap
             internal static readonly DynamicMember DynamicMembers = new DynamicMembersMember()
             {
                 Name = "ForwardedMembers",
-                DefaultValue = ImmutableDictionary<string, IMemberData>.Empty,
+                DefaultValue = new Dictionary<string, IMemberData>(),
                 DeclaringType = TypeData.FromType((typeof(TestStepTypeData))),
                 Attributes = new Attribute[]
                 {
@@ -946,7 +955,7 @@ namespace OpenTap
                 
             var subtype = stack.GetTypeData(obj);
             var result = getStepTypeData(subtype);
-            if (TestStepTypeData.DynamicMembers.GetValue(obj) is ImmutableDictionary<string, IMemberData> obj2 && obj2.Count != 0)
+            if (TestStepTypeData.DynamicMembers.GetValue(obj) is Dictionary<string, IMemberData> obj2 && obj2.Count != 0)
                 return dict2.GetValue(obj, o => new DynamicTestStepTypeData(result, o));
             
             return result;
