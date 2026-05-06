@@ -171,7 +171,7 @@ namespace OpenTap.Sdk.New
                     dest = dest.CreateSubdirectory(Name);
 
                 int result = DotnetNewSln(Name, dest, cancellationToken);
-                sln = dest.EnumerateFiles("*.sln").FirstOrDefault();
+                sln = dest.EnumerateFiles("*.sln").FirstOrDefault() ?? dest.EnumerateFiles("*.slnx").FirstOrDefault();
                 if (result != 0 || sln == null || !sln.Exists)
                 {
                     return result;
