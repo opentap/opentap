@@ -331,6 +331,9 @@ namespace OpenTap.Cli
             {
                 if (member.Get<IMemberAnnotation>()?.Member is ParameterMemberData param)
                 {
+                    if (!param.Writable)
+                        continue; // parameterized output
+                    
                     var multiValues = member.Get<IMultiSelectAnnotationProxy>()?.SelectedValues;
                     string printStr = "";
                     if (multiValues != null)
