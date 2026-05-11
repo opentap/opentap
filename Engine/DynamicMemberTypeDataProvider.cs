@@ -302,7 +302,7 @@ namespace OpenTap
             if (source == newSource && newMember == member)
                 throw new Exception("Member is already parameterized.");
             if (Writable == false && member.HasAttribute<OutputAttribute>())
-                throw new Exception("Output parameters cannot be combined.");
+                throw new Exception("Output parameters cannot be merged.");
             
             parameterMembers = parameterMembers.Add(newSource, newMember);
         }
