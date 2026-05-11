@@ -326,7 +326,23 @@ namespace OpenTap.Cli
         private void PrintExternalParameters(TraceSource log)
         {
             var annotation = AnnotationCollection.Annotate(Plan).Get<IMembersAnnotation>();
-            log.Info("Listing {0} External Test Plan Parameters:", Plan.ExternalParameters.Entries.Count);
+            
+            
+            int count = 0;
+            
+            // count the parameters for showing to the user.
+            foreach (var member in annotation.Members)
+            {
+                if (member.Get<IMemberAnnotation>()?.Member is ParameterMemberData param)
+                {
+                    if (!param.Writable)
+                        continue; // parameterized output
+                    count += 1;
+                }
+            }
+
+            log.Info("Listing {0} External Test Plan Parameters:", count);
+            
             foreach (var member in annotation.Members)
             {
                 if (member.Get<IMemberAnnotation>()?.Member is ParameterMemberData param)
