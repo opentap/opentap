@@ -241,10 +241,26 @@ namespace OpenTap
         {
             if (filePath == null)
                 throw new ArgumentNullException(nameof(filePath));
-            using (StreamWriter file = new StreamWriter(filePath))
+
+            /* save to a temp path next to the target file to ensure that
+             * 1. the save operation completes without errors before overwriting the original file, and
+             * 2. the output file can be atomically moved (no cross-disk movement) */
+
+            // generate a somewhat random path.
+            var tmpPath = filePath + "." + Guid.NewGuid()
+                // without dashes.
+                .ToString("N")
+                // Don't need all the randomness of full guid.
+                .Substring(0,8);
+
+            using (var file = new StreamWriter(tmpPath))
             {
                 Save(file.BaseStream);
             }
+
+            if (File.Exists(filePath)) File.Delete(filePath);
+            File.Move(tmpPath, filePath);
+
             Path = filePath;
             OnPropertyChanged(nameof(Path));
             OnPropertyChanged(nameof(Name));
