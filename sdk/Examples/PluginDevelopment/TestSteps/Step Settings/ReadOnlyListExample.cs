@@ -11,6 +11,7 @@
 //WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //See the License for the specific language governing permissions and
 //limitations under the License.
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
@@ -21,7 +22,9 @@ namespace OpenTap.Plugins.PluginDevelopment
 
     public class ReadOnlyListElement
     {
-        [Browsable(true)] public int X => GetHashCode(); 
+        private static Random _rnd = new Random(); 
+        private int _randomValue = _rnd.Next();
+        [Browsable(true)] public int X => _randomValue; 
         [Browsable(true)] public string Message => X + " example";
         public string Note { get; set; } = "Write notes here..";
 
