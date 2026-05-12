@@ -212,6 +212,13 @@ namespace OpenTap
                                 yield break;
                             }
                         }
+
+                        if (member.Writable == false && member.HasAttribute<OutputAttribute>())
+                        {
+                            var error = $"Output properties cannot be merged.";
+                            yield return (error, error);
+                            yield break;
+                        }
                         if( cloner.CanClone(step, member.TypeDescriptor) == false)
                         {
                             var error = $"Cannot merge properties of this kind.";
@@ -511,6 +518,9 @@ namespace OpenTap
             // allow parameterizing them so that the output value can be made accessible at a
             // parent scope. See OutputAttribute.
             bool isOutput = property.HasAttribute<OutputAttribute>();
+            if (isOutput && steps.Length > 1)
+                return false; // multiple outputs cannot be combined in a parameter.
+            
             foreach (var x in steps)
             {
                 if (property.Readable == false) return false;

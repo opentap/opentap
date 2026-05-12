@@ -69,13 +69,6 @@ namespace OpenTap
             return false;
         }
 
-        internal static string GetDefaultPath()
-        {
-            string timestamp = Process.GetCurrentProcess().StartTime.ToString("yyyy-MM-dd HH-mm-ss");
-            string pathEnding = $"SessionLog {timestamp}";
-            return Path.Combine(FileSystemHelper.GetCurrentInstallationDirectory(), "SessionLogs", $"{pathEnding}.txt");
-        }
-
         private static readonly TraceSource log = Log.CreateSource("Session");
 
         /// <summary> The number of files kept at a time. </summary>

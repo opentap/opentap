@@ -949,8 +949,10 @@ namespace OpenTap.UnitTests
             var plan = new TestPlan();
             var seq = new SequenceStep();
             var producer = new OutputProducerStep { MeasurementToProduce = 42.0 };
+            var producer2 = new OutputProducerStep { MeasurementToProduce = 52.0 };
             var consumer = new OutputConsumerStep();
             seq.ChildTestSteps.Add(producer);
+            seq.ChildTestSteps.Add(producer2);
             plan.ChildTestSteps.Add(seq);
             plan.ChildTestSteps.Add(consumer);
 
@@ -960,12 +962,15 @@ namespace OpenTap.UnitTests
             // The output is not writable via the normal setter.
             Assert.IsFalse(outputMember.Writable);
             // But it should be a valid parameter candidate now.
-            Assert.IsTrue(ParameterManager.CanParameter(outputMember, new ITestStepParent[] { producer }));
+            Assert.IsTrue(ParameterManager.CanParameter(outputMember, [producer]));
+            Assert.IsFalse(ParameterManager.CanParameter(outputMember, [producer, producer2]));
 
             const string paramName = "Exposed Measurement";
             var parameter = outputMember.Parameterize(seq, producer, paramName);
             Assert.IsNotNull(parameter);
 
+            Assert.Throws<Exception>(() => outputMember.Parameterize(seq, producer2, paramName));
+            
             // Connect the parameterized output on Sequence to Consumer.Value.
             var inputMember = TypeData.GetTypeData(consumer).GetMember(nameof(consumer.Value));
             InputOutputRelation.Assign(consumer, inputMember, seq, parameter);
