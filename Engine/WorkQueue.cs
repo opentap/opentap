@@ -109,12 +109,11 @@ namespace OpenTap
         /// </summary>
         void WorkerFunction()
         {
-            try
+            var awaitArray = new WaitHandle[] { addSemaphore.AvailableWaitHandle, cancel.Token.WaitHandle };
+            while (true)
             {
-                var awaitArray = new WaitHandle[] {addSemaphore.AvailableWaitHandle, cancel.Token.WaitHandle};
-                while (true)
+                try
                 {
-                    retry:
                     awaitArray[1] = cancel.Token.WaitHandle;
                     int cancelIndex = 0;
                     if (longRunning)
@@ -122,7 +121,7 @@ namespace OpenTap
                     else
                         cancelIndex = WaitHandle.WaitAny(awaitArray, Timeout);
                     if (cancelIndex == 0 && !addSemaphore.Wait(0))
-                        goto retry;
+                        continue;
                     bool ok = cancelIndex == 0;
 
                     if (!ok)
@@ -130,10 +129,18 @@ namespace OpenTap
                         if (cancel.IsCancellationRequested == false && longRunning) continue;
                         lock (threadCreationLock)
                         {
-                            if (workItems.Count > 0)
-                                goto retry;
-                            break;
+                            if (workItems.Count == 0)
+                            {
+                                /* set threadCount to 0 before checking workItems.Count to guard against the case where a workItem is added
+                                 * before threadCount is checked in `EnqueueWork()`. */
+                                threadCount = 0;
+                                /* if workItems is still empty, we can safely exit because we have the thread creation lock. */
+                                if (workItems.Count == 0) return;
+                                /* an item was added to the workqueue, so we should continue after all */
+                                threadCount = 1;
+                            }
                         }
+                        continue;
                     }
 
                     IInvokable run;
@@ -157,15 +164,14 @@ namespace OpenTap
                         Interlocked.Decrement(ref countdown);
                     }
                 }
-            }
-            finally
-            {
-                lock (threadCreationLock)
+                catch (Exception ex)
                 {
-                    threadCount--;
+                    log.Error($"Unhandled error in worker thread: {ex.Message}");
+                    log.Debug(ex);
                 }
             }
         }
+        private static readonly TraceSource log = Log.CreateSource(nameof(WorkQueue));
 
         /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
         internal void EnqueueWork(IInvokable f)
@@ -188,7 +194,7 @@ namespace OpenTap
                     if (threadCount == 0)
                     {
                         TapThread.Start(WorkerFunction, null, Name, threadContext);
-                        threadCount++;
+                        threadCount = 1;
                     }
                 }
             }
