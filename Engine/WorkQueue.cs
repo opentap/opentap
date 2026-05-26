@@ -170,6 +170,7 @@ namespace OpenTap
         /// <summary> Enqueue a new piece of work to be handled in the future. </summary>
         internal void EnqueueWork(IInvokable f)
         {
+            if (disposed) throw new ObjectDisposedException(nameof(WorkQueue));
             while (addSemaphore.CurrentCount >= semaphoreMaxCount - 10)
             {
                 // #4246: this is incredibly rare, but can happen if millions of results are pushed at once.
@@ -193,11 +194,17 @@ namespace OpenTap
                 }
             }
         }
+
+        private bool disposed = false;
         
         /// <summary> Give the thread back to the thread manager.</summary>
         public void Dispose()
         {
-            cancel.Cancel(false);
+            if (!disposed)
+            {
+                disposed = true;
+                cancel.Cancel(false);
+            }
         }
 
         /// <summary> Waits for the workqueue to become empty. </summary>
