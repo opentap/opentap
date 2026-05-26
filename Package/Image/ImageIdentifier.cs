@@ -80,21 +80,33 @@ namespace OpenTap.Package
             List<string> packageHashes = new List<string>();
             foreach (PackageDef pkg in packageList)
             {
+                /* Always include the base hash in the hash calculation.
+                 * The values the base hash is derived from are normally included in pkg.Hash and pkg.ComputeHash().
+                 * This guards against hash collisions if a package contains an incorrect hash.
+                 *
+                 * The main way this can happen is if a user unzips a package,
+                 * modifies the content, and then zips the package again and uploads a new version.
+                 * If the user neglected to update the package hash, this can lead to weird
+                 * downstream bugs if consumers expect image hashes to be distinct.
+                 */
+                var baseHash = $"{pkg.Name} {pkg.Version} {pkg.Architecture} {pkg.OS}";
                 if (pkg.Hash != null)
-                    packageHashes.Add(pkg.Hash);
+                {
+                    packageHashes.Add($"{baseHash}|{pkg.Hash}");
+                }
                 else
                 {
                     // This can happen if the package was created with OpenTAP < 9.16 that did not set the Hash property.
                     // We can just try to compute the hash now.
                     try
                     {
-                        packageHashes.Add(pkg.ComputeHash());
+                        packageHashes.Add($"{baseHash}|{pkg.ComputeHash()}");
                     }
                     catch
                     {
                         // This might happen if the PackageDef does not contain <Hash> elements for each file (for packages crated with OpenTAP < 9.5).
                         // In this case, just use the fields from IPackageIdentifier, they should be unique in most cases.
-                        packageHashes.Add($"{pkg.Name} {pkg.Version} {pkg.Architecture} {pkg.OS}");
+                        packageHashes.Add(baseHash);
                     }
                 }
 
