@@ -74,6 +74,7 @@ export default defineConfig({
         text: 'Release Notes',
         collapsed: true,
         items: [
+          { link: '/Release Notes/9.33/Readme.md', text: "Release Notes - OpenTAP 9.33"},
           { link: '/Release Notes/9.32/Readme.md', text: "Release Notes - OpenTAP 9.32"},
           { link: '/Release Notes/9.31/Readme.md', text: "Release Notes - OpenTAP 9.31"},
           { link: '/Release Notes/9.30/Readme.md', text: "Release Notes - OpenTAP 9.30"},
