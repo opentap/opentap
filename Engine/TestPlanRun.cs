@@ -274,10 +274,14 @@ namespace OpenTap
                 }
             }, blocking: true);
 
-            // now clean up the result listener workers and wait for them to end.
-            foreach (var kw in resultWorkers)
+            // composite runs will reuse their result workers, and should not be disposed.
+            if (!IsCompositeRun)
             {
-                kw.Value.Dispose();
+                // now clean up the result listener workers and wait for them to end.
+                foreach (var kw in resultWorkers)
+                {
+                    kw.Value.Dispose();
+                }
             }
 
             foreach (var kw in resultWorkers)

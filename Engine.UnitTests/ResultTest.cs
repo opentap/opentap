@@ -352,6 +352,64 @@ namespace OpenTap.UnitTests
             Assert.AreEqual("Y", dutComment.Value);
         }
 
+        class MyResultListener : ResultListener
+        {
+            public int OpenCount = 0;
+            public int CloseCount = 0;
+            public override void Close()
+            {
+                CloseCount++;
+            }
+            public override void Open()
+            {
+                OpenCount++;
+            }
+
+            public override void OnResultPublished(Guid stepRunID, ResultTable result) { }
+            public override void OnTestPlanRunCompleted(TestPlanRun planRun, Stream logStream) { }
+            public override void OnTestPlanRunStart(TestPlanRun planRun) { }
+            public override void OnTestStepRunCompleted(TestStepRun stepRun) { }
+            public override void OnTestStepRunStart(TestStepRun stepRun) { }
+        }
+        class MyStep : TestStep
+        {
+            public override void Run()
+            {
+                Results.Publish("myresults", [.. Enumerable.Range(0, 500).Select(x => x.ToString())], [.. Enumerable.Range(0, 500).OfType<IConvertible>()]);
+                UpgradeVerdict(Verdict.Pass);
+            }
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TestWorkQueueDisposed(bool open)
+        {
+            var l = new MyResultListener();
+            using var _ = Session.Create(SessionOptions.OverlayComponentSettings);
+            ResultSettings.Current.Add(l);
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(new MyStep());
+            if (open) plan.Open();
+
+            var r1 = plan.Execute();
+            Assert.That(r1.Verdict, Is.EqualTo(Verdict.Pass));
+
+            var r2 = plan.Execute();
+            Assert.That(r2.Verdict, Is.EqualTo(Verdict.Pass));
+
+            if (open)
+            {
+                plan.Close();
+                Assert.That(l.OpenCount == 1);
+                Assert.That(l.CloseCount == 1);
+            }
+            else
+            {
+                Assert.That(l.OpenCount == 2);
+                Assert.That(l.CloseCount == 2);
+            }
+        }
+
         [Test]
         public void TestResultsOptimizeBug()
         {
