@@ -50,7 +50,8 @@ namespace OpenTap
 
             public void Write(object source)
             {
-                sub.Write();
+                if (param is not IParameterMemberDataNoPropagate)
+                    sub.Write();
                 if (bigList) // for big lists, we try to copy the values.
                     param.SetValue(source, param.GetValue(source));
             }
