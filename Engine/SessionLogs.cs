@@ -72,11 +72,11 @@ namespace OpenTap
         private static readonly TraceSource log = Log.CreateSource("Session");
 
         /// <summary> The number of files kept at a time. </summary>
-        internal static ulong MaxNumberOfTraceFiles { get; set; } = 20UL;
+        internal static ulong MaxNumberOfTraceFiles { get; set; } = 100UL;
         private const string MaxNumberOfTraceFilesEnv = "OPENTAP_SESSION_LOG_MAX_FILES";
 
         /// <summary> The maximally allowed size of trace files. </summary>
-        internal static ulong MaxTotalSizeOfSessionLogFiles { get; set; } = 2_000_000_000UL;
+        internal static ulong MaxTotalSizeOfSessionLogFiles { get; set; } = 10_000_000_000UL;
         private const string MaxTotalSizeOfSessionLogFilesEnv = "OPENTAP_SESSION_LOG_MAX_TOTAL_SIZE";
 
         /// <summary> The maximally allowed size of individual log files.</summary>
