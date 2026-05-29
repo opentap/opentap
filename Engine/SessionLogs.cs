@@ -72,19 +72,41 @@ namespace OpenTap
         private static readonly TraceSource log = Log.CreateSource("Session");
 
         /// <summary> The number of files kept at a time. </summary>
-        internal const int MaxNumberOfTraceFiles = 20;
+        internal static ulong MaxNumberOfTraceFiles { get; set; } = 20UL;
+        private const string MaxNumberOfTraceFilesEnv = "OPENTAP_SESSION_LOG_MAX_FILES";
 
         /// <summary> The maximally allowed size of trace files. </summary>
-        internal static long MaxTotalSizeOfSessionLogFiles = 2_000_000_000L;
+        internal static ulong MaxTotalSizeOfSessionLogFiles { get; set; } = 2_000_000_000UL;
+        private const string MaxTotalSizeOfSessionLogFilesEnv = "OPENTAP_SESSION_LOG_MAX_TOTAL_SIZE";
 
         /// <summary> The maximally allowed size of individual log files.</summary>
-        internal static ulong LogFileMaxSize = 100_000_000;
+        internal static ulong LogFileMaxSize { get; set; } = 100_000_000UL;
+        private const string LogFileMaxSizeEnv = "OPENTAP_SESSION_LOG_MAX_FILE_SIZE";
 
+        static SessionLogs()
+        {
+            ulong? FetchEnvVariableAsU64(string variable)
+            {
+                if (Environment.GetEnvironmentVariable(variable) is { } envString &&
+                    ulong.TryParse(envString, out var parsedValue))
+                {
+                    if(parsedValue != 0)
+                        return parsedValue;
+                }
+                return null;
+            }
+
+            MaxNumberOfTraceFiles = Math.Max(5UL, FetchEnvVariableAsU64(MaxNumberOfTraceFilesEnv) ?? MaxNumberOfTraceFiles);
+            MaxTotalSizeOfSessionLogFiles = Math.Max(100UL, FetchEnvVariableAsU64(MaxTotalSizeOfSessionLogFilesEnv) ?? MaxTotalSizeOfSessionLogFiles);
+            LogFileMaxSize = Math.Max(100UL, FetchEnvVariableAsU64(LogFileMaxSizeEnv) ?? LogFileMaxSize);
+
+        }
+        
         /// <summary>
         /// If two sessions needs the same log file name, an integer is added to the name. 
         /// This is the max number of times that we are going to test new names.
         /// </summary>
-        const int maxNumberOfConcurrentSessions = MaxNumberOfTraceFiles;
+        static ulong MaxNumberOfConcurrentSessions => MaxNumberOfTraceFiles;
 
         private static FileTraceListener traceListener;
 
@@ -425,13 +447,13 @@ namespace OpenTap
             
             bool ConditionViolated()
             {
-                bool tooManyFiles = recentFiles.Count > MaxNumberOfTraceFiles;
+                bool tooManyFiles = recentFiles.Count > (int)MaxNumberOfTraceFiles;
                 if (tooManyFiles) return true;
 
                 if (recentFiles.Count <= 2) return false; // Do not remove the last couple of log files, event though they might exceed limits.
                 
                 var totalSize = CalcTotalSize();
-                bool filesTooBig = totalSize > MaxTotalSizeOfSessionLogFiles;
+                bool filesTooBig = totalSize > (long)MaxTotalSizeOfSessionLogFiles;
                 if (filesTooBig) return true;
                 
                 return false;
@@ -468,11 +490,11 @@ namespace OpenTap
             string dir = Path.GetDirectoryName(path);
             string ext = Path.GetExtension(path);
             bool fileNameChanged = false;
-            for (int idx = 0; idx < maxNumberOfConcurrentSessions; idx++)
+            for (int idx = 0; idx < (int)MaxNumberOfConcurrentSessions; idx++)
             {
                 try
                 {
-                    path = Path.Combine(dir, name + (idx == 0 ? "" : idx.ToString()) + ext);
+                    path = Path.Combine(dir, name + (idx == 0 ? "" : "_" + idx) + ext);
                     if (traceListener == null)
                     {
                         if (string.IsNullOrWhiteSpace(dir) == false)
