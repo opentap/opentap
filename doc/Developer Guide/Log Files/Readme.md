@@ -110,13 +110,13 @@ To customize how run logs are stored, implement a custom `ResultListener` and re
 
 OpenTAP automatically removes old session logs to keep disk usage bounded. The behavior is controlled by three limits. When the number of files or the total size exceeds the configured limit, the oldest files are deleted. The two most recent log files are always kept, even if they exceed the limits.
 
-Each limit can be overridden using an environment variable. A value of `0` (or an unparsable value) is treated as "not set", and each value is floored to a minimum.
+Each limit can be overridden using an environment variable.
 
-| Limit | Description | Default | Minimum | Environment variable |
-| ---- | ---- | ---- | ---- | ---- |
-| Max number of files | Maximum number of session log files kept at a time. | 20 | 5 | `OPENTAP_SESSION_LOG_MAX_FILES` |
-| Max total size | Maximum combined size (in bytes) of all session log files. | 2,000,000,000 (2 GB) | 100 | `OPENTAP_SESSION_LOG_MAX_TOTAL_SIZE` |
-| Max file size | Maximum size (in bytes) of a single session log file before it rolls over. | 100,000,000 (100 MB) | 100 | `OPENTAP_SESSION_LOG_MAX_FILE_SIZE` |
+| Limit | Description | Default | Override Environment variable |
+| ---- | ---- | ---- | ---- | 
+| Max number of files | Maximum number of session log files kept at a time. | 100 | `OPENTAP_SESSION_LOG_MAX_FILES` |
+| Max total size | Maximum combined size (in bytes) of all session log files. | 10,000,000,000 (10 GB) | `OPENTAP_SESSION_LOG_MAX_TOTAL_SIZE` |
+| Max file size | Maximum size (in bytes) of a single session log file before it rolls over. | 100,000,000 (100 MB) | `OPENTAP_SESSION_LOG_MAX_FILE_SIZE` |
 
 ## Initializing Session Logging
 
@@ -185,4 +185,4 @@ finally
 }
 ```
 
-`EventsLogged` is called with a batch of one or more `Event` values; `Flush` is called when the listener is asked to flush its output. For listeners that write to a stream, OpenTAP provides ready-made implementations such as `LogFile` (text) and `BinaryLog` (binary).
+`EventsLogged` is called with a batch of one or more `Event` values; `Flush` is called when the listener is asked to flush its output.
