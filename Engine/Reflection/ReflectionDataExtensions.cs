@@ -125,6 +125,10 @@ namespace OpenTap
                 {
                     return (T)(object)td.HelpLink;
                 }
+                if (typeof(T) == typeof(AllowAsChildInAttribute) && !td.HasAllowAsChildInAttributes) 
+                {
+                    return default;
+                }
             }
 
             var attributes = mem.Attributes;

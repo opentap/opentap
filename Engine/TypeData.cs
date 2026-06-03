@@ -86,7 +86,7 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Gets.the HelpLinkAttribute for this type. Null if the type does not have a HelpLinkAttribute
+        /// Gets the HelpLinkAttribute for this type. Null if the type does not have a HelpLinkAttribute
         /// </summary>
         public HelpLinkAttribute HelpLink
         {
@@ -111,6 +111,13 @@ namespace OpenTap
             }
             internal set => helpLink = value;
         }
+
+        /// <summary>
+        /// Indicates whether or not this type has one or more [AllowAsChildIn] attributes.
+        /// If this is not the case, we can avoid loading the type to read its attributes when checking
+        /// if a test step can be inserted as the child of another test step.
+        /// </summary>
+        internal bool HasAllowAsChildInAttributes { get; set; }
 
         /// <summary> Gets a list of base types (including interfaces) </summary>
         internal ICollection<TypeData> BaseTypes => baseTypes;

@@ -829,6 +829,9 @@ namespace OpenTap
                         plugin.Display = attrInstance;
                     }
                         break;
+                    case "OpenTap.AllowAsChildInAttribute":
+                        plugin.HasAllowAsChildInAttributes = true;
+                        break;
                     case "OpenTap.HelpLinkAttribute":
                     {
                         var valueString = attr.DecodeValue(new CustomAttributeTypeProvider(AllTypes));
