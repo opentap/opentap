@@ -52,23 +52,6 @@ namespace OpenTap
             }
         }
 
-        internal static bool TryGetCommandLinePath(out string path)
-        {
-            string[] args = Environment.GetCommandLineArgs();
-            for (int i = 0; i < args.Length - 1; i++)
-            {
-                string arg = args[i];
-                if (arg == "--log")
-                {
-                    path = args[i + 1];
-                    return true;
-                }
-            }
-
-            path = null;
-            return false;
-        }
-
         private static readonly TraceSource log = Log.CreateSource("Session");
 
         /// <summary> The number of files kept at a time. </summary>
@@ -188,39 +171,6 @@ namespace OpenTap
                     log.Debug("Unexpected error while printing system information.");
             }
             Flush();
-        }
-
-        /// <summary>
-        /// Rename session logs path to the one from engine settings.
-        /// Make sure <see cref="PluginManager.Load"/> has been called before calling this method.
-        /// </summary>
-        public static void SetLogPathFromEngineSettings()
-        {
-            if (TryGetCommandLinePath(out _))
-            {
-                return;
-            }
-            
-            try
-            {
-                var logpath = EngineSettings.Current.SessionLogPath.Expand(date: Process.GetCurrentProcess().StartTime);
-                bool isPathRooted = Path.IsPathRooted(logpath);
-                if (isPathRooted == false)
-                {
-                    var dir = ExecutorClient.ExeDir;
-                    logpath = Path.Combine(dir, logpath);
-                }
-
-                if (Path.GetFullPath(logpath) != Path.GetFullPath(GetSessionLogFilePath()))
-                {
-                    Rename(logpath);
-                }
-            }
-            catch (Exception e)
-            {
-                log.Error("Path defined in Engine settings contains invalid characters: {0}", EngineSettings.Current.SessionLogPath);
-                log.Debug(e);
-            }
         }
 
         /// <summary>
