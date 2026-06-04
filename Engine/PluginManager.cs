@@ -281,18 +281,7 @@ namespace OpenTap
                 if (isLoaded) return;
                 isLoaded = true;
 
-                if (!SessionLogs.TryGetCommandLinePath(out string path))
-                {
-                    path = SessionLogs.GetDefaultPath();
-                }
-                try
-                {
-                    SessionLogs.Initialize(path);
-                }
-                catch
-                {
-                    SessionLogs.Initialize(SessionLogs.GetDefaultPath());
-                }
+                SessionLogs.Initialize();
 
                 string tapEnginePath = Assembly.GetExecutingAssembly().Location;
                 if(String.IsNullOrEmpty(tapEnginePath))
