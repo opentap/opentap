@@ -339,18 +339,11 @@ namespace OpenTap
             bool reload = false;
             if (nowKey != 0)
             {
-                if (keyTable.TryGetValue(obj, out var currentKey))
+                var currentKey = keyTable.GetOrCreateValue(obj);
+                if (currentKey.Key != nowKey)
                 {
-                    if (currentKey.Key != nowKey)
-                    {
-                        reload = true;
-                        currentKey.Key = nowKey;
-                    }
-                }
-                else
-                {
-                    keyTable.Add(obj, new KeyBox(){Key = nowKey});
                     reload = true;
+                    currentKey.Key = nowKey;
                 }
             }
             if (reload)
