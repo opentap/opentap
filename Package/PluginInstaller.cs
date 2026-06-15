@@ -129,6 +129,10 @@ namespace OpenTap.Package
                 // Ensure color is never set in the child process. Colors will still be set in the parent process.
                 pi.Environment["OPENTAP_COLOR"] = "never";
                 
+                // If its not an interactive session
+                if (NonInteractiveUserInputInterface.IsSet())
+                    pi.Environment["OPENTAP_NONINTERACTIVE"] = "true";
+                
                 try
                 {
                     Process p;
