@@ -342,8 +342,8 @@ namespace OpenTap.Package
             // 1. The specified package does not exist
             // 2. The requested version could not be satisfied
             // 3. The requested package has a level 1 dependency conflict with the requested image
-            var allSpecs = graph.PackageSpecifiers().ToArray();
-            if (ResolveProblems.All(rp => false == allSpecs.Any(s => s.Name == rp.Name)))
+
+            if (ResolveProblems.All(rp => !graph.HasPackage(rp.Name)))
             {
                 problem = new DoesNotExistResolutionProblem(ResolveProblems);
             }

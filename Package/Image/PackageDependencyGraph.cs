@@ -372,6 +372,8 @@ namespace OpenTap.Package
             }
         }
 
+        public bool HasPackage(string pkgName) => name2Id.TryGetValue(pkgName, out var Id) && versions.TryGetValue(Id, out var set) && set.Any();
+
         public bool HasPackage(string pkgName, SemanticVersion version)
         {
             return name2Id.TryGetValue(pkgName, out var Id)
