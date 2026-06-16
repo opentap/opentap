@@ -337,6 +337,51 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        public class TestStepThatFails : TestStep
+        {
+            public bool ResultsDefer { get; set; } = true;
+
+            public override void Run()
+            {
+                UpgradeVerdict(Verdict.Fail);
+                if (ResultsDefer) 
+                {
+                    Results.Defer(Sleep);
+                }
+            }
+
+            static void Sleep()
+            {
+                TapThread.Sleep(1000);
+            }
+        }
+
+        public class TestStepThatSucceeds : TestStep
+        {
+            internal bool DidExecute = false;
+            public override void Run()
+            {
+                UpgradeVerdict(Verdict.Pass);
+                DidExecute = true;
+            }
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TestBreakConditionsOnDefer(bool doDefer)
+        {
+            var plan = new TestPlan();
+            var failStep = new TestStepThatFails() { ResultsDefer = doDefer };
+            var successStep = new TestStepThatSucceeds();
+            BreakConditionProperty.SetBreakCondition(failStep, BreakCondition.BreakOnFail | BreakCondition.BreakOnError);
+            plan.ChildTestSteps.Add(failStep);
+            plan.ChildTestSteps.Add(successStep);
+
+            var run = plan.Execute();
+            Assert.That(run.Verdict, Is.EqualTo(Verdict.Fail));
+            Assert.That(successStep.DidExecute, Is.False);
+        }
+
         [Test]
         public void TestStepThrowsException()
         {

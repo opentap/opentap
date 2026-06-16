@@ -335,10 +335,8 @@ namespace OpenTap
         
         #endregion
 
-        /// <summary> Returns true if the break conditions are satisfied for the test step run.</summary>
-        public bool BreakConditionsSatisfied()
+        internal bool BreakConditionsSatisfied(Verdict verdict)
         {
-            var verdict = Verdict;
             if (OutOfRetries 
                 || (verdict == Verdict.Fail && BreakCondition.HasFlag(BreakCondition.BreakOnFail)) 
                 || (verdict == Verdict.Error && BreakCondition.HasFlag(BreakCondition.BreakOnError))
@@ -348,6 +346,12 @@ namespace OpenTap
                 return true;
             }
             return false;
+        }
+
+        /// <summary> Returns true if the break conditions are satisfied for the test step run.</summary>
+        public bool BreakConditionsSatisfied()
+        {
+            return BreakConditionsSatisfied(Verdict);
         }
         
         internal bool OutOfRetries { get; set; }
