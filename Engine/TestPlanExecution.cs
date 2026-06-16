@@ -208,7 +208,11 @@ namespace OpenTap
                     var run = step.DoRun(planRun, planRun);
                     if (!run.Skipped)
                         runs.Add(run);
-                    if (run.BreakConditionsSatisfied())
+                    // if `step` finished with deferred actions, its verdict will not be propagated to
+                    // the `run` object until the defer queue has been flushed. To work around this
+                    // problem, we check break conditions against the step verdict instead of the run verdict.
+                    // It is technically possible that a deferred action resets the verdict, but this is not supported by break conditions.
+                    if (run.BreakConditionsSatisfied(step.Verdict))
                     {
                         var breakingRun = getBreakingRun(run);
                         addBreakResult(breakingRun);

@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 namespace OpenTap.Plugins.BasicSteps;
 
-class SweepRowMemberData : IMemberData, IParameterMemberData
+class SweepRowMemberData : IMemberData, IParameterMemberData, IParameterMemberDataNoPropagate
 {
     private readonly SweepRowTypeData _declaringType;
     private readonly IMemberData _innerMember;

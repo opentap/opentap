@@ -963,6 +963,9 @@ namespace OpenTap
         IEnumerable<(object Source, IMemberData Member)> ParameterizedMembers { get; }
     }
 
+    /// <summary> Marker interface for an IParameterMemberData where writes should not be propagated back to the parameter source.</summary>
+    public interface IParameterMemberDataNoPropagate : IParameterMemberData { }
+
     interface INotifyDynamicTypeChanged
     {
         void OnTypeChanged();

@@ -122,7 +122,7 @@ namespace OpenTap.Package
             {
                 var pkg = packages[i];
                 var versions = graph.PackagesSatisfying(pkg).ToArray();
-               allVersions.Add(versions);
+                allVersions.Add(versions);
             }
             
             // 4. prune away the versions which dependencies conflict with the required packages.
@@ -309,28 +309,24 @@ namespace OpenTap.Package
             // the rest of the variables will be fixed in the recursions.
             for (int i = 0; i < allVersions.Count; i++)
             {
-                var set = allVersions.Select(x => x[0]).ToArray();
                 var pkgVersions = allVersions[i];
                 if (pkgVersions.Length == 1) continue; // skip all exact versions
-                for (int j = 0; j < pkgVersions.Length; j++)
+                var newSpecifier = new ImageSpecifier();
+                for (int k3 = 0; k3 < allVersions.Count; k3++)
                 {
-                    set[i] = pkgVersions[j];
+                    newSpecifier.Packages.Add(packages[k3]);
+                }
 
-                    var newSpecifier = new ImageSpecifier();
-                    for (int k3 = 0; k3 < allVersions.Count; k3++)
-                    {
-                        newSpecifier.Packages.Add(packages[k3]);
-                    }
-                    for (int k2 = 0; k2 < pkgVersions.Length; k2++)
-                    {
-                        
-                        newSpecifier.Packages[i] = new PackageSpecifier(packages[i].Name, new VersionSpecifier(allVersions[i][k2], VersionMatchBehavior.Exact));
+                for (int k2 = 0; k2 < pkgVersions.Length; k2++)
+                {
 
-                        // recursive to see if this specifier has a result.
-                        var result = this.ResolveImage(newSpecifier, graph);
-                        if (result.Success)
-                            return result;
-                    }
+                    newSpecifier.Packages[i] = new PackageSpecifier(packages[i].Name,
+                        new VersionSpecifier(allVersions[i][k2], VersionMatchBehavior.Exact));
+
+                    // recursive to see if this specifier has a result.
+                    var result = this.ResolveImage(newSpecifier, graph);
+                    if (result.Success)
+                        return result;
                 }
             }
             
@@ -346,8 +342,8 @@ namespace OpenTap.Package
             // 1. The specified package does not exist
             // 2. The requested version could not be satisfied
             // 3. The requested package has a level 1 dependency conflict with the requested image
-            var allSpecs = graph.PackageSpecifiers().ToArray();
-            if (ResolveProblems.All(rp => false == allSpecs.Any(s => s.Name == rp.Name)))
+
+            if (ResolveProblems.All(rp => !graph.HasPackage(rp.Name)))
             {
                 problem = new DoesNotExistResolutionProblem(ResolveProblems);
             }
