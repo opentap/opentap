@@ -124,3 +124,41 @@ The following recommendations will help you get your project off to a good start
 
 -	Use **Rules** for input validation to ensure valid data.
 
+## Embedding OpenTAP in other Applications   
+It is possible to embedd OpenTAP in custom applications and tools such as operator UIs. In this case, it is important to properly load and reference OpenTAP DLLs and install locations in order to keep the custom applications isolated if support for side-by-side installs of OpenTAP is desired.   
+    
+Mainly, this invovles how the OpenTAP DLL is discovered. This can be done in a few different ways:   
+   
+- When running within a tap.exe process:     
+    - `OpenTap.PluginManager.GetOpenTapAssembly().Location;`     
+    - `System.Reflection.Assembly.GetEntryAssembly().Location;`   
+        
+- Outside the tap.exe process:   
+    - It is recommended to find the install path using a registry key. The registry key that this generates should be in `HKEY_LOCAL_MACHINE\SOFTWARE\Keysight\Test Automation\Installations` or `HKEY_CURRENT_USER\SOFTWARE\Keysight\Test Automation\Installations` depending on whether `tap path register` / `tap package install OSIntegration` was running elevated (like e.g. during in a KS8400 installation).     
+    - You can look this Registry Key up from code using the standard .NET API: `Registry.LocalMachine.OpenSubKey`   
+     
+- From the CLI you can us the OS Integration Package:   
+    ```
+    > tap package install OSIntegration
+    Downloaded 'OSIntegration' to 'c:\git\opentap\bin\Debug\PackageCache\OSIntegration.1.3.0+f4db057d.TapPackage'. 
+    [616 ms]
+    Installing to C:\git\opentap\bin\Debug
+    Installed OSIntegration version 1.3.0+f4db057d [833 ms]
+    > tap path register .  // not actually necessary in this case as installing the package automatically does this
+    Registered installation in c:\git\opentap\bin\Debug.
+    > tap path list
+    OpenTAP  c:\git\opentap\bin\Debug
+    OpenTAP  C:\git\tap\bin\Debug
+    TAP_PATH C:\Program Files\Keysight\Test Automation
+    OpenTAP  c:\Program Files\OpenTAP
+    ```  
+   
+- If desired, you can set a custom path as part of a Package Action on Plugin install:
+```xml
+ <PackageActionExtensions>
+     <ActionStep ActionName="install" ExeFile="cmd" Arguments="/c setx MY_UTIL_INSTALL_DIR %cd%"/>
+</PackageActionExtensions>	
+ ```   
+
+  
+Note that the environment variable TAP_PATH may exist, however, this is for legacy reasons only and should **NOT** be used.
