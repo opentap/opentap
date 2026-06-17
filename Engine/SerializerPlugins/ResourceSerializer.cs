@@ -50,14 +50,30 @@ namespace OpenTap.Plugins
                 
                 // If there is no type matching the exact requested type.
                 // try looking one up that matches the property type.
-                // propertyType is an attempty to calculate the current target type.
+                // propertyType is an attempt to calculate the current target type.
                 // it might be null if it cannot be determined.
-                var propertyType = (Serializer.SerializerStack.Skip(1).FirstOrDefault() as ObjectSerializer)
-                    ?.CurrentMember?.TypeDescriptor?.AsTypeData()?.Type;
-                if (propertyType == null)
+                Type propertyType = null;
+                foreach (var parentSerializer in Serializer.SerializerStack.Skip(1)) 
                 {
-                    propertyType = (Serializer.SerializerStack.Skip(1).FirstOrDefault() as CollectionSerializer)
-                        ?.CurrentElementType;
+                    if (parentSerializer is ObjectSerializer obj)
+                    {
+                        propertyType = obj.CurrentMember?.TypeDescriptor?.AsTypeData()?.Type;
+                    }else if (parentSerializer is CollectionSerializer col)
+                    {
+                        propertyType = col.CurrentElementType;
+                    }
+
+                    if (propertyType != null)
+                    {
+                        break;
+                    }
+                }
+                
+                // if it is not possible to detect a base type, or if t is incompatible with it
+                // assign 't' to the propertyType.
+                if (propertyType == null && !t.DescendsTo(propertyType))
+                {
+                    propertyType = t;
                 }
                 
                 Serializer.DeferLoad(() =>
@@ -85,7 +101,7 @@ namespace OpenTap.Plugins
                     // 3. matching type. (errors emitted)
                     // 4. defaulting to (errors emitted) compatible type.
                     
-                    var obj = fetchObject(t, propertyType ?? t, o => getName(o).Trim() == content, src);
+                    var obj = fetchObject(t, propertyType, o => getName(o).Trim() == content, src);
                     if (obj != null)
                     {
                         var name = getName(obj).Trim();
