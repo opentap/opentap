@@ -111,8 +111,6 @@ namespace OpenTap.Authentication
         /// <returns>A preconfigued HttpClient object</returns>
         public HttpClient GetClient(string domain = null, bool withRetryPolicy = false, string baseAddress = null)
         {
-            if (Uri.IsWellFormedUriString(domain, UriKind.Absolute))
-                throw new ArgumentException("Domain should only be the host part of a URI and not a full absolute URI.", nameof(domain));
             var client = new HttpClient(new AuthenticationClientHandler(domain, withRetryPolicy));
             if (baseAddress != null)
             {
