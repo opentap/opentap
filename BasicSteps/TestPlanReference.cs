@@ -108,14 +108,8 @@ namespace OpenTap.Plugins.BasicSteps
             }
         }
 
-        [XmlIgnore]
-        [Browsable(false)]
-        [AnnotationIgnore]
-        public new TestStepList ChildTestSteps
-        {
-            get { return base.ChildTestSteps; }
-            set { base.ChildTestSteps = value; }
-        }
+
+        
 
         public TestPlanReference()
         {
