@@ -17,11 +17,17 @@ running testplans, and clearly organizing the output of a testplan, i.e.,
 
 ## Developer System
 
-Install the Developer System (commercial or community license) from the following page:
+If you are on Windows, you can get Developer's System (commercial or community license) from the following page:
 
 [https://www.keysight.com/find/tapinstall](https://www.keysight.com/find/tapinstall)
 
-and run it with `tap editor` or `tap editorx` or launch from the app menu.
+and run it with `tap editor` or launch from the app menu.
+
+If you are on Linux or MacOS, you can install it with the following command:
+
+```sh
+curl -s 'https://raw.githubusercontent.com/opentap/opentap/refs/heads/add-editor-install-script/doc/User%20Guide/Editors/install.sh' | sh
+```
 
 ## TUI
 
