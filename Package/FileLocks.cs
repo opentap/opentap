@@ -52,7 +52,8 @@ namespace OpenTap
         /// </summary>
         private void Take()
         {
-            PosixNative.flock(fileDescriptor, PosixNative.LOCK_EX);
+            int status = PosixNative.flock(fileDescriptor, PosixNative.LOCK_EX);
+            if (status != 0) throw new Exception($"Failed to lock {fileName}: {PosixNative.StrError()}");
         }
 
         public void Release()
