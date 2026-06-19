@@ -20,90 +20,11 @@ namespace OpenTap
         public static IFileLock Create(string file)
         {
             if (OperatingSystem.Current == OperatingSystem.Windows) return new Win32FileLock(file);
-            if (OperatingSystem.Current == OperatingSystem.MacOS) return new MacOSFileLock(file);
             return new PosixFileLock(file);
         }
     }
 
-    /// <summary>
-    /// Note that this implementation is not thread-safe, unlike the other implementations
-    /// </summary>
-    class MacOSFileLock : IFileLock
-    {
-        private readonly ManualResetEvent _waitHandle;
-        private readonly string name;
-
-        public MacOSFileLock(string file)
-        {
-            _waitHandle = new ManualResetEvent(false);
-            name = file;
-        }
-
-        public void Dispose()
-        {
-            Release();
-        }
-
-        public bool WaitOne()
-        {
-            while (true)
-            {
-                // Keep retrying waiting with a timeout until it succeeds
-                if (WaitOne(1000)) return true;
-            }
-        }
-
-        public bool WaitOne(TimeSpan timeout)
-        {
-            // If the fileLock is not null, we are already holding this mutex.
-            if (fileLock != null) return true;
-            var sw = Stopwatch.StartNew();
-            do
-            {
-                // File exists -- the named mutex is locked
-                if (File.Exists(name))
-                {
-                    var remaining = timeout - sw.Elapsed;
-                    if (remaining.TotalMilliseconds > 1)
-                        Thread.Sleep(1);
-                    else Thread.Yield();
-                }
-                // Otherwise, create the file, thereby claiming the mutex
-                else
-                {
-                    fileLock = File.Create(name, 0, FileOptions.DeleteOnClose);
-                    _waitHandle.Set();
-                    return true;
-                }
-            } while (sw.Elapsed < timeout);
-
-            return false;
-        }
-
-        public bool WaitOne(int ms)
-        {
-            return WaitOne(TimeSpan.FromMilliseconds(ms));
-        }
-
-        public WaitHandle WaitHandle => _waitHandle;
-        public FileStream fileLock { get; set; }
-
-        public void Release()
-        {
-            try
-            {
-                fileLock.Dispose();
-                fileLock = null;
-                _waitHandle.Reset();
-            }
-            catch
-            {
-                // this is okay
-            }
-        }
-    }
-
-    /// <summary> Locks a file using flock on linux. This essentially works as a named mutex.  </summary>
+    /// <summary> Locks a file using flock on linux and mac. This essentially works as a named mutex.  </summary>
     class PosixFileLock : IFileLock
     {
         int fileDescriptor;
@@ -118,7 +39,10 @@ namespace OpenTap
             fileDescriptor =
                 PosixNative.open(file, PosixNative.O_RDONLY | PosixNative.O_APPEND | PosixNative.O_CREAT, PosixNative.ALL_READ_WRITE);
 
-            if (fileDescriptor == -1) throw new IOException($"Failed create file lock on {file}");
+            if (fileDescriptor == -1)
+            {
+                throw new IOException($"Failed create file lock on {file}: {PosixNative.StrError()}");
+            }
             _waitHandle = new ManualResetEvent(false);
         }
 
@@ -227,18 +151,48 @@ namespace OpenTap
 
     static class PosixNative
     {
-        [DllImport("libc")]
+        [DllImport("libc", SetLastError = true)]
         public static extern int open(string pathname, int flags, int mode);
 
-        [DllImport("libc")]
+        [DllImport("libc", SetLastError = true)]
         public static extern int close(int fd);
 
-        [DllImport("libc")]
+        [DllImport("libc", SetLastError = true)]
         public static extern int flock(int fd, int operation);
 
-        public const int O_CREAT = 64; //00000100;
-        public const int O_TRUNC = 512; //00001000;
-        public const int O_APPEND = 1024; //00002000;
+        [DllImport("libc", EntryPoint = "strerror")] 
+        private static extern IntPtr strerror(int errnum);
+
+        public static string StrError() 
+        {
+            int errno = Marshal.GetLastWin32Error();
+            return Marshal.PtrToStringAnsi(strerror(errno)) ?? $"errno {errno}";
+        }
+
+
+        static PosixNative()
+        {
+            /* MacOS and Linux use different bits for certain file flags.
+             * These flags are defined in <fcntl.h>
+             * It should be safe to hardcode them because it would be catastrophic
+             * for both MacOS and Linux to change them, since it would break every binary in existence. */
+            if (OperatingSystem.Current == OperatingSystem.Linux)
+            {
+                O_CREAT = 0x40; 
+                O_APPEND = 0x400;
+                O_TRUNC = 0x1000;
+            }
+            else
+            {
+                O_CREAT = 0x200; 
+                O_APPEND = 0x8;
+                O_TRUNC = 0x400;
+            }
+        }
+
+        public static int O_CREAT;
+        public static int O_TRUNC;
+        public static int O_APPEND;
 
         public const int O_RDONLY = 0; //00000000;
         public const int O_RDWR = 2; //00000002;
