@@ -74,14 +74,6 @@ namespace OpenTap
 
             PosixNative.close(fileDescriptor);
             fileDescriptor = -1;
-            try 
-            {
-                File.Delete(this.fileName);
-            }
-            catch
-            {
-                // suppress
-            }
         }
 
         public bool WaitOne()
@@ -105,7 +97,10 @@ namespace OpenTap
 
                 var remaining = timeout - sw.Elapsed;
                 if (remaining.TotalMilliseconds > 1)
-                    Thread.Sleep(1);
+                {
+                    double sleep_ms = Math.Min(remaining.TotalMilliseconds, 5);
+                    TapThread.Sleep((int)sleep_ms);
+                }
                 else Thread.Yield();
             } while (sw.Elapsed < timeout);
 
