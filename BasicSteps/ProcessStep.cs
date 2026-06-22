@@ -85,7 +85,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
         [Display("Add to Log", Order: -2.05, Description: "If enabled the result of the query is added to the log.")]
-        public bool AddToLog { get; set; }
+        public bool AddToLog { get; set; } = true;
 
         [EnabledIf(nameof(AddToLog), true, HideIfDisabled = true)]
         [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
