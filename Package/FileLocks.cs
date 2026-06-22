@@ -34,10 +34,30 @@ namespace OpenTap
         public PosixFileLock(string file)
         {
             this.fileName = file;
-            // Open 'file' in read/write + append mode. If the file does not exist it will be created with the
-            // most permissive access settings possible
-            fileDescriptor =
-                PosixNative.open(file, PosixNative.O_RDONLY | PosixNative.O_APPEND | PosixNative.O_CREAT, PosixNative.ALL_READ_WRITE);
+
+            // Ensure the lock file exists with sensible permissions before opening it with libc.
+            //
+            // We deliberately do NOT pass O_CREAT (and a mode) to the libc open() below: open() is a
+            // variadic function (int open(const char*, int, ...)) and the mode is a variadic argument.
+            // On some ABIs (notably Apple ARM64) variadic arguments are passed on the stack while the
+            // p/invoke marshaller passes the mode in a register, so the kernel reads a garbage mode.
+            // This previously created the lock file with broken permissions (e.g. 0055, no owner access),
+            // after which any subsequent open() of the same file failed with EACCES. Creating the file
+            // up front via .NET avoids relying on open()'s variadic mode argument entirely.
+            if (!File.Exists(file))
+            {
+                try
+                {
+                    using (File.Open(file, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite)) { }
+                }
+                catch (IOException)
+                {
+                    // Another thread/process created it first - that is fine.
+                }
+            }
+
+            // Open an existing file (no O_CREAT) purely to obtain a descriptor to flock on.
+            fileDescriptor = PosixNative.Open(file);
 
             if (fileDescriptor == -1)
             {
@@ -147,8 +167,15 @@ namespace OpenTap
 
     static class PosixNative
     {
+        // Note: open() is variadic - 'int open(const char*, int oflag, ...)' - where the file mode is a
+        // variadic argument only used with O_CREAT. We never pass O_CREAT (the lock file is created via
+        // .NET beforehand), so we declare the simple two-argument form and never pass a mode. Declaring a
+        // fixed third 'mode' argument is unsafe on ABIs that pass variadic arguments differently from
+        // fixed ones (e.g. Apple ARM64), where it results in a garbage mode being applied to the file.
         [DllImport("libc", SetLastError = true)]
-        public static extern int open(string pathname, int flags, int mode);
+        private static extern int open(string pathname, int flags);
+
+        public static int Open(string pathname) => open(pathname, O_RDONLY | O_APPEND);
 
         [DllImport("libc", SetLastError = true)]
         public static extern int close(int fd);
