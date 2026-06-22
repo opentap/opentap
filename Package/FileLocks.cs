@@ -11,6 +11,7 @@ namespace OpenTap
         bool WaitOne();
         bool WaitOne(TimeSpan timeout);
         bool WaitOne(int ms);
+        bool WaitOne(TimeSpan timeout, CancellationToken cancellationToken);
         WaitHandle WaitHandle { get; }
         void Release();
     }
@@ -103,11 +104,15 @@ namespace OpenTap
             return true;
         }
 
-        public bool WaitOne(TimeSpan timeout)
+        public bool WaitOne(TimeSpan timeout) => WaitOne(timeout, CancellationToken.None);
+
+        public bool WaitOne(TimeSpan timeout, CancellationToken cancellationToken)
         {
             var sw = Stopwatch.StartNew();
             do
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 var @lock = PosixNative.flock(fileDescriptor, PosixNative.LOCK_NB | PosixNative.LOCK_EX);
                 if (@lock == 0)
                 {
@@ -119,7 +124,9 @@ namespace OpenTap
                 if (remaining.TotalMilliseconds > 1)
                 {
                     double sleep_ms = Math.Min(remaining.TotalMilliseconds, 5);
-                    TapThread.Sleep((int)sleep_ms);
+                    // Sleep, but wake up immediately if cancellation is requested.
+                    if (cancellationToken.WaitHandle.WaitOne((int)sleep_ms))
+                        cancellationToken.ThrowIfCancellationRequested();
                 }
                 else Thread.Yield();
             } while (sw.Elapsed < timeout);
@@ -160,6 +167,20 @@ namespace OpenTap
         public bool WaitOne() => _mutex.WaitOne();
         public bool WaitOne(TimeSpan timeout) => _mutex.WaitOne(timeout);
         public bool WaitOne(int ms) => _mutex.WaitOne(ms);
+
+        public bool WaitOne(TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            switch (WaitHandle.WaitAny([_mutex, cancellationToken.WaitHandle], timeout))
+            {
+                case 0: // Acquired the mutex.
+                    return true;
+                case 1: // Cancellation token was signaled.
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return false;
+                default: // WaitHandle.WaitTimeout
+                    return false;
+            }
+        }
 
         public WaitHandle WaitHandle => _mutex;
         public void Release() => _mutex.ReleaseMutex();

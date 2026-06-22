@@ -108,15 +108,12 @@ namespace OpenTap.Package
                 log.Info("Waiting for other package manager operation to complete.");
                 try
                 {
-                    switch (WaitHandle.WaitAny(new WaitHandle[] { fileLock.WaitHandle, cancellationToken.WaitHandle }, TimeSpan.FromMinutes(2)))
-                    {
-                        case 0: // we got the mutex
-                            break;
-                        case 1: // user cancelled
-                            throw new ExitCodeException(5, "User aborted while waiting for other package manager operation to complete.");
-                        case WaitHandle.WaitTimeout:
-                            throw new ExitCodeException(6, "Timeout after 2 minutes while waiting for other package manager operation to complete.");
-                    }
+                    if (!fileLock.WaitOne(TimeSpan.FromMinutes(2), cancellationToken))
+                        throw new ExitCodeException(6, "Timeout after 2 minutes while waiting for other package manager operation to complete.");
+                }
+                catch (OperationCanceledException)
+                {
+                    throw new ExitCodeException(5, "User aborted while waiting for other package manager operation to complete.");
                 }
                 catch (AbandonedMutexException)
                 {
