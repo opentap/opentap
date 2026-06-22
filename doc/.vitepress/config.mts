@@ -53,6 +53,7 @@ export default defineConfig({
             { link: "Developer Guide/Test Step/Readme.md", text: "Test Step" },
             { link: "Developer Guide/Resources/Readme.md", text: "Resources" },
             { link: "Developer Guide/Result Listener/Readme.md", text: "Result Listener" },
+            { link: "Developer Guide/Log Files/Readme.md", text: "Log Files" },
             { link: "Developer Guide/Component Setting/Readme.md", text: "Component Setting" },
             { link: "Developer Guide/Annotations/Readme.md", text: "Annotations" },
             { link: "Developer Guide/Translating/Readme.md", text: "Translating Packages" },
