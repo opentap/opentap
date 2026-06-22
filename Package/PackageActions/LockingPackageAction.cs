@@ -99,7 +99,10 @@ namespace OpenTap.Package
                 FileSystemHelper.EnsureDirectoryOf(Target);
             }
 
-            var lockfile = Path.Combine(Target, ".lock");
+            /* for historical reasons, the lock file must be named ".lock" on linux / windows,
+             * and something else on MacOS. Otherwise downgrading OpenTAP will brick the installation 
+             * on macOS. */
+            var lockfile = Path.Combine(Target, OperatingSystem.Current == OperatingSystem.MacOS ? ".install-lock" : ".lock");
             FileSystemHelper.EnsureDirectoryOf(lockfile);
             using var fileLock = FileLock.Create(lockfile);
             bool useLocking = Unlocked == false;
