@@ -11,6 +11,7 @@ namespace OpenTap
         bool WaitOne();
         bool WaitOne(TimeSpan timeout);
         bool WaitOne(int ms);
+        bool WaitOne(TimeSpan timeout, CancellationToken cancellationToken);
         WaitHandle WaitHandle { get; }
         void Release();
     }
@@ -20,90 +21,11 @@ namespace OpenTap
         public static IFileLock Create(string file)
         {
             if (OperatingSystem.Current == OperatingSystem.Windows) return new Win32FileLock(file);
-            if (OperatingSystem.Current == OperatingSystem.MacOS) return new MacOSFileLock(file);
             return new PosixFileLock(file);
         }
     }
 
-    /// <summary>
-    /// Note that this implementation is not thread-safe, unlike the other implementations
-    /// </summary>
-    class MacOSFileLock : IFileLock
-    {
-        private readonly ManualResetEvent _waitHandle;
-        private readonly string name;
-
-        public MacOSFileLock(string file)
-        {
-            _waitHandle = new ManualResetEvent(false);
-            name = file;
-        }
-
-        public void Dispose()
-        {
-            Release();
-        }
-
-        public bool WaitOne()
-        {
-            while (true)
-            {
-                // Keep retrying waiting with a timeout until it succeeds
-                if (WaitOne(1000)) return true;
-            }
-        }
-
-        public bool WaitOne(TimeSpan timeout)
-        {
-            // If the fileLock is not null, we are already holding this mutex.
-            if (fileLock != null) return true;
-            var sw = Stopwatch.StartNew();
-            do
-            {
-                // File exists -- the named mutex is locked
-                if (File.Exists(name))
-                {
-                    var remaining = timeout - sw.Elapsed;
-                    if (remaining.TotalMilliseconds > 1)
-                        Thread.Sleep(1);
-                    else Thread.Yield();
-                }
-                // Otherwise, create the file, thereby claiming the mutex
-                else
-                {
-                    fileLock = File.Create(name, 0, FileOptions.DeleteOnClose);
-                    _waitHandle.Set();
-                    return true;
-                }
-            } while (sw.Elapsed < timeout);
-
-            return false;
-        }
-
-        public bool WaitOne(int ms)
-        {
-            return WaitOne(TimeSpan.FromMilliseconds(ms));
-        }
-
-        public WaitHandle WaitHandle => _waitHandle;
-        public FileStream fileLock { get; set; }
-
-        public void Release()
-        {
-            try
-            {
-                fileLock.Dispose();
-                fileLock = null;
-                _waitHandle.Reset();
-            }
-            catch
-            {
-                // this is okay
-            }
-        }
-    }
-
-    /// <summary> Locks a file using flock on linux. This essentially works as a named mutex.  </summary>
+    /// <summary> Locks a file using flock on linux and mac. This essentially works as a named mutex.  </summary>
     class PosixFileLock : IFileLock
     {
         int fileDescriptor;
@@ -113,12 +35,35 @@ namespace OpenTap
         public PosixFileLock(string file)
         {
             this.fileName = file;
-            // Open 'file' in read/write + append mode. If the file does not exist it will be created with the
-            // most permissive access settings possible
-            fileDescriptor =
-                PosixNative.open(file, PosixNative.O_RDONLY | PosixNative.O_APPEND | PosixNative.O_CREAT, PosixNative.ALL_READ_WRITE);
 
-            if (fileDescriptor == -1) throw new IOException($"Failed create file lock on {file}");
+            // Ensure the lock file exists with sensible permissions before opening it with libc.
+            //
+            // We deliberately do NOT pass O_CREAT (and a mode) to the libc open() below: open() is a
+            // variadic function (int open(const char*, int, ...)) and the mode is a variadic argument.
+            // On some ABIs (notably Apple ARM64) variadic arguments are passed on the stack while the
+            // p/invoke marshaller passes the mode in a register, so the kernel reads a garbage mode.
+            // This previously created the lock file with broken permissions (e.g. 0055, no owner access),
+            // after which any subsequent open() of the same file failed with EACCES. Creating the file
+            // up front via .NET avoids relying on open()'s variadic mode argument entirely.
+            if (!File.Exists(file))
+            {
+                try
+                {
+                    using (File.Open(file, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.ReadWrite)) { }
+                }
+                catch (IOException)
+                {
+                    // Another thread/process created it first - that is fine.
+                }
+            }
+
+            // Open an existing file (no O_CREAT) purely to obtain a descriptor to flock on.
+            fileDescriptor = PosixNative.Open(file);
+
+            if (fileDescriptor == -1)
+            {
+                throw new IOException($"Failed create file lock on {file}: {PosixNative.StrError()}");
+            }
             _waitHandle = new ManualResetEvent(false);
         }
 
@@ -128,7 +73,8 @@ namespace OpenTap
         /// </summary>
         private void Take()
         {
-            PosixNative.flock(fileDescriptor, PosixNative.LOCK_EX);
+            int status = PosixNative.flock(fileDescriptor, PosixNative.LOCK_EX);
+            if (status != 0) throw new Exception($"Failed to lock {fileName}: {PosixNative.StrError()}");
         }
 
         public void Release()
@@ -149,14 +95,6 @@ namespace OpenTap
 
             PosixNative.close(fileDescriptor);
             fileDescriptor = -1;
-            try 
-            {
-                File.Delete(this.fileName);
-            }
-            catch
-            {
-                // suppress
-            }
         }
 
         public bool WaitOne()
@@ -166,11 +104,15 @@ namespace OpenTap
             return true;
         }
 
-        public bool WaitOne(TimeSpan timeout)
+        public bool WaitOne(TimeSpan timeout) => WaitOne(timeout, CancellationToken.None);
+
+        public bool WaitOne(TimeSpan timeout, CancellationToken cancellationToken)
         {
             var sw = Stopwatch.StartNew();
             do
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 var @lock = PosixNative.flock(fileDescriptor, PosixNative.LOCK_NB | PosixNative.LOCK_EX);
                 if (@lock == 0)
                 {
@@ -180,7 +122,12 @@ namespace OpenTap
 
                 var remaining = timeout - sw.Elapsed;
                 if (remaining.TotalMilliseconds > 1)
-                    Thread.Sleep(1);
+                {
+                    double sleep_ms = Math.Min(remaining.TotalMilliseconds, 5);
+                    // Sleep, but wake up immediately if cancellation is requested.
+                    if (cancellationToken.WaitHandle.WaitOne((int)sleep_ms))
+                        cancellationToken.ThrowIfCancellationRequested();
+                }
                 else Thread.Yield();
             } while (sw.Elapsed < timeout);
 
@@ -221,24 +168,75 @@ namespace OpenTap
         public bool WaitOne(TimeSpan timeout) => _mutex.WaitOne(timeout);
         public bool WaitOne(int ms) => _mutex.WaitOne(ms);
 
+        public bool WaitOne(TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            switch (WaitHandle.WaitAny([_mutex, cancellationToken.WaitHandle], timeout))
+            {
+                case 0: // Acquired the mutex.
+                    return true;
+                case 1: // Cancellation token was signaled.
+                    cancellationToken.ThrowIfCancellationRequested();
+                    return false;
+                default: // WaitHandle.WaitTimeout
+                    return false;
+            }
+        }
+
         public WaitHandle WaitHandle => _mutex;
         public void Release() => _mutex.ReleaseMutex();
     }
 
     static class PosixNative
     {
-        [DllImport("libc")]
-        public static extern int open(string pathname, int flags, int mode);
+        // Note: open() is variadic - 'int open(const char*, int oflag, ...)' - where the file mode is a
+        // variadic argument only used with O_CREAT. We never pass O_CREAT (the lock file is created via
+        // .NET beforehand), so we declare the simple two-argument form and never pass a mode. Declaring a
+        // fixed third 'mode' argument is unsafe on ABIs that pass variadic arguments differently from
+        // fixed ones (e.g. Apple ARM64), where it results in a garbage mode being applied to the file.
+        [DllImport("libc", SetLastError = true)]
+        private static extern int open(string pathname, int flags);
 
-        [DllImport("libc")]
+        public static int Open(string pathname) => open(pathname, O_RDONLY | O_APPEND);
+
+        [DllImport("libc", SetLastError = true)]
         public static extern int close(int fd);
 
-        [DllImport("libc")]
+        [DllImport("libc", SetLastError = true)]
         public static extern int flock(int fd, int operation);
 
-        public const int O_CREAT = 64; //00000100;
-        public const int O_TRUNC = 512; //00001000;
-        public const int O_APPEND = 1024; //00002000;
+        [DllImport("libc", EntryPoint = "strerror")] 
+        private static extern IntPtr strerror(int errnum);
+
+        public static string StrError() 
+        {
+            int errno = Marshal.GetLastWin32Error();
+            return Marshal.PtrToStringAnsi(strerror(errno)) ?? $"errno {errno}";
+        }
+
+
+        static PosixNative()
+        {
+            /* MacOS and Linux use different bits for certain file flags.
+             * These flags are defined in <fcntl.h>
+             * It should be safe to hardcode them because it would be catastrophic
+             * for both MacOS and Linux to change them, since it would break every binary in existence. */
+            if (OperatingSystem.Current == OperatingSystem.Linux)
+            {
+                O_CREAT = 0x40; 
+                O_APPEND = 0x400;
+                O_TRUNC = 0x1000;
+            }
+            else
+            {
+                O_CREAT = 0x200; 
+                O_APPEND = 0x8;
+                O_TRUNC = 0x400;
+            }
+        }
+
+        public static int O_CREAT;
+        public static int O_TRUNC;
+        public static int O_APPEND;
 
         public const int O_RDONLY = 0; //00000000;
         public const int O_RDWR = 2; //00000002;
