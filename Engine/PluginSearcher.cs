@@ -845,7 +845,8 @@ namespace OpenTap
                     case "System.ComponentModel.BrowsableAttribute":
                     {
                         var valueString = attr.DecodeValue(new CustomAttributeTypeProvider());
-                        plugin.IsBrowsable = bool.Parse(valueString.FixedArguments.First().Value.ToString());
+                        if (valueString.FixedArguments.Length == 1 && valueString.FixedArguments[0].Value is bool browsable) 
+                            plugin.IsBrowsable = browsable;
                     }
                         break;
                     default:
