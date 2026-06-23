@@ -93,11 +93,11 @@ jobs:
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Setup OpenTAP
-        uses: opentap/setup-opentap@d178a37a089bf73bd99da5b68a00b3d96e6d4517 # v1.0
+        uses: opentap/setup-opentap@d5108b37a770b99e4df3c15273cddfbaf52e6e80 # main
         with:
           version: 9.23.0
           packages: 'DocumentationGeneration:1.0.2'
-          additional-repository: 'https://test-automation.pw.keysight.com/api/packages'
+          additional-repository: 'https://internal.automation.keysight.com/api/repository'
           additional-repository-token: '${{ secrets.KS8500_REPO_TOKEN }}'
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
