@@ -216,12 +216,13 @@ namespace OpenTap.Package
             catch (ArgumentException ex)
             {
                 log.Error("Caught exception: {0}", ex.Message);
+                log.Debug(ex);
                 return (int)PackageExitCodes.PackageCreateError;
             }
             catch (InvalidDataException ex)
             {
                 log.Error("Caught invalid data exception: {0}", ex.Message);
-
+                log.Debug(ex);
                 return (int)PackageExitCodes.InvalidPackageDefinition;
             }
             return (int)ExitCodes.Success;
