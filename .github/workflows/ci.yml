@@ -1055,9 +1055,9 @@ jobs:
       - name: Create Local Nuget Package Source
         run: dotnet nuget add source $(pwd)/nuget-package --name local-nuget
         working-directory: ./Packages/SDK/Examples
-      - run: dotnet build -c LinuxDebug
+      - run: dotnet build -c Debug
         working-directory: ./Packages/SDK/Examples
-      - run: dotnet build -c LinuxRelease
+      - run: dotnet build -c Release
         working-directory: ./Packages/SDK/Examples
 
   Build-SDK-Windows:
@@ -1087,8 +1087,6 @@ jobs:
       - name: Create Local Nuget Package Source
         run: echo '<configuration><packageSources><add key="local-nuget" value="./nuget-package" /></packageSources></configuration>' > ./Packages/SDK/Examples/Nuget.config
       - run: dotnet build -c Debug
-        working-directory: ./Packages/SDK/Examples
-      - run: dotnet build -c "Debug CE"
         working-directory: ./Packages/SDK/Examples
       - run: dotnet build -c Release
         working-directory: ./Packages/SDK/Examples
