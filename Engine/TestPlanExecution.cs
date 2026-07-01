@@ -216,7 +216,7 @@ namespace OpenTap
                     {
                         var breakingRun = getBreakingRun(run);
                         addBreakResult(breakingRun);
-                        run.LogBreakCondition();
+                        run.LogBreakCondition(step.Verdict);
                         break;
                     }
 
