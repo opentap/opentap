@@ -41,7 +41,6 @@ jobs:
        group: OpenTAP-SpokeVPC
        labels:  [Linux, X64]
     outputs:
-      gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
       ks8500_repo_token_is_set: ${{ steps.check_KS8500_REPO_TOKEN.outputs.is_set }}
       sign_is_set: ${{ steps.check_sign.outputs.is_set }}
     steps:
@@ -49,16 +48,6 @@ jobs:
         name: Check whether KS8500_REPO_TOKEN is set
         run: |
           if [ -z "${{ secrets.KS8500_REPO_TOKEN }}" ]; then
-            echo "Not set"
-            echo "is_set=false" >> $GITHUB_OUTPUT
-          else
-            echo "Set"
-            echo "is_set=true" >> $GITHUB_OUTPUT
-          fi
-      - id: check_GITLAB_REGISTRY_TOKEN
-        name: Check whether GITLAB_REGISTRY_TOKEN is set
-        run: |
-          if [ -z "${{ secrets.GITLAB_REGISTRY_TOKEN }}" ]; then
             echo "Not set"
             echo "is_set=false" >> $GITHUB_OUTPUT
           else
@@ -110,8 +99,6 @@ jobs:
           path: sdk/Examples/OpenTAP Developer Guide.pdf
 
   Build-ApiDoc:
-    needs: CheckSecrets
-    if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
     runs-on:
       group: OpenTAP-SpokeVPC
       labels:  [Linux, X64]
