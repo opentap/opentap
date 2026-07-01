@@ -41,7 +41,6 @@ jobs:
        group: OpenTAP-SpokeVPC
        labels:  [Linux, X64]
     outputs:
-      gitlab_registry_token_is_set: ${{ steps.check_GITLAB_REGISTRY_TOKEN.outputs.is_set }}
       ks8500_repo_token_is_set: ${{ steps.check_KS8500_REPO_TOKEN.outputs.is_set }}
       sign_is_set: ${{ steps.check_sign.outputs.is_set }}
     steps:
@@ -49,16 +48,6 @@ jobs:
         name: Check whether KS8500_REPO_TOKEN is set
         run: |
           if [ -z "${{ secrets.KS8500_REPO_TOKEN }}" ]; then
-            echo "Not set"
-            echo "is_set=false" >> $GITHUB_OUTPUT
-          else
-            echo "Set"
-            echo "is_set=true" >> $GITHUB_OUTPUT
-          fi
-      - id: check_GITLAB_REGISTRY_TOKEN
-        name: Check whether GITLAB_REGISTRY_TOKEN is set
-        run: |
-          if [ -z "${{ secrets.GITLAB_REGISTRY_TOKEN }}" ]; then
             echo "Not set"
             echo "is_set=false" >> $GITHUB_OUTPUT
           else
@@ -110,8 +99,6 @@ jobs:
           path: sdk/Examples/OpenTAP Developer Guide.pdf
 
   Build-ApiDoc:
-    needs: CheckSecrets
-    if: needs.CheckSecrets.outputs.gitlab_registry_token_is_set == 'true'
     runs-on:
       group: OpenTAP-SpokeVPC
       labels:  [Linux, X64]
@@ -143,56 +130,6 @@ jobs:
           name: doc-api-html
           retention-days: 5
           path: API
-
-  Build-Pages:
-    runs-on:
-      group: OpenTAP-SpokeVPC
-      labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:latest
-    needs:
-      - Build-ApiDoc
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Prepare
-        run: rm 'doc/User Guide/Readme.md' 'doc/Developer Guide/Readme.md'
-      - name: Download API Artifacts
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: doc-api-html
-          path: API
-      - name: Setup Node
-        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: "doc/package-lock.json"
-      - name: Install dependencies
-        run: npm ci
-        working-directory: doc
-      # This is needed because the router wants to serve index.html as the default page
-      - name: Rename Index
-        run: mv Readme.md index.md
-        working-directory: doc
-      - name: Build with VitePress
-        run: npm run docs:build
-        working-directory: doc
-      - name: Copy API
-        run: cp -r API public/api
-      - name: Deploy
-        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
-        if: startsWith(github.ref, 'refs/tags/v')
-        with:
-          publish_dir: public
-          deploy_key: ${{ secrets.PAGES_DEPLOY_TOKEN }}
-          publish_branch: main
-          external_repository: opentap/opentap.github.io
-      - name: Upload artifacts
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: pages
-          retention-days: 5
-          path: public
 
   Build-Linux:
     runs-on:
