@@ -1,4 +1,7 @@
-﻿using System.Collections.Generic;
+﻿/* it is not possible to reference ResultsViewer.dll on MacOS / Linux because of how XPF injects the reference to PresentationCore (WPF).
+ * Until there is a way around this, we can only include this example on Windows */
+#if IS_WINDOWS
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Windows;
@@ -205,3 +208,4 @@ namespace OpenTap.Plugins.PluginDevelopment
         }
     }
 }
+#endif

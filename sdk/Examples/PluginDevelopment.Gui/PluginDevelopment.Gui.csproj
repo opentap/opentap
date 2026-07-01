@@ -16,8 +16,19 @@
   </ItemGroup>
 
   <ItemGroup>
-	  <AdditionalOpenTapPackage Include="Editor" />
-	  <OpenTapPackageReference Include="WPF Controls" />
-	  <OpenTapPackageReference Include="Results Viewer" />
+    <AdditionalOpenTapPackage Include="Editor" />
+    <OpenTapPackageReference Include="WPF Controls" />
   </ItemGroup>
+
+
+  <!-- It is not possible to reference ResultsViewer.dll on macOS / Linux -->
+  <!-- because of how XPF injects the reference to PresentationCore. -->
+  <!-- This should be fixed by moving relevant extension points to WPF Controls instead. -->
+  <ItemGroup Condition="'$(IsWindows)' == 'true'">
+    <OpenTapPackageReference Include="Results Viewer" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(IsWindows)' != 'true'">
+    <AdditionalOpenTapPackage Include="Results Viewer" />
+  </ItemGroup>
+
 </Project>

@@ -21,6 +21,11 @@
     <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
   </PropertyGroup>
 
+    <PropertyGroup Condition="'$(OS)'=='Windows_NT'">
+        <IsWindows>True</IsWindows>
+        <DefineConstants>IS_WINDOWS</DefineConstants>
+    </PropertyGroup>
+
   <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <IsDebug>true</IsDebug>
   </PropertyGroup>
