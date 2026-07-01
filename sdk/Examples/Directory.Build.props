@@ -18,12 +18,4 @@
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <OutputPath>$(MSBuildThisFileDirectory)bin\$(Configuration)\</OutputPath>
   </PropertyGroup>
-
-  <!-- We need to override the default runtimeconfig used by OpenTAP because it cannot otherwise resolve some Windows Desktop references -->
-  <ItemGroup>
-    <Content Include="$(MSBuildThisFileDirectory)Custom.runtimeconfig.json">
-      <Link>tap.runtimeconfig.json</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
 </Project>
