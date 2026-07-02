@@ -7,7 +7,7 @@
       <ChildTestSteps>
         <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Id="aa23442b-dc13-419d-9cf7-3e47864543fc">
           <Application>tap</Application>
-          <Arguments>package install Demonstration</Arguments>
+          <Arguments>package install Demonstration --version 9.0.7</Arguments>
           <WorkingDirectory></WorkingDirectory>
           <EnvironmentVariables />
           <Timeout>0</Timeout>
@@ -36,7 +36,7 @@
       <ChildTestSteps>
         <TestStep type="OpenTap.Plugins.BasicSteps.ProcessStep" Id="52cce158-c58d-42a2-9589-625bb8d34cd2">
           <Application>tap</Application>
-          <Arguments>package install Demonstration</Arguments>
+          <Arguments>package install Demonstration --version 9.0.7</Arguments>
           <WorkingDirectory></WorkingDirectory>
           <EnvironmentVariables />
           <Timeout>0</Timeout>
