@@ -209,7 +209,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
       - name: Copy Debug Package 
@@ -262,7 +262,7 @@ jobs:
             bin/Release/*
 
   Build-MacOS:
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -274,7 +274,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Build
         run: dotnet publish -c Release OpenTAP.sln
       - name: Copy Debug Package 
@@ -390,7 +390,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:
@@ -410,7 +410,7 @@ jobs:
       - run: bin/Release/tap run tests/regression.TapPlan --verbose --color
 
   TestMacPlan:
-    runs-on: macos-14
+    runs-on: macos-latest
     needs: 
       - Build-MacOS
       - Package-Templates
@@ -420,7 +420,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '6.0.x'
+          dotnet-version: '9.0.x'
       - name: Download binaries
         uses: actions/download-artifact@v4
         with:

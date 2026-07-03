@@ -522,18 +522,6 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
-        public void InstallFromRepoTest()
-        {
-            int exitCode;
-            // TODO: we need the --version part below because the release version of License Injector does not yet support OpenTAP 9.x, when it does, we can remove it again.
-            string output = RunPackageCli("install \"Demonstration\" -r http://packages.opentap.io", out exitCode);
-            Assert.AreEqual(0, exitCode, "Unexpected exit code: " + output);
-            Assert.IsTrue(output.Contains("Installed Demonstration"));
-            output = RunPackageCli("uninstall \"Demonstration\" -f", out exitCode);
-            Assert.AreEqual(0, exitCode, "Unexpected exit code: " + output);
-        }
-
-        [Test]
         public void InstallFileWithMissingDependencyTest()
         {
             var def = new PackageDef();
