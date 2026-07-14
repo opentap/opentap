@@ -63,9 +63,11 @@ namespace OpenTap.Plugins
                         using (ICryptoTransform decryptor = aesAlgo.CreateDecryptor(keyBytes, iv))
                         {
                             using (CryptoStream reader = new CryptoStream(inputStream, decryptor, CryptoStreamMode.Read))
+                            using (MemoryStream decryptedStream = new MemoryStream())
                             {
-                                output = new byte[inputAsBytes.Length];
-                                decryptedBytesCount = reader.Read(output, 0, output.Length);
+                                reader.CopyTo(decryptedStream);
+                                output = decryptedStream.ToArray();
+                                decryptedBytesCount = output.Length;
                                 result = Encoding.UTF8.GetString(output, 0, decryptedBytesCount);
                             }
                         }
