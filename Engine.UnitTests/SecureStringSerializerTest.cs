@@ -23,5 +23,18 @@ namespace OpenTap.Engine.UnitTests
             var inst2 = (SomeInstrument)new TapSerializer().DeserializeFromString(xml, TypeData.GetTypeData(inst));
             Assert.AreEqual(inst.Password.ToString(), inst2.Password.ToString());
         }
+
+        [TestCase("01234567890123456789")]
+        [TestCase("ThisPasswordIsDefinitelyLongerThanOneAesBlock")]
+        public void SerializationTestLongPassword(string password)
+        {
+            SomeInstrument inst = new SomeInstrument();
+            foreach (char c in password)
+                inst.Password.AppendChar(c);
+
+            string xml = new TapSerializer().SerializeToString(inst);
+            var inst2 = (SomeInstrument)new TapSerializer().DeserializeFromString(xml, TypeData.GetTypeData(inst));
+            Assert.AreEqual(password, inst2.Password.ConvertToUnsecureString());
+        }
     }
 }
