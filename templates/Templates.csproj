@@ -41,6 +41,9 @@
          used both by the full project template and by its standalone item template. -->
     <Content Include="src\shared\MyTestStep.cs" PackagePath="content\project\MyTestStep.cs" />
     <Content Include="src\shared\MyTestStep.cs" PackagePath="content\item-teststep\MyTestStep.cs" />
+
+    <Content Include="src\shared\MyDUT.cs" PackagePath="content\project\MyDUT.cs" />
+    <Content Include="src\shared\MyDUT.cs" PackagePath="content\item-dut\MyDUT.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -48,6 +51,7 @@
          stored once in the repository (in src\shared). -->
     <Content Include="src\shared\OpenTAP.png" PackagePath="content\project\.template.config\OpenTAP.png" />
     <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-teststep\.template.config\OpenTAP.png" />
+    <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-dut\.template.config\OpenTAP.png" />
   </ItemGroup>
 
 </Project>
