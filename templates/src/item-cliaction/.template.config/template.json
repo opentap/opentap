@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json.schemastore.org/template",
+  "author": "opentap.io",
+  "classifications": [ "OpenTAP", "Test Automation" ],
+  "identity": "OpenTAP.Item.CliAction",
+  "name": "OpenTAP CliAction",
+  "shortName": "opentap-cliaction",
+  "tags": {
+    "language": "C#",
+    "type": "item"
+  },
+  "sourceName": "MyCliAction",
+  "preferNameDirectory": false,
+  "symbols": {
+    "Namespace": {
+      "type": "parameter",
+      "dataType": "string",
+      "defaultValue": "MyNamespace",
+      "replaces": "ProjectName",
+      "displayName": "Namespace",
+      "description": "The namespace for the created CliAction."
+    }
+  }
+}

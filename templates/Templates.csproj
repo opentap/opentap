@@ -53,6 +53,9 @@
 
     <Content Include="src\shared\MyComponentSettings.cs" PackagePath="content\project\MyComponentSettings.cs" />
     <Content Include="src\shared\MyComponentSettings.cs" PackagePath="content\item-componentsettings\MyComponentSettings.cs" />
+
+    <Content Include="src\shared\MyCliAction.cs" PackagePath="content\project\MyCliAction.cs" />
+    <Content Include="src\shared\MyCliAction.cs" PackagePath="content\item-cliaction\MyCliAction.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -64,6 +67,7 @@
     <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-instrument\.template.config\OpenTAP.png" />
     <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-resultlistener\.template.config\OpenTAP.png" />
     <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-componentsettings\.template.config\OpenTAP.png" />
+    <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-cliaction\.template.config\OpenTAP.png" />
   </ItemGroup>
 
 </Project>
