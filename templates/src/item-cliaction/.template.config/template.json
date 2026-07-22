@@ -11,6 +11,9 @@
   },
   "sourceName": "MyCliAction",
   "preferNameDirectory": false,
+  "primaryOutputs": [
+    { "path": "MyCliAction.cs" }
+  ],
   "symbols": {
     "Namespace": {
       "type": "parameter",

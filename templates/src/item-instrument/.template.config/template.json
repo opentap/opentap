@@ -11,6 +11,9 @@
   },
   "sourceName": "MyInstrument",
   "preferNameDirectory": false,
+  "primaryOutputs": [
+    { "path": "MyInstrument.cs" }
+  ],
   "symbols": {
     "Namespace": {
       "type": "parameter",

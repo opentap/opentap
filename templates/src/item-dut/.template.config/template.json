@@ -11,6 +11,9 @@
   },
   "sourceName": "MyDUT",
   "preferNameDirectory": false,
+  "primaryOutputs": [
+    { "path": "MyDUT.cs" }
+  ],
   "symbols": {
     "Namespace": {
       "type": "parameter",

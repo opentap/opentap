@@ -11,6 +11,9 @@
   },
   "sourceName": "MyTestStep",
   "preferNameDirectory": false,
+  "primaryOutputs": [
+    { "path": "MyTestStep.cs" }
+  ],
   "symbols": {
     "Namespace": {
       "type": "parameter",

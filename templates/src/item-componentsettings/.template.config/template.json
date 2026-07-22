@@ -11,6 +11,9 @@
   },
   "sourceName": "MyComponentSettings",
   "preferNameDirectory": false,
+  "primaryOutputs": [
+    { "path": "MyComponentSettings.cs" }
+  ],
   "symbols": {
     "Namespace": {
       "type": "parameter",

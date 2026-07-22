@@ -11,6 +11,9 @@
   },
   "sourceName": "MyResultListener",
   "preferNameDirectory": false,
+  "primaryOutputs": [
+    { "path": "MyResultListener.cs" }
+  ],
   "symbols": {
     "Namespace": {
       "type": "parameter",
