@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <PackageType>Template</PackageType>
@@ -24,13 +24,21 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="src\**\*" PackagePath="content" />
+    <!-- Include all template content except the shared folder, which holds
+         canonical source files that are fanned out into individual templates below. -->
+    <Content Include="src\**\*" Exclude="src\shared\**\*" PackagePath="content" />
     <Compile Remove="**\*" />
     <None Include="..\LICENSE.txt" Pack="true" PackagePath="licenses\LICENSE.txt" />
   </ItemGroup>
 
   <ItemGroup>
     <None Remove="src\solution\ProjectName\package.xml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shared icon fanned out into each template's config, so the image is only
+         stored once in the repository (in src\shared). -->
+    <Content Include="src\shared\OpenTAP.png" PackagePath="content\project\.template.config\OpenTAP.png" />
   </ItemGroup>
 
 </Project>
