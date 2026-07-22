@@ -47,6 +47,9 @@
 
     <Content Include="src\shared\MyInstrument.cs" PackagePath="content\project\MyInstrument.cs" />
     <Content Include="src\shared\MyInstrument.cs" PackagePath="content\item-instrument\MyInstrument.cs" />
+
+    <Content Include="src\shared\MyResultListener.cs" PackagePath="content\project\MyResultListener.cs" />
+    <Content Include="src\shared\MyResultListener.cs" PackagePath="content\item-resultlistener\MyResultListener.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -56,6 +59,7 @@
     <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-teststep\.template.config\OpenTAP.png" />
     <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-dut\.template.config\OpenTAP.png" />
     <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-instrument\.template.config\OpenTAP.png" />
+    <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-resultlistener\.template.config\OpenTAP.png" />
   </ItemGroup>
 
 </Project>
