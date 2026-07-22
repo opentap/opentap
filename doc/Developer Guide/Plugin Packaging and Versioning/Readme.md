@@ -206,6 +206,23 @@ A package can also include a package icon. The **File** element inside the confi
 </Package>
 ```
 
+##### Package Readme
+A package can include a `README.md` file describing what the package does and how to use it. By convention, the file is placed in the package's folder (`Packages/<PackageName>/README.md`) and added to the package like any other payload file:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
+		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
+     ...
+  <Files>
+    <File Path="Packages/MyPlugin/README.md"/>
+  </Files>
+  ...
+</Package>
+```
+
+Including a readme is recommended, as its contents will be displayed in a help panel in the editor, giving users a convenient way to read documentation for the package directly from the UI. The file uses standard [Markdown](https://commonmark.org/) formatting.
+
 ##### Wildcards
 
 It is possible to include multiple files using only a single **File** element using *wildcards* ([file globbing](https://en.wikipedia.org/wiki/Glob_(programming))). When using a wildcard in a **File** element's **Path** attribute, the element is replaced with new **File** elements representing all the files that match the pattern when the packaging tool is run. The following wildcards are supported:
