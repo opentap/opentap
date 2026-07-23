@@ -4,8 +4,6 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
-    <TargetFrameworkVersion></TargetFrameworkVersion>
     <TargetFramework>net9</TargetFramework>
     <DebugWith>TapEditor</DebugWith>
   </PropertyGroup>
@@ -19,8 +17,16 @@
     <CreateOpenTapPackage>true</CreateOpenTapPackage>
   </PropertyGroup>
 
+  <!-- Fall back to the Git version when OpenTapVersion is not provided by a
+       Directory.Build.props (e.g. when this project is not part of a solution
+       created from the OpenTAP solution template). Can be removed if
+       OpenTapVersion is always inherited from Directory.Build.props. -->
+  <PropertyGroup Condition="'$(OpenTapVersion)' == ''">
+    <OpenTapVersion>$(GitVersion)</OpenTapVersion>
+  </PropertyGroup>
+
   <ItemGroup>
-    <PackageReference Include="OpenTAP" Version="$(GitVersion)" />
+    <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(DebugWith)' == 'TUI' AND '$(Configuration)' == 'Debug'">
