@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="" Version="$(GitVersion)" OS="Windows,Linux,MacOS">
-  <Description>This is my OpenTAP plugin package.</Description>
-  <Files>
-    <File Path="Packages/MyPlugin/MyPlugin.dll" SourcePath="MyPlugin.dll">
-      <SetAssemblyInfo Attributes="Version"/>
-    </File>
-  </Files>
-</Package>

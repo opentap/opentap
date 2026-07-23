@@ -5,10 +5,9 @@
     <Configurations>Debug;Release</Configurations>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <DebugWith>TapEditor</DebugWith>
   </PropertyGroup>
 
-  <!-- The OpenTAP version to build against, taken from the Git version which is
-       expanded by CI/CD via the GitVersion environment variable. -->
   <PropertyGroup>
     <OpenTapVersion>$(GitVersion)</OpenTapVersion>
   </PropertyGroup>

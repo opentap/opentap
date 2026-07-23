@@ -545,6 +545,7 @@ jobs:
           Set-Content .\templates\Templates.csproj (Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Set-Content .\templates\src\project\ProjectName.csproj (Get-Content .\templates\src\project\ProjectName.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
           Set-Content .\templates\src\solution\Directory.Build.props (Get-Content .\templates\src\solution\Directory.Build.props).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+          Set-Content .\templates\src\solution\.github\workflows\ci.yml (Get-Content .\templates\src\solution\.github\workflows\ci.yml).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
       - name: Package
         run: dotnet pack ./templates/
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0

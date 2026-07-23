@@ -37,27 +37,27 @@
          used by the project template, its standalone item template, and the solution template. -->
     <Content Include="src\shared\MyTestStep.cs" PackagePath="content\project\MyTestStep.cs" />
     <Content Include="src\shared\MyTestStep.cs" PackagePath="content\item-teststep\MyTestStep.cs" />
-    <Content Include="src\shared\MyTestStep.cs" PackagePath="content\solution\MyPlugin\MyTestStep.cs" />
+    <Content Include="src\shared\MyTestStep.cs" PackagePath="content\solution\ProjectName\MyTestStep.cs" />
 
     <Content Include="src\shared\MyDUT.cs" PackagePath="content\project\MyDUT.cs" />
     <Content Include="src\shared\MyDUT.cs" PackagePath="content\item-dut\MyDUT.cs" />
-    <Content Include="src\shared\MyDUT.cs" PackagePath="content\solution\MyPlugin\MyDUT.cs" />
+    <Content Include="src\shared\MyDUT.cs" PackagePath="content\solution\ProjectName\MyDUT.cs" />
 
     <Content Include="src\shared\MyInstrument.cs" PackagePath="content\project\MyInstrument.cs" />
     <Content Include="src\shared\MyInstrument.cs" PackagePath="content\item-instrument\MyInstrument.cs" />
-    <Content Include="src\shared\MyInstrument.cs" PackagePath="content\solution\MyPlugin\MyInstrument.cs" />
+    <Content Include="src\shared\MyInstrument.cs" PackagePath="content\solution\ProjectName\MyInstrument.cs" />
 
     <Content Include="src\shared\MyResultListener.cs" PackagePath="content\project\MyResultListener.cs" />
     <Content Include="src\shared\MyResultListener.cs" PackagePath="content\item-resultlistener\MyResultListener.cs" />
-    <Content Include="src\shared\MyResultListener.cs" PackagePath="content\solution\MyPlugin\MyResultListener.cs" />
+    <Content Include="src\shared\MyResultListener.cs" PackagePath="content\solution\ProjectName\MyResultListener.cs" />
 
     <Content Include="src\shared\MyComponentSettings.cs" PackagePath="content\project\MyComponentSettings.cs" />
     <Content Include="src\shared\MyComponentSettings.cs" PackagePath="content\item-componentsettings\MyComponentSettings.cs" />
-    <Content Include="src\shared\MyComponentSettings.cs" PackagePath="content\solution\MyPlugin\MyComponentSettings.cs" />
+    <Content Include="src\shared\MyComponentSettings.cs" PackagePath="content\solution\ProjectName\MyComponentSettings.cs" />
 
     <Content Include="src\shared\MyCliAction.cs" PackagePath="content\project\MyCliAction.cs" />
     <Content Include="src\shared\MyCliAction.cs" PackagePath="content\item-cliaction\MyCliAction.cs" />
-    <Content Include="src\shared\MyCliAction.cs" PackagePath="content\solution\MyPlugin\MyCliAction.cs" />
+    <Content Include="src\shared\MyCliAction.cs" PackagePath="content\solution\ProjectName\MyCliAction.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -71,6 +71,25 @@
     <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-componentsettings\.template.config\OpenTAP.png" />
     <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-cliaction\.template.config\OpenTAP.png" />
     <Content Include="src\shared\OpenTAP.png" PackagePath="content\solution\.template.config\OpenTAP.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shared debug/launch files fanned out into the project and solution
+         templates, so each file is only stored once in the repository (in src\shared). -->
+    <Content Include="src\shared\vscode\tasks.json" PackagePath="content\project\.vscode\tasks.json" />
+    <Content Include="src\shared\vscode\tasks.json" PackagePath="content\solution\ProjectName\.vscode\tasks.json" />
+
+    <Content Include="src\shared\vscode\Editor.Launch.json" PackagePath="content\project\.vscode\Editor.Launch.json" />
+    <Content Include="src\shared\vscode\Editor.Launch.json" PackagePath="content\solution\ProjectName\.vscode\Editor.Launch.json" />
+
+    <Content Include="src\shared\vscode\TUI.Launch.json" PackagePath="content\project\.vscode\TUI.Launch.json" />
+    <Content Include="src\shared\vscode\TUI.Launch.json" PackagePath="content\solution\ProjectName\.vscode\TUI.Launch.json" />
+
+    <Content Include="src\shared\Properties\Editor.LaunchSettings.json" PackagePath="content\project\Properties\Editor.LaunchSettings.json" />
+    <Content Include="src\shared\Properties\Editor.LaunchSettings.json" PackagePath="content\solution\ProjectName\Properties\Editor.LaunchSettings.json" />
+
+    <Content Include="src\shared\Properties\TUI.LaunchSettings.json" PackagePath="content\project\Properties\TUI.LaunchSettings.json" />
+    <Content Include="src\shared\Properties\TUI.LaunchSettings.json" PackagePath="content\solution\ProjectName\Properties\TUI.LaunchSettings.json" />
   </ItemGroup>
 
 </Project>

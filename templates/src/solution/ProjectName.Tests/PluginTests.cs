@@ -1,6 +1,6 @@
 using OpenTap;
 
-namespace MyPlugin.Tests;
+namespace ProjectName.Tests;
 
 public class PluginTests
 {

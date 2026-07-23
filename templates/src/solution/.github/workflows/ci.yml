@@ -39,7 +39,7 @@ jobs:
         with:
           name: tap-package
           retention-days: 7
-          path: MyPlugin/bin/Release/*.TapPackage
+          path: ProjectName/bin/Release/*.TapPackage
 
   UnitTests:
     runs-on: ubuntu-latest
@@ -69,7 +69,7 @@ jobs:
       - name: Setup OpenTAP
         uses: opentap/setup-opentap@v1.0
         with:
-          version: 9.32.3
+          version: $(GitVersion)
           packages: "Repository Client:beta"
       - name: Publish
-        run: tap repo upload --repository ${{ env.PUBLISH_REPOSITORY }} --token ${{ secrets.PUBLIC_REPO_PASS }} MyPlugin*.TapPackage
+        run: tap repo upload --repository ${{ env.PUBLISH_REPOSITORY }} --token ${{ secrets.PUBLIC_REPO_PASS }} ProjectName*.TapPackage
