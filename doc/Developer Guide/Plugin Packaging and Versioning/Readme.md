@@ -82,7 +82,7 @@ The **Owner** element inside the configuration file is the name of the package o
 For example:
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
+<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://example.com"
 		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
   ...
   <Owner>OpenTAP</Owner>
@@ -169,7 +169,7 @@ The **File** element can optionally contain custom elements supported by OpenTAP
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
+<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://example.com"
 		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
      ...
  <Files>
@@ -196,7 +196,7 @@ A package can also include a package icon. The **File** element inside the confi
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
+<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://example.com"
 		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
      ...
     <File Path="Packages/MyPlugin/Example Icon.ico">
@@ -211,7 +211,7 @@ A package can include a `README.md` file describing what the package does and ho
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
+<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://example.com"
 		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
      ...
   <Files>
@@ -236,7 +236,7 @@ It is possible to include multiple files using only a single **File** element us
 When using wildcards in the **Path** attribute, the **SourcePath** attribute has no effect. All matching **File** elements will have all the same child elements as the original wildcard element. So this feature could be applied to the XML as such:
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
+<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://example.com"
 		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
 ...
   <Files>
@@ -279,7 +279,7 @@ A package can contain any number of **ActionStep** elements, but they must be co
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
+<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://example.com"
 		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
 ...
   <Files>
@@ -349,7 +349,7 @@ The below configuration file results in `MyPlugin.{version}.TapPackage` file,con
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
+<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://example.com"
 		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
   <Description>
     This is an example of a "package.xml" file.
@@ -395,7 +395,7 @@ This `package.xml` file is preserved inside the TapPackage as metadata. The Pack
 
 ```xml
 <?xml version="1.0" encoding="utf-8" ?>
-<Package Version="9.0.103+d58122db" Name="MyPlugin" InfoLink="http://myplugin.com" Date="03/14/2019 21:20:31" OS="Windows,Linux" Architecture="x64" Tags="Example DUT Instrument" xmlns="http://opentap.io/schemas/package">
+<Package Version="9.0.103+d58122db" Name="MyPlugin" InfoLink="http://example.com" Date="03/14/2019 21:20:31" OS="Windows,Linux" Architecture="x64" Tags="Example DUT Instrument" xmlns="http://opentap.io/schemas/package">
   <Description>
     This is an example of an "package.xml" file.
     <Status>Released</Status>
