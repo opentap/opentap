@@ -536,16 +536,18 @@ jobs:
     needs:
       - GetVersion
     steps:
+      - name: Setup OpenTAP
+        uses: opentap/setup-opentap@d5108b37a770b99e4df3c15273cddfbaf52e6e80 # main
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Update Version
         run: |
-          Set-Content .\templates\Templates.csproj (Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
-          Set-Content .\templates\src\project\ProjectName.csproj (Get-Content .\templates\src\project\ProjectName.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
-          Set-Content .\templates\src\solution\Directory.Build.props (Get-Content .\templates\src\solution\Directory.Build.props).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
-          Set-Content .\templates\src\solution\.github\workflows\ci.yml (Get-Content .\templates\src\solution\.github\workflows\ci.yml).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+          tap sdk gitversion --replace .\templates\Templates.csproj
+          tap sdk gitversion --replace .\templates\src\project\ProjectName.csproj
+          tap sdk gitversion --replace .\templates\src\solution\Directory.Build.props
+          tap sdk gitversion --replace .\templates\src\solution\.github\workflows\ci.yml
       - name: Package
         run: dotnet pack ./templates/
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
