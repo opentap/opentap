@@ -207,7 +207,7 @@ A package can also include a package icon. The **File** element inside the confi
 ```
 
 ##### Package Readme
-A package can include a `README.md` file describing what the package does and how to use it. By convention, the file is placed in the package's folder (`Packages/<PackageName>/README.md`) and added to the package like any other payload file:
+A package can include a `README.md` file describing what the package does and how to use it. This readme serves as the end user documentation for the package. By convention, the file is placed in a `doc/` folder within the package's folder (`Packages/<PackageName>/doc/README.md`) rather than in the package's root, and is added to the package like any other payload file:
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -215,13 +215,13 @@ A package can include a `README.md` file describing what the package does and ho
 		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
      ...
   <Files>
-    <File Path="Packages/MyPlugin/README.md"/>
+    <File Path="Packages/MyPlugin/doc/README.md"/>
   </Files>
   ...
 </Package>
 ```
 
-Including a readme is recommended, as its contents will be displayed in a help panel in the editor, giving users a convenient way to read documentation for the package directly from the UI. The file uses standard [Markdown](https://commonmark.org/) formatting.
+Including a readme is recommended, as its contents will be displayed in a help panel in the editor, giving users a convenient way to read the end user documentation for the package directly from the UI. The file uses standard [Markdown](https://commonmark.org/) formatting.
 
 ##### Wildcards
 
