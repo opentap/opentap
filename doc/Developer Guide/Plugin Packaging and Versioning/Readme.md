@@ -66,7 +66,7 @@ The **Description** element can be used to write a short description about the p
 For example:
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://myplugin.com"
+<Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://example.com"
 		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
   <Description>
     This is an example of a "package.xml" file.
