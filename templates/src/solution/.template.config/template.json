@@ -31,29 +31,7 @@
         { "condition": "(!Instrument)", "exclude": [ "**/*Instrument.cs" ] },
         { "condition": "(!ResultListener)", "exclude": [ "**/*ResultListener.cs" ] },
         { "condition": "(!TestStep)", "exclude": [ "**/*TestStep.cs" ] },
-        { "condition": "(!CI)", "exclude": [ ".github/**" ] },
-        {
-          "condition": "(TUIRegex)",
-          "rename": {
-            "TUI.LaunchSettings.json": "launchSettings.json",
-            "TUI.Launch.json": "launch.json"
-          }
-        },
-        {
-          "condition": "(!TUIRegex)",
-          "exclude": [ "**/TUI.*" ]
-        },
-        {
-          "condition": "(EditorRegex)",
-          "rename": {
-            "Editor.LaunchSettings.json": "launchSettings.json",
-            "Editor.Launch.json": "launch.json"
-          }
-        },
-        {
-          "condition": "(!EditorRegex)",
-          "exclude": [ "**/Editor.*" ]
-        }
+        { "condition": "(!CI)", "exclude": [ ".github/**" ] }
       ]
     }
   ],
@@ -111,42 +89,12 @@
       "displayName": "Include CliAction",
       "description": "Include a CliAction in the plugin."
     },
-    "Editor": {
+    "CliAction": {
       "type": "parameter",
-      "datatype": "choice",
-      "replaces": "TapEditor",
-      "defaultValue": "Editor",
-      "description": "The default editor to debug with.",
-      "choices": [
-        {
-          "choice": "TUI",
-          "displayName": "OpenTAP TUI",
-          "description": "Set TUI as the debugging editor."
-        },
-        {
-          "choice": "Editor",
-          "displayName": "Keysight Test Automation",
-          "description": "Set Keysight Test Automation as the debugging editor."
-        }
-      ]
-    },
-    "TUIRegex": {
-      "type": "generated",
-      "generator": "regexMatch",
       "dataType": "bool",
-      "parameters": {
-        "source": "Editor",
-        "pattern": "TUI"
-      }
-    },
-    "EditorRegex": {
-      "type": "generated",
-      "generator": "regexMatch",
-      "dataType": "bool",
-      "parameters": {
-        "source": "Editor",
-        "pattern": "Editor"
-      }
+      "defaultValue": "false",
+      "displayName": "Include CliAction",
+      "description": "Include a CliAction in the plugin."
     }
   },
   "postActions": [

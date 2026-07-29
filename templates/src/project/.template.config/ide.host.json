@@ -25,10 +25,6 @@
     {
       "id": "TestStep",
       "isVisible": true
-    },
-    {
-      "id": "Editor",
-      "isVisible": true
     }
   ]
 }

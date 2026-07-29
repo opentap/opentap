@@ -79,17 +79,11 @@
     <Content Include="src\shared\vscode\tasks.json" PackagePath="content\project\.vscode\tasks.json" />
     <Content Include="src\shared\vscode\tasks.json" PackagePath="content\solution\ProjectName\.vscode\tasks.json" />
 
-    <Content Include="src\shared\vscode\Editor.Launch.json" PackagePath="content\project\.vscode\Editor.Launch.json" />
-    <Content Include="src\shared\vscode\Editor.Launch.json" PackagePath="content\solution\ProjectName\.vscode\Editor.Launch.json" />
+    <Content Include="src\shared\vscode\launch.json" PackagePath="content\project\.vscode\launch.json" />
+    <Content Include="src\shared\vscode\launch.json" PackagePath="content\solution\ProjectName\.vscode\launch.json" />
 
-    <Content Include="src\shared\vscode\TUI.Launch.json" PackagePath="content\project\.vscode\TUI.Launch.json" />
-    <Content Include="src\shared\vscode\TUI.Launch.json" PackagePath="content\solution\ProjectName\.vscode\TUI.Launch.json" />
-
-    <Content Include="src\shared\Properties\Editor.LaunchSettings.json" PackagePath="content\project\Properties\Editor.LaunchSettings.json" />
-    <Content Include="src\shared\Properties\Editor.LaunchSettings.json" PackagePath="content\solution\ProjectName\Properties\Editor.LaunchSettings.json" />
-
-    <Content Include="src\shared\Properties\TUI.LaunchSettings.json" PackagePath="content\project\Properties\TUI.LaunchSettings.json" />
-    <Content Include="src\shared\Properties\TUI.LaunchSettings.json" PackagePath="content\solution\ProjectName\Properties\TUI.LaunchSettings.json" />
+    <Content Include="src\shared\Properties\launchSettings.json" PackagePath="content\project\Properties\launchSettings.json" />
+    <Content Include="src\shared\Properties\launchSettings.json" PackagePath="content\solution\ProjectName\Properties\launchSettings.json" />
   </ItemGroup>
 
 </Project>

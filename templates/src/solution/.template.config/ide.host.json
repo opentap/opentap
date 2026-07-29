@@ -8,7 +8,6 @@
     { "id": "Instrument", "isVisible": true },
     { "id": "ComponentSettings", "isVisible": true },
     { "id": "ResultListener", "isVisible": true },
-    { "id": "CliAction", "isVisible": true },
-    { "id": "Editor", "isVisible": true }
+    { "id": "CliAction", "isVisible": true }
   ]
 }
