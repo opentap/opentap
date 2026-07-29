@@ -12,6 +12,5 @@ $(GitVersion) - Gets the version from Git in the recommended format Major.Minor.
     <File Path="Packages/ProjectName/ProjectName.dll" SourcePath="ProjectName.dll">
         <SetAssemblyInfo Attributes="Version"/>
     </File>
-    <File Path="Packages/ProjectName/README.md" SourcePath="README.md"/>
   </Files>
 </Package>
