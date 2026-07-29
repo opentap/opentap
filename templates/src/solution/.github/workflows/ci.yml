@@ -1,4 +1,4 @@
-name: CiCd
+name: ci
 
 on: [push]
 
