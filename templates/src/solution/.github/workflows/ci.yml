@@ -7,8 +7,6 @@ env:
   OPENTAP_NO_UPDATE_CHECK: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_CONSOLE_ANSI_COLOR: true
-  # The repository to publish released packages to.
-  PUBLISH_REPOSITORY: http://packages.opentap.io
 
 jobs:
   GetVersion:
@@ -30,8 +28,6 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
       - name: Build
         run: dotnet build -c Release
       - name: Upload package
@@ -51,8 +47,6 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
       - name: Test
         run: dotnet test -c Release
 
@@ -67,9 +61,9 @@ jobs:
           name: tap-package
           path: .
       - name: Setup OpenTAP
-        uses: opentap/setup-opentap@v1.0
+        uses: opentap/setup-opentap@v1.2
         with:
           version: $(GitVersion)
           packages: "Repository Client:beta"
       - name: Publish
-        run: tap repo upload --repository ${{ env.PUBLISH_REPOSITORY }} --token ${{ secrets.PUBLIC_REPO_PASS }} ProjectName*.TapPackage
+        run: tap repo upload --repository https://packages.opentap.io --token ${{ secrets.PUBLIC_REPO_PASS }} ProjectName*.TapPackage

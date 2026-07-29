@@ -2,10 +2,6 @@
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <LangVersion>latest</LangVersion>
-    <Configurations>Debug;Release</Configurations>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
-    <DebugWith>TapEditor</DebugWith>
   </PropertyGroup>
 
   <PropertyGroup>
