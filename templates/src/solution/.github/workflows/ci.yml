@@ -12,6 +12,7 @@ jobs:
   GetVersion:
     runs-on: ubuntu-latest
     outputs:
+      ShortVersion: ${{ steps.gitversion.outputs.ShortVersion }}
       GitVersion: ${{ steps.gitversion.outputs.GitVersion }}
     steps:
       - name: GitVersion
@@ -23,6 +24,7 @@ jobs:
     needs: GetVersion
     env:
       GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
+      ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -49,12 +51,18 @@ jobs:
       - uses: actions/setup-dotnet@v4
       - name: Test
         run: dotnet test -c Release
-
+        
   Publish:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     needs: [Build, UnitTests]
     steps:
+      - name: Check Publish Key
+        run: |
+          if test -z "${{ secrets.PUBLIC_REPO_PASS }}"; then
+          echo "Publish skipped: Set the 'PUBLIC_REPO_PASS_KEY'. See the documentation here: https://doc.opentap.io/Developer%20Guide/Package%20Publishing/Readme.html"
+          exit 1
+          fi
       - name: Download package
         uses: actions/download-artifact@v4
         with:
