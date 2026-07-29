@@ -1,10 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-  </PropertyGroup>
-
-  <PropertyGroup>
     <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
     <CreateOpenTapPackage>false</CreateOpenTapPackage>
   </PropertyGroup>
@@ -12,8 +7,20 @@
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
     <CreateOpenTapPackage>true</CreateOpenTapPackage>
   </PropertyGroup>
+  
+  <!-- Automatic assembly versioning in pipeline-->
+  <PropertyGroup Condition="'$(ShortVersion)' != ''">
+    <Version>$(ShortVersion)</Version>
+    <AssemblyVersion>$(ShortVersion)</AssemblyVersion>
+    <InformationalVersion>$(GitVersion)</InformationalVersion>
+    <FileVersion>$(ShortVersion).0</FileVersion>
+  </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <OpenTapPackageReference Include="Editor" />
   </ItemGroup>
 </Project>

@@ -24,7 +24,9 @@
 
   <ItemGroup>
     <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
-    <OpenTapPackageReference Include="Editor" version="9"/>
   </ItemGroup>
-
+  
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <OpenTapPackageReference Include="Editor" />
+  </ItemGroup>
 </Project>
