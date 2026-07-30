@@ -537,7 +537,7 @@ jobs:
       - GetVersion
     steps:
       - name: Setup OpenTAP
-        uses: opentap/setup-opentap@314ecf78727788134d51ccfcb154fcaa03c0215c
+        uses: opentap/setup-opentap@powershell-zip-fix
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
