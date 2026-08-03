@@ -47,8 +47,6 @@ namespace OpenTap.Plugins
         internal static string Decrypt(string input, string password)
         {
             string result = String.Empty;
-            int decryptedBytesCount = 0;
-            byte[] output;
             byte[] inputAsBytes = Convert.FromBase64String(input);
             
             using (Aes aesAlgo = Aes.Create())
@@ -56,20 +54,23 @@ namespace OpenTap.Plugins
                 byte[] keyBytes = new PasswordDeriveBytes(password, salt, hashMethod, iterations).GetBytes(nofKeyBytes);
                 aesAlgo.Mode = CipherMode.ECB;
 
+                
                 try
                 {
+                    var outputStream = new MemoryStream();
                     using (MemoryStream inputStream = new MemoryStream(inputAsBytes))
                     {
                         using (ICryptoTransform decryptor = aesAlgo.CreateDecryptor(keyBytes, iv))
                         {
-                            using (CryptoStream reader = new CryptoStream(inputStream, decryptor, CryptoStreamMode.Read))
+                            using (CryptoStream reader =
+                                   new CryptoStream(inputStream, decryptor, CryptoStreamMode.Read))
                             {
-                                output = new byte[inputAsBytes.Length];
-                                decryptedBytesCount = reader.Read(output, 0, output.Length);
-                                result = Encoding.UTF8.GetString(output, 0, decryptedBytesCount);
+                                reader.CopyTo(outputStream);
                             }
                         }
                     }
+                    
+                    result = Encoding.UTF8.GetString(outputStream.ToArray());
                 }
                 catch (Exception)
                 {
