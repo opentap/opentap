@@ -18,7 +18,7 @@ Each step in a workflow requires a runner. GitHub provides runners for all major
 can be found [here](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idruns-on).
 These runners come equipped with most of the compilers and build tools you want, but if they don't suit your needs, GitHub also supports self-hosted runners. 
 
-OpenTAP only uses default runners, and is tested using `windows-2022`, `ubuntu-20.04`, and `macos-11`.
+OpenTAP only uses default runners, and is tested using `windows-2022`, `ubuntu-24.04`, and `macos-14`.
 
 > This example assumes that `REPO_USERTOKEN` is configured as a secret in the source repository. A secret can be configured by going to `Settings > Secrets > Actions > New repository secret`. For more information about user tokens and packaging, see [Package Publishing](../Package%20Publishing/Readme.md).
 

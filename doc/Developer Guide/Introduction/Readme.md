@@ -7,7 +7,7 @@ This document is written for **C# programmers** who are developing OpenTAP plugi
 
 Development requires the following software:
 
-- Visual Studio 2022 or above
+- Visual Studio
 - OpenTAP
 - [.NET 9 SDK](https://dotnet.microsoft.com/en-us/download/dotnet/9.0) (required when OpenTAP is installed via package upgrade rather than an installer)
 
