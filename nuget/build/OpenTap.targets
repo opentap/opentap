@@ -60,6 +60,13 @@
           DestinationFiles="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"/>
   </Target>
 
+    <!-- This is a workaround for a cosmetic issue caused by dotnet overwriting OpenTap.dll with the shared lib/netstandard2.0/OpenTap.dll variant during build, causing 'tap package verify' to fail.
+        NOTE: This does not need to run on Windows because the opentap library dll matches the binary from the package. -->
+    <Target Condition="'$(IsWindows)' != 'true'" Name="CopyOpenTapDll" AfterTargets="_CopyFilesMarkedCopyLocal" >
+    <Copy SourceFiles="$(OpenTapRuntimeDir)\OpenTap.dll"
+          DestinationFiles="$(OutDir)OpenTap.dll"/>
+  </Target>
+
   <Target Name="CleanOpenTapPayloadFiles"
           Condition="'$(CleanOpenTapPayloadFiles)' != 'false' And
                      '$(OutDir)' != '' And
