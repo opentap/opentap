@@ -1,13 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk" ToolsVersion="Current">
   <PropertyGroup>
-    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <OpenTapSetAssemblyVersion>gitversion</OpenTapSetAssemblyVersion>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <TargetFrameworkIdentifier></TargetFrameworkIdentifier>
-    <TargetFrameworkVersion></TargetFrameworkVersion>
     <TargetFramework>net9</TargetFramework>
-    <DebugWith>TapEditor</DebugWith>
   </PropertyGroup>
     
   <PropertyGroup>
@@ -19,16 +17,19 @@
     <CreateOpenTapPackage>true</CreateOpenTapPackage>
   </PropertyGroup>
 
+  <!-- Fall back to the Git version when OpenTapVersion is not provided by a
+       Directory.Build.props (e.g. when this project is not part of a solution
+       created from the OpenTAP solution template). Can be removed if
+       OpenTapVersion is always inherited from Directory.Build.props. -->
+  <PropertyGroup Condition="'$(OpenTapVersion)' == ''">
+    <OpenTapVersion>$(GitVersion)</OpenTapVersion>
+  </PropertyGroup>
+
   <ItemGroup>
-    <PackageReference Include="OpenTAP" Version="$(GitVersion)" />
+    <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
   </ItemGroup>
-
-  <ItemGroup Condition="'$(DebugWith)' == 'TUI' AND '$(Configuration)' == 'Debug'">
-    <OpenTapPackageReference Include="TUI" version="1"/>
+  
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <OpenTapPackageReference Include="Editor" />
   </ItemGroup>
-
-  <ItemGroup Condition="'$(DebugWith)' == 'Editor' AND '$(Configuration)' == 'Debug'">
-    <OpenTapPackageReference Include="Editor" version="9"/>
-  </ItemGroup>
-
 </Project>

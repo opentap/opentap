@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json.schemastore.org/ide.host",
+  "icon": "OpenTAP.png",
+  "symbolInfo": [
+    { "id": "CI", "isVisible": true },
+    { "id": "TestStep", "isVisible": true },
+    { "id": "DUT", "isVisible": true },
+    { "id": "Instrument", "isVisible": true },
+    { "id": "ComponentSettings", "isVisible": true },
+    { "id": "ResultListener", "isVisible": true },
+    { "id": "CliAction", "isVisible": true }
+  ]
+}

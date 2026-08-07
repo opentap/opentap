@@ -69,6 +69,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 WorkingDirectory = workingDirectory,
+                /* color output can cause problems with the gitversion regex, so here we make sure it is disabled. */
+                Environment = { ["OPENTAP_COLOR"] = "never" },
             };
             var errStream = new StringBuilder();
             var outStream = new StringBuilder();
