@@ -266,3 +266,19 @@ Creating new thread contexts allows for isolated execution environments within t
 Generally, using the default .NET Threads and Tasks is not recommended. Threads are expensive to start, and tasks can exhibit unexpected behaviors that make them unsuitable for many use cases.
 
 For OpenTAP plugins, it is recommended to use other parallelism techniques unless .NET Threads or Tasks are strictly necessary.
+
+Environment Variables
+================
+
+Below is table of environment variables defined and/or used by OpenTAP. Some are set by OpenTAP itself at various times, some can be set by the user.
+
+|Name|Description|Values| 
+|----|------|----|
+|OPENTAP_NO_VISA_DISCOVER| Disables VISA address discovery. On some software configurations this has been known to cause a hard crash. | true|
+|OPENTAP_COLOR|This can be used  to control if OpenTAP should use colors when printing to the console. | auto/always/never|
+|OPENTAP_NONINTERACTIVE| Set by OpenTAP to signal to subprocesses that it's running without the option for the user to respond| true|
+|OPENTAP_ANSI_COLORS| Set if OpenTAP should use ANSI secape codes for log colors.| true|
+|OPENTAP_NO_UPDATE_CHECK|Disables update checks.| true|
+|OPENTAP_LIBVISA_LOCATION|Used for locating a custom libvisa resource. e.g libvisa32.dll|filepath|
+|OPENTAP_INIT_DIRECTORY|Automatically set during startup. This is the directory in which OpenTAP is located.||
+|OPENTAP_DEBUG_INSTALL|Set while building plugins|true|
