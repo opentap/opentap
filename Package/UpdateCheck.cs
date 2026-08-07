@@ -30,7 +30,10 @@ namespace OpenTap.Package
             string noUpdateCheckEnv = Environment.GetEnvironmentVariable("OPENTAP_NO_UPDATE_CHECK");
             bool noUpdateCheck = noUpdateCheckEnv == "true" || noUpdateCheckEnv == "1";
 
-            if (Startup && (PackageManagerSettings.Current.CheckForUpdates == false || noUpdateCheck))
+            if (noUpdateCheck)
+                return;
+
+            if (Startup && PackageManagerSettings.Current.CheckForUpdates == false)
                 return;
 
             // Since we are deciding to do the update check for the parent process there is no reason to also
@@ -62,7 +65,6 @@ namespace OpenTap.Package
 
             if (noUpdateMessage)
                 return;
-
 
             using var _ = CliUserInputInterface.AcquireUserInputLock();
             if (updates.Any())

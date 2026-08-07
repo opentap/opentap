@@ -163,7 +163,7 @@ namespace OpenTap
                 }
             }
 
-            if (eventType == LogEventType.Error)
+            if (eventType == LogEventType.Error || eventType == LogEventType.Warning)
                 Console.Error.WriteLine(formattedLine);
             else
                 Console.WriteLine(formattedLine);
