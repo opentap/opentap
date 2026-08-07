@@ -1059,6 +1059,11 @@ jobs:
         working-directory: ./Packages/SDK/Examples
       - run: dotnet build -c Release
         working-directory: ./Packages/SDK/Examples
+      - name: verify
+        working-directory: ./Packages/SDK/Examples
+        run: |
+          ./bin/Debug/tap package verify OpenTAP
+          ./bin/Release/tap package verify OpenTAP
 
 
   Build-SDK-Linux:
@@ -1090,6 +1095,11 @@ jobs:
         working-directory: ./Packages/SDK/Examples
       - run: dotnet build -c Release
         working-directory: ./Packages/SDK/Examples
+      - name: verify
+        working-directory: ./Packages/SDK/Examples
+        run: |
+          ./bin/Debug/tap package verify OpenTAP
+          ./bin/Release/tap package verify OpenTAP
 
   Build-SDK-Windows:
     runs-on: windows-2022
@@ -1121,3 +1131,8 @@ jobs:
         working-directory: ./Packages/SDK/Examples
       - run: dotnet build -c Release
         working-directory: ./Packages/SDK/Examples
+      - name: verify
+        working-directory: ./Packages/SDK/Examples
+        run: |
+          ./bin/Debug/tap package verify OpenTAP
+          ./bin/Release/tap package verify OpenTAP
