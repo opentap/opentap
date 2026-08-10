@@ -46,7 +46,7 @@ Reference a package by specifying it in your .csproj file:
   <!-- NuGet reference to OpenTAP -->
   <PackageReference Include="OpenTAP" Version="9.23.2" />
   <!-- OpenTAP package sources -->
-  <OpenTapPackageRepository Include="packages.opentap.io"/>
+  <OpenTapPackageRepository Include="https://packages.opentap.io"/>
   <OpenTapPackageRepository Include="$HOME/Downloads;$HOME/Documents"/>
 
   <!-- Packages to reference  -->
@@ -85,6 +85,28 @@ You can also specify a package that you just want installed (in e.g. bin/Debug/)
   <AdditionalOpenTapPackage Include="DMM Instruments" Version="2.1.2"/>
 </ItemGroup>
 ```
+
+### Referencing Private Packages
+
+You can reference packages from authenticated feeds by specifying a user token in your .csproj file.
+User tokens can be used to impersonate you, and must be kept safe. We recommend referencing them via environmental variables and accessing them with some secure mechanism, such as secrets in GitHub actions.
+
+Initially, packages published to [packages.opentap.io](http://packages.opentap.io) are hidden from everyone but you,
+but you can reference such packages by specifying your user token. You can create a user token by logging in and clicking your username in the top right corner.
+If you suspect your user token has been compromised, you can revoke it from the same page.
+
+This example demonstrates how to access your own private packages:
+
+```xml
+<ItemGroup>
+  <!-- specify a token to use for a specific feed -->
+  <OpenTapPackageRepository Include="https://packages.opentap.io" Token="$(MyUserToken)" /> <!-- supported since OpenTAP 9.35.0 -->
+  <!-- alternatively, specify repository and token directly on the package reference  -->
+  <OpenTapPackageReference Include="My Plugin" Version="2.1.2" Repository="https://packages.opentap.io" Token="$(MyUserToken)"  /> <!-- supported since OpenTAP 9.22.0 -->
+</ItemGroup>
+```
+
+> This example uses "packages.opentap.io", but tokens are supported for all authenticated package feeds, such as the repository included with Test Automation Cloud.
 
 ### Versioning Assemblies with OpenTapSetAssemblyVersion
 
