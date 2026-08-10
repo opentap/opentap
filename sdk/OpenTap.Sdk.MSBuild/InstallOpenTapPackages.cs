@@ -137,8 +137,8 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
                 foreach (var item in Repositories ?? Array.Empty<ITaskItem>())
                 {
-                    // Read token from <OpenTapRepository Repository="X" Token="Y"/>
-                    var repo = item.GetMetadata("Repository")?.Trim();
+                    // Read token from <OpenTapPackageRepository Include="<repository>" Token="Y"/>
+                    var repo = item.ItemSpec;
                     var token = item.GetMetadata("Token").Trim();
                     if (string.IsNullOrWhiteSpace(token))
                         continue;
