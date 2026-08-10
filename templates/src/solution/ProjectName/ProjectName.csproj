@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OpenTapPackageDefinitionPath>package.xml</OpenTapPackageDefinitionPath>
+    <CreateOpenTapPackage>false</CreateOpenTapPackage>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <CreateOpenTapPackage>true</CreateOpenTapPackage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="OpenTAP" Version="$(OpenTapVersion)" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(Configuration)' == 'Debug'">
+    <OpenTapPackageReference Include="Editor" />
+  </ItemGroup>
+</Project>

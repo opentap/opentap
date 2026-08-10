@@ -46,12 +46,8 @@ namespace OpenTap.Sdk.New
             }
         }
 
-        #region ExitCodes
-
         // Exit codes are documented here: https://github.com/dotnet/templating/wiki/Exit-Codes
         private const int TemplateNotFound = 103;
-
-        #endregion
 
         [CommandLineArgument("out", ShortName = "o", Description = "Destination directory for generated files.")]
         public override string output
@@ -85,13 +81,11 @@ namespace OpenTap.Sdk.New
         public bool ResultListener { get; set; }
         [CommandLineArgument("CliAction", Description = "Include a CLI Action in the project.", ShortName = "C")]
         public bool CliAction { get; set; } 
-        [CommandLineArgument("Editor", Description = "The default Editor to install.", ShortName = "E")]
-        public string Editor { get; set; } = "TUI";
         
         private int DotnetNew(string projectName, DirectoryInfo directory, string template,
             CancellationToken token)
         {
-            var args = $"new {template} --name \"{projectName}\" --output \"{directory.FullName}\" --Editor {Editor}";
+            var args = $"new {template} --name \"{projectName}\" --output \"{directory.FullName}\"";
             if (DUT)
                 args += " --DUT";
             if (Instrument)
@@ -110,13 +104,6 @@ namespace OpenTap.Sdk.New
             if (!Validate(name: Name, allowWhiteSpace: false, allowLeadingNumbers: false, allowAlphaNumericOnly: true))
             {
                 return (int)ExitCodes.ArgumentError;
-            }
-
-            var editors = new string[] { "TUI", "Editor" };
-            if (!editors.Contains(Editor))
-            {
-                log.Error($"Unknown editor '{Editor}'.");
-                return 1;
             }
 
             var dest = string.IsNullOrWhiteSpace(output)
@@ -199,7 +186,7 @@ namespace OpenTap.Sdk.New
                 dest = sln.Directory.CreateSubdirectory(Name);
 
             // Create the new project
-            int exitCode = DotnetNew(Name, dest, "opentap", cancellationToken);
+            int exitCode = DotnetNew(Name, dest, "opentap-project", cancellationToken);
             if (exitCode == TemplateNotFound)
             {
                 var question = new CreateProjectQuestion("Install OpenTAP Dotnet Templates?", "OpenTAP dotnet new templates are not installed. Do you wish to install the templates?");
@@ -208,7 +195,7 @@ namespace OpenTap.Sdk.New
                 {
                     exitCode = InstallTemplate(cancellationToken);
                     if (exitCode == 0)
-                        exitCode = DotnetNew(Name, dest, "opentap", cancellationToken);
+                        exitCode = DotnetNew(Name, dest, "openta-project", cancellationToken);
                 }
             }
 

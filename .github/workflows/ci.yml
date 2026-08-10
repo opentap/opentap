@@ -82,7 +82,7 @@ jobs:
     container: ghcr.io/opentap/oci-images/build-dotnet:latest
     steps:
       - name: Setup OpenTAP
-        uses: opentap/setup-opentap@d5108b37a770b99e4df3c15273cddfbaf52e6e80 # main
+        uses: opentap/setup-opentap@2504dd5da8f98ec00722ffa5245ed2db838517d0 # main
         with:
           version: 9.23.0
           packages: 'DocumentationGeneration:1.0.2'
@@ -536,14 +536,18 @@ jobs:
     needs:
       - GetVersion
     steps:
+      - name: Setup OpenTAP
+        uses: opentap/setup-opentap@2504dd5da8f98ec00722ffa5245ed2db838517d0 # main
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
       - name: Update Version
         run: |
-          Set-Content .\templates\Templates.csproj (Get-Content .\templates\Templates.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
-          Set-Content .\templates\src\project\ProjectName.csproj (Get-Content .\templates\src\project\ProjectName.csproj).Replace("`$(GitVersion)", "${{needs.GetVersion.outputs.LongVersion}}")
+          tap sdk gitversion --replace .\templates\Templates.csproj
+          tap sdk gitversion --replace .\templates\src\project\ProjectName.csproj
+          tap sdk gitversion --replace .\templates\src\solution\Directory.Build.props
+          tap sdk gitversion --replace .\templates\src\solution\.github\workflows\ci.yml
       - name: Package
         run: dotnet pack ./templates/
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -624,7 +628,7 @@ jobs:
     needs:
       - Package-Cross
     steps:
-      - uses: opentap/setup-opentap@d178a37a089bf73bd99da5b68a00b3d96e6d4517 # v1.0
+      - uses: opentap/setup-opentap@2504dd5da8f98ec00722ffa5245ed2db838517d0 # main
         with:
           version: 9.21.1
           packages: 'Package Diff:0.1.0-beta.21'
@@ -1023,7 +1027,7 @@ jobs:
       - name: Debug
         run: ls -la ./publish
       - name: Setup OpenTAP
-        uses: opentap/setup-opentap@d178a37a089bf73bd99da5b68a00b3d96e6d4517 # v1.0
+        uses: opentap/setup-opentap@2504dd5da8f98ec00722ffa5245ed2db838517d0 # main
         with:
           version: 9.23.0
           packages: 'Repository Client:1.0.3-beta.9+15a03b2b'

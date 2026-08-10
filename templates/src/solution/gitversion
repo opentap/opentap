@@ -1,0 +1,15 @@
+# This file specifies the (first part of the) version number and some options used by the
+# "OpenTAP sdk gitversion" command and the $(GitVersion) macro in package.xml.
+
+# This is the version number that will be used. Prerelease numbers are calculated by
+# counting git commits since the last change in this value.
+version = 0.1.0
+
+# A version is a "beta" prerelease if it originates from the default branch.
+beta branch = main
+
+# A version is an "rc" prerelease if it originates from a branch matching this expression.
+#release branch = release[0-9x]*
+
+# A version is a release if it originates from a commit with an annotated tag matching this expression.
+#release tag = v\d+\.\d+
