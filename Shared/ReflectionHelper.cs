@@ -15,6 +15,7 @@ using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Threading;
 using OpenTap.Translation;
+using System.Threading.Tasks;
 
 //**** WARNING ****//
 // This file is used in many projects(link existing), but only with internal protection.
@@ -1789,74 +1790,32 @@ namespace OpenTap
     /// <summary> Invoke an action after a timeout, unless canceled. </summary>
     class TimeoutOperation : IDisposable
     {
-        /// <summary> Estimate of how long it takes for the user to loose patience.</summary>
-        static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(2);
-        
-        TimeoutOperation(TimeSpan timeout, Action action)
+        private readonly Action a;
+        private readonly TimeSpan delay;
+        private bool cancelled = false;
+
+        public static TimeoutOperation Create(Action a)
         {
-            this.timeout = timeout;
-            this.action = action;
-            tokenSource = new CancellationTokenSource(timeout);
+            return Create(TimeSpan.FromSeconds(2), a);
         }
-        readonly Action action;
-        readonly TimeSpan timeout;
-        readonly CancellationTokenSource tokenSource;
-        
-        bool isCompleted;
-        void wait()
+
+        public static TimeoutOperation Create(TimeSpan delay, Action a)
         {
-            try
+            return new TimeoutOperation(a, delay);
+        }
+
+        private TimeoutOperation(Action a, TimeSpan delay)
+        {
+            this.a = a;
+            this.delay = delay;
+            Task.Delay(delay).ContinueWith(t =>
             {
-                var token = tokenSource.Token;
-                if (!token.IsCancellationRequested && WaitHandle.WaitTimeout == WaitHandle.WaitAny(new [] { token.WaitHandle, TapThread.Current.AbortToken.WaitHandle }, timeout))
-                    action();
-            }
-            finally
-            {
-                lock (tokenSource)
-                {
-                    tokenSource.Dispose();
-                    isCompleted = true;
-                }
-            }
+                if (!cancelled) a();
+            });
         }
-
-        /// <summary> Creates a new TimeoutOperation with a specific timeout. </summary>
-        /// <param name="timeout"></param>
-        /// <param name="actionOnTimeout"></param>
-        /// <returns></returns>
-        public static TimeoutOperation Create(TimeSpan timeout, Action actionOnTimeout)
-        {
-            TimeoutOperation operation = new TimeoutOperation(timeout, actionOnTimeout);
-            TapThread.Start(operation.wait, "Timeout");
-            return operation;
-        }
-
-        /// <summary> Creates a timeout operation with the default timeout. </summary>
-        /// <param name="actionOnTimeout"></param>
-        /// <returns></returns>
-        public static TimeoutOperation Create(Action actionOnTimeout)
-        {
-            return Create(DefaultTimeout, actionOnTimeout);
-        }
-
-        /// <summary>
-        /// Cancel invoking the action after the timeout.
-        /// </summary>
         public void Cancel()
         {
-            try
-            {
-                lock (tokenSource)
-                {
-                    if (!isCompleted)
-                        tokenSource.Cancel();
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-
-            }
+            cancelled = true;
         }
 
         public void Dispose()
