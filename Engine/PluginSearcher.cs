@@ -801,6 +801,7 @@ namespace OpenTap
                     attributeFullName = GetFullName(CurrentReader, ctor.Parent);
                 }
 
+                plugin.HasAllowAsChildInAttributes = false;
                 switch (attributeFullName)
                 {
                     case "System.Runtime.Versioning.SupportedOSPlatformAttribute":

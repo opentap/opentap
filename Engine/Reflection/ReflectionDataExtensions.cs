@@ -125,7 +125,7 @@ namespace OpenTap
                 {
                     return (T)(object)td.HelpLink;
                 }
-                if (typeof(T) == typeof(AllowAsChildInAttribute) && !td.HasAllowAsChildInAttributes) 
+                if (typeof(T) == typeof(AllowAsChildInAttribute) && td.HasAllowAsChildInAttributes.HasValue && td.HasAllowAsChildInAttributes.Value == false) 
                 {
                     return default;
                 }
