@@ -33,7 +33,10 @@ internal class Translator : ITranslator, IDisposable
         if (_lookup.TryGetValue(language, out var prov))
         {
             if (prov.GetDisplayAttribute(i) is { } result)
+            {
+                if (result is ITranslatableDisplayAttribute t) return t.Translate();
                 return result;
+            }
         }
         return DefaultDisplayAttribute.GetUntranslatedDisplayAttribute(i);
     }

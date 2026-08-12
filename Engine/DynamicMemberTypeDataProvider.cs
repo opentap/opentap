@@ -14,11 +14,16 @@ namespace OpenTap
 {
     internal class BreakConditionStrings : IStringLocalizer
     {
+        public const string DisplayNameNeutral = "Break Conditions";
+        public const string StepDescriptionNeutral = "When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step, test plan, or engine settings.";
+        public const string GroupNeutral = "Common";
+        public const string TestPlanDescriptionNeutral = "When enabled, specify new break conditions. When disabled conditions are inherited from the engine settings.";
+
         static readonly BreakConditionStrings strings = new();
-        public static string DisplayName => strings.Translate("Break Conditions");
-        public static string StepDescription => strings.Translate("When enabled, specify new break conditions. When disabled conditions are inherited from the parent test step, test plan, or engine settings.");
-        public static string Group => strings.Translate("Common");
-        public static string TestPlanDescription => strings.Translate("When enabled, specify new break conditions. When disabled conditions are inherited from the engine settings.");
+        public static string DisplayName => strings.Translate(DisplayNameNeutral);
+        public static string StepDescription => strings.Translate(StepDescriptionNeutral);
+        public static string Group => strings.Translate(GroupNeutral);
+        public static string TestPlanDescription => strings.Translate(TestPlanDescriptionNeutral);
     }
 
     /// <summary>  This interface speeds up accessing dynamic members as it avoids having to access a global table to store the information. </summary>
@@ -750,6 +755,20 @@ namespace OpenTap
             }
         }
 
+        delegate string StringGetter();
+        /* specialized DisplayAttribute implementation which can be dynamically translated. */
+        class TranslatableDisplayAttribute((string raw, StringGetter translate) name, (string raw, StringGetter translate) description, (string raw, StringGetter translate) group, double order) : DisplayAttribute(name.raw, description.raw, group.raw, order), ITranslatableDisplayAttribute
+        {
+            private readonly StringGetter name = name.translate;
+            private readonly StringGetter description = description.translate;
+            private readonly StringGetter group = group.translate;
+
+            public DisplayAttribute Translate()
+            {
+                return new DisplayAttribute(name(), description(), group(), Order);
+            }
+        }
+
         internal class TestStepTypeData : ITypeData, INotifyDynamicTypeChanged
         {
             internal static readonly DynamicMember BreakConditions = new BreakConditionDynamicMember
@@ -758,8 +777,12 @@ namespace OpenTap
                 DefaultValue = BreakCondition.Inherit,
                 Attributes = new Attribute[]
                 {
-                    new DisplayAttribute(BreakConditionStrings.DisplayName, BreakConditionStrings.StepDescription, BreakConditionStrings.Group, 20001.1),
-                    new UnsweepableAttribute(), new NonMetaDataAttribute(), new DefaultValueAttribute(BreakCondition.Inherit)
+                    new TranslatableDisplayAttribute(
+                            name: (BreakConditionStrings.DisplayNameNeutral, () => BreakConditionStrings.DisplayName),
+                            description: (BreakConditionStrings.StepDescriptionNeutral, () => BreakConditionStrings.StepDescription),
+                            group: (BreakConditionStrings.GroupNeutral, () => BreakConditionStrings.Group),
+                            order: 20001.1
+                    ), new UnsweepableAttribute(), new NonMetaDataAttribute(), new DefaultValueAttribute(BreakCondition.Inherit)
                 },
                 DeclaringType = TypeData.FromType(typeof(ITestStep)),
                 Readable = true,
@@ -776,8 +799,12 @@ namespace OpenTap
                 DefaultValue = BreakCondition.Inherit,
                 Attributes = new Attribute[]
                 {
-                    new DisplayAttribute(BreakConditionStrings.DisplayName, BreakConditionStrings.TestPlanDescription, Order: 3),
-                    new UnsweepableAttribute(), new EnabledIfAttribute("Locked", false), new NonMetaDataAttribute(), new DefaultValueAttribute(BreakCondition.Inherit)
+                    new TranslatableDisplayAttribute(
+                            name: (BreakConditionStrings.DisplayNameNeutral, () => BreakConditionStrings.DisplayName),
+                            description: (BreakConditionStrings.TestPlanDescriptionNeutral, () => BreakConditionStrings.TestPlanDescription),
+                            group: (null, () => null),
+                            order: 3
+                            ), new UnsweepableAttribute(), new EnabledIfAttribute("Locked", false), new NonMetaDataAttribute(), new DefaultValueAttribute(BreakCondition.Inherit)
                 },
                 DeclaringType = TypeData.FromType(typeof(TestPlan)),
                 Readable = true,
@@ -850,7 +877,7 @@ namespace OpenTap
                 var d = DescriptionMember(innerType);
                 var additional2 = dynamicMembersLookup.GetValue().Where(x => innerType.DescendsTo(x.DeclaringType)).OfType<IMemberData>();
                 members = members.Append(d).Concat(additional2).ToArray();
-                
+
                 return members;
             }
 
@@ -858,7 +885,7 @@ namespace OpenTap
             static readonly ConditionalWeakTable<ITypeData, IMemberData[]> memberMemorizer =
                 new ConditionalWeakTable<ITypeData, IMemberData[]>();
             static IMemberData[] GetMembers(ITypeData innerType) => memberMemorizer.GetValue(innerType, GetMembersRaw);
-            
+
             static readonly Cached<IMemberData[]> dynamicMembersLookup = new Cached<IMemberData[]>(PluginManager.CacheState, () =>
             {
                 return TypeData.GetDerivedTypes<IDynamicMemberProvider>()
@@ -900,7 +927,7 @@ namespace OpenTap
             {
                 if (name == BreakConditions.Name) return BreakConditions;
                 if (name == DynamicMembers.Name) return DynamicMembers;
-                if (name == descriptionMember?.Name) return descriptionMember; 
+                if (name == descriptionMember?.Name) return descriptionMember;
                 return innerType.GetMember(name);
             }
 
@@ -913,9 +940,9 @@ namespace OpenTap
 
             public override string ToString() => innerType.ToString();
             public void OnTypeChanged() => TypeDataKey++;
-            
+
             public int TypeDataKey { get; private set; }
-            
+
         }
 
         // memorize for reference equality.
