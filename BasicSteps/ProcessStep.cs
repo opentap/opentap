@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 
@@ -55,6 +56,124 @@ namespace OpenTap.Plugins.BasicSteps
         [Display("Command Line Arguments", Order: -2.4, Description: "The arguments passed to the program.")]
         [DefaultValue("")]
         public string Arguments { get; set; } = "";
+
+        /* split an argument string into words based on posix shell splitting rules */
+        static string[] ArgSplit(ReadOnlySpan<char> arguments)
+        {
+            char[] args = arguments.ToArray();
+
+            static char escape_char(char ch)
+            {
+                return ch switch
+                {
+                    'a' => '\a',/* alert/bell */
+                    'b' => '\b',/* backspace */
+                    'e' => '\x1b',/* escape */
+                    'f' => '\f',/* form feed */
+                    'n' => '\n',/* newline */
+                    'r' => '\r',/* carriage return */
+                    't' => '\t',/* tab */
+                    'v' => '\v',/* vertical tab */
+                    /* for anything else, just output the character literally.
+                     * It is more correct to throw an exception, but that might break existing test plans. */
+                    _ => ch, 
+                };
+            }
+
+            List<string> result = [];
+            var word = new StringBuilder();
+            /* current quote, or 0 */
+            char quote = (char)0;
+            /* flag set when escape is active */
+            bool inhibit = false;
+            /* flag to signal quote escape behavior.
+             * Specifically, backslash has no effect inside single quotes, unless the initial single quote is preceeded by a dollar sign. */
+            bool inhibit_inhibit = false;
+            /* flag to handle empty quote at end of args */
+            bool word_started = false;
+
+            int cursor = 0;
+
+            void skip_whitespace()
+            {
+                for (; cursor < args.Length && char.IsWhiteSpace(args[cursor]); cursor++);
+            }
+
+            skip_whitespace();
+            while (cursor < args.Length)
+            {
+                word_started = true;
+                char ch = args[cursor];
+                char peek = cursor + 1 < args.Length ? args[cursor+1] : (char)0;
+                if (inhibit)
+                {
+                    inhibit = false;
+                    char esc = escape_char(ch);
+                    word.Append(esc);
+                }
+                /* a string in single quotes preceeded by a dollar sign ($'<string>') behaves like a double-quoted string.
+                 * This is significant because backslashes are not treated as an escape inside normal single-quotes. */
+                else if (quote == 0 && ch == '$' && peek == '\'')
+                {
+                    quote = '\'';
+                    cursor++;
+                }
+                else if (ch == '\\' && !inhibit_inhibit)
+                {
+                    inhibit = true;
+                }
+                else if (quote != 0 && ch != quote)
+                {
+                    word.Append(ch);
+                }
+                else if (quote != 0 && ch == quote)
+                {
+                    quote = (char)0;
+                    inhibit_inhibit = false;
+                }
+                else if (ch == '\'' || ch == '"')
+                {
+                    quote = ch;
+                    inhibit_inhibit = ch == '\'';
+                }
+                else if (char.IsWhiteSpace(ch))
+                {
+                    result.Add(word.ToString());
+                    word_started = false;
+                    word.Clear();
+                    skip_whitespace();
+                    /* don't update cursor twice */
+                    continue;
+                }
+                else
+                {
+                    word.Append(ch);
+                }
+                cursor++;
+            }
+
+            if (quote != 0) throw new Exception("Argument contains unterminated quote.");
+            if (inhibit) throw new Exception("Argument contains trailing escape.");
+
+            if (word_started) result.Add(word.ToString());
+
+            return [.. result];
+        }
+
+        /* join a list of strings into a single escaped argument string which is safe to pass to ProcessStartInfo.Arguments */
+        static string ArgJoin(string[] arguments)
+        {
+            static string quote(string s)
+            {
+                /* escape all double quotes */
+                s = s.Replace("\"", "\\\"");
+                /* if the string contains whitespace or quotes, quote it */
+                if (s.Length == 0 || s.Any(char.IsWhiteSpace) || s.Contains('"')) s = '"' + s + '"';
+                return s;
+            }
+
+            return string.Join(" ", arguments.Select(quote));
+        }
 
         [Display("Working Directory", Order: -2.3, Description: "The directory where the program will be started in.")]
         [DirectoryPath]
@@ -185,12 +304,14 @@ namespace OpenTap.Plugins.BasicSteps
 
             prepend = string.IsNullOrEmpty(LogHeader) ? "" : LogHeader + " ";
 
+            string[] arglist = ArgSplit(Arguments.AsSpan());
+            string arguments = ArgJoin(arglist);
             var process = new Process
             {
                 StartInfo =
                 {
                     FileName = Application,
-                    Arguments = Arguments,
+                    Arguments = arguments,
                     WorkingDirectory = string.IsNullOrEmpty(WorkingDirectory) ? Directory.GetCurrentDirectory() : Path.GetFullPath(WorkingDirectory),
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
@@ -242,7 +363,7 @@ namespace OpenTap.Plugins.BasicSteps
                 using(abortRegistration)
                 {
 
-                    Log.Debug("Starting process {0} with arguments \"{1}\"", Application, Arguments);
+                    Log.Debug("Starting process {0} with arguments \"{1}\"", Application, arguments);
                     // Ensure that all asynchronous processing is completed by calling process.WaitForExit()
                     // Only the overload with no parameters has this guarantee. See remarks at
                     // https://docs.microsoft.com/en-us/dotnet/api/system.diagnostics.process.waitforexit?view=netframework-4.8

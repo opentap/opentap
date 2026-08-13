@@ -6,6 +6,7 @@ using System.Collections;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 using System.Threading;
 
 namespace OpenTap.UnitTests
@@ -24,6 +25,21 @@ namespace OpenTap.UnitTests
             }
 
             return (int)ExitCodes.Success;
+        }
+    }
+
+    [Display("print", Groups: new[] { "test", "positionalargs" }, Description: "Prints environment variables.")]
+    public class PrintPositionalArgs : ICliAction
+    {
+        [UnnamedCommandLineArgument(nameof(Positionals))]
+        public string[] Positionals { get; set; } = [];
+        public int Execute(CancellationToken cancellationToken)
+        {
+            for (int i = 0; i < Positionals.Length; i++)
+            {
+                Console.WriteLine($"{i}: <{Positionals[i]}>");
+            }
+            return 0;
         }
     }
     
@@ -76,6 +92,46 @@ namespace OpenTap.UnitTests
 
             var result = plan.Execute();
             Assert.AreEqual(expectedVerdict, result.Verdict);
+        }
+
+        [TestCase(" hello   world ", "hello", "world")]
+        [TestCase("basic-quotes 'quoted string' non-quoted \"another quote\"", "basic-quotes", "quoted string", "non-quoted", "another quote")]
+        [TestCase("'literal \\ backslash'", "literal \\ backslash")]
+        [TestCase("$'quote in \\' dollar string'", "quote in ' dollar string")]
+        [TestCase("\"quote in \\\" normal string\"", "quote in \" normal string")]
+        [TestCase("empty-quotes \"\" '' $''  ", "empty-quotes", "", "", "")]
+        [TestCase("concat-adjacent-quotes \"1\"'2'$'3' ", "concat-adjacent-quotes", "123")]
+        [TestCase("dollar escape \\$'hello'", "dollar", "escape", "$hello")]
+        public void ProcessStepArgumentSplitting(string commandline, params string[] expected)
+        {
+            var plan = new TestPlan();
+            var processStep = new ProcessStep()
+            {
+                Application = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), tapBinary),
+                WorkingDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+                Arguments = "test positionalargs print --quiet " + commandline,
+                AddToLog = true,
+            };
+            processStep.EnvironmentVariables.Add(new ProcessStep.EnvironmentVariable { Name = "OPENTAP_COLOR", Value = "never" });
+            plan.Steps.Add(processStep);
+            var run = plan.Execute();
+
+            Regex matchRegex = new("^\\d+: <.*>$", RegexOptions.Compiled);
+            var lines = processStep.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                /* remove opentap noise */
+                .Where(s => matchRegex.IsMatch(s))
+                .ToArray();
+
+            Assert.AreEqual(Verdict.Pass, run.Verdict, processStep.Output);
+            /* verify every argument appears verbatim in the output (including newlines) */
+            for (int i = 0; i < expected.Length; i++)
+            {
+                string exp = expected[i];
+                var actual = $"{i}: <{exp}>";
+                CollectionAssert.Contains(lines, actual);
+            }
+            /* verify there are no trailing arguments */
+            Assert.IsFalse(lines.Any(x => x.StartsWith($"{expected.Length}:")));
         }
 
         [Test]
