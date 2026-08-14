@@ -765,7 +765,10 @@ namespace OpenTap
 
             public DisplayAttribute Translate()
             {
-                return new DisplayAttribute(name(), description(), group(), Order);
+                return new DisplayAttribute(name(), description(), group(), Order)
+                {
+                    NeutralDisplayAttribute = this,
+                };
             }
         }
 
