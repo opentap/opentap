@@ -529,7 +529,7 @@ namespace OpenTap.Package
         /// </summary>
         [XmlAttribute]
         [DefaultValue("tappackage")]
-        public string FileType { get; set; }
+        public string FileType { get; set; } = "tappackage";
 
         /// <summary>
         /// Name of the owner of the package. There can be multiple owners of a package, in which case this string will have several entries separated with ','.
@@ -568,7 +568,7 @@ namespace OpenTap.Package
         /// </summary>
         [XmlAttribute]
         [DefaultValue("package")]
-        public string Class { get; set; }
+        public string Class { get; set; } = "package";
 
         /// <summary>
         /// Validation objects for validating that the package is correctly installed.
@@ -627,17 +627,12 @@ namespace OpenTap.Package
         /// <summary>
         /// Creates a new packagedef.
         /// </summary>
-        internal PackageDef()
+        public PackageDef()
         {
             Files = new List<PackageFile>();
             PackageActionExtensions = new List<ActionStep>();
             OS = "Windows";
             Architecture = CpuArchitecture.AnyCPU;
-            
-            if (string.IsNullOrWhiteSpace(FileType))
-                FileType = "tappackage";
-            if (string.IsNullOrWhiteSpace(Class))
-                Class = "package";
         }
 
         /// <summary>
