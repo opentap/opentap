@@ -1,4 +1,4 @@
-﻿//Copyright 2012-2021 Keysight Technologies
+﻿//Copyright 2012-2026 Keysight Technologies
 //
 //Licensed under the Apache License, Version 2.0 (the "License");
 //you may not use this file except in compliance with the License.
