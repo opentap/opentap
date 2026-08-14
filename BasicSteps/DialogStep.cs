@@ -3,7 +3,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Xml.Linq;
 using OpenTap.Translation;
 
@@ -43,16 +45,18 @@ namespace OpenTap.Plugins.BasicSteps
         public bool PictureEnabled => Picture != null;
 
         [Layout(LayoutMode.FullRow)]
-        [Display("Picture", Order: 1)]
+        [Display("Picture", Order: -10002)]
         [EnabledIf(nameof(PictureEnabled), HideIfDisabled = true)]
         public Picture Picture { get; set; }
 
         // implementing Name of IDisplayAnnotation explicitly.
         public string Name { get;}
 
+        public bool MessageVisible => !string.IsNullOrEmpty(Message);
         [Layout(LayoutMode.FullRow, rowHeight: 2)]
         [Browsable(true)]
-        [Display("Message", Order: 2)]
+        [Display("Message", Order: -10001)]
+        [EnabledIf(nameof(MessageVisible), HideIfDisabled = true)]
         public string Message { get; }
 
         [Browsable(false)]
@@ -148,19 +152,111 @@ namespace OpenTap.Plugins.BasicSteps
             set => Picture.Description = value;
         }
 
+        IEnumerable<IDynamicMemberData> AvailableMembers
+        {
+            get
+            {
+                var available = TypeData.GetTypeData(this).GetMembers()
+                    .OfType<IDynamicMemberData>()
+                    .Where(static member => member.TypeDescriptor.IsPrimitive() || member.TypeDescriptor.DescendsTo(typeof(string)));
+
+                return available;
+            }
+        }
+
+        IEnumerable<IDynamicMemberData> SelectedDialogParameters => AvailableMembers.Where(member => DialogParameters.Contains(member.Name));
+
+        public IEnumerable<string> AvailableMixins => AvailableMembers.Select(param => param.Name);
+        public bool SelectionAvailable => AvailableMembers.Any();
+
+
+        [AvailableValues(nameof(AvailableMixins))]
+        [EnabledIf(nameof(SelectionAvailable), HideIfDisabled = true)]
+        [Display("Dialog Parameters", "Selected parameters for the dialog.", Order: 0.3)]
+        public List<string> DialogParameters { get; set; } = new List<string>();
+
         public DialogStep()
         {
             Message = "Message";
             Title = "Title";
 
             Rules.Add(() => !string.IsNullOrWhiteSpace(Title), "Title is empty", Title);
-            Rules.Add(() => !string.IsNullOrWhiteSpace(Message), "Message is empty", Message);
+            Rules.Add(Validate, "Dialog Parameters contains invalid values", nameof(DialogParameters));
+        }
+
+        bool Validate()
+        {
+            // slight hack to ensure DialogParameters only contains valid values.
+            var avail = AvailableMixins.ToArray();
+            var newList = DialogParameters.Where(x => avail.Contains(x)).ToArray();
+            if (!newList.SequenceEqual(DialogParameters))
+            {
+                DialogParameters = newList.ToList();
+            }
+            return true;
+        }
+
+        object[] savedValues = null;
+        public override void PrePlanRun()
+        {
+            base.PrePlanRun();
+            savedValues = SelectedDialogParameters.Select(p => p.GetValue(this)).ToArray();
+        }
+
+        public override void PostPlanRun()
+        {
+            base.PostPlanRun();
+            foreach (var (member, value) in SelectedDialogParameters.Zip(savedValues, (data, o) => (data, o)))
+            {
+                member.SetValue(this, value);
+            }
+        }
+
+        class DialogDynamicMember : IDynamicMemberData
+        {
+            readonly IMemberData innerMember;
+            readonly DialogStep step;
+            object BackingValue;
+
+            public IEnumerable<object> Attributes => innerMember.Attributes;
+            public string Name => innerMember.Name;
+            public ITypeData DeclaringType => TypeData.GetTypeData(this);
+            public ITypeData TypeDescriptor => innerMember.TypeDescriptor;
+            public bool Writable => innerMember.Writable;
+            public bool Readable => innerMember.Readable;
+            public void SetValue(object owner, object value) => BackingValue = value;
+            public object GetValue(object owner) => BackingValue;
+
+            public bool IsDisposed => false;
+
+            public DialogDynamicMember(IMemberData innerMember, DialogStep step)
+            {
+                this.innerMember = innerMember;
+                this.step = step;
+                BackingValue = innerMember.GetValue(step);
+            }
+
+            public void WriteBackBackingValue()
+            {
+                innerMember.SetValue(step, BackingValue);
+            }
         }
 
         public override void Run()
         {
             Verdict answer = DefaultAnswer;
+
             var req = new DialogRequest(Title, Message) { Buttons = Buttons, Picture = ShowPicture ? Picture : null };
+            var newMembers = new List<DialogDynamicMember>();
+            foreach (var dynamicMember in AvailableMembers)
+            {
+                if (DialogParameters.Contains(dynamicMember.Name) == false)
+                    continue;
+                var newMember = new DialogDynamicMember(dynamicMember, this);
+                DynamicMember.AddDynamicMember(req, newMember );
+                newMembers.Add(newMember);
+            }
+
             try
             {
                 var timeout = TimeSpan.FromSeconds(Timeout);
@@ -173,10 +269,18 @@ namespace OpenTap.Plugins.BasicSteps
                 if (Buttons == InputButtons.OkCancel)
                 {
                     answer = req.Input2 == WaitForInputResult2.Ok ? PositiveAnswer : NegativeAnswer;
+
                 }
                 else
                 {
                     answer = req.Input1 == WaitForInputResult1.Yes ? PositiveAnswer : NegativeAnswer;
+                }
+                if (answer == PositiveAnswer)
+                {
+                    foreach (var member in newMembers)
+                    {
+                        member.WriteBackBackingValue();
+                    }
                 }
             }
             catch (TimeoutException)
