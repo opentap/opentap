@@ -801,6 +801,7 @@ namespace OpenTap
                     attributeFullName = GetFullName(CurrentReader, ctor.Parent);
                 }
 
+                plugin.HasAllowAsChildInAttributes = false;
                 switch (attributeFullName)
                 {
                     case "System.Runtime.Versioning.SupportedOSPlatformAttribute":
@@ -828,6 +829,9 @@ namespace OpenTap
                             displayGroup, displayOrder, displayCollapsed, displayGroups);
                         plugin.Display = attrInstance;
                     }
+                        break;
+                    case "OpenTap.AllowAsChildInAttribute":
+                        plugin.HasAllowAsChildInAttributes = true;
                         break;
                     case "OpenTap.HelpLinkAttribute":
                     {
