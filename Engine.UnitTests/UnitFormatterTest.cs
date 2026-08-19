@@ -35,6 +35,50 @@ public class UnitFormatterTest
         Assert.AreEqual(approxDouble, result, Math.Abs(approxDouble) * 0.00001);
     }
 
+    /// <summary>
+    /// Converting a BigFloat to a double must round to the nearest double, exactly like double.Parse does.
+    /// Issue #2433: it used to truncate, so e.g. double.MaxValue lost its last bit of precision.
+    /// </summary>
+    [TestCase("1.7976931348623157E+308", double.MaxValue)]
+    [TestCase("-1.7976931348623157E+308", double.MinValue)]
+    [TestCase("5E-324", double.Epsilon)]
+    [TestCase("-5E-324", -double.Epsilon)]
+    [TestCase("1E-308", 1e-308)]
+    [TestCase("2.2250738585072014E-308", 2.2250738585072014E-308)] // smallest normal double.
+    [TestCase("2.225073858507201E-308", 2.225073858507201E-308)] // largest subnormal double.
+    [TestCase("123456789012345.67", 123456789012345.67)]
+    [TestCase("0.1", 0.1)]
+    [TestCase("0", 0.0)]
+    [TestCase("1", 1.0)]
+    [TestCase("-1", -1.0)]
+    [TestCase("1E400", double.PositiveInfinity)] // overflow.
+    [TestCase("-1E400", double.NegativeInfinity)]
+    [TestCase("1E-400", 0.0)] // underflow.
+    public void TestBigFloatToDouble(string strValue, double expected)
+    {
+        var bf = new BigFloat(strValue, CultureInfo.InvariantCulture);
+        Assert.AreEqual(expected, bf.ToDouble());
+        Assert.AreEqual(expected, (double)bf);
+        Assert.AreEqual(expected, bf.ConvertTo(typeof(double)));
+    }
+
+    /// <summary> Any double must survive a BigFloat round trip unchanged. Issue #2433. </summary>
+    [Test]
+    public void TestDoubleBigFloatRoundTrip()
+    {
+        var rnd = new Random(2433);
+        var buffer = new byte[8];
+        for (int i = 0; i < 10000; i++)
+        {
+            rnd.NextBytes(buffer);
+            var value = BitConverter.ToDouble(buffer, 0);
+            if (double.IsNaN(value) || double.IsInfinity(value)) continue;
+            var result = BigFloat.Convert(value).ToDouble();
+            if (result != value)
+                Assert.Fail($"{value:R} became {result:R}.");
+        }
+    }
+
     [TestCase("4,5,6", null)]
     [TestCase("1:5", "1,2,3,4,5")]
     [TestCase("1:2:5", "1,3,5")]

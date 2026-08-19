@@ -124,6 +124,39 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(15, step.Dict[""]);
         }
 
+        public class DoubleListStep : TestStep
+        {
+            public List<double> ListOfDouble { get; set; } = new List<double> { double.MinValue, double.MaxValue };
+            public double[] ArrayOfDouble { get; set; } = { double.MinValue, double.MaxValue };
+            public override void Run()
+            {
+            }
+        }
+
+        /// <summary>
+        /// Lists and arrays of doubles must survive a serialization round trip without losing precision,
+        /// also for values that need all 17 significant digits (e.g. double.MinValue/MaxValue). Issue #2433.
+        /// </summary>
+        [Test]
+        public void DoubleListSerializationKeepsPrecision()
+        {
+            var values = new List<double>
+            {
+                double.MinValue, double.MaxValue, double.Epsilon, -double.Epsilon, 1e-308,
+                2.2250738585072014E-308, Math.PI, 0.1, 1.0 / 3, 123456789012345.67, 0.0, 1.0, -1.0
+            };
+
+            var plan = new TestPlan();
+            plan.Steps.Add(new DoubleListStep { ListOfDouble = values, ArrayOfDouble = values.ToArray() });
+            var planXml = plan.SerializeToString();
+
+            var deserialized = (TestPlan)new TapSerializer().DeserializeFromString(planXml);
+            var step = (DoubleListStep)deserialized.ChildTestSteps.First();
+
+            Assert.IsTrue(values.SequenceEqual(step.ListOfDouble), "List<double> changed value.");
+            Assert.IsTrue(values.SequenceEqual(step.ArrayOfDouble), "double[] changed value.");
+        }
+
         public class InstStep : TestStep
         {
             public List<IInstrument> Instrs { get; set; }

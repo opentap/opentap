@@ -633,7 +633,7 @@ namespace OpenTap
 
         public static explicit operator double(BigFloat d)
         {
-            return ((double)d.Numerator) / ((double)d.Denominator);
+            return d.ToDouble();
         }
 
         public static bool operator ==(BigFloat a, BigFloat b)
@@ -866,6 +866,100 @@ namespace OpenTap
             return new BigFloat(Rounded());
         }
 
+        /// <summary> The number of bits needed to represent a non-negative BigInteger. </summary>
+        static int bitLength(BigInteger value)
+        {
+            if (value.IsZero) return 0;
+            var bytes = value.ToByteArray(); // little endian, two's complement.
+            int i = bytes.Length - 1;
+            while (i > 0 && bytes[i] == 0)
+                i--;
+            int bits = i * 8;
+            for (int b = bytes[i]; b != 0; b >>= 1)
+                bits++;
+            return bits;
+        }
+
+        /// <summary>
+        /// Converts the value to the nearest double, rounding half to even, exactly like double.Parse does.
+        /// Note this cannot be done as (double)Numerator / (double)Denominator, since BigInteger to double
+        /// conversions truncate instead of rounding to nearest (losing the last bit of precision for values
+        /// that need all 17 significant digits) and since large numerators/denominators overflow to infinity
+        /// (turning e.g. double.Epsilon into 0).
+        /// </summary>
+        public double ToDouble()
+        {
+            if (Denominator.IsZero)
+            {
+                if (Numerator.IsZero) return double.NaN;
+                return Numerator.Sign > 0 ? double.PositiveInfinity : double.NegativeInfinity;
+            }
+            if (Numerator.IsZero) return 0.0;
+
+            var num = Numerator;
+            var den = Denominator;
+            bool negative = num.Sign < 0;
+            if (negative)
+                num = -num;
+            if (den.Sign < 0)
+            {
+                // Normalize() moves the sign to the numerator, but this is not guaranteed to have been called.
+                negative = !negative;
+                den = -den;
+            }
+
+            // Find q = floor(num / den * 2^shift) such that q has exactly 54 significant bits:
+            // 53 bits for the mantissa of a double plus one extra bit to round by.
+            int shift = 54 - (bitLength(num) - bitLength(den));
+            BigInteger q, rem;
+            while (true)
+            {
+                q = BigInteger.DivRem(shift > 0 ? num << shift : num, shift < 0 ? den << -shift : den, out rem);
+                int qBits = bitLength(q);
+                if (qBits == 54) break;
+                // the first estimate of shift is off by at most one bit, so this loops at most twice.
+                shift += 54 - qBits;
+            }
+
+            // the value is q * 2^-shift, and rem being non-zero means there is a non-zero remainder below that.
+            // Drop the extra bit, or more bits if the result is subnormal - the smallest subnormal double is 2^-1074.
+            int drop = Math.Max(1, shift - 1074);
+            var dropped = q & ((BigInteger.One << drop) - 1);
+            var half = BigInteger.One << (drop - 1);
+            var mantissa = q >> drop;
+            if (dropped > half || (dropped == half && (!rem.IsZero || !mantissa.IsEven)))
+                mantissa += 1; // round to nearest, ties to even.
+
+            int exp = drop - shift; // the value is now mantissa * 2^exp.
+
+            long resultBits;
+            if (mantissa.IsZero)
+                resultBits = 0; // rounded down to zero.
+            else if (exp == -1074)
+            {
+                // Subnormal: the mantissa is the fraction bits directly. If rounding carried the mantissa
+                // into bit 52 (or 53) this conveniently gives the smallest normal value(s) instead.
+                resultBits = (long)mantissa;
+            }
+            else
+            {
+                if (bitLength(mantissa) == 54)
+                {
+                    // rounding up carried into an extra bit.
+                    mantissa >>= 1;
+                    exp++;
+                }
+                long biasedExponent = exp + 1075;
+                if (biasedExponent >= 2047)
+                    return negative ? double.NegativeInfinity : double.PositiveInfinity;
+                resultBits = (biasedExponent << 52) | (long)(mantissa - (BigInteger.One << 52));
+            }
+
+            if (negative)
+                resultBits |= long.MinValue; // the sign bit.
+            return BitConverter.Int64BitsToDouble(resultBits);
+        }
+
         
         public static BigFloat Convert(object y, IFormatProvider prov = null)
         {
@@ -889,9 +983,9 @@ namespace OpenTap
             if (t == typeof(BigFloat))
                 return this;
             if (t == typeof(double))
-                return (((double)Numerator) / ((double)Denominator));
+                return ToDouble();
             if (t == typeof(float))
-                return (float)((double)((double)Numerator) / ((double)Denominator));
+                return (float)ToDouble();
             if (t == typeof(decimal))
                 return ((decimal)Numerator) / ((decimal)Denominator);
             if (t == typeof(int))
