@@ -870,7 +870,7 @@ namespace OpenTap
         static int bitLength(BigInteger value)
         {
             if (value.IsZero) return 0;
-            var bytes = value.ToByteArray(); // little endian, two's complement.
+            var bytes = value.ToByteArray();
             int i = bytes.Length - 1;
             while (i > 0 && bytes[i] == 0)
                 i--;
@@ -884,13 +884,7 @@ namespace OpenTap
         static readonly BigInteger maxExactInteger = BigInteger.Pow(2, 53);
         static readonly BigInteger minExactInteger = -maxExactInteger;
 
-        /// <summary>
-        /// Converts the value to the nearest double, rounding half to even, exactly like double.Parse does.
-        /// Note this cannot generally be done as (double)Numerator / (double)Denominator, since BigInteger to
-        /// double conversions truncate instead of rounding to nearest (losing the last bit of precision for
-        /// values that need all 17 significant digits) and since large numerators/denominators overflow to
-        /// infinity (turning e.g. double.Epsilon into 0).
-        /// </summary>
+        /// <summary> Converts the value to the nearest double, rounding half to even, exactly like double.Parse does. </summary>
         public double ToDouble()
         {
             if (Denominator.IsZero)
@@ -901,8 +895,6 @@ namespace OpenTap
             if (Numerator >= minExactInteger && Numerator <= maxExactInteger &&
                 Denominator >= minExactInteger && Denominator <= maxExactInteger)
             {
-                // Both are represented exactly by a double and IEEE 754 division is correctly rounded,
-                // so the result is the nearest double. This covers everyday values such as 0.1 -> 1/10.
                 return (double)Numerator / (double)Denominator;
             }
             if (Numerator.IsZero) return 0.0;
@@ -914,43 +906,33 @@ namespace OpenTap
                 num = -num;
             if (den.Sign < 0)
             {
-                // Normalize() moves the sign to the numerator, but this is not guaranteed to have been called.
                 negative = !negative;
                 den = -den;
             }
 
-            // q = floor(num / den * 2^shift). Since a b-bit number is in [2^(b-1), 2^b), num/den is within
-            // a factor of two of 2^(bitLength(num) - bitLength(den)), so q has 54 or 55 significant bits:
-            // at least 53 for the mantissa of a double plus at least one extra bit to round by.
             int shift = 54 - (bitLength(num) - bitLength(den));
             var q = BigInteger.DivRem(shift > 0 ? num << shift : num, shift < 0 ? den << -shift : den, out var rem);
 
-            // the value is q * 2^-shift, and rem being non-zero means there is a non-zero remainder below that.
-            // Keep 53 bits for the mantissa and round by the dropped bits; keep fewer bits if the result is
-            // subnormal - the smallest subnormal double is 2^-1074.
             int drop = Math.Max(bitLength(q) - 53, shift - 1074);
             var dropped = q & ((BigInteger.One << drop) - 1);
             var half = BigInteger.One << (drop - 1);
             var mantissa = q >> drop;
             if (dropped > half || (dropped == half && (!rem.IsZero || !mantissa.IsEven)))
-                mantissa += 1; // round to nearest, ties to even.
+                mantissa += 1;
 
-            int exp = drop - shift; // the value is now mantissa * 2^exp.
+            int exp = drop - shift;
 
             long resultBits;
             if (mantissa.IsZero)
-                resultBits = 0; // rounded down to zero.
+                resultBits = 0;
             else if (exp == -1074)
             {
-                // Subnormal: the mantissa is the fraction bits directly. If rounding carried the mantissa
-                // into bit 52 (or 53) this conveniently gives the smallest normal value(s) instead.
                 resultBits = (long)mantissa;
             }
             else
             {
                 if (bitLength(mantissa) == 54)
                 {
-                    // rounding up carried into an extra bit.
                     mantissa >>= 1;
                     exp++;
                 }
@@ -961,7 +943,7 @@ namespace OpenTap
             }
 
             if (negative)
-                resultBits |= long.MinValue; // the sign bit.
+                resultBits |= long.MinValue;
             return BitConverter.Int64BitsToDouble(resultBits);
         }
 
