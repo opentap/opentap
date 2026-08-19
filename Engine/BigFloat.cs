@@ -919,22 +919,16 @@ namespace OpenTap
                 den = -den;
             }
 
-            // Find q = floor(num / den * 2^shift) such that q has exactly 54 significant bits:
-            // 53 bits for the mantissa of a double plus one extra bit to round by.
+            // q = floor(num / den * 2^shift). Since a b-bit number is in [2^(b-1), 2^b), num/den is within
+            // a factor of two of 2^(bitLength(num) - bitLength(den)), so q has 54 or 55 significant bits:
+            // at least 53 for the mantissa of a double plus at least one extra bit to round by.
             int shift = 54 - (bitLength(num) - bitLength(den));
-            BigInteger q, rem;
-            while (true)
-            {
-                q = BigInteger.DivRem(shift > 0 ? num << shift : num, shift < 0 ? den << -shift : den, out rem);
-                int qBits = bitLength(q);
-                if (qBits == 54) break;
-                // the first estimate of shift is off by at most one bit, so this loops at most twice.
-                shift += 54 - qBits;
-            }
+            var q = BigInteger.DivRem(shift > 0 ? num << shift : num, shift < 0 ? den << -shift : den, out var rem);
 
             // the value is q * 2^-shift, and rem being non-zero means there is a non-zero remainder below that.
-            // Drop the extra bit, or more bits if the result is subnormal - the smallest subnormal double is 2^-1074.
-            int drop = Math.Max(1, shift - 1074);
+            // Keep 53 bits for the mantissa and round by the dropped bits; keep fewer bits if the result is
+            // subnormal - the smallest subnormal double is 2^-1074.
+            int drop = Math.Max(bitLength(q) - 53, shift - 1074);
             var dropped = q & ((BigInteger.One << drop) - 1);
             var half = BigInteger.One << (drop - 1);
             var mantissa = q >> drop;
