@@ -47,6 +47,9 @@ public class UnitFormatterTest
     [TestCase("2.2250738585072014E-308", 2.2250738585072014E-308)] // smallest normal double.
     [TestCase("2.225073858507201E-308", 2.225073858507201E-308)] // largest subnormal double.
     [TestCase("123456789012345.67", 123456789012345.67)]
+    [TestCase("9007199254740992", 9007199254740992.0)] // 2^53, the largest exactly representable integer.
+    [TestCase("9007199254740993", 9007199254740992.0)] // 2^53+1, a tie that must round down to even.
+    [TestCase("9007199254740995", 9007199254740996.0)] // 2^53+3, a tie that must round up to even.
     [TestCase("0.1", 0.1)]
     [TestCase("0", 0.0)]
     [TestCase("1", 1.0)]

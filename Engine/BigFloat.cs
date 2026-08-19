@@ -880,12 +880,16 @@ namespace OpenTap
             return bits;
         }
 
+        /// <summary> 2^53. Integers up to this are represented exactly by a double. </summary>
+        static readonly BigInteger maxExactInteger = BigInteger.Pow(2, 53);
+        static readonly BigInteger minExactInteger = -maxExactInteger;
+
         /// <summary>
         /// Converts the value to the nearest double, rounding half to even, exactly like double.Parse does.
-        /// Note this cannot be done as (double)Numerator / (double)Denominator, since BigInteger to double
-        /// conversions truncate instead of rounding to nearest (losing the last bit of precision for values
-        /// that need all 17 significant digits) and since large numerators/denominators overflow to infinity
-        /// (turning e.g. double.Epsilon into 0).
+        /// Note this cannot generally be done as (double)Numerator / (double)Denominator, since BigInteger to
+        /// double conversions truncate instead of rounding to nearest (losing the last bit of precision for
+        /// values that need all 17 significant digits) and since large numerators/denominators overflow to
+        /// infinity (turning e.g. double.Epsilon into 0).
         /// </summary>
         public double ToDouble()
         {
@@ -893,6 +897,13 @@ namespace OpenTap
             {
                 if (Numerator.IsZero) return double.NaN;
                 return Numerator.Sign > 0 ? double.PositiveInfinity : double.NegativeInfinity;
+            }
+            if (Numerator >= minExactInteger && Numerator <= maxExactInteger &&
+                Denominator >= minExactInteger && Denominator <= maxExactInteger)
+            {
+                // Both are represented exactly by a double and IEEE 754 division is correctly rounded,
+                // so the result is the nearest double. This covers everyday values such as 0.1 -> 1/10.
+                return (double)Numerator / (double)Denominator;
             }
             if (Numerator.IsZero) return 0.0;
 
