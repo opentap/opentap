@@ -115,9 +115,8 @@ namespace OpenTap.Plugins.BasicSteps
                 r.WaitForCompletion();
             }
 
-            // if a child step deferred its results, the propagation of its verdict to this step is deferred as well.
-            // wait for that to complete, otherwise the verdict of this iteration might be applied after the next
-            // iteration cleared the verdict, and getCurrentVerdict might read an outdated verdict.
+            // when a child step defers its results, the verdict propagation to this step is deferred too.
+            // it has to be done before the next iteration clears the verdict.
             Results.WaitForDeferredActions();
 
             if (_setIteration is { } setIteration)

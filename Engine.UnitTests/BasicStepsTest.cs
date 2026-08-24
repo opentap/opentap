@@ -138,10 +138,7 @@ namespace OpenTap.UnitTests
             var plan = new TestPlan();
             plan.ChildTestSteps.Add(rpt);
 
-            // when a child step defers results, the verdict of the child step is propagated to the repeat step
-            // from a deferred action. If that happens after the next iteration cleared the verdict, the repeat step
-            // ends up with the verdict of an iteration which was supposed to be cleared.
-            // This only happened intermittently, hence the plan is executed a number of times. See issue #2439.
+            // the verdict was only left uncleared intermittently, hence the plan is executed a number of times. See issue #2439.
             for (int i = 0; i < 30; i++)
             {
                 var run = plan.Execute();
