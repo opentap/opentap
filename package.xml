@@ -101,6 +101,10 @@
 <!--        <File Path="tap"/>-->
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.$(Architecture)"/>
     </Files>
+    <!-- Markdown documentation -->
+    <Files>
+        <File Path="Packages/OpenTAP/doc/**" />
+    </Files>
     <!-- License Texts -->
     <Files>
         <File Path="Packages/OpenTAP/LICENSE.txt" SourcePath="LICENSE.txt" />
