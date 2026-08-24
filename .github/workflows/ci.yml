@@ -449,13 +449,7 @@ jobs:
         run:  echo "${{ secrets.SIGN_SERVER_CERT }}" > $env:TAP_SIGN_CERT
       - name: Copy markdown docs
         working-directory: bin/Release-${{ matrix.Architecture }}
-        run: |
-          cp -r ../../doc Packages/OpenTAP/
-          Remove-Item -Recurse -Force 'Packages/OpenTAP/doc/API Documentation'
-          Remove-Item -Recurse -Force Packages/OpenTAP/doc/.vitepress
-          Remove-Item -Recurse -Force Packages/OpenTAP/doc/public
-          Remove-Item Packages/OpenTAP/doc/package-lock.json
-          Remove-Item Packages/OpenTAP/doc/package.json
+        run: cp -r '../../doc/Developer Guide' Packages/OpenTAP/doc
       - name: Create Package
         working-directory: bin/Release-${{ matrix.Architecture }}
         env: 
@@ -524,12 +518,7 @@ jobs:
         working-directory: bin/output/
         run: |
           mkdir -p Packages/OpenTAP/
-          cp -r ../../doc Packages/OpenTAP/.
-          rm -rf 'Packages/OpenTAP/doc/API Documentation'
-          rm -rf Packages/OpenTAP/doc/.vitepress
-          rm -rf Packages/OpenTAP/doc/public
-          rm -f Packages/OpenTAP/doc/package-lock.json
-          rm -f Packages/OpenTAP/doc/package.json
+          cp -r '../../doc/Developer Guide' Packages/OpenTAP/doc
       - name: Manually copy the correct newtonsoft dll here since it was overwritten by a unittest
         run: cp Installer/Assets/Newtonsoft.Json.dll bin/output/
       - name: Set execute permissions
