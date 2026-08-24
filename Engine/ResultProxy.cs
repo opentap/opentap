@@ -387,15 +387,12 @@ namespace OpenTap
         /// </summary>
         public void WaitForDeferredActions()
         {
-            // if nothing was deferred there is nothing to wait for.
             if (deferWorker == null) return;
 
             if (TapThread.Current != stepRun.StepThread)
                 throw new InvalidOperationException(
                     "WaitForDeferredActions may only be executed from the same thread as the test step.");
 
-            // the deferred actions are executed one at a time by the defer worker, so when its queue has been
-            // drained, all the actions deferred so far have completed.
             deferWorker.Wait();
         }
 
