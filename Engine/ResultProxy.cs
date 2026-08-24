@@ -387,30 +387,16 @@ namespace OpenTap
         /// </summary>
         public void WaitForDeferredActions()
         {
-            var worker = deferWorker;
-            // if nothing was deferred, or everything deferred so far has already completed, there is nothing to wait for.
-            if (worker == null || deferCount == 0) return;
+            // if nothing was deferred there is nothing to wait for.
+            if (deferWorker == null) return;
 
             if (TapThread.Current != stepRun.StepThread)
                 throw new InvalidOperationException(
                     "WaitForDeferredActions may only be executed from the same thread as the test step.");
 
-            // only one deferred action runs at a time and they are executed in the order they were added,
-            // so waiting for an action added now means waiting for all the previously added actions.
-            using (var done = new ManualResetEventSlim(false))
-            {
-                try
-                {
-                    worker.EnqueueWork(() => done.Set());
-                }
-                catch (ObjectDisposedException)
-                {
-                    // the defer worker has been disposed, which means all the deferred actions have completed.
-                    return;
-                }
-
-                done.Wait();
-            }
+            // the deferred actions are executed one at a time by the defer worker, so when its queue has been
+            // drained, all the actions deferred so far have completed.
+            deferWorker.Wait();
         }
 
         static readonly Task Finished = Task.FromResult(0);
