@@ -241,6 +241,9 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
         private void Write()
         {
+            var targetDir = Path.GetDirectoryName(Path.GetFullPath(TargetMsBuildFile));
+            if (!string.IsNullOrEmpty(targetDir))
+                Directory.CreateDirectory(targetDir);
             using (var writer = File.CreateText(TargetMsBuildFile))
             {
                 writer.WriteLine("<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"no\"?>");
