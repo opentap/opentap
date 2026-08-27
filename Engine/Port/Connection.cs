@@ -14,8 +14,6 @@ namespace OpenTap
     [Display("Generic Connection")]
     public abstract class Connection : ValidatingObject, ITapPlugin
     {
-        // Orders has special values because they are placed first even if there are unordered items.
-
         /// <summary>
         /// A name for the connection to be displayed in the user interface.
         /// </summary>
@@ -45,18 +43,12 @@ namespace OpenTap
         /// </summary>
         [Layout(MinWidth=13)]
         [Display("Via", Order: 2 - 100000)]
-        public List<ViaPoint> Via { get; set; } // ToDo: would be nice to make the setter private, but it is currently needed for deserialization 
+        public List<ViaPoint> Via { get; set; }
 
         /// <summary>
         /// Returns true when a connection going through one or more switches (set using the <see cref="Via"/> property) is "Active" (all switches are in the correct position). 
         /// </summary>
-        public bool IsActive
-        {
-            get
-            {
-                return Via.All(pos => pos.IsActive);
-            }
-        }
+        public virtual bool IsActive => Via.All(pos => pos.IsActive);
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Connection"/> class.
@@ -72,25 +64,36 @@ namespace OpenTap
         /// </summary>
         public Port GetOtherPort(Port p)
         {
-            if (Equals(p, Port1))
-                return Port2;
-            if (Equals(p, Port2))
-                return Port1;
+            var port1 = Port1;
+            var port2 = Port2;
+            if (Equals(p, port1))
+                return port2;
+            if (Equals(p, port2))
+                return port1;
             
             throw new ArgumentException("Argument must be either Port1 or Port2");
         }
 
-
-        
         /// <summary>
         /// Returns a string representation of this connection which names the ports in each end.
         /// </summary>
         public override string ToString()
         {
             if (String.IsNullOrWhiteSpace(Name))
-                return String.Format("{0} <-> {1}", Port1 != null ? Port1.ToString() : "N/A", Port2 != null ? Port2.ToString() : "N/A");
-            else
-                return Name;
+                return $"{(Port1?.ToString() ?? "N/A")} <-> { (Port2?.ToString() ?? "N/A")}";
+            
+            return Name;
+        }
+
+        public void Activate()
+        {
+            (Port1 as IActivatedPort)?.Activate();
+            foreach (var pt in Via)
+            {
+                if(pt is IActivatedViaPoint activatedVia)
+                    activatedVia.Activate();
+            }
+            (Port2 as IActivatedPort)?.Activate();
         }
     }
 }
