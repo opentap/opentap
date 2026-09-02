@@ -54,9 +54,8 @@ namespace OpenTap.Engine.UnitTests
         
         
         [Test]
-        public void WarningIsWrittenToStderr([Values(true, false)] bool verbose)
+        public void WarningIsWrittenToStderr([Values(true, false)] bool verbose, [Values(true, false)] bool setEnv)
         {
-            
             var plan = new TestPlan();
             plan.Steps.Add(new LogStep
             {
@@ -81,12 +80,25 @@ namespace OpenTap.Engine.UnitTests
             var planFile = "warningPlan.TapPlan";
             plan.Save(planFile);
 
-            var proc = TapProcessContainer.StartFromArgs($"run {planFile}" + (verbose ? "" : " -v"));
+            Dictionary<string, string> environment = [];
+            if (setEnv)
+            {
+                environment["OPENTAP_WARNINGS_TO_STDERR"] = "true";
+            }
+            var proc = TapProcessContainer.StartFromArgs($"run {planFile}" + (verbose ? "" : " -v"), TimeSpan.FromSeconds(20), environment);
             proc.WaitForEnd();
 
             Assert.AreEqual(0, proc.TapProcess.ExitCode);
-            StringAssert.Contains("__WARNING__", proc.StandardError);
-            StringAssert.DoesNotContain("__WARNING__", proc.StandardOutput);
+            if (setEnv)
+            {
+                StringAssert.Contains("__WARNING__", proc.StandardError);
+                StringAssert.DoesNotContain("__WARNING__", proc.StandardOutput);
+            }
+            else
+            {
+                StringAssert.Contains("__WARNING__", proc.StandardOutput);
+                StringAssert.DoesNotContain("__WARNING__", proc.StandardError);
+            }
             StringAssert.Contains("__ERROR__", proc.StandardError);
             StringAssert.DoesNotContain("__ERROR__", proc.StandardOutput);
             

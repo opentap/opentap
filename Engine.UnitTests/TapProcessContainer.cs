@@ -8,6 +8,8 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Text;
 using System.IO;
+using System.Collections.Generic;
+using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions;
 namespace OpenTap.Engine.UnitTests
 {
     public class TapProcessContainer
@@ -58,7 +60,7 @@ namespace OpenTap.Engine.UnitTests
 
         public static TapProcessContainer StartFromArgs(string args) => StartFromArgs(args, TimeSpan.FromMinutes(2));
             
-        public static TapProcessContainer StartFromArgs(string args, TimeSpan timeOutAfter)
+        public static TapProcessContainer StartFromArgs(string args, TimeSpan timeOutAfter, Dictionary<string, string> env = null)
         {
             Process proc = new Process();
 
@@ -75,15 +77,22 @@ namespace OpenTap.Engine.UnitTests
                 args = $"\"{file}/tap.dll\" " + args;
             }
 
-            proc.StartInfo = new ProcessStartInfo(program, args)
+            var startInfo = new ProcessStartInfo(program, args)
             {
-                UseShellExecute = true,
+                UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardInput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
             };
-            proc.StartInfo.UseShellExecute = false;
+            if (env != null)
+            {
+                foreach (var (key, value) in env)
+                {
+                    startInfo.AddEnvironmentVariable(key, value);
+                }
+            }
+            proc.StartInfo = startInfo;
 
             container.go();
             TapThread.Start(() =>
