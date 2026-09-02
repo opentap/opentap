@@ -693,19 +693,26 @@ namespace OpenTap
             return step.RunChildSteps(currentPlanRun, currentStepRun, attachedParameters, cancellationToken, true);
         }
 
+        public static IEnumerable<TestStepRun> RunChildSteps(this ITestStep step, TestPlanRun currentPlanRun,
+            TestStepRun currentStepRun,
+            IEnumerable<ResultParameter> attachedParameters, CancellationToken cancellationToken, bool throwOnBreak)
+        {
+            return step.RunChildSteps(new RunChildStepsArgs(step)
+            {
+                AttachedParameters = attachedParameters,
+                CancellationToken = cancellationToken, ThrowOnBreak = throwOnBreak
+            });
+        }
 
         /// <summary>
         /// Runs all enabled <see cref="TestStep.ChildTestSteps"/> of this TestStep. Upgrades parent verdict to the resulting verdict of the childrens run. Throws an exception if the child step does not belong or isn't enabled.
         /// </summary>
-        /// <param name="step"></param>
-        /// <param name="currentPlanRun">The current TestPlanRun.</param>
-        /// <param name="currentStepRun">The current TestStepRun.</param>
-        /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the steps.</param>
-        /// <param name="cancellationToken">Provides a way to cancel the execution of child steps before all steps are executed.</param>
-        /// <param name="throwOnBreak">Whether an exception will be thrown due to break conditions or if they will be caught. Exceptions are still available on child test steps TestStepRun.Exception. </param>
-        public static IEnumerable<TestStepRun> RunChildSteps(this ITestStep step, TestPlanRun currentPlanRun, TestStepRun currentStepRun, 
-            IEnumerable<ResultParameter> attachedParameters, CancellationToken cancellationToken, bool throwOnBreak)
+        public static IEnumerable<TestStepRun> RunChildSteps(this ITestStep step, RunChildStepsArgs args)
         {
+            var currentPlanRun = step.PlanRun;
+            var currentStepRun = step.StepRun;
+            var attachedParameters = args.AttachedParameters;
+            var cancellationToken = args.CancellationToken;
             if (currentPlanRun == null)
                 throw new ArgumentNullException(nameof(currentPlanRun));
             if (currentStepRun == null)
@@ -769,7 +776,7 @@ namespace OpenTap
                     if (run.BreakConditionsSatisfied(stepI.Verdict))
                     {
                         run.LogBreakCondition(stepI.Verdict);
-                        if (throwOnBreak)
+                        if (args.ThrowOnBreak)
                         {
                             if (run.Exception != null)
                                 ExceptionDispatchInfo.Capture(run.Exception).Throw();
@@ -794,7 +801,7 @@ namespace OpenTap
                             step.UpgradeVerdict(run.Verdict);
                         }
                     }
-                    if (step is TestStep testStep && runs.Any(x => x.WasDeferred))
+                    if (!args.ProcessDeferBlocking && step is TestStep testStep && runs.Any(x => x.WasDeferred))
                     {
                         testStep.Results.DeferNoCheck(processRuns);
                     }
@@ -1465,4 +1472,32 @@ namespace OpenTap
     /// </summary>
     internal class SettingsIgnoreAttribute : Attribute
     { }
+
+    /// <summary> Arguments for TestStep.RunChildSteps extension method.</summary>
+    public sealed class RunChildStepsArgs
+    {
+        /// <summary> Setup RunChildStepsArgs for a parent step. </summary>
+        public RunChildStepsArgs(ITestStep parentStep)
+        {
+            StepRun = parentStep.StepRun;
+            PlanRun = parentStep.PlanRun;
+        }
+
+        /// <summary> The plan run. </summary>
+        public TestPlanRun PlanRun { get; }
+        /// <summary> The step run. </summary>
+        public TestStepRun StepRun { get; }
+
+        /// <summary> Attached parameters. </summary>
+        public IEnumerable<ResultParameter> AttachedParameters { get; set; } = [];
+        
+        /// <summary> Cancels child step execution. </summary>
+        public CancellationToken CancellationToken { get; set; }
+        
+        /// <summary> Whether to throw an exception on break.</summary>
+        public bool ThrowOnBreak { get; set; }
+        
+        /// <summary> Wether to wait for defer to process after running the child steps.</summary>
+        public bool ProcessDeferBlocking { get; set; }
+    }
 }

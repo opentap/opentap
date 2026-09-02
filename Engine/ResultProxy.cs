@@ -378,24 +378,7 @@ namespace OpenTap
                 }
             });
         }
-
-        /// <summary>
-        /// Waits for the deferred actions of this test step run to complete.
-        /// This includes actions added with <see cref="Defer"/>, but also the propagation of verdicts from
-        /// child test steps which deferred their results.
-        /// This may only be called from the same thread as the test step.
-        /// </summary>
-        public void WaitForDeferredActions()
-        {
-            if (deferWorker == null) return;
-
-            if (TapThread.Current != stepRun.StepThread)
-                throw new InvalidOperationException(
-                    "WaitForDeferredActions may only be executed from the same thread as the test step.");
-
-            deferWorker.Wait();
-        }
-
+        
         static readonly Task Finished = Task.FromResult(0);
 
         /// <summary>
