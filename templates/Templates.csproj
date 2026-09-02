@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <PackageType>Template</PackageType>
@@ -24,13 +24,66 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Include="src\**\*" PackagePath="content" />
+    <!-- Include all template content except the shared folder, which holds
+         canonical source files that are fanned out into individual templates below. -->
+    <Content Include="src\**\*" Exclude="src\shared\**\*" PackagePath="content" />
     <Compile Remove="**\*" />
     <None Include="..\LICENSE.txt" Pack="true" PackagePath="licenses\LICENSE.txt" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="src\solution\ProjectName\package.xml" />
+    <!-- Shared source files fanned out into each template that uses them, so the
+         canonical file is only stored once in the repository. Each plugin type is
+         used by the project template, its standalone item template, and the solution template. -->
+    <Content Include="src\shared\MyTestStep.cs" PackagePath="content\project\MyTestStep.cs" />
+    <Content Include="src\shared\MyTestStep.cs" PackagePath="content\item-teststep\MyTestStep.cs" />
+    <Content Include="src\shared\MyTestStep.cs" PackagePath="content\solution\ProjectName\MyTestStep.cs" />
+
+    <Content Include="src\shared\MyDUT.cs" PackagePath="content\project\MyDUT.cs" />
+    <Content Include="src\shared\MyDUT.cs" PackagePath="content\item-dut\MyDUT.cs" />
+    <Content Include="src\shared\MyDUT.cs" PackagePath="content\solution\ProjectName\MyDUT.cs" />
+
+    <Content Include="src\shared\MyInstrument.cs" PackagePath="content\project\MyInstrument.cs" />
+    <Content Include="src\shared\MyInstrument.cs" PackagePath="content\item-instrument\MyInstrument.cs" />
+    <Content Include="src\shared\MyInstrument.cs" PackagePath="content\solution\ProjectName\MyInstrument.cs" />
+
+    <Content Include="src\shared\MyResultListener.cs" PackagePath="content\project\MyResultListener.cs" />
+    <Content Include="src\shared\MyResultListener.cs" PackagePath="content\item-resultlistener\MyResultListener.cs" />
+    <Content Include="src\shared\MyResultListener.cs" PackagePath="content\solution\ProjectName\MyResultListener.cs" />
+
+    <Content Include="src\shared\MyComponentSettings.cs" PackagePath="content\project\MyComponentSettings.cs" />
+    <Content Include="src\shared\MyComponentSettings.cs" PackagePath="content\item-componentsettings\MyComponentSettings.cs" />
+    <Content Include="src\shared\MyComponentSettings.cs" PackagePath="content\solution\ProjectName\MyComponentSettings.cs" />
+
+    <Content Include="src\shared\MyCliAction.cs" PackagePath="content\project\MyCliAction.cs" />
+    <Content Include="src\shared\MyCliAction.cs" PackagePath="content\item-cliaction\MyCliAction.cs" />
+    <Content Include="src\shared\MyCliAction.cs" PackagePath="content\solution\ProjectName\MyCliAction.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shared icon fanned out into each template's config, so the image is only
+         stored once in the repository (in src\shared). -->
+    <Content Include="src\shared\OpenTAP.png" PackagePath="content\project\.template.config\OpenTAP.png" />
+    <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-teststep\.template.config\OpenTAP.png" />
+    <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-dut\.template.config\OpenTAP.png" />
+    <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-instrument\.template.config\OpenTAP.png" />
+    <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-resultlistener\.template.config\OpenTAP.png" />
+    <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-componentsettings\.template.config\OpenTAP.png" />
+    <Content Include="src\shared\OpenTAP.png" PackagePath="content\item-cliaction\.template.config\OpenTAP.png" />
+    <Content Include="src\shared\OpenTAP.png" PackagePath="content\solution\.template.config\OpenTAP.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Shared debug/launch files fanned out into the project and solution
+         templates, so each file is only stored once in the repository (in src\shared). -->
+    <Content Include="src\shared\vscode\tasks.json" PackagePath="content\project\.vscode\tasks.json" />
+    <Content Include="src\shared\vscode\tasks.json" PackagePath="content\solution\ProjectName\.vscode\tasks.json" />
+
+    <Content Include="src\shared\vscode\launch.json" PackagePath="content\project\.vscode\launch.json" />
+    <Content Include="src\shared\vscode\launch.json" PackagePath="content\solution\ProjectName\.vscode\launch.json" />
+
+    <Content Include="src\shared\Properties\launchSettings.json" PackagePath="content\project\Properties\launchSettings.json" />
+    <Content Include="src\shared\Properties\launchSettings.json" PackagePath="content\solution\ProjectName\Properties\launchSettings.json" />
   </ItemGroup>
 
 </Project>

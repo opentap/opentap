@@ -16,7 +16,7 @@ namespace OpenTap.Package
     /// </summary>
     [Display("Package Manager")]
     [Browsable(false)]
-    [HelpLink("EditorHelp.chm::/Package Manager Help/Readme.html")]
+    [HelpLink("Editor/Package Manager Help")]
     public class PackageManagerSettings : ComponentSettings<PackageManagerSettings>
     {
         /// <summary>

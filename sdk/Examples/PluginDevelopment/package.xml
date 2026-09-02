@@ -10,6 +10,7 @@ $(GitVersion) - Gets the version from Git in the recommended format Major.Minor.
 <Package Name="Plugin Development" 
          xmlns="http://opentap.io/schemas/package"
          InfoLink="http://www.keysight.com/" 
+         OS="Windows,Linux,MacOS"
          Version="0.1.0-alpha">
   <Description>Example source code for developers using OpenTAP</Description>
   <Files>

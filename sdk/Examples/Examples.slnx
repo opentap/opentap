@@ -1,0 +1,22 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Debug" />
+    <BuildType Name="Release" />
+  </Configurations>
+  <Folder Name="/TestPlanExecution/">
+    <Project Path="TestPlanExecution/BuildTestPlan.Api/BuildTestPlan.Api.csproj">
+      <BuildDependency Project="ExamplePlugin/ExamplePlugin.csproj" />
+    </Project>
+    <Project Path="TestPlanExecution/RunTestPlan.Api/RunTestPlan.Api.csproj">
+      <BuildDependency Project="ExamplePlugin/ExamplePlugin.csproj" />
+    </Project>
+  </Folder>
+  <Project Path="ExamplePlugin/ExamplePlugin.csproj">
+  </Project>
+  <Project Path="PluginDevelopment.Gui/PluginDevelopment.Gui.csproj">
+    <BuildDependency Project="ExamplePlugin/ExamplePlugin.csproj" />
+  </Project>
+  <Project Path="PluginDevelopment/PluginDevelopment.csproj">
+    <BuildDependency Project="ExamplePlugin/ExamplePlugin.csproj" />
+  </Project>
+</Solution>

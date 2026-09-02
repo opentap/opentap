@@ -15,13 +15,13 @@ namespace OpenTap.Engine.UnitTests
         public void SerializationTest()
         {
             SomeInstrument inst = new SomeInstrument();
-            char[] chars = new char[] { 's', 'e', 'c', 'r', 'e', 't' };
+            var chars = "123456789012345678901234567890";
             foreach(char c in chars)
                 inst.Password.AppendChar(c);
             
             string xml = new TapSerializer().SerializeToString(inst);
             var inst2 = (SomeInstrument)new TapSerializer().DeserializeFromString(xml, TypeData.GetTypeData(inst));
-            Assert.AreEqual(inst.Password.ToString(), inst2.Password.ToString());
+            Assert.AreEqual(inst.Password.ConvertToUnsecureString(), inst2.Password.ConvertToUnsecureString());
         }
     }
 }

@@ -13,6 +13,14 @@ namespace OpenTap
     /// </summary>
     public class ConsoleTraceListener : TraceListener
     {
+        private static bool warningsToStderr = false;
+        static ConsoleTraceListener()
+        {
+            var warnenv = Environment.GetEnvironmentVariable("OPENTAP_WARNINGS_TO_STDERR");
+            if (warnenv != null && warnenv.Equals("true", StringComparison.OrdinalIgnoreCase) || warnenv == "1")
+                warningsToStderr = true;
+        }
+
         /// <summary>
         /// Set logs startup time, this will affect timestamp of all log messages.
         /// </summary>
@@ -163,7 +171,7 @@ namespace OpenTap
                 }
             }
 
-            if (eventType == LogEventType.Error)
+            if (eventType == LogEventType.Error || (eventType == LogEventType.Warning && warningsToStderr))
                 Console.Error.WriteLine(formattedLine);
             else
                 Console.WriteLine(formattedLine);

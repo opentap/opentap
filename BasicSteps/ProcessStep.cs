@@ -85,7 +85,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
         [Display("Add to Log", Order: -2.05, Description: "If enabled the result of the query is added to the log.")]
-        public bool AddToLog { get; set; }
+        public bool AddToLog { get; set; } = true;
 
         [EnabledIf(nameof(AddToLog), true, HideIfDisabled = true)]
         [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
@@ -98,7 +98,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         [Display("Check Exit Code", "Check the exit code of the application and set verdict to fail if it is non-zero, else pass. 'Wait For End' must be set for this to work.", "Set Verdict", Order: 1.1)]
         [EnabledIf(nameof(WaitForEnd), true, HideIfDisabled = true)]
-        public bool CheckExitCode { get; set; }
+        public bool CheckExitCode { get; set; } = true;
 
         [Display("Run As Administrator", "Attempt to run the application as administrator.", Order: -2.06)]
         internal bool RunElevated { get; set; } = false; // this is disabled for now.

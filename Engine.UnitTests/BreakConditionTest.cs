@@ -382,6 +382,24 @@ namespace OpenTap.Engine.UnitTests
             Assert.That(successStep.DidExecute, Is.False);
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public void TestBreakConditionsOnDeferInSequence(bool doDefer)
+        {
+            var plan = new TestPlan();
+            var seq = new SequenceStep();
+            var failStep = new TestStepThatFails() { ResultsDefer = doDefer };
+            var successStep = new TestStepThatSucceeds();
+            BreakConditionProperty.SetBreakCondition(failStep, BreakCondition.BreakOnFail | BreakCondition.BreakOnError);
+            plan.ChildTestSteps.Add(seq);
+            seq.ChildTestSteps.Add(failStep);
+            seq.ChildTestSteps.Add(successStep);
+
+            var run = plan.Execute();
+            Assert.That(run.Verdict, Is.EqualTo(Verdict.Fail));
+            Assert.That(successStep.DidExecute, Is.False);
+        }
+
         [Test]
         public void TestStepThrowsException()
         {

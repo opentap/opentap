@@ -8,22 +8,31 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Text;
 using System.IO;
+using System.Collections.Generic;
+using Microsoft.VisualStudio.TestPlatform.PlatformAbstractions;
 namespace OpenTap.Engine.UnitTests
 {
     public class TapProcessContainer
     {
         public Process TapProcess;
+        /// <summary> stdout and stderr combined. </summary>
         public string ConsoleOutput = "";
+        /// <summary> Only what the process wrote to stdout. </summary>
+        public string StandardOutput = "";
+        /// <summary> Only what the process wrote to stderr. </summary>
+        public string StandardError = "";
         Task consoleListener;
         void go()
         {
             TapProcess.Start();
             var consoleOutput = new StringBuilder();
+            var stdout = new StringBuilder();
+            var stderr = new StringBuilder();
             
             var procOutput = TapProcess.StandardOutput;
             var procOutput2 = TapProcess.StandardError;
 
-            async Task asyncReader(StreamReader read)
+            async Task asyncReader(StreamReader read, StringBuilder target)
             {
                 char[] buffer = new char[100];
                 while (!read.EndOfStream)
@@ -32,21 +41,26 @@ namespace OpenTap.Engine.UnitTests
                     if (read2 == -1)
                         break;
                     lock(consoleOutput)
+                    {
                         consoleOutput.Append(buffer, 0, read2);
+                        target.Append(buffer, 0, read2);
+                    }
                 }
             }
             
             async Task consoleOutputLoader()
             {
-                await Task.WhenAll(asyncReader(procOutput), asyncReader(procOutput2));
+                await Task.WhenAll(asyncReader(procOutput, stdout), asyncReader(procOutput2, stderr));
                 ConsoleOutput = consoleOutput.ToString();
+                StandardOutput = stdout.ToString();
+                StandardError = stderr.ToString();
             }
             consoleListener = consoleOutputLoader();
         }
 
         public static TapProcessContainer StartFromArgs(string args) => StartFromArgs(args, TimeSpan.FromMinutes(2));
             
-        public static TapProcessContainer StartFromArgs(string args, TimeSpan timeOutAfter)
+        public static TapProcessContainer StartFromArgs(string args, TimeSpan timeOutAfter, Dictionary<string, string> env = null)
         {
             Process proc = new Process();
 
@@ -63,15 +77,22 @@ namespace OpenTap.Engine.UnitTests
                 args = $"\"{file}/tap.dll\" " + args;
             }
 
-            proc.StartInfo = new ProcessStartInfo(program, args)
+            var startInfo = new ProcessStartInfo(program, args)
             {
-                UseShellExecute = true,
+                UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardInput = true,
                 RedirectStandardError = true,
                 CreateNoWindow = true,
             };
-            proc.StartInfo.UseShellExecute = false;
+            if (env != null)
+            {
+                foreach (var (key, value) in env)
+                {
+                    startInfo.AddEnvironmentVariable(key, value);
+                }
+            }
+            proc.StartInfo = startInfo;
 
             container.go();
             TapThread.Start(() =>

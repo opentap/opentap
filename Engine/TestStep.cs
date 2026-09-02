@@ -693,7 +693,6 @@ namespace OpenTap
             return step.RunChildSteps(currentPlanRun, currentStepRun, attachedParameters, cancellationToken, true);
         }
 
-
         /// <summary>
         /// Runs all enabled <see cref="TestStep.ChildTestSteps"/> of this TestStep. Upgrades parent verdict to the resulting verdict of the childrens run. Throws an exception if the child step does not belong or isn't enabled.
         /// </summary>
@@ -702,10 +701,26 @@ namespace OpenTap
         /// <param name="currentStepRun">The current TestStepRun.</param>
         /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the steps.</param>
         /// <param name="cancellationToken">Provides a way to cancel the execution of child steps before all steps are executed.</param>
-        /// <param name="throwOnBreak">Whether an exception will be thrown due to break conditions or if they will be caught. Exceptions are still available on child test steps TestStepRun.Exception. </param>
-        public static IEnumerable<TestStepRun> RunChildSteps(this ITestStep step, TestPlanRun currentPlanRun, TestStepRun currentStepRun, 
+        /// <param name="throwOnBreak">If an exception should be thrown</param>
+        public static IEnumerable<TestStepRun> RunChildSteps(this ITestStep step, TestPlanRun currentPlanRun,
+            TestStepRun currentStepRun,
             IEnumerable<ResultParameter> attachedParameters, CancellationToken cancellationToken, bool throwOnBreak)
         {
+            return step.RunChildSteps(currentPlanRun, currentStepRun, new RunChildStepsOptions
+            {
+                AttachedParameters = attachedParameters, 
+                ThrowOnBreak = throwOnBreak,
+                CancellationToken = cancellationToken
+            });
+        }
+
+        /// <summary>
+        /// Runs all enabled <see cref="TestStep.ChildTestSteps"/> of this TestStep. Upgrades parent verdict to the resulting verdict of the childrens run. Throws an exception if the child step does not belong or isn't enabled.
+        /// </summary>
+        public static IEnumerable<TestStepRun> RunChildSteps(this ITestStep step, TestPlanRun currentPlanRun,
+            TestStepRun currentStepRun, RunChildStepsOptions options)
+        {
+            var attachedParameters = options.AttachedParameters;
             if (currentPlanRun == null)
                 throw new ArgumentNullException(nameof(currentPlanRun));
             if (currentStepRun == null)
@@ -732,7 +747,7 @@ namespace OpenTap
                     if (!run.Skipped)
                         runs.Add(run);
 
-                    if (cancellationToken.IsCancellationRequested) break;
+                    if (options.CancellationToken.IsCancellationRequested) break;
 
                     // note: The following is slightly modified from something inside TestPlanExecution.cs
                     if (run.SuggestedNextStep is Guid id)
@@ -766,10 +781,10 @@ namespace OpenTap
                         }
                         // if skip to next step, don't add it to the wait queue.
                     }
-                    if (run.BreakConditionsSatisfied())
+                    if (run.BreakConditionsSatisfied(stepI.Verdict))
                     {
-                        run.LogBreakCondition();
-                        if (throwOnBreak)
+                        run.LogBreakCondition(stepI.Verdict);
+                        if (options.ThrowOnBreak)
                         {
                             if (run.Exception != null)
                                 ExceptionDispatchInfo.Capture(run.Exception).Throw();
@@ -794,7 +809,7 @@ namespace OpenTap
                             step.UpgradeVerdict(run.Verdict);
                         }
                     }
-                    if (step is TestStep testStep && runs.Any(x => x.WasDeferred))
+                    if (!options.WaitForDefer && step is TestStep testStep && runs.Any(x => x.WasDeferred))
                     {
                         testStep.Results.DeferNoCheck(processRuns);
                     }
@@ -864,18 +879,23 @@ namespace OpenTap
                 step.UpgradeVerdict(run.Verdict);
             }
 
-            if (run.BreakConditionsSatisfied())
+            if (run.BreakConditionsSatisfied(step.Verdict))
             {
-                run.LogBreakCondition();
-                if(run.Verdict == Verdict.Error && throwOnBreak)
+                run.LogBreakCondition(step.Verdict);
+                if (throwOnBreak)
                     run.ThrowDueToBreakConditions();
             }
             return run;
         }
 
+        internal static void LogBreakCondition(this TestStepRun run, Verdict verdict)
+        {
+            Log.CreateSource("TestStep").Debug( $"Break issued from '{run.TestStepName}' due to verdict {verdict}. See Break Conditions settings.");
+        }
+
         internal static void LogBreakCondition(this TestStepRun run)
         {
-            Log.CreateSource("TestStep").Debug( $"Break issued from '{run.TestStepName}' due to verdict {run.Verdict}. See Break Conditions settings.");
+            LogBreakCondition(run, run.Verdict);
         }
 
         internal static string GetStepPath(this ITestStep Step)
@@ -1460,4 +1480,20 @@ namespace OpenTap
     /// </summary>
     internal class SettingsIgnoreAttribute : Attribute
     { }
+
+    /// <summary> Options for TestStep.RunChildSteps extension method.</summary>
+    public sealed class RunChildStepsOptions
+    {
+        /// <summary> Attached parameters. </summary>
+        public IEnumerable<ResultParameter> AttachedParameters { get; set; } = [];
+        
+        /// <summary> Whether to throw an exception on break.</summary>
+        public bool ThrowOnBreak { get; set; }
+        
+        /// <summary> to wait for defer to process after running the child steps.</summary>
+        public bool WaitForDefer { get; set; }
+
+        /// <summary> Allows canceling the loop early. </summary>
+        public CancellationToken CancellationToken { get; set; } = CancellationToken.None;
+    }
 }

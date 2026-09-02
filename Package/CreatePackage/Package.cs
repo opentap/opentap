@@ -368,26 +368,21 @@ namespace OpenTap.Package
                     IEnumerable<string> files = null;
                     if (Directory.Exists(fixedDir))
                     {
-                        if (fixedSegmentCount == segments.Length - 1)
-                            files = Directory.GetFiles(fixedDir, segments.Last());
-                        else
-                        {
-                            files = Directory.GetFiles(fixedDir, segments.Last(), SearchOption.AllDirectories)
-                                                      .Select(f => f.StartsWith(".") ? f.Substring(2) : f); // remove leading "./". GetFiles() adds these chars only when fixedDir="." and they confuse the Glob matching below.
-                            var options = new DotNet.Globbing.GlobOptions();
-                            if(OperatingSystem.Current == OperatingSystem.Windows)
-                                options.Evaluation.CaseInsensitive = false;
-                            else
-                                options.Evaluation.CaseInsensitive = true;
-                            var globber = DotNet.Globbing.Glob.Parse(fileEntry.FileName, options);
-                            List<string> matches = new List<string>();
-                            foreach (string file in files)
+                        // remove leading "./". GetFiles() adds these chars only when fixedDir="." and they confuse the Glob matching below.
+                        files = Directory.GetFiles(fixedDir, "*", SearchOption.AllDirectories).Select(f => f.StartsWith(".") ? f.Substring(2) : f);
+                        var globber = DotNet.Globbing.Glob.Parse(fileEntry.FileName, new()
                             {
-                                if (globber.IsMatch(file))
-                                    matches.Add(file);
+                                Evaluation = { CaseInsensitive = OperatingSystem.Current == OperatingSystem.Linux },
+                            });
+                        List<string> matches = new List<string>();
+                        foreach (string file in files)
+                        {
+                            if (globber.IsMatch(file))
+                            {
+                                matches.Add(file);
                             }
-                            files = matches;
                         }
+                        files = matches;
                     }
                     if (files != null && files.Any())
                     {

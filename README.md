@@ -20,59 +20,28 @@ cd "C:\Program Files\OpenTAP" (or the directory you selected in the installer)
 tap package list
 ```
 
-We recommend that you download the Software Development Kit, or simply the Developer’s System Community Edition provided by Keysight Technologies. The Developer System is a bundle that contains the SDK as well as a graphical user interface and result viewing capabilities. It can be installed by typing the following:
+We recommend installing Developer’s System provided by Keysight Technologies. Developer's System is a bundle that contains the SDK and a graphical user interface with result viewing capabilities. It can be installed by running the following command:
 
 ```cmd
-tap package install "Developer's System CE" -y
+tap package install "Developer's System"
 ```
 
-For a guide on how to develop using OpenTAP, check out our __[Developer Guide](https://doc.opentap.io/Developer%20Guide/Introduction/#introduction)__. Note the [source](https://github.com/opentap/opentap/tree/main/doc/Developer%20Guide) can be found on GitHub as well.
+For a guide on how to develop using OpenTAP, check out our [Developer Guide](https://doc.opentap.io/Developer%20Guide/Introduction/#introduction)__. Note the [source](https://github.com/opentap/opentap/tree/main/doc/Developer%20Guide) can be found on GitHub as well.
 
 ## Building OpenTAP
-Most users build plugins for OpenTAP but if you are interested in building OpenTAP yourself you can clone the git repository at https://github.com/opentap/opentap and build the OpenTAP.slnx solution file.
-
-### Microsoft Windows 10
-On Windows, Visual Studio 2022 or greater is needed to build. This can be done by opening the solution and pressing F5, or Ctrl-Shift-B.
-
-### Linux
-On Linux you need [Microsoft .NET SDK 6.0](https://dotnet.microsoft.com/download) to build OpenTAP.
-You also need some additional dependencies. On Ubuntu, run the following on apt:
-
-```sh
-sudo apt install libc6-dev libunwind8 curl git -y
-```
-
-Once these are installed, you can build OpenTAP using these commands:
+To build OpenTAP, install [Microsoft .NET SDK 9.0](https://dotnet.microsoft.com/download) and run `dotnet build`:
 
 ```sh
 dotnet build -c Release
-dotnet publish -c Release
-dotnet publish -c Release tap/tap.csproj
 ```
-
-*Note, the last line is there to ensure getting the right System.Runtime.dll.*
 
 This creates a *Release* build. For a debug build, omit *-c Release* when building.
 
 ## Testing
-OpenTAP can be tested using NUnit.
-
-### Windows
-
-Using Visual Studio 2022, open OpenTAP.slnx and run the tests in the TestExplorer.
-
-### Linux
-
-To run the entire test suite on Linux, run:
+OpenTAP can be tested using NUnit:
 
 ```sh
 dotnet test
-```
-
-To debug the unit tests, set the `VSTEST_HOST_DEBUG` environment variable to `1`. This causes dotnet test to wait for a debugger to become attached.
-
-```sh
-export VSTEST_HOST_DEBUG=1
 ```
 
 ## Documentation

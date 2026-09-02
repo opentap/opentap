@@ -1,0 +1,58 @@
+name: ci
+
+on: [push]
+
+env:
+  OPENTAP_ANSI_COLORS: true
+  OPENTAP_NO_UPDATE_CHECK: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_CONSOLE_ANSI_COLOR: true
+
+jobs:
+  Build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Build
+        run: dotnet build -c Release
+      - name: Upload package
+        uses: actions/upload-artifact@v7
+        with:
+          name: ProjectName
+          retention-days: 7
+          path: ProjectName/bin/Release/*.TapPackage
+
+  UnitTests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Test
+        run: dotnet test -c Release
+        
+  Publish:
+    if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    needs: [Build, UnitTests]
+    steps:
+      - name: Check Publish Key
+        run: |
+          if test -z "${{ secrets.PUBLIC_REPO_PASS }}"; then
+          echo "Publish skipped: Set the 'PUBLIC_REPO_PASS_KEY'. See the documentation here: https://doc.opentap.io/Developer%20Guide/Package%20Publishing/Readme.html"
+          exit 1
+          fi
+      - name: Download package
+        uses: actions/download-artifact@v7
+        with:
+          name: ProjectName
+          path: .
+      - name: Setup OpenTAP
+        uses: opentap/setup-opentap@v1.2.0
+        with:
+          version: $(GitVersion)
+          packages: "Repository Client:beta"
+      - name: Publish
+        run: tap repo upload --repository https://packages.opentap.io --token ${{ secrets.PUBLIC_REPO_PASS }} ProjectName*.TapPackage

@@ -633,7 +633,7 @@ namespace OpenTap
 
         public static explicit operator double(BigFloat d)
         {
-            return ((double)d.Numerator) / ((double)d.Denominator);
+            return d.ToDouble();
         }
 
         public static bool operator ==(BigFloat a, BigFloat b)
@@ -866,6 +866,87 @@ namespace OpenTap
             return new BigFloat(Rounded());
         }
 
+        /// <summary> The number of bits needed to represent a non-negative BigInteger. </summary>
+        static int bitLength(BigInteger value)
+        {
+            if (value.IsZero) return 0;
+            var bytes = value.ToByteArray();
+            int i = bytes.Length - 1;
+            while (i > 0 && bytes[i] == 0)
+                i--;
+            int bits = i * 8;
+            for (int b = bytes[i]; b != 0; b >>= 1)
+                bits++;
+            return bits;
+        }
+
+        /// <summary> 2^53. Integers up to this are represented exactly by a double. </summary>
+        static readonly BigInteger maxExactInteger = BigInteger.Pow(2, 53);
+        static readonly BigInteger minExactInteger = -maxExactInteger;
+
+        /// <summary> Converts the value to the nearest double, rounding half to even, exactly like double.Parse does. </summary>
+        public double ToDouble()
+        {
+            if (Denominator.IsZero)
+            {
+                if (Numerator.IsZero) return double.NaN;
+                return Numerator.Sign > 0 ? double.PositiveInfinity : double.NegativeInfinity;
+            }
+            if (Numerator >= minExactInteger && Numerator <= maxExactInteger &&
+                Denominator >= minExactInteger && Denominator <= maxExactInteger)
+            {
+                return (double)Numerator / (double)Denominator;
+            }
+            if (Numerator.IsZero) return 0.0;
+
+            var num = Numerator;
+            var den = Denominator;
+            bool negative = num.Sign < 0;
+            if (negative)
+                num = -num;
+            if (den.Sign < 0)
+            {
+                negative = !negative;
+                den = -den;
+            }
+
+            int shift = 54 - (bitLength(num) - bitLength(den));
+            var q = BigInteger.DivRem(shift > 0 ? num << shift : num, shift < 0 ? den << -shift : den, out var rem);
+
+            int drop = Math.Max(bitLength(q) - 53, shift - 1074);
+            var dropped = q & ((BigInteger.One << drop) - 1);
+            var half = BigInteger.One << (drop - 1);
+            var mantissa = q >> drop;
+            if (dropped > half || (dropped == half && (!rem.IsZero || !mantissa.IsEven)))
+                mantissa += 1;
+
+            int exp = drop - shift;
+
+            long resultBits;
+            if (mantissa.IsZero)
+                resultBits = 0;
+            else if (exp == -1074)
+            {
+                resultBits = (long)mantissa;
+            }
+            else
+            {
+                if (bitLength(mantissa) == 54)
+                {
+                    mantissa >>= 1;
+                    exp++;
+                }
+                long biasedExponent = exp + 1075;
+                if (biasedExponent >= 2047)
+                    return negative ? double.NegativeInfinity : double.PositiveInfinity;
+                resultBits = (biasedExponent << 52) | (long)(mantissa - (BigInteger.One << 52));
+            }
+
+            if (negative)
+                resultBits |= long.MinValue;
+            return BitConverter.Int64BitsToDouble(resultBits);
+        }
+
         
         public static BigFloat Convert(object y, IFormatProvider prov = null)
         {
@@ -889,9 +970,9 @@ namespace OpenTap
             if (t == typeof(BigFloat))
                 return this;
             if (t == typeof(double))
-                return (((double)Numerator) / ((double)Denominator));
+                return ToDouble();
             if (t == typeof(float))
-                return (float)((double)((double)Numerator) / ((double)Denominator));
+                return (float)ToDouble();
             if (t == typeof(decimal))
                 return ((decimal)Numerator) / ((decimal)Denominator);
             if (t == typeof(int))

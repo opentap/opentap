@@ -378,7 +378,7 @@ namespace OpenTap
                 }
             });
         }
-
+        
         static readonly Task Finished = Task.FromResult(0);
 
         /// <summary>

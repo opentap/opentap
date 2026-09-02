@@ -12,9 +12,7 @@ They can be installed by using the dotnet CLI: `dotnet new install OpenTap.Templ
 
 With the templates installed, you can create a new OpenTAP project through the `New Solution` option in your IDE, or you can use the dotnet CLI: 
 ```bash
-dotnet new sln --name MySolution
-dotnet new opentap --name MyFirstPlugin
-dotnet sln add MyFirstPlugin
+dotnet new opentap-solution --name MyFirstPlugin
 ```
 
 To convert an existing project to an OpenTAP plugin, add a reference to the [OpenTAP NuGet package](https://www.nuget.org/packages/OpenTAP/). You can do this by using the dotnet CLI: `dotnet add package OpenTAP --version 9.23.2`, or by searching for "OpenTAP" in the NuGet package manager in your IDE.
@@ -48,7 +46,7 @@ Reference a package by specifying it in your .csproj file:
   <!-- NuGet reference to OpenTAP -->
   <PackageReference Include="OpenTAP" Version="9.23.2" />
   <!-- OpenTAP package sources -->
-  <OpenTapPackageRepository Include="packages.opentap.io"/>
+  <OpenTapPackageRepository Include="https://packages.opentap.io"/>
   <OpenTapPackageRepository Include="$HOME/Downloads;$HOME/Documents"/>
 
   <!-- Packages to reference  -->
@@ -87,6 +85,28 @@ You can also specify a package that you just want installed (in e.g. bin/Debug/)
   <AdditionalOpenTapPackage Include="DMM Instruments" Version="2.1.2"/>
 </ItemGroup>
 ```
+
+### Referencing Private Packages
+
+You can reference packages from authenticated feeds by specifying a user token in your .csproj file.
+User tokens can be used to impersonate you, and must be kept safe. We recommend referencing them via environmental variables and accessing them with some secure mechanism, such as secrets in GitHub actions.
+
+Initially, packages published to [packages.opentap.io](http://packages.opentap.io) are hidden from everyone but you,
+but you can reference such packages by specifying your user token. You can create a user token by logging in and clicking your username in the top right corner.
+If you suspect your user token has been compromised, you can revoke it from the same page.
+
+This example demonstrates how to access your own private packages:
+
+```xml
+<ItemGroup>
+  <!-- specify a token to use for a specific feed -->
+  <OpenTapPackageRepository Include="https://packages.opentap.io" Token="$(MyUserToken)" /> <!-- supported since OpenTAP 9.35.0 -->
+  <!-- alternatively, specify repository and token directly on the package reference  -->
+  <OpenTapPackageReference Include="My Plugin" Version="2.1.2" Repository="https://packages.opentap.io" Token="$(MyUserToken)"  /> <!-- supported since OpenTAP 9.22.0 -->
+</ItemGroup>
+```
+
+> This example uses "packages.opentap.io", but tokens are supported for all authenticated package feeds, such as the repository included with Test Automation Cloud.
 
 ### Versioning Assemblies with OpenTapSetAssemblyVersion
 
@@ -202,13 +222,11 @@ locally so subsequent builds will not require internet access. If you cannot bri
 1. Install Dotnet 9 SDK
 2. Create a directory for local NuGet packages. Let's call it `\path\to\nuget\source`
 3. Download required NuGet packages and put them in the local source directory:
-> [OpenTAP](https://www.nuget.org/packages/OpenTAP)
-
-> [NETStandard.Library 2.0.3](https://www.nuget.org/packages/NETStandard.Library/2.0.3)
-
-> [Microsoft.NETCore.Platforms 1.1.0](https://www.nuget.org/packages/Microsoft.NETCore.Platforms/1.1.0)
+    - [OpenTAP](https://www.nuget.org/packages/OpenTAP)
+    - [NETStandard.Library 2.0.3](https://www.nuget.org/packages/NETStandard.Library/2.0.3)
+    - [Microsoft.NETCore.Platforms 1.1.0](https://www.nuget.org/packages/Microsoft.NETCore.Platforms/1.1.0)
 4. Add the local source to the list of nuget sources: 
-> `dotnet nuget add source \path\to\nuget\source`
+    - `dotnet nuget add source \path\to\nuget\source`
 5. Build your project with e.g. dotnet build
 
 With these steps, you should be able to build an OpenTAP plugin if it does not have any dependencies.
