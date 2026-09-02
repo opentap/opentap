@@ -693,11 +693,20 @@ namespace OpenTap
             return step.RunChildSteps(currentPlanRun, currentStepRun, attachedParameters, cancellationToken, true);
         }
 
+        /// <summary>
+        /// Runs all enabled <see cref="TestStep.ChildTestSteps"/> of this TestStep. Upgrades parent verdict to the resulting verdict of the childrens run. Throws an exception if the child step does not belong or isn't enabled.
+        /// </summary>
+        /// <param name="step"></param>
+        /// <param name="currentPlanRun">The current TestPlanRun.</param>
+        /// <param name="currentStepRun">The current TestStepRun.</param>
+        /// <param name="attachedParameters">Parameters that will be stored together with the actual parameters of the steps.</param>
+        /// <param name="cancellationToken">Provides a way to cancel the execution of child steps before all steps are executed.</param>
+        /// <param name="throwOnBreak">If an exception should be thrown</param>
         public static IEnumerable<TestStepRun> RunChildSteps(this ITestStep step, TestPlanRun currentPlanRun,
             TestStepRun currentStepRun,
             IEnumerable<ResultParameter> attachedParameters, CancellationToken cancellationToken, bool throwOnBreak)
         {
-            return step.RunChildSteps(new RunChildStepsArgs(step)
+            return step.RunChildSteps(new RunChildStepsOptions(step)
             {
                 AttachedParameters = attachedParameters,
                 CancellationToken = cancellationToken, ThrowOnBreak = throwOnBreak
@@ -707,12 +716,12 @@ namespace OpenTap
         /// <summary>
         /// Runs all enabled <see cref="TestStep.ChildTestSteps"/> of this TestStep. Upgrades parent verdict to the resulting verdict of the childrens run. Throws an exception if the child step does not belong or isn't enabled.
         /// </summary>
-        public static IEnumerable<TestStepRun> RunChildSteps(this ITestStep step, RunChildStepsArgs args)
+        public static IEnumerable<TestStepRun> RunChildSteps(this ITestStep step, RunChildStepsOptions options)
         {
             var currentPlanRun = step.PlanRun;
             var currentStepRun = step.StepRun;
-            var attachedParameters = args.AttachedParameters;
-            var cancellationToken = args.CancellationToken;
+            var attachedParameters = options.AttachedParameters;
+            var cancellationToken = options.CancellationToken;
             if (currentPlanRun == null)
                 throw new ArgumentNullException(nameof(currentPlanRun));
             if (currentStepRun == null)
@@ -776,7 +785,7 @@ namespace OpenTap
                     if (run.BreakConditionsSatisfied(stepI.Verdict))
                     {
                         run.LogBreakCondition(stepI.Verdict);
-                        if (args.ThrowOnBreak)
+                        if (options.ThrowOnBreak)
                         {
                             if (run.Exception != null)
                                 ExceptionDispatchInfo.Capture(run.Exception).Throw();
@@ -801,7 +810,7 @@ namespace OpenTap
                             step.UpgradeVerdict(run.Verdict);
                         }
                     }
-                    if (!args.ProcessDeferBlocking && step is TestStep testStep && runs.Any(x => x.WasDeferred))
+                    if (!options.WaitForDefer && step is TestStep testStep && runs.Any(x => x.WasDeferred))
                     {
                         testStep.Results.DeferNoCheck(processRuns);
                     }
@@ -1473,11 +1482,11 @@ namespace OpenTap
     internal class SettingsIgnoreAttribute : Attribute
     { }
 
-    /// <summary> Arguments for TestStep.RunChildSteps extension method.</summary>
-    public sealed class RunChildStepsArgs
+    /// <summary> Options for TestStep.RunChildSteps extension method.</summary>
+    public sealed class RunChildStepsOptions
     {
-        /// <summary> Setup RunChildStepsArgs for a parent step. </summary>
-        public RunChildStepsArgs(ITestStep parentStep)
+        /// <summary> Setup options for running child steps for a parent step. </summary>
+        public RunChildStepsOptions(ITestStep parentStep)
         {
             StepRun = parentStep.StepRun;
             PlanRun = parentStep.PlanRun;
@@ -1497,7 +1506,7 @@ namespace OpenTap
         /// <summary> Whether to throw an exception on break.</summary>
         public bool ThrowOnBreak { get; set; }
         
-        /// <summary> Wether to wait for defer to process after running the child steps.</summary>
-        public bool ProcessDeferBlocking { get; set; }
+        /// <summary> to wait for defer to process after running the child steps.</summary>
+        public bool WaitForDefer { get; set; }
     }
 }
