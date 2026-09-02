@@ -1038,13 +1038,6 @@ jobs:
         with:
           name: package-sdk
           path: ./publish/
-      - name: Install OpenTAP
-        run: |
-          wget -O opentap.tar https://www.opentap.io/docs/OpenTAP.9.16.2+f3c96b9f.tar
-          tar -xf opentap.tar
-          chmod u+x INSTALL.sh
-          echo 'y' | ./INSTALL.sh
-          ln -s -f "$HOME/.tap/tap" /usr/local/bin/tap
       - name: Debug
         run: ls -la ./publish
       - name: Setup OpenTAP
