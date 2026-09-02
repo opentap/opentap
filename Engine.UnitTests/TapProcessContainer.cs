@@ -13,17 +13,24 @@ namespace OpenTap.Engine.UnitTests
     public class TapProcessContainer
     {
         public Process TapProcess;
+        /// <summary> stdout and stderr combined. </summary>
         public string ConsoleOutput = "";
+        /// <summary> Only what the process wrote to stdout. </summary>
+        public string StandardOutput = "";
+        /// <summary> Only what the process wrote to stderr. </summary>
+        public string StandardError = "";
         Task consoleListener;
         void go()
         {
             TapProcess.Start();
             var consoleOutput = new StringBuilder();
+            var stdout = new StringBuilder();
+            var stderr = new StringBuilder();
             
             var procOutput = TapProcess.StandardOutput;
             var procOutput2 = TapProcess.StandardError;
 
-            async Task asyncReader(StreamReader read)
+            async Task asyncReader(StreamReader read, StringBuilder target)
             {
                 char[] buffer = new char[100];
                 while (!read.EndOfStream)
@@ -32,14 +39,19 @@ namespace OpenTap.Engine.UnitTests
                     if (read2 == -1)
                         break;
                     lock(consoleOutput)
+                    {
                         consoleOutput.Append(buffer, 0, read2);
+                        target.Append(buffer, 0, read2);
+                    }
                 }
             }
             
             async Task consoleOutputLoader()
             {
-                await Task.WhenAll(asyncReader(procOutput), asyncReader(procOutput2));
+                await Task.WhenAll(asyncReader(procOutput, stdout), asyncReader(procOutput2, stderr));
                 ConsoleOutput = consoleOutput.ToString();
+                StandardOutput = stdout.ToString();
+                StandardError = stderr.ToString();
             }
             consoleListener = consoleOutputLoader();
         }
