@@ -7,6 +7,7 @@ using NUnit.Framework;
 using System.Collections.Generic;
 using System.Threading;
 using OpenTap.Cli;
+using OpenTap.Plugins.BasicSteps;
 
 namespace OpenTap.Engine.UnitTests
 {
@@ -52,6 +53,27 @@ namespace OpenTap.Engine.UnitTests
         }
         
         
+        [Test]
+        public void WarningIsWrittenToStderr()
+        {
+            const string warningMessage = "This warning must go to stderr";
+            var plan = new TestPlan();
+            plan.Steps.Add(new LogStep
+            {
+                LogMessage = warningMessage,
+                Severity = LogSeverity.Warning
+            });
+            var planFile = "warningPlan.TapPlan";
+            plan.Save(planFile);
+
+            var proc = TapProcessContainer.StartFromArgs($"run {planFile}");
+            proc.WaitForEnd();
+
+            Assert.AreEqual(0, proc.TapProcess.ExitCode);
+            StringAssert.Contains(warningMessage, proc.StandardError);
+            StringAssert.DoesNotContain(warningMessage, proc.StandardOutput);
+        }
+
         [Test]
         public void TestUnbrowsableCliActionsHidden()
         {
