@@ -973,9 +973,9 @@ namespace OpenTap
 
         public ITypeData GetTypeData(object obj, TypeDataProviderStack stack)
         {
-            if (!(obj is ITestStepParent))
+            if (!(obj is ITestStepParent or IResource))
                 return null;
-                
+
             var subtype = stack.GetTypeData(obj);
             var result = getStepTypeData(subtype);
             if (TestStepTypeData.DynamicMembers.GetValue(obj) is ImmutableDictionary<string, IMemberData> obj2 && obj2.Count != 0)
