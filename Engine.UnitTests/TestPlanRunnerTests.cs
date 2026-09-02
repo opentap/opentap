@@ -54,24 +54,50 @@ namespace OpenTap.Engine.UnitTests
         
         
         [Test]
-        public void WarningIsWrittenToStderr()
+        public void WarningIsWrittenToStderr([Values(true, false)] bool verbose)
         {
-            const string warningMessage = "This warning must go to stderr";
+            
             var plan = new TestPlan();
             plan.Steps.Add(new LogStep
             {
-                LogMessage = warningMessage,
+                LogMessage = "__WARNING__",
                 Severity = LogSeverity.Warning
+            });
+            plan.Steps.Add(new LogStep
+            {
+                LogMessage = "__ERROR__",
+                Severity = LogSeverity.Error
+            });
+            plan.Steps.Add(new LogStep
+            {
+                LogMessage = "__INFORMATION__",
+                Severity = LogSeverity.Info
+            });
+            plan.Steps.Add(new LogStep
+            {
+                LogMessage = "__DEBUG__",
+                Severity = LogSeverity.Debug
             });
             var planFile = "warningPlan.TapPlan";
             plan.Save(planFile);
 
-            var proc = TapProcessContainer.StartFromArgs($"run {planFile}");
+            var proc = TapProcessContainer.StartFromArgs($"run {planFile}" + (verbose ? "" : " -v"));
             proc.WaitForEnd();
 
             Assert.AreEqual(0, proc.TapProcess.ExitCode);
-            StringAssert.Contains(warningMessage, proc.StandardError);
-            StringAssert.DoesNotContain(warningMessage, proc.StandardOutput);
+            StringAssert.Contains("__WARNING__", proc.StandardError);
+            StringAssert.DoesNotContain("__WARNING__", proc.StandardOutput);
+            StringAssert.Contains("__ERROR__", proc.StandardError);
+            StringAssert.DoesNotContain("__ERROR__", proc.StandardOutput);
+            
+            StringAssert.DoesNotContain("__INFORMATION__", proc.StandardError);
+            StringAssert.Contains("__INFORMATION__", proc.StandardOutput);
+            
+            StringAssert.DoesNotContain("__DEBUG__", proc.StandardError);
+            if(verbose)
+                StringAssert.DoesNotContain("__DEBUG__", proc.StandardOutput);
+            else
+                StringAssert.Contains("__DEBUG__", proc.StandardOutput);
         }
 
         [Test]
