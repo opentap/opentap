@@ -110,7 +110,7 @@ namespace OpenTap.Plugins.BasicSteps
             this._iteration += 1;
             OnPropertyChanged(nameof(IterationInfo));
             var additionalParams = new List<ResultParameter> { new ResultParameter("", "Iteration", this._iteration) };
-            var runs = this.RunChildSteps(new RunChildStepsOptions(this)
+            var runs = this.RunChildSteps(PlanRun, StepRun, new RunChildStepsOptions()
             {
                 AttachedParameters = additionalParams,
                 CancellationToken = BreakLoopRequested,

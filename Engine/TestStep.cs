@@ -706,22 +706,21 @@ namespace OpenTap
             TestStepRun currentStepRun,
             IEnumerable<ResultParameter> attachedParameters, CancellationToken cancellationToken, bool throwOnBreak)
         {
-            return step.RunChildSteps(new RunChildStepsOptions(step)
+            return step.RunChildSteps(currentPlanRun, currentStepRun, new RunChildStepsOptions
             {
-                AttachedParameters = attachedParameters,
-                CancellationToken = cancellationToken, ThrowOnBreak = throwOnBreak
+                AttachedParameters = attachedParameters, 
+                ThrowOnBreak = throwOnBreak,
+                CancellationToken = cancellationToken
             });
         }
 
         /// <summary>
         /// Runs all enabled <see cref="TestStep.ChildTestSteps"/> of this TestStep. Upgrades parent verdict to the resulting verdict of the childrens run. Throws an exception if the child step does not belong or isn't enabled.
         /// </summary>
-        public static IEnumerable<TestStepRun> RunChildSteps(this ITestStep step, RunChildStepsOptions options)
+        public static IEnumerable<TestStepRun> RunChildSteps(this ITestStep step, TestPlanRun currentPlanRun,
+            TestStepRun currentStepRun, RunChildStepsOptions options)
         {
-            var currentPlanRun = step.PlanRun;
-            var currentStepRun = step.StepRun;
             var attachedParameters = options.AttachedParameters;
-            var cancellationToken = options.CancellationToken;
             if (currentPlanRun == null)
                 throw new ArgumentNullException(nameof(currentPlanRun));
             if (currentStepRun == null)
@@ -748,7 +747,7 @@ namespace OpenTap
                     if (!run.Skipped)
                         runs.Add(run);
 
-                    if (cancellationToken.IsCancellationRequested) break;
+                    if (options.CancellationToken.IsCancellationRequested) break;
 
                     // note: The following is slightly modified from something inside TestPlanExecution.cs
                     if (run.SuggestedNextStep is Guid id)
@@ -1485,28 +1484,16 @@ namespace OpenTap
     /// <summary> Options for TestStep.RunChildSteps extension method.</summary>
     public sealed class RunChildStepsOptions
     {
-        /// <summary> Setup options for running child steps for a parent step. </summary>
-        public RunChildStepsOptions(ITestStep parentStep)
-        {
-            StepRun = parentStep.StepRun;
-            PlanRun = parentStep.PlanRun;
-        }
-
-        /// <summary> The plan run. </summary>
-        public TestPlanRun PlanRun { get; }
-        /// <summary> The step run. </summary>
-        public TestStepRun StepRun { get; }
-
         /// <summary> Attached parameters. </summary>
         public IEnumerable<ResultParameter> AttachedParameters { get; set; } = [];
-        
-        /// <summary> Cancels child step execution. </summary>
-        public CancellationToken CancellationToken { get; set; }
         
         /// <summary> Whether to throw an exception on break.</summary>
         public bool ThrowOnBreak { get; set; }
         
         /// <summary> to wait for defer to process after running the child steps.</summary>
         public bool WaitForDefer { get; set; }
+
+        /// <summary> Allows canceling the loop early. </summary>
+        public CancellationToken CancellationToken { get; set; } = CancellationToken.None;
     }
 }
