@@ -222,13 +222,11 @@ locally so subsequent builds will not require internet access. If you cannot bri
 1. Install Dotnet 9 SDK
 2. Create a directory for local NuGet packages. Let's call it `\path\to\nuget\source`
 3. Download required NuGet packages and put them in the local source directory:
-> [OpenTAP](https://www.nuget.org/packages/OpenTAP)
-
-> [NETStandard.Library 2.0.3](https://www.nuget.org/packages/NETStandard.Library/2.0.3)
-
-> [Microsoft.NETCore.Platforms 1.1.0](https://www.nuget.org/packages/Microsoft.NETCore.Platforms/1.1.0)
+    - [OpenTAP](https://www.nuget.org/packages/OpenTAP)
+    - [NETStandard.Library 2.0.3](https://www.nuget.org/packages/NETStandard.Library/2.0.3)
+    - [Microsoft.NETCore.Platforms 1.1.0](https://www.nuget.org/packages/Microsoft.NETCore.Platforms/1.1.0)
 4. Add the local source to the list of nuget sources: 
-> `dotnet nuget add source \path\to\nuget\source`
+    - `dotnet nuget add source \path\to\nuget\source`
 5. Build your project with e.g. dotnet build
 
 With these steps, you should be able to build an OpenTAP plugin if it does not have any dependencies.
