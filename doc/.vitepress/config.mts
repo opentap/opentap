@@ -7,6 +7,10 @@ export default defineConfig({
     lineNumbers: true
   },
   outDir: '../public',
+  // toc.md files describe the navigation tree for the documentation shipped
+  // inside the OpenTAP package. They are not pages of this site, and their
+  // links point at folders, which VitePress would report as dead links.
+  srcExclude: ['**/toc.md'],
   themeConfig: {
     socialLinks: [
       { icon: 'github', link: 'https://github.com/opentap/opentap' }

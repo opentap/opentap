@@ -60,7 +60,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
         [Display("Regular Expression", Group: "Set Verdict", Order: 1.1, Collapsed: true, Description: "The regular expression to apply to the output.")]
-        [HelpLink("EditorHelp.chm::/CreatingATestPlan/Working with Test Steps/Using Regex in Output Parameters.html")]
+        [HelpLink("Editor/Creating A Test Plan/Working with Test Steps/Using Regex in Output Parameters")]
         public Enabled<string> RegularExpressionPattern { get; set; }
 
         
@@ -76,7 +76,7 @@ namespace OpenTap.Plugins.BasicSteps
 
         [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
         [Display("Regular Expression", Group: "Results", Order: 1.5, Collapsed: true, Description: "The regular expression to apply to the output.")]
-        [HelpLink("EditorHelp.chm::/CreatingATestPlan/Working with Test Steps/Using Regex in Output Parameters.html")]
+        [HelpLink("Editor/Creating A Test Plan/Working with Test Steps/Using Regex in Output Parameters")]
         public Enabled<string> ResultRegularExpressionPattern { get; set; }
 
         [EnabledIf(nameof(GeneratesOutput), true, HideIfDisabled = true)]
