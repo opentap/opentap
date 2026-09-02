@@ -106,18 +106,21 @@ namespace OpenTap.Plugins.BasicSteps
                 Verdict = Verdict.NotSet;
                 retried = false;
             }
+            
             this._iteration += 1;
             OnPropertyChanged(nameof(IterationInfo));
             var additionalParams = new List<ResultParameter> { new ResultParameter("", "Iteration", this._iteration) };
-            var runs = RunChildSteps(additionalParams, BreakLoopRequested, throwOnBreak: false);
+            var runs = this.RunChildSteps(new RunChildStepsArgs(this)
+            {
+                AttachedParameters = additionalParams,
+                CancellationToken = BreakLoopRequested,
+                ThrowOnBreak = false,
+                ProcessDeferBlocking = true
+            });
             foreach (var r in runs)
             {
                 r.WaitForCompletion();
             }
-
-            // when a child step defers its results, the verdict propagation to this step is deferred too.
-            // it has to be done before the next iteration clears the verdict.
-            Results.WaitForDeferredActions();
 
             if (_setIteration is { } setIteration)
             {
