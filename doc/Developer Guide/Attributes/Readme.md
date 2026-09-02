@@ -193,6 +193,29 @@ When used this way, multiple files can be selected simultaneously, simplifying t
 ### Submit Attribute
 This attribute is used only for objects used together with UserInput.Request. It is used to mark the property that finalizes the input. For example this could be used with an enum to add an OK/Cancel button, that closes the dialog when clicked. See the example in UserInputExample.cs for an example of how to use it.
 
+### HelpLink Attribute
+The HelpLink attribute can be used to provide help documentation for properties or classes. In user interfaces, this will often result in a `?` button showing up near the item.
+
+The content of the HelpLink attribute can be a documentation reference, a link to a website, a PDF file or a CHM file.
+
+Here are some examples:
+```c#
+// Refer to a topic in the package documentation.
+[HelpLink("MyPackage/My Topic")]
+public class MyStepWithHelpLinks : TestStep
+{
+    // Refer to a section in a topic in the package documentation.
+    [HelpLink("MyPackage/My Topic#Configuring a Setting")]
+    public string ASetting { get; set; }
+
+    // Refer to an external documentation source.
+    [HelpLink("https://mydoc.example.com/another_topic.html")]
+    public string AnotherSetting { get; set; }
+}
+```
+
+For more information about package documentation, see [Package Documentation](../Plugin%20Packaging%20and%20Versioning/Readme.md#package-documentation).
+
 ### Layout Attribute
 LayoutAttribute is used to control how settings are arranged in graphical user interfaces. It can be used to control the height, width and positioning of settings elements. Use this with the Submit attribute to create a dialog with options like OK/Cancel on the bottom. See UserInputExample.cs for an example.
 
