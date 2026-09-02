@@ -18,7 +18,7 @@ A *test plan* is a sequence of test steps and their associated data. They are st
 editor, or by using the `tap run` [CLI action](../CLI%20Usage/Readme.md#running-test-plans). A test step can be a child step, a parent step, or both.
 Therefore, a test plan is a recursive structure of test steps. This hierarchy is illustrated in the figure below.
 
-![](./TestPlan.svg)
+![](./TestPlan.png)
 
 The step sequence is ordered from top to bottom, and child steps are indented to indicate that they belong to a parent step.
 
@@ -27,7 +27,7 @@ and *Sequential*, shown below. *MyStep* is given as an example to illustrate tha
 controlled entirely by a parent step. Notice that the behavior of MyStep can be determined by putting a *Parallel* step in
 a *Sequence* step.
 
-![](./Flow.svg)
+![](./Flow.png)
 
 ## Test Steps
 
@@ -98,7 +98,7 @@ In the latter case, test plan execution will resume from the next step in the se
 The following figure illustrates how break conditions affect test execution, and how verdicts are propagated
 from child steps to parent steps:
 
-![](./break_conditions.svg)
+![](./break_conditions.png)
 
 Steps run sequentially from top to bottom, and verdicts from child steps are propagated upwards to
 their immediate parent. In this figure, the break condition on each step is specified on the right along with the source.
@@ -181,7 +181,7 @@ next section](../CLI%20Usage/Readme.md#using-the-package-manager).
 The figure below shows the relation between plugins and OpenTAP. OpenTAP is at the center, and plugins, providing a
 variety of functionality, can be added and removed at will. 
 
-![](./OpenTAP_plugins.svg)
+![](./OpenTAP_plugins.png)
 
 Check out the public OpenTAP package repository [here](http://packages.opentap.io/index.html#/?name=OpenTAP) to browse available
 plugins.

@@ -105,7 +105,7 @@ namespace OpenTap
             }
         }
 
-        [HelpLink("EditorHelp.chm::/CreatingATestPlan/Scoped Parameters/Readme.html")]
+        [HelpLink("Editor/Creating A Test Plan/Scoped Parameters")]
         public class NamingQuestion : ValidatingObject
         {
             public struct ScopeItem
