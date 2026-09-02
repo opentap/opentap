@@ -103,8 +103,51 @@ namespace OpenTap.UnitTests
             Assert.AreEqual(Verdict.Pass, run.Verdict);
             Assert.AreEqual(3, step.Iterations);
         }
-        
-        
+
+        /// <summary> Like PassThirdTime, but it also defers a bit of work from each run. </summary>
+        class PassThirdTimeDeferred : TestStep
+        {
+            public int Iterations;
+            public override void PrePlanRun()
+            {
+                base.PrePlanRun();
+                Iterations = 0;
+            }
+
+            public override void Run()
+            {
+                Iterations += 1;
+                Verdict = Iterations < 3 ? Verdict.Fail : Verdict.Pass;
+                Results.Defer(() => TapThread.Sleep(1));
+            }
+        }
+
+        [Test]
+        public void RepeatUntilPassWithDeferredResults()
+        {
+            var step = new PassThirdTimeDeferred();
+            var rpt = new RepeatStep
+            {
+                Action = RepeatStep.RepeatStepAction.Until,
+                TargetStep = step,
+                TargetVerdict = Verdict.Pass,
+                ClearVerdict = true,
+                MaxCount = new Enabled<uint> { IsEnabled = true, Value = 10 }
+            };
+            rpt.ChildTestSteps.Add(step);
+            var plan = new TestPlan();
+            plan.ChildTestSteps.Add(rpt);
+
+            // the verdict was only left uncleared intermittently, hence the plan is executed a number of times. See issue #2439.
+            for (int i = 0; i < 30; i++)
+            {
+                var run = plan.Execute();
+                Assert.AreEqual(3, step.Iterations);
+                Assert.AreEqual(Verdict.Pass, rpt.Verdict);
+                Assert.AreEqual(Verdict.Pass, run.Verdict);
+            }
+        }
+
         // These two cases are technically equivalent.
         [Test]
         [TestCase(Verdict.Fail, RepeatStep.RepeatStepAction.While)]

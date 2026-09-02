@@ -231,11 +231,7 @@ namespace OpenTap
                 return;
             }
             var waits = new[] { completedEvent.WaitHandle, cancellationToken.WaitHandle };
-            while (WaitHandle.WaitAny(waits, 100) == WaitHandle.WaitTimeout)
-            {
-                if (completedEvent.Wait(0))
-                    break;
-            }
+            WaitHandle.WaitAny(waits);
         }
 
         /// <summary>  The thread in which the step is running. </summary>

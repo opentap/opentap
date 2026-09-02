@@ -106,15 +106,22 @@ namespace OpenTap.Plugins.BasicSteps
                 Verdict = Verdict.NotSet;
                 retried = false;
             }
+            
             this._iteration += 1;
             OnPropertyChanged(nameof(IterationInfo));
             var additionalParams = new List<ResultParameter> { new ResultParameter("", "Iteration", this._iteration) };
-            var runs = RunChildSteps(additionalParams, BreakLoopRequested, throwOnBreak: false);
+            var runs = this.RunChildSteps(PlanRun, StepRun, new RunChildStepsOptions()
+            {
+                AttachedParameters = additionalParams,
+                CancellationToken = BreakLoopRequested,
+                ThrowOnBreak = false,
+                WaitForDefer = true
+            });
             foreach (var r in runs)
             {
                 r.WaitForCompletion();
             }
-            
+
             if (_setIteration is { } setIteration)
             {
                 _iteration = setIteration;
