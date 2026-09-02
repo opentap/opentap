@@ -284,3 +284,4 @@ Below is table of environment variables defined and/or used by OpenTAP. Some are
 |OPENTAP_LIBVISA_LOCATION|Used for locating a custom libvisa resource. e.g libvisa32.dll|filepath|
 |OPENTAP_INIT_DIRECTORY|Automatically set during startup. This is the directory in which OpenTAP is located.||
 |OPENTAP_DEBUG_INSTALL|Set while building plugins|true|
+|OPENTAP_WARNINGS_TO_STDERR|If true, OpenTAP prints warnings to stderr. Otherwise warnings are printed to stdout.| true|.
