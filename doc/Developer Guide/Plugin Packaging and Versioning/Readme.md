@@ -206,22 +206,52 @@ A package can also include a package icon. The **File** element inside the confi
 </Package>
 ```
 
-##### Package Readme
-A package can include a `README.md` file describing what the package does and how to use it. This readme serves as the end user documentation for the package. By convention, the file is placed in a `doc/` folder within the package's folder (`Packages/<PackageName>/doc/README.md`) rather than in the package's root, and is added to the package like any other payload file:
+##### Package Documentation
+This section describes the convention for including Markdown documentation in a package.
 
+A package can include Markdown documentation describing what the package does and how to use it. In the simplest variant, a single `Readme.md` file is added to the package. For more complex documentation, Markdown files and images can be added in a `doc/` folder. For packages with a lot of documentation, it is recommended to add a .OpenTapIgnore file inside the doc folder.
+
+Each topic is defined by a Markdown file, and folders can be used to group topics into chapters. A `Readme.md` file in a folder uses the name of the folder as its topic name. Other Markdown files in the same folder are subtopics of that topic. For example:
+
+- `doc/Readme.md` - front matter / introduction.
+- `doc/Chapter 1/Readme.md` - Chapter 1.
+- `doc/Chapter 1/Section 1.md` - Chapter 1, section 1.
+- `doc/Chapter 2/Readme.md` - Chapter 2.
+
+Images are placed alongside the Markdown files that reference them.
+
+Here is an example of how a readme file can be added to a plugin package:
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
 <Package Name="MyPlugin" xmlns="http://opentap.io/schemas/package" InfoLink="http://example.com"
 		 Version="$(GitVersion)" OS="Windows,Linux" Architecture="x64" Group="Example" Tags="Example DUT Instrument">
      ...
   <Files>
-    <File Path="Packages/MyPlugin/doc/README.md"/>
+    <File Path="Packages/MyPlugin/Readme.md"/>
   </Files>
   ...
 </Package>
 ```
 
 Including a readme is recommended, as its contents will be displayed in a help panel in the editor, giving users a convenient way to read the end user documentation for the package directly from the UI. The file uses standard [Markdown](https://commonmark.org/) formatting.
+
+Ordering topics and adding a table of contents can be done in a few different ways:
+
+- **Alphabetic ordering** - This is the default ordering. Topics are sorted alphabetically, using natural sorting for numbers.
+- **Numeric prefix** - The numeric prefix is ignored when showing help, so topics can be ordered by prefixing them with e.g. `01`, `02`, `03`.
+- **toc.md** - A `toc.md` file can be added, giving you full control over how the topics are laid out. The `toc.md` file should be a Markdown bullet list of topics, each linking to the related topic. For example:
+
+```
+- [Introduction](Introduction)
+- [OpenTAP Overview](<What is OpenTAP>)
+- [Getting Started](<Getting Started in Visual Studio>)
+- [Development Essentials](<Development Essentials>)
+```
+
+The [HelpLink attribute](../Attributes/Readme.md#helplink-attribute) can be used to refer to information inside the topic structure. For readability, this is done by display name, prefixed with the package name. For example:
+```cs
+[HelpLink("OpenTAP/What is OpenTAP")]
+```
 
 ##### Wildcards
 
