@@ -20,5 +20,6 @@
   <files>
     <file src="build/runtimes/win-x64/OpenTap.dll" target="lib/netstandard2.0" />
     <file src="build/**/*" exclude="**\.*"/>
+    <file src="build/**/.OpenTapIgnore"/> <!-- dont exclude .OpenTapIgnore -->
   </files>
 </package>

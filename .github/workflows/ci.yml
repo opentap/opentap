@@ -744,7 +744,8 @@ jobs:
           cd ./nuget    
           Invoke-WebRequest -Method Get -Uri "https://dist.nuget.org/win-x86-commandline/v5.7.1/nuget.exe" -OutFile nuget.exe
           echo "Pack nuget"
-          .\nuget pack OpenTAP.nuspec -OutputDirectory ../
+          # -NoDefaultExcludes is needed to include dot files (e.g. .OpenTapIgnore) from the payload
+          .\nuget pack OpenTAP.nuspec -OutputDirectory ../ -NoDefaultExcludes
       - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: nuget-package
