@@ -782,6 +782,7 @@ namespace OpenTap
             }
             plugin.TypeAttributes = typeDef.Attributes;
             plugin.Assembly = CurrentAsm;
+            plugin.HasAllowAsChildInAttributes = false;
 
             List<string> supportedPlatforms = null;
             foreach (CustomAttributeHandle attrHandle in typeDef.GetCustomAttributes())
@@ -801,7 +802,6 @@ namespace OpenTap
                     attributeFullName = GetFullName(CurrentReader, ctor.Parent);
                 }
 
-                plugin.HasAllowAsChildInAttributes = false;
                 switch (attributeFullName)
                 {
                     case "System.Runtime.Versioning.SupportedOSPlatformAttribute":
