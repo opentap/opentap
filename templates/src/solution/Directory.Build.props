@@ -7,6 +7,9 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <OpenTapSetAssemblyVersion>gitversion</OpenTapSetAssemblyVersion>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+
+    <Configuration Condition="'$(Configuration)' == ''" >Debug</Configuration>
+    <OutputPath>$(MSBuildThisFileDirectory)bin\$(Configuration)\</OutputPath>
   </PropertyGroup>
 
   <PropertyGroup>
