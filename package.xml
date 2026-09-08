@@ -38,9 +38,6 @@
             <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
-        <File Path="OpenTapApiReference.chm"
-              SourcePath="../../Help/OpenTapApiReference.chm"
-              Condition="$(Debug) == false"/>
     </Files>
     <!-- For debug builds. Includes debugging symbols and puts all the DLLs in the OpenTAP root directory.  -->
     <Files Condition="$(Debug) == true">
