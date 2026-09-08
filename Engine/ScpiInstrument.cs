@@ -281,9 +281,6 @@ namespace OpenTap
             this.scpiIO = io;
             IoTimeout = 2000;
 
-            // Just trigger the use of the resource manager to test if VISA libraries is installed.
-            GetResourceManager();
-
             // default value for settings:
             SendClearOnConnect = true;
             SendIDNOnConnect = true;
