@@ -5,6 +5,7 @@
 - [Test Step](<Test Step>)
 - [Resources](Resources)
 - [Result Listener](<Result Listener>)
+- [Log Files](<Log Files>)
 - [Component Setting](<Component Setting>)
 - [Annotations](Annotations)
 - [Translating Packages](Translating)
