@@ -7,7 +7,7 @@
     },
     "Debug with Editor (Linux/MacOS)": {
       "commandName": "Executable",
-      "executablePath": "./Editor.dll",
+      "executablePath": "./Editor",
       "dotnetRunMessages": true
     }
   }

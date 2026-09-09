@@ -157,9 +157,13 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             // Ensure this is a git repository
             if (!fileIsAncestor(".git", dirInfo))
             {
-                Log.LogError(
+                /* Don't fail the build if we are not running inside a git directory.
+                 * Otherwise it is not possible to build a project by e.g. zipping the source. */
+                Log.LogWarning(
                     $"{TargetName}: The project file '{SourceFile}' is not in a git directory. {TargetName} is only supported in git projects.");
-                return false;
+                shortVersion = "0.0.0";
+                gitversion = "0.0.0";
+                return true;
             }
 
             // And that it uses gitversioning
