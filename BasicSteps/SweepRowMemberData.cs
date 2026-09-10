@@ -36,6 +36,16 @@ class SweepRowMemberData : IMemberData, IParameterMemberData, IParameterMemberDa
         row.Values[Name] = clone;
         return clone;
     }
+
+    public override int GetHashCode()
+    {
+        return ((_declaringType.GetHashCode() * 18798712) + 7853478) ^ (_innerMember.GetHashCode() * 78234505) + 43729321;
+    }
+
+    public override bool Equals(object obj)
+    {
+        return obj is SweepRowMemberData m2 && Equals(_declaringType, m2._declaringType) && Equals(_innerMember, m2._innerMember);
+    }
         
         
     object CloneIfPossible(object value, object context)
