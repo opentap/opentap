@@ -7,7 +7,7 @@ An open source test sequencing engine with a growing community of test developer
 Anyone can contribute to, collaborate around and create test automation solutions with OpenTAP.  OpenTAP project code is available online at http://github.com/OpenTAP/OpenTAP 
 
 ## Who is responsible for maintaining OpenTAP?
-OpenTAP is developed and maintained by a group of developers at Keysight [BD2]and other organizations.  You can view current project contributors at https://github.com/opentap/opentap/graphs/contributors.
+OpenTAP is developed and maintained by a group of developers at Keysight and other organizations.  You can view current project contributors at https://github.com/opentap/opentap/graphs/contributors.
 
 ## Are there restrictions on using, modifying or redistributing OpenTAP?
 OpenTAP code is made available under the Mozilla Public License [MPL v.2](https://github.com/opentap/opentap/blob/main/LICENSE.txt). The terms of the MPL let users download, use, modify and redistribute project code as long as the code remains under the same open source MPL v.2 license.
