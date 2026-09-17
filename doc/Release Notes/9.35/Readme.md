@@ -1,6 +1,8 @@
 Release Notes - OpenTAP 9.35.0
 ============= 
 
+This release focuses on stability, SDK and documentation improvements.
+
 ## Highlights
 
 ### Parameterize and Merge Composite Parameters
