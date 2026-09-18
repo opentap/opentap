@@ -57,7 +57,7 @@ namespace OpenTap.Package
             }
 
             if(!string.IsNullOrEmpty(Name))
-                Name = AutoCorrectPackageNames.Correct([Name], repositories)[0];
+                Name = AutoCorrectPackageNames.Correct([Name], repositories, cancellationToken)[0];
 
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
@@ -75,7 +75,7 @@ namespace OpenTap.Package
             if (string.IsNullOrEmpty(Name))
             {
                 var packages = installed.ToList();
-                packages.AddRange(PackageRepositoryHelpers.GetPackageNameAndVersionFromAllRepos(repositories, new PackageSpecifier("", versionSpec, Architecture, OS)));
+                packages.AddRange(PackageRepositoryHelpers.GetPackageNameAndVersionFromAllRepos(repositories, new PackageSpecifier("", versionSpec, Architecture, OS), cancellationToken));
 
                 if (Installed)
                     packages = packages.Where(p => installed.Any(i => i.Name == p.Name)).ToList();
@@ -103,7 +103,7 @@ namespace OpenTap.Package
 
                 if (All)
                 {
-                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name).Where(v => v.IsUnlisted == false).Distinct().ToList();
+                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name, cancellationToken).Where(v => v.IsUnlisted == false).Distinct().ToList();
                     var versionsCount = versions.Count;
                     if (versionsCount == 0) // No versions
                     {
@@ -126,13 +126,13 @@ namespace OpenTap.Package
                 else
                 {
                     var opentap = new Installation(Target).GetOpenTapPackage();
-                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name, opentap).Where(v => v.IsUnlisted == false).Distinct().ToList();
+                    versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name, cancellationToken, opentap).Where(v => v.IsUnlisted == false).Distinct().ToList();
 
                     versions = versions.Where(s => s.IsUnlisted == false && s.IsPlatformCompatible(Architecture, OS)).ToList();
 
                     if (versions.Any() == false) // No compatible versions
                     {
-                        versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name).Where(v => v.IsUnlisted == false).ToList();
+                        versions = PackageRepositoryHelpers.GetAllVersionsFromAllRepos(repositories, Name, cancellationToken).Where(v => v.IsUnlisted == false).ToList();
                         if (versions.Any())
                         {
                             log.Warning($"There are no compatible versions of '{Name}'.");

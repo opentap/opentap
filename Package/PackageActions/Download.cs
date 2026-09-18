@@ -88,7 +88,7 @@ namespace OpenTap.Package
                 UserInput.SetInterface(new NonInteractiveUserInputInterface());
             
             if (!NonInteractive)
-                Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
+                Packages = AutoCorrectPackageNames.Correct(Packages, repositories, cancellationToken);
 
             List<PackageDef> PackagesToDownload = PackageActionHelpers.GatherPackagesAndDependencyDefs(
                 destinationInstallation, PackageReferences, Packages, Version, Architecture, OS, repositories,

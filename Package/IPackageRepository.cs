@@ -161,28 +161,31 @@ namespace OpenTap.Package
     {
         private static TraceSource log = Log.CreateSource("PackageRepository");
 
-        static void ParallelTryForEach<TSource>(IEnumerable<TSource> source, Action<TSource> body)
+        static void ParallelTryForEach<TSource>(IEnumerable<TSource> source, CancellationToken cancellationToken, Action<TSource> body)
         {
             try
             {
-                Parallel.ForEach(source, body);
+                Parallel.ForEach(source, new ParallelOptions { CancellationToken = cancellationToken }, body);
             }
             catch (AggregateException ex)
             {
+                // Repository failures are best-effort, but cancellation must reach the caller.
+                cancellationToken.ThrowIfCancellationRequested();
                 foreach (var inner in ex.InnerExceptions)
                 {
                     log.Info(inner.Message);
                     log.Debug(inner);
                 }
             }
+            cancellationToken.ThrowIfCancellationRequested();
         }
 
         internal static List<PackageDef> GetPackageNameAndVersionFromAllRepos(List<IPackageRepository> repositories,
-            PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
+            PackageSpecifier id, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             var list = new List<PackageDef>();
 
-            ParallelTryForEach(repositories, repo =>
+            ParallelTryForEach(repositories, cancellationToken, repo =>
             {
                 if (repo is HttpPackageRepository httprepo)
                 {
@@ -190,7 +193,7 @@ namespace OpenTap.Package
                         architecture: id.Architecture, distinctName: true);
                     
                     var repoClient = HttpPackageRepository.GetAuthenticatedClient(new Uri(httprepo.Url, UriKind.Absolute));
-                    var result = repoClient.Query(parameters, CancellationToken.None, "name", "version");
+                    var result = repoClient.Query(parameters, cancellationToken, "name", "version");
 
                     var packages = result.Select(p => new PackageDef()
                     {
@@ -206,7 +209,7 @@ namespace OpenTap.Package
                 }
                 else
                 {
-                    var packages = repo.GetPackages(id, compatibleWith);
+                    var packages = repo.GetPackages(id, cancellationToken, compatibleWith);
                     lock (list)
                     {
                         list.AddRange(packages);
@@ -218,12 +221,16 @@ namespace OpenTap.Package
 
         internal static List<PackageDef> GetPackagesFromAllRepos(List<IPackageRepository> repositories,
             PackageSpecifier id, params IPackageIdentifier[] compatibleWith)
+            => GetPackagesFromAllRepos(repositories, id, TapThread.Current.AbortToken, compatibleWith);
+
+        internal static List<PackageDef> GetPackagesFromAllRepos(List<IPackageRepository> repositories,
+            PackageSpecifier id, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             var list = new List<PackageDef>();
 
-            ParallelTryForEach(repositories, repo =>
+            ParallelTryForEach(repositories, cancellationToken, repo =>
             {
-                var packages = repo.GetPackages(id, compatibleWith);
+                var packages = repo.GetPackages(id, cancellationToken, compatibleWith);
                 lock (list)
                 {
                     list.AddRange(packages);
@@ -234,12 +241,12 @@ namespace OpenTap.Package
         }
 
         internal static List<PackageVersion> GetAllVersionsFromAllRepos(List<IPackageRepository> repositories,
-            string packageName, params IPackageIdentifier[] compatibleWith)
+            string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             var list = new List<PackageVersion>();
-            ParallelTryForEach(repositories, repo =>
+            ParallelTryForEach(repositories, cancellationToken, repo =>
             {
-                var packages = repo.GetPackageVersions(packageName, compatibleWith);
+                var packages = repo.GetPackageVersions(packageName, cancellationToken, compatibleWith);
                 lock (list)
                 {
                     list.AddRange(packages);

@@ -232,6 +232,7 @@ namespace OpenTap.Package.UnitTests
                 Repository = new[] { "http://url;token=123", "https://url2;token=ghi;abc=def" },
             };
             install.Execute(CancellationToken.None);
+            Log.Flush();
             
             Assert.That(AuthenticationSettings.Current.Tokens.Any(t => t.Domain == "url" && t.AccessToken == "123"));
             Assert.That(AuthenticationSettings.Current.Tokens.Any(t => t.Domain == "url2" && t.AccessToken == "ghi"));

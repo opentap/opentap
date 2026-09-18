@@ -105,7 +105,7 @@ namespace OpenTap.Package
             repositories = new List<IPackageRepository>(repositories.OfType<FilePackageRepository>().ToList());
         }
 
-        private PackageDef GetPackageDef(Installation targetInstallation)
+        private PackageDef GetPackageDef(Installation targetInstallation, CancellationToken cancellationToken)
         {
             // Try a number of methods to obtain the PackageDef in order of precedence
             var packageRef = new PackageSpecifier(Name, VersionSpecifier.Parse(Version ?? ""), Architecture, OS);
@@ -132,7 +132,7 @@ namespace OpenTap.Package
                 try
                 {
                     // a release from repositories
-                    package = repositories.SelectMany(x => x.GetPackages(packageRef))
+                    package = repositories.SelectMany(x => x.GetPackages(packageRef, cancellationToken))
                         .FindMax(p => p.Version);
                     if (package != null)
                         return package;
@@ -144,7 +144,7 @@ namespace OpenTap.Package
                     log.Warning("Could not connect to repository. Showing results for local install");
                     DisableHttpRepositories();
 
-                    package = repositories.SelectMany(x => x.GetPackages(packageRef))
+                    package = repositories.SelectMany(x => x.GetPackages(packageRef, cancellationToken))
                         .FindMax(p => p.Version);
                     if (package != null)
                         return package;
@@ -155,7 +155,7 @@ namespace OpenTap.Package
             {
                 // a prerelease from repositories
                 packageRef = new PackageSpecifier(Name, VersionSpecifier.Parse("any"), Architecture, OS);
-                package = repositories.SelectMany(x => x.GetPackages(packageRef))
+                package = repositories.SelectMany(x => x.GetPackages(packageRef, cancellationToken))
                     .FindMax(p => p.Version);
             }
 
@@ -169,7 +169,7 @@ namespace OpenTap.Package
                 DisableHttpRepositories();
             }
 
-            Name = AutoCorrectPackageNames.Correct(new[] { Name }, repositories)[0];
+            Name = AutoCorrectPackageNames.Correct(new[] { Name }, repositories, cancellationToken)[0];
 
             if (Target == null)
                 Target = FileSystemHelper.GetCurrentInstallationDirectory();
@@ -182,7 +182,8 @@ namespace OpenTap.Package
 
             var targetInstallation = new Installation(Target);
 
-            PackageDef package = GetPackageDef(targetInstallation);
+            PackageDef package = GetPackageDef(targetInstallation, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             if (package == null)
             {
                 var versionString = string.IsNullOrWhiteSpace(Version) ? "" : $" version '{Version}'";

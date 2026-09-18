@@ -21,7 +21,7 @@ namespace OpenTap.Package
             if (Packages == null)
                 throw new Exception("No packages specified.");
 
-            Packages = AutoCorrectPackageNames.Correct(Packages, Array.Empty<IPackageRepository>());
+            Packages = AutoCorrectPackageNames.Correct(Packages, Array.Empty<IPackageRepository>(), cancellationToken);
 
             var target = LockingPackageAction.GetLocalInstallationDir();
 

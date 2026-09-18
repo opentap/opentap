@@ -196,25 +196,34 @@ namespace OpenTap.Package
         DateTime nextUpdateAt = DateTime.MinValue;
 
         static readonly TimeSpan updateRepoVersionHoldOff = TimeSpan.FromSeconds(60);
-        readonly object updateVersionLock = new object();
-        private void CheckRepoApiVersion()
+        readonly SemaphoreSlim updateVersionLock = new SemaphoreSlim(1, 1);
+        private void CheckRepoApiVersion() => CheckRepoApiVersion(TapThread.Current.AbortToken);
+
+        private void CheckRepoApiVersion(CancellationToken cancellationToken)
         {
-            lock (updateVersionLock)
+            updateVersionLock.Wait(cancellationToken);
+            try
             {
                 if (IsInError())
                     return;
 
                 try
                 {
-                    var version = RepoClient.Version(CancellationToken.None);
+                    var version = RepoClient.Version(cancellationToken);
+                    cancellationToken.ThrowIfCancellationRequested();
                     if (SemanticVersion.TryParse(version, out _version) == false)
                         throw new NotSupportedException($"The repository '{defaultUrl}' is not supported.");
                 }
                 catch
                 {
-                    // suppress
+                    // suppress repository errors, but never turn cancellation into a cached failure.
+                    cancellationToken.ThrowIfCancellationRequested();
                 }
                 nextUpdateAt = DateTime.Now + updateRepoVersionHoldOff;
+            }
+            finally
+            {
+                updateVersionLock.Release();
             }
         }
 
@@ -417,7 +426,7 @@ namespace OpenTap.Package
         public PackageVersion[] GetPackageVersions(string packageName, CancellationToken cancellationToken, params IPackageIdentifier[] compatibleWith)
         {
             // force update version to check for errors.
-            CheckRepoApiVersion();
+            CheckRepoApiVersion(cancellationToken);
             if (IsInError())
             {
                 log.Warning("Unable to connect to: {0}", Url); 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using OpenTap.Translation;
 
 namespace OpenTap.Package
@@ -22,9 +23,11 @@ namespace OpenTap.Package
         /// </summary>
         /// <param name="names"></param>
         /// <param name="repositories"></param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public static string[] Correct(string[] names, IEnumerable<IPackageRepository> repositories)
+        public static string[] Correct(string[] names, IEnumerable<IPackageRepository> repositories, CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (names == null || names.Length == 0) return names;
             // Copy the input array to use as return value
             var result = names.ToArray();
@@ -34,7 +37,7 @@ namespace OpenTap.Package
 
             var packageCache = PackageRepositoryHelpers.DetermineRepositoryType(new Uri(PackageCacheHelper.PackageCacheDirectory).AbsoluteUri);
             var knownPackages = Installation.Current.GetPackages().Select(p => p.Name)
-                .Concat(packageCache.GetPackageNames()).ToHashSet();
+                .Concat(packageCache.GetPackageNames(cancellationToken)).ToHashSet();
 
 
             for (int i = 0; i < names.Length; i++)
@@ -54,7 +57,8 @@ namespace OpenTap.Package
 
                 if (onlinePackages == null)
                 {
-                    onlinePackages = repos.SelectMany(r => r.GetPackageNames()).ToList();
+                    onlinePackages = repos.SelectMany(r => r.GetPackageNames(cancellationToken)).ToList();
+                    cancellationToken.ThrowIfCancellationRequested();
                     foreach (var pkg in onlinePackages)
                     {
                         knownPackages.Add(pkg);
@@ -86,7 +90,9 @@ namespace OpenTap.Package
                 var options = scores.Select(s => s.Candidate).ToList();
 
                 var req = new AutoCorrectRequest(name, options);
+                cancellationToken.ThrowIfCancellationRequested();
                 UserInput.Request(req);
+                cancellationToken.ThrowIfCancellationRequested();
                 if (req.Choice == req.NegativeAnswer)
                     throw new AutoCorrectException(notFoundMessage);
                 if (req.Choice == req.Yes)

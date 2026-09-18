@@ -85,6 +85,7 @@ namespace OpenTap.Package
         /// <returns>Return 0 to indicate success. Otherwise return a custom errorcode that will be set as the exitcode from the CLI.</returns>
         public override int Execute(CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (String.IsNullOrEmpty(Target))
                 Target = GetLocalInstallationDir();
             else
@@ -126,6 +127,7 @@ namespace OpenTap.Package
                 }
             }
 
+            cancellationToken.ThrowIfCancellationRequested();
             return LockedExecute(cancellationToken);
         }
 

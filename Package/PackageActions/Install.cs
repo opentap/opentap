@@ -123,7 +123,7 @@ namespace OpenTap.Package
             Repository = ExtractRepositoryTokens(Repository, true);
             List<IPackageRepository> repositories = PackageManagerSettings.Current.GetEnabledRepositories(Repository);
             if (!NonInteractive)
-                Packages = AutoCorrectPackageNames.Correct(Packages, repositories);
+                Packages = AutoCorrectPackageNames.Correct(Packages, repositories, cancellationToken);
 
             bool installError = false;
             var installer = new Installer(Target, cancellationToken)
