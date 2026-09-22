@@ -214,7 +214,7 @@ namespace OpenTap.Package.UnitTests
             string outputFilename = "GitversionDependency.TapPlugin";
             try
             {
-                DummyPackageGenerator.InstallDummyPackage("DepName", new GitVersionCalulator(Directory.GetCurrentDirectory()).GetVersion().ToString() );
+                DummyPackageGenerator.InstallDummyPackage("DepName", new GitVersionCalculator(Directory.GetCurrentDirectory()).GetVersion().ToString() );
                 PackageDef pkg = PackageDefExt.FromInputXml(inputFilename, Directory.GetCurrentDirectory());
                 using (var file = CreateStream(outputFilename))
                     pkg.CreatePackage(file);

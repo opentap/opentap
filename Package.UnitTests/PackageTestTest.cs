@@ -162,7 +162,7 @@ namespace OpenTap.Package.UnitTests
             var testAction = @"<ActionStep ActionName = ""test"" ExeFile=""tap"" Arguments='sdk gitversion' />";
             AddTestElement(testAction);
 
-            var actualGitversion = new GitVersionCalulator(WorkingDirectory).GetVersion().ToString();
+            var actualGitversion = new GitVersionCalculator(WorkingDirectory).GetVersion().ToString();
 
             {   // Normal output tests
                 var normalOutput = RunTest(false);

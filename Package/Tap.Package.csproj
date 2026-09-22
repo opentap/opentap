@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyName>OpenTap.Package</AssemblyName>
     <RootNamespace>OpenTap.Package</RootNamespace>
@@ -12,6 +12,7 @@
     <Compile Include="..\Shared\AssemblyInfo.cs" Link="Shared\AssemblyInfo.cs" />
     <Compile Include="..\Shared\ExecutorInterop.cs" Link="Shared\ExecutorInterop.cs" />
     <Compile Include="..\Shared\FileSystemHelper.cs" Link="Shared\FileSystemHelper.cs" />
+    <Compile Include="..\Shared\GitVersionCalculatorCore.cs" Link="Shared\GitVersionCalculatorCore.cs" />
     <Compile Include="..\Shared\ICliActionExtensions.cs" Link="Shared\ICliActionExtensions.cs" />
     <Compile Include="..\Shared\MurMurHash3.cs" Link="Shared\MurMurHash3.cs" />
     <Compile Include="..\Shared\OperatingSystem.cs" Link="Shared\OperatingSystem.cs" />
