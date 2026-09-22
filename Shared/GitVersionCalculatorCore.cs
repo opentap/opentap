@@ -9,9 +9,142 @@ using System.Linq;
 using System.Collections.Generic;
 using System;
 using System.IO;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace OpenTap.GitVersioning
 {
+    /// <summary>Locates and configures the host-native libgit2 used by the git version calculator.</summary>
+    internal static class LibGit2NativeLibrary
+    {
+        private const string LibGit2Name = "libgit2-b7bad55";
+        private const string DependencyDirectory = "Dependencies/LibGit2Sharp.0.27.0.0";
+        private static readonly object loadLock = new object();
+        private static string loadedPath;
+
+        /// <summary>
+        /// Configures LibGit2Sharp from an OpenTAP installation, an OpenTAP NuGet package, or the
+        /// LibGit2Sharp.NativeBinaries layout used in project build output.
+        /// </summary>
+        internal static string Load(string rootDirectory)
+        {
+            lock (loadLock)
+            {
+                if (loadedPath != null)
+                    return loadedPath;
+
+                var candidates = GetCandidatePaths(rootDirectory, out var nativeFileName);
+                string sourcePath = null;
+                foreach (var candidate in candidates)
+                {
+                    if (File.Exists(candidate))
+                    {
+                        sourcePath = candidate;
+                        break;
+                    }
+                }
+
+                if (sourcePath == null)
+                    throw new DllNotFoundException($"Could not find the native libgit2 library. Searched: {string.Join(", ", candidates)}");
+
+                // OpenTAP runtime payloads suffix native binaries with their architecture. Copy the
+                // selected binary next to the consuming assembly under the conventional name expected
+                // by LibGit2Sharp. This location is covered by normal P/Invoke probing on both desktop
+                // MSBuild and .NET Core MSBuild.
+                var stagedPath = Path.Combine(rootDirectory, nativeFileName);
+                if (!string.Equals(sourcePath, stagedPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!File.Exists(stagedPath))
+                        File.Copy(sourcePath, stagedPath);
+                    sourcePath = stagedPath;
+                }
+
+                try
+                {
+                    LibGit2Sharp.GlobalSettings.NativeLibraryPath = rootDirectory;
+                }
+                catch (LibGit2SharpException ex) when (ex.Message.IndexOf("after it has been loaded", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    // Another LibGit2Sharp consumer initialized the process first. Its already-loaded
+                    // native library is usable, and changing the search path is neither possible nor needed.
+                }
+
+                loadedPath = sourcePath;
+                return loadedPath;
+            }
+        }
+
+        private static List<string> GetCandidatePaths(string rootDirectory, out string nativeFileName)
+        {
+            var architecture = GetArchitecture();
+            string packageRuntime;
+            string packageFileName;
+            string nativeRuntime;
+
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                packageRuntime = nativeRuntime = "win-" + architecture;
+                packageFileName = $"git2-b7bad55.dll.{architecture}";
+                nativeFileName = "git2-b7bad55.dll";
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                packageRuntime = "macos-" + architecture;
+                packageFileName = $"{LibGit2Name}.dylib.{architecture}";
+                nativeRuntime = "osx-" + architecture;
+                nativeFileName = $"{LibGit2Name}.dylib";
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                var musl = IsMusl();
+                packageRuntime = "linux-" + architecture;
+                packageFileName = musl
+                    ? $"{LibGit2Name}.so.musl.{architecture}"
+                    : $"{LibGit2Name}.so.{architecture}";
+                nativeRuntime = (musl ? "linux-musl-" : "linux-") + architecture;
+                nativeFileName = $"{LibGit2Name}.so";
+            }
+            else
+            {
+                throw new PlatformNotSupportedException("Git version calculation is not supported on this operating system.");
+            }
+
+            return new List<string>
+            {
+                Path.Combine(rootDirectory, DependencyDirectory, packageFileName),
+                Path.Combine(rootDirectory, "runtimes", packageRuntime, DependencyDirectory, packageFileName),
+                Path.Combine(rootDirectory, "runtimes", nativeRuntime, "native", nativeFileName),
+                Path.Combine(rootDirectory, nativeFileName)
+            };
+        }
+
+        private static string GetArchitecture()
+        {
+            switch (RuntimeInformation.ProcessArchitecture)
+            {
+                case Architecture.X86: return "x86";
+                case Architecture.X64: return "x64";
+                case Architecture.Arm: return "arm";
+                case Architecture.Arm64: return "arm64";
+                default: throw new PlatformNotSupportedException($"Git version calculation is not supported for {RuntimeInformation.ProcessArchitecture} processes.");
+            }
+        }
+
+        private static class GlibC
+        {
+            [DllImport("libc")]
+            internal static extern IntPtr gnu_get_libc_version();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static bool IsMusl()
+        {
+            try { return GlibC.gnu_get_libc_version() == IntPtr.Zero; }
+            catch { return true; }
+        }
+    }
+
     internal sealed class GitVersionResult : IComparable
     {
         public readonly int Major;
@@ -86,8 +219,9 @@ namespace OpenTap.GitVersioning
             }
         }
         private const string configFileName = ".gitversion";
-        private readonly LibGit2Sharp.Repository repo;
+        private readonly Lazy<LibGit2Sharp.Repository> repository;
         private readonly string RepoDir;
+        private LibGit2Sharp.Repository repo => repository.Value;
 
         private class Config
         {
@@ -193,9 +327,9 @@ namespace OpenTap.GitVersioning
         /// Instanciates a new <see cref="GitVersionCalculatorCore"/> to work on a specified git repository.
         /// </summary>
         /// <param name="repositoryDir">Path pointing to a directory inside the git repository to use.</param>
+        /// <param name="nativeLibraryRoot">Directory containing the OpenTAP or LibGit2Sharp native assets.</param>
         /// <param name="log">Receives diagnostic messages from the calculation.</param>
-        /// <param name="nativeLibraryDirectory">Optional directory containing the host-native libgit2 library.</param>
-        public GitVersionCalculatorCore(string repositoryDir, GitVersionLog log, string nativeLibraryDirectory = null)
+        public GitVersionCalculatorCore(string repositoryDir, string nativeLibraryRoot, GitVersionLog log)
         {
             this.log = log ?? new GitVersionLog(null, null, null);
             repositoryDir = Path.GetFullPath(repositoryDir);
@@ -210,28 +344,12 @@ namespace OpenTap.GitVersioning
             }
             RepoDir = RepoDir.Substring(repositoryDir.Length);
 
-            if (!string.IsNullOrEmpty(nativeLibraryDirectory))
-                ConfigureNativeLibrary(nativeLibraryDirectory);
-            repo = new LibGit2Sharp.Repository(repositoryDir);
-        }
-
-        private static readonly object nativeLibraryLock = new object();
-        private static string configuredNativeLibraryDirectory;
-
-        private static void ConfigureNativeLibrary(string nativeLibraryDirectory)
-        {
-            lock (nativeLibraryLock)
+            var repositoryRoot = repositoryDir;
+            repository = new Lazy<LibGit2Sharp.Repository>(() =>
             {
-                if (configuredNativeLibraryDirectory == null)
-                {
-                    GlobalSettings.NativeLibraryPath = nativeLibraryDirectory;
-                    configuredNativeLibraryDirectory = nativeLibraryDirectory;
-                }
-                else if (!string.Equals(configuredNativeLibraryDirectory, nativeLibraryDirectory, StringComparison.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException($"LibGit2Sharp is already using '{configuredNativeLibraryDirectory}' and cannot be changed to '{nativeLibraryDirectory}'.");
-                }
-            }
+                LibGit2NativeLibrary.Load(nativeLibraryRoot);
+                return new LibGit2Sharp.Repository(repositoryRoot);
+            }, LazyThreadSafetyMode.ExecutionAndPublication);
         }
 
         private static string format(string message, object[] args) => args.Length == 0 ? message : string.Format(message, args);
@@ -241,8 +359,8 @@ namespace OpenTap.GitVersioning
 
         public void Dispose()
         {
-            if (repo != null)
-                repo.Dispose();
+            if (repository.IsValueCreated)
+                repository.Value.Dispose();
         }
 
         /// <summary> Keeps iterating until a valid version is read.</summary>

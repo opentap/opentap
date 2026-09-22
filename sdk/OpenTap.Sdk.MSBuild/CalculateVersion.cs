@@ -136,31 +136,12 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             try
             {
                 var taskDirectory = Path.GetDirectoryName(typeof(CalculateVersion).GetTypeInfo().Assembly.Location);
-                var nativeLibrary = GitVersionNativeLibrary.GetPath(taskDirectory);
-                try
-                {
-                    GitVersionNativeLibrary.Load(nativeLibrary);
-                }
-                catch (Exception ex)
-                {
-                    var loaderException = ex is TargetInvocationException invocationException && invocationException.InnerException != null
-                        ? invocationException.InnerException
-                        : ex;
-                    Log.LogError($"{TargetName}: Git versioning is not supported on this build host " +
-                                 $"({System.Runtime.InteropServices.RuntimeInformation.OSDescription}, " +
-                                 $"{System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}). " +
-                                 $"Set OpenTapSetAssemblyVersion to an explicit semantic version instead of 'gitversion'. " +
-                                 $"If this host should be supported, please open an issue at https://github.com/opentap/opentap/issues " +
-                                 $"and include this complete error message. Details: {loaderException.Message}");
-                    return false;
-                }
-
                 var calculatorLog = new global::OpenTap.GitVersioning.GitVersionCalculatorCore.GitVersionLog(
                     message => Log.LogMessage(Microsoft.Build.Framework.MessageImportance.Low, message),
                     message => Log.LogWarning(message),
                     message => Log.LogError(message));
                 using (var calculator = new global::OpenTap.GitVersioning.GitVersionCalculatorCore(
-                           workingDirectory, calculatorLog, Path.GetDirectoryName(nativeLibrary)))
+                           workingDirectory, taskDirectory, calculatorLog))
                 {
                     var version = calculator.GetVersion();
                     shortVersion = $"{version.Major}.{version.Minor}.{version.Patch}";
