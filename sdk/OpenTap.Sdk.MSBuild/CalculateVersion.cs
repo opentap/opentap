@@ -1,8 +1,7 @@
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
+using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.Build.Framework;
@@ -58,47 +57,6 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 elem = null;
                 return false;
             }
-        }
-
-        private bool runProcess(string filename, string arguments, string workingDirectory, out string stdout,
-            out string stderr)
-        {
-            var si = new ProcessStartInfo(filename, arguments)
-            {
-                RedirectStandardError = true,
-                RedirectStandardOutput = true,
-                UseShellExecute = false,
-                WorkingDirectory = workingDirectory,
-                /* color output can cause problems with the gitversion regex, so here we make sure it is disabled. */
-                Environment = { ["OPENTAP_COLOR"] = "never" },
-            };
-            var errStream = new StringBuilder();
-            var outStream = new StringBuilder();
-            var proc = new Process();
-            proc.StartInfo = si;
-            proc.OutputDataReceived += (_, data) =>
-            {
-                if (!string.IsNullOrWhiteSpace(data?.Data)) outStream.Append(data.Data);
-            };
-            proc.ErrorDataReceived += (_, data) =>
-            {
-                if (!string.IsNullOrWhiteSpace(data?.Data)) errStream.Append(data.Data);
-            };
-            proc.Start();
-            proc.BeginOutputReadLine();
-            proc.BeginErrorReadLine();
-            proc.WaitForExit(10000); 
-
-            if (!proc.HasExited)
-            {
-                stdout = stderr = null;
-                Log.LogError($"{TargetName}: tap sdk gitversion is hanging.");
-                return false;
-            }
-            stdout = outStream.ToString();
-            stderr = errStream.ToString();
-
-            return proc.ExitCode == 0;
         }
 
         private bool isWindows()
@@ -175,38 +133,46 @@ namespace Keysight.OpenTap.Sdk.MSBuild
                 return false;
             }
 
-            // Start a subprocess to get the gitversion. There are a couple of reasons we don't calculate it in-process:
-            // 1. libgit uses a native dll which is annoying to load. OpenTAP already includes logic for this which
-            // makes several assumptions that do not apply during dotnet build.
-            // 2. GitVersionCalculator is internal, and I would prefer to not make it public.
-            // For these reasons, it is much simpler to just start a process and parse the output.
-            string tapName = isWindows() ? "tap.exe" : "tap";
-            var tap = Path.Combine(TapDir, tapName);
-            if (!runProcess(tap, "sdk gitversion", workingDirectory, out var stdout, out var stderr))
+            try
             {
+                var taskDirectory = Path.GetDirectoryName(typeof(CalculateVersion).GetTypeInfo().Assembly.Location);
+                var nativeLibrary = GitVersionNativeLibrary.GetPath(taskDirectory);
+                try
+                {
+                    GitVersionNativeLibrary.Load(nativeLibrary);
+                }
+                catch (Exception ex)
+                {
+                    var loaderException = ex is TargetInvocationException invocationException && invocationException.InnerException != null
+                        ? invocationException.InnerException
+                        : ex;
+                    Log.LogError($"{TargetName}: Git versioning is not supported on this build host " +
+                                 $"({System.Runtime.InteropServices.RuntimeInformation.OSDescription}, " +
+                                 $"{System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture}). " +
+                                 $"Set OpenTapSetAssemblyVersion to an explicit semantic version instead of 'gitversion'. " +
+                                 $"If this host should be supported, please open an issue at https://github.com/opentap/opentap/issues " +
+                                 $"and include this complete error message. Details: {loaderException.Message}");
+                    return false;
+                }
+
+                var calculatorLog = new global::OpenTap.GitVersioning.GitVersionCalculatorCore.GitVersionLog(
+                    message => Log.LogMessage(Microsoft.Build.Framework.MessageImportance.Low, message),
+                    message => Log.LogWarning(message),
+                    message => Log.LogError(message));
+                using (var calculator = new global::OpenTap.GitVersioning.GitVersionCalculatorCore(
+                           workingDirectory, calculatorLog, Path.GetDirectoryName(nativeLibrary)))
+                {
+                    var version = calculator.GetVersion();
+                    shortVersion = $"{version.Major}.{version.Minor}.{version.Patch}";
+                    gitversion = version.ToString();
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.LogError($"{TargetName}: Failed to calculate gitversion: {ex.Message}");
                 return false;
             }
-
-            if (!string.IsNullOrWhiteSpace(stderr))
-            {
-                // This could indicate a problem, but logging it as an error would fail the build.
-                // Log it as a warning instead so the user is at least aware
-                Log.LogWarning(stderr);
-            }
-
-            // There could potentially be multiple lines in the output due diagnostics or warnings from OpenTAP.
-            // Find the line that looks like a gitversion
-            var lines = stdout.Split('\n').Select(line => line.Trim()).ToArray();
-
-            foreach (var l in lines)
-            {
-                if (tryParseVersion(l, out shortVersion, out gitversion))
-                    return true;
-            }
-
-            Log.LogError($"{TargetName}: Unable to parse gitversion from output:\n{stdout}");
-
-            return false;
         } 
 
         public override bool Execute()
