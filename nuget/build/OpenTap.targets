@@ -44,7 +44,14 @@
 
   <!-- Runtime payload -->
   <ItemGroup Condition="Exists($(OpenTapRuntimeDir))">
-    <PackagePayloadFiles Include="$(OpenTapRuntimeDir)\**\*"/>
+    <!-- Avoid copying unrelated settings and session logs to the output
+      folder. SessionLogs contains logs from msbuild tasks, which can be
+      useful, but since the NuGet folder is shared, it likely contains
+      logs from unrelated builds, so it is better to avoid mixing the logs. -->
+    <PackagePayloadFiles
+      Include="$(OpenTapRuntimeDir)\**\*"
+      Exclude="$(OpenTapRuntimeDir)\Settings\**\*;$(OpenTapRuntimeDir)\SessionLogs\**\*"
+      />
   </ItemGroup>
 
   <!-- Documentation payload -->
