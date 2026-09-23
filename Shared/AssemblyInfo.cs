@@ -17,9 +17,11 @@ using System.Reflection;
 // "stamp" stage.
 // Format is x.y.z.w where x and y is defined by a git tag, z is the number 
 // of commits since that tag and w is the first 8 digits of the git commit hash.
-[assembly: AssemblyVersion("9.33.0.0")]
-[assembly: AssemblyFileVersion("9.33.0.0")]
-[assembly: AssemblyInformationalVersion("9.33.0-alpha+DeveloperBuild")]
+// For debug builds, we set this to an extremely large value so the debug binaries
+// are "compatible" with any plugin, regardless of their dependency version.
+[assembly: AssemblyVersion("9.999.0.0")]
+[assembly: AssemblyFileVersion("9.999.0.0")]
+[assembly: AssemblyInformationalVersion("9.999.0-alpha+DeveloperBuild")]
 
 // Configuration is updated automatically by the build in the "stamp" stage.
 // Value of this attribute is the name of the git branch.
