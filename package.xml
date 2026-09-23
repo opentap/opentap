@@ -19,23 +19,18 @@
     <!-- Common files  -->
     <Files Condition="$(Debug) == false">
         <File Path="tap.dll">
-            <SetAssemblyInfo Attributes="Version" />
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="OpenTap.dll">
-            <SetAssemblyInfo Attributes="Version" />
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="OpenTap.Package.dll">
-            <SetAssemblyInfo Attributes="Version" />
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
-            <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="Packages/OpenTAP/OpenTap.Cli.dll" SourcePath="OpenTap.Cli.dll">
-            <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
     </Files>
@@ -80,7 +75,6 @@
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="Packages/OpenTAP/Tap.Upgrader.dll" SourcePath="Tap.Upgrader.dll">
-          <SetAssemblyInfo Attributes="Version"/>
           <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll.$(Architecture)"/>
