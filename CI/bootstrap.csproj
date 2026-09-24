@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <SkipInstallOpenTapAsPackage>true</SkipInstallOpenTapAsPackage>
+    <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../tap/tap.csproj" />
+    <ProjectReference Include="../sdk/OpenTap.Sdk.MSBuild/OpenTap.Sdk.MSBuild.csproj" />
+    <ProjectReference Include="../sdk/OpenTap.Sdk.New/OpenTap.Sdk.New.csproj" />
+  </ItemGroup>
+</Project>
+

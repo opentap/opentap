@@ -1,0 +1,41 @@
+<Project>
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>obj/$(RuntimeIdentifier)/</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <SkipInstallOpenTapAsPackage>true</SkipInstallOpenTapAsPackage>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="../tap/**/*.cs" Exclude="../tap/obj/**" />
+  </ItemGroup>
+
+  <Import Project="../tap/tap.csproj" />
+
+  <PropertyGroup>
+    <AppendRuntimeIdentifierToOutputPath>true</AppendRuntimeIdentifierToOutputPath>
+    <OutDir>../bin/$(Configuration)/$(RuntimeIdentifier)/</OutDir>
+  </PropertyGroup>
+
+  <!-- Building these explicitly makes the generated XML available even on a clean
+       build. MSBuild de-duplicates these calls across the solution graph. -->
+  <Target Name="BuildDocumentationFiles" BeforeTargets="Build">
+    <MSBuild Projects="../Engine/Tap.Engine.csproj;../Package/Tap.Package.csproj;../BasicSteps/Tap.Plugins.BasicSteps.csproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration)"
+             RemoveProperties="RuntimeIdentifier;AppendRuntimeIdentifierToOutputPath" />
+  </Target>
+
+  <Target Name="CopyDocumentationFiles"
+          AfterTargets="Build"
+          DependsOnTargets="BuildDocumentationFiles">
+    <ItemGroup>
+      <DocumentationFile Include="../bin/$(Configuration)/OpenTap.xml" />
+      <DocumentationFile Include="../bin/$(Configuration)/OpenTap.Package.xml" />
+      <DocumentationFile Include="../bin/$(Configuration)/OpenTap.Plugins.BasicSteps.xml" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DocumentationFile)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>
