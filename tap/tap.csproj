@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AssemblyName>tap</AssemblyName>
@@ -40,15 +40,14 @@
     </Content>
   </ItemGroup>
 
-  <ItemGroup Condition="'$(OS)'=='Windows_NT'">
-    <Content Include="..\Shared\tap.runtimeconfig.WindowsDesktop.json">
-      <Link>tap.runtimeconfig.json</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+  <PropertyGroup>
+    <RuntimeConfig>tap.runtimeconfig.json</RuntimeConfig>
+    <RuntimeConfig Condition="'$(OS)' == 'Windows_NT'">tap.runtimeconfig.WindowsDesktop.json</RuntimeConfig>
+    <RuntimeConfig Condition="$(RuntimeIdentifier.StartsWith('win-'))">tap.runtimeconfig.WindowsDesktop.json</RuntimeConfig>
+  </PropertyGroup>
 
-  <ItemGroup Condition="'$(OS)'!='Windows_NT'">
-    <Content Include="..\Shared\tap.runtimeconfig.json">
+  <ItemGroup>
+    <Content Include="..\Shared\$(RuntimeConfig)">
       <Link>tap.runtimeconfig.json</Link>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -75,7 +74,10 @@
 
   <!-- Install OpenTAP as a package - this is necessary for most of the package cli actions to function normally.  -->
   <!-- CopyFilesToOutputDirectory is required for libgit native DLLs -->
-  <Target Name="InstallOpenTapAsPackage" AfterTargets="CopyFilesToOutputDirectory">
+    <Target
+        Name="InstallOpenTapAsPackage"
+        AfterTargets="CopyFilesToOutputDirectory"
+        Condition="'$(SkipInstallOpenTapAsPackage)' != 'true'">
     <Exec Command="$(OutDir)tap package create ../../package.xml -o $(OutDir)OpenTap.Debug.TapPackage --install" EnvironmentVariables="Debug=true;Sign=false;Platform=$(PlatformEnv);Architecture=$(ArchEnv.ToLower())" WorkingDirectory="$(OutDir)" />
   </Target>
 </Project>
