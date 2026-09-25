@@ -70,11 +70,6 @@ export default defineConfig({
         ]
       },
       {
-        text: 'API Reference',
-        link: '/api/index.html',
-        target: '_blank'
-      },
-      {
         text: 'Release Notes',
         collapsed: true,
         items: [

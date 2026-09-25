@@ -1,0 +1,13 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Release" />
+  </Configurations>
+  <!-- <Project Path="multi-target.win-arm64.csproj" /> -->
+  <Project Path="multi-target.win-x64.csproj" />
+  <Project Path="multi-target.win-x86.csproj" />
+  <Project Path="multi-target.linux-arm.csproj" />
+  <Project Path="multi-target.linux-arm64.csproj" />
+  <Project Path="multi-target.linux-x64.csproj" />
+  <Project Path="multi-target.osx-arm64.csproj" />
+  <Project Path="multi-target.osx-x64.csproj" />
+</Solution>
