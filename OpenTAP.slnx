@@ -20,7 +20,6 @@
   <Project Path="Engine/Tap.Engine.csproj"/>
   <Project Path="Package.UnitTests/Tap.Package.UnitTests.csproj"/>
   <Project Path="Package/Tap.Package.csproj"/>
-  <Project Path="Tap.Upgrader/Tap.Upgrader.csproj"/>
   <Project Path="tap/tap.csproj"/>
   <Project Path="templates/Templates.csproj"/>
 </Solution>
