@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
@@ -101,24 +102,28 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             return proc.ExitCode == 0;
         }
 
-        private bool isWindows()
+        static private string GetArchitecture() => RuntimeInformation.ProcessArchitecture switch
         {
-            switch (Environment.OSVersion.Platform)
-            {
-                case PlatformID.Win32NT:
-                case PlatformID.Win32S:
-                case PlatformID.Win32Windows:
-                case PlatformID.WinCE:
-                    return true;
-                default:
-                    return false;
-            }
-        }
+            Architecture.X86 => "x86",
+            Architecture.X64 => "x64",
+            Architecture.Arm => "arm",
+            Architecture.Arm64 => "arm64",
+            _ => throw new PlatformNotSupportedException(),
+        };
+
+        static private string GetPlatformId() => Environment.OSVersion.Platform switch
+        {
+            PlatformID.Win32NT or PlatformID.Win32S or PlatformID.Win32Windows or PlatformID.WinCE => "win",
+            /* microsoft uses osx to denote macos, but opentap uses macos. */
+            PlatformID.MacOSX => "macos",
+            PlatformID.Unix => "linux",
+            _ => throw new PlatformNotSupportedException(),
+        };
 
         // Check if a file with the given name exists in any ancestor directory
         private bool fileIsAncestor(string name, DirectoryInfo root)
         {
-            var comparer = isWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            var comparer = GetPlatformId() == "linux" ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
             while (root != null)
             {
                 if (root.EnumerateFileSystemInfos().Any(i => i.Name.Equals(name, comparer)))
@@ -144,6 +149,17 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
             shortVersion = longVersion = null;
             return false;
+        }
+
+        /* get a tap binary which can be executed on the build host */
+        static string GetTapPath()
+        {
+            var baseDir = Path.GetDirectoryName(typeof(CalculateVersion).Assembly.Location);
+            var platform = GetPlatformId();
+            var runtimeDir = $"{platform}-{GetArchitecture()}";
+            var tapPath = Path.Combine(baseDir, "runtimes", runtimeDir,
+                    platform == "win" ? "tap.exe" : "tap");
+            return tapPath;
         }
 
         private bool tryCalculateGitversion(out string shortVersion, out string gitversion)
@@ -180,9 +196,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             // makes several assumptions that do not apply during dotnet build.
             // 2. GitVersionCalculator is internal, and I would prefer to not make it public.
             // For these reasons, it is much simpler to just start a process and parse the output.
-            string tapName = isWindows() ? "tap.exe" : "tap";
-            var tap = Path.Combine(TapDir, tapName);
-            if (!runProcess(tap, "sdk gitversion", workingDirectory, out var stdout, out var stderr))
+            if (!runProcess(GetTapPath(), "sdk gitversion", workingDirectory, out var stdout, out var stderr))
             {
                 return false;
             }
