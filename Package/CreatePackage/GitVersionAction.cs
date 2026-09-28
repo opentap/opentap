@@ -85,7 +85,7 @@ namespace OpenTap.Package
             }
 
             string versionString = null;
-            using (GitVersionCalulator calc = new GitVersionCalulator(RepoPath))
+            using (GitVersionCalculator calc = new GitVersionCalculator(RepoPath))
             {
                 try
                 {
@@ -157,7 +157,7 @@ namespace OpenTap.Package
             ConsoleColor graphColor = ConsoleColor.DarkYellow;
             ConsoleColor versionColor = ConsoleColor.DarkRed;
 
-            using (GitVersionCalulator versionCalculater = new GitVersionCalulator(RepoPath))
+            using (GitVersionCalculator versionCalculater = new GitVersionCalculator(RepoPath))
             using (LibGit2Sharp.Repository repo = new LibGit2Sharp.Repository(RepoPath))
             {
                 Commit tip = repo.Head.Tip;

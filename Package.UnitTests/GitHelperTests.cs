@@ -50,7 +50,7 @@ namespace OpenTap.Package.UnitTests
             var metadata = c.Sha.Substring(0, 8);  // (note: hashes will differ each time this is run)
             if (!String.IsNullOrEmpty(branchName))
                 metadata += "." + branchName;
-            using (var calc = new GitVersionCalulator(Path.Combine(repo.Info.WorkingDirectory, dir ?? "")))
+            using (var calc = new GitVersionCalculator(Path.Combine(repo.Info.WorkingDirectory, dir ?? "")))
             {
                 SemanticVersion tv = calc.GetVersion();
                 Assert.AreEqual(major, tv.Major, "Unexpected major version number.");

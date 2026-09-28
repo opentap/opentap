@@ -245,7 +245,7 @@ namespace OpenTap.Package
                 {
                     try
                     {
-                        var calc = new GitVersionCalulator(ProjectDir);
+                        var calc = new GitVersionCalculator(ProjectDir);
                         cachedVersion = calc.GetVersion().ToString(fieldCount);
                         log.Info("Package {1} is {0}", cachedVersion, versionName);
                     }
