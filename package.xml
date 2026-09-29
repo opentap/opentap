@@ -47,13 +47,15 @@
         <File Path="OpenTap.Cli.dll"/>
         <File Path="OpenTap.Cli.pdb"/>
     </Files>
-    
-    <!-- Windows only files -->
-    <Files Condition="$(Platform) != Windows">
-        <File Path="tap.runtimeconfig.json" SourcePath="../../Shared/tap.runtimeconfig.json" />
+
+    <Files>
+        <File Path="tap.runtimeconfig.json" />
+        <!-- Markdown documentation -->
+        <File Path="Packages/OpenTAP/doc/**" />
     </Files>
+
+    <!-- Windows only files -->
     <Files Condition="$(Platform) == Windows">
-        <File Path="tap.runtimeconfig.json" SourcePath="../../Shared/tap.runtimeconfig.WindowsDesktop.json" />
         <File Path="tap.exe">
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
@@ -71,10 +73,6 @@
         <File Path="tap" SourcePath="tap.sh"/>
 <!--        <File Path="tap"/>-->
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.$(Architecture)"/>
-    </Files>
-    <!-- Markdown documentation -->
-    <Files>
-        <File Path="Packages/OpenTAP/doc/**" />
     </Files>
     <!-- License Texts -->
     <Files>

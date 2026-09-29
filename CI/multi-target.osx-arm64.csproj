@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <RuntimeIdentifier>osx-arm64</RuntimeIdentifier>
+  </PropertyGroup>
+  <Import Project="multi-target.props" />
+</Project>
