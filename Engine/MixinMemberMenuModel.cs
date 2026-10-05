@@ -20,7 +20,7 @@ namespace OpenTap
             .FirstNonDefault(step => step as TestPlan ?? step.GetParent<TestPlan>())
             ?.AllowEdit ?? true;
 
-        public bool StepLocked => Source.OfType<ITestStep>().Any(x => x.ChildTestSteps.IsReadOnly);
+        public bool StepLocked => Source.OfType<ITestStep>().Any(x => x.IsReadOnly);
         
         [Display("Modify Mixin...", "Modify custom setting.", Order: 2.0, Group: "Mixins")]
         [Browsable(true)]

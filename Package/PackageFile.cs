@@ -1024,9 +1024,13 @@ namespace OpenTap.Package
         internal static string GetMetadataFromPackage(string path)
         {
             string metaFilePath = PluginInstaller.FilesInPackage(path)
-                .Where(p => p.Contains(PackageDef.PackageDefDirectory) && p.EndsWith(PackageDef.PackageDefFileName))
+                .Where(path =>
+                {
+                    var p = path.Replace('\\', '/');
+                    return p.StartsWith(PackageDef.PackageDefDirectory + '/') && p.EndsWith('/' + PackageDef.PackageDefFileName);
+                })
                 .OrderBy(p => p.Length).FirstOrDefault(); // Find the xml file in the most top level
-            if (String.IsNullOrEmpty(metaFilePath))
+            if (string.IsNullOrEmpty(metaFilePath))
             {
                 // for TAP 8.x support, we could remove when 9.0 is final, and packages have been migrated.
                 metaFilePath = PluginInstaller.FilesInPackage(path).FirstOrDefault(p => (p.Contains("package/") || p.Contains("Package Definitions/")) && p.EndsWith("package.xml"));

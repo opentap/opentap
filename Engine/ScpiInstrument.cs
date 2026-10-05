@@ -128,6 +128,8 @@ namespace OpenTap
         static bool checkVisaAddress(string str)
         {
             if (visa_failed) return true;
+            /* If visa is not loaded, we cannot validate the address with the Visa API. */
+            if (visa_resource == Visa.VI_NULL) return true;
 
             try
             {
