@@ -254,7 +254,12 @@ namespace OpenTap.Package
             }
 
             if (installErrors.Any())
+            {
+                /* Some exceptions are added twice due to the installer.Error delegate being raised for an exception which is then rethrown.
+                 * By distincting the exception list, we avoid duplicates in the aggregate exception below. */
+                installErrors = [.. installErrors.Distinct()];
                 throw new AggregateException("Image deployment failed to install packages.", installErrors);
+            }
         }
 
         private static void Uninstall(IEnumerable<PackageDef> packagesToUninstall, string target,
