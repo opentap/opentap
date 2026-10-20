@@ -458,10 +458,10 @@ namespace OpenTap.Package
                                 }
 
 
-                                var deflate_stream = part.Open();
+                                using var deflateStream = part.Open();
                                 using (var fileStream = File.Create(path))
                                 {
-                                    var task = deflate_stream.CopyToAsync(fileStream, 4096, TapThread.Current.AbortToken);
+                                    var task = deflateStream.CopyToAsync(fileStream, 1 << 16, TapThread.Current.AbortToken);
                                     ConsoleUtils.PrintProgressTillEnd(task, "Decompressing", () => fileStream.Position, () => part.Length);
                                 }
                                 log.Debug(sw, "Decompressed {0}", path);
