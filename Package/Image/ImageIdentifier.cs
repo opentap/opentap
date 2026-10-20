@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -202,37 +204,79 @@ namespace OpenTap.Package
         {
             progress ??= (percent, message) => { };
             var packagesInOrder = OrderPackagesForInstallation(modifyOrAdd);
-            
-            var cnt = packagesInOrder.Count;
-            var downloaded = 0;
-            
-            // Download progress is the cumulative download progress divided by 2 
-            void downloadProgress(int percent, string message)
+
+            var channel = new BlockingCollection<(int id, string what, object value)>();
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+            for (int i = 0; i < packagesInOrder.Count; i++)
             {
-                var completed = Percent(downloaded + (double)percent/100, cnt);
-                progress(completed / 2, message);
+                int index = i;
+                var package = packagesInOrder[index];
+                TapThread.Start(() =>
+                {
+                    string path = null;
+                    try
+                    {
+                        // If the package is a file, download it directory instead of caching it
+                        if (package.PackageSource is IFilePackageDefSource fd)
+                        {
+                            path = fd.PackageFilePath;
+                        }
+                        else
+                        {
+                            if (CachedLocation(package) is string cachedLocation)
+                            {
+                                log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
+                            }
+                            else
+                            {
+                                void Progress(int percent, string message)
+                                {
+                                    channel.Add((index, "progress", percent));
+                                }
+                                Download(package, Progress, cts.Token);
+                            }
+                            path = CachedLocation(package);
+                        }
+                        channel.Add((index, "done", path));
+                    }
+                    catch (Exception ex)
+                    {
+                        channel.Add((index, "error", ex));
+                    }
+                });
             }
 
-            List<string> paths = new List<string>();
-            for (var i = 0; i < cnt; i++)
+            var downloadProgress = new int[packagesInOrder.Count];
+            // Download progress is the cumulative download progress divided by 2 
+            void announceProgress(string message)
             {
-                var package = packagesInOrder[i];
-                // If the package is a file, download it directory instead of caching it
-                if (package.PackageSource is IFilePackageDefSource fd)
-                {
-                    paths.Add(fd.PackageFilePath);
-                }
-                else
-                {
-                    if (CachedLocation(package) is string cachedLocation)
-                        log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
-                    else
-                        Download(package, downloadProgress, cancellationToken); 
-                    paths.Add(CachedLocation(package)); 
-                }
+                var completed = (double)downloadProgress.Sum() / downloadProgress.Length;
+                progress((int)(completed / 2), message);
+            }
 
-                downloaded = i + 1;
-                downloadProgress(Percent(downloaded, cnt), $"Downloaded {package.Name}");
+            string[] paths = new string[packagesInOrder.Count];
+            int missing = packagesInOrder.Count;
+            while (missing > 0)
+            {
+                var (idx, what, data) = channel.Take();
+                switch (what)
+                {
+                    case "progress":
+                        downloadProgress[idx] = (int)data;
+                        announceProgress($"Downloading {packagesInOrder[idx].Name}");
+                        break;
+                    case "done":
+                        paths[idx] = (string)data;
+                        missing--;
+                        downloadProgress[idx] = 100;
+                        announceProgress($"Downloaded {packagesInOrder[idx].Name}");
+                        break;
+                    case "error":
+                        ExceptionDispatchInfo.Capture((Exception)data).Throw();
+                        break;
+                    default: throw new InvalidOperationException(what);
+                }
             }
 
             // installProgress already accounts for packages that were already downloaded, so the 
@@ -242,7 +286,7 @@ namespace OpenTap.Package
             installer.PackagePaths.AddRange(paths);
 
             List<Exception> installErrors = new List<Exception>();
-            installer.Error += ex => installErrors.Add(ex);
+            installer.Error += installErrors.Add;
 
             try
             {
