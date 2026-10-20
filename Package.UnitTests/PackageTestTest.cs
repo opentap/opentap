@@ -1,8 +1,13 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using NUnit.Framework;
+using OpenTap.Cli;
+using OpenTap.Diagnostic;
+using OpenTap.EngineUnitTestUtils;
 
 namespace OpenTap.Package.UnitTests
 {
@@ -27,55 +32,62 @@ namespace OpenTap.Package.UnitTests
                 .Where(v => v.HasValue)
                 .Select(v => v.Value).ToArray();
         }
-        private (string Stdout, string Stderr, int ExitCode) RunTest(bool verbose)
+
+        class LogCollector : ILogListener
         {
-            string arguments = "package test MyPlugin5";
-            if (verbose)
-                arguments += " -v";
-
-            var process = new Process
+            public enum Kind { Verbose, Stdout, Stderr }
+            public class Message(Kind stream, string line)
             {
-                StartInfo =
-                {
-                    FileName = "tap",
-                    Arguments = arguments,
-                    WorkingDirectory = WorkingDirectory,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                }
-            };
-            process.Start();
-
-            // For some reason, the process is kept open when running in verbose.. ?
-            if (verbose)
-                process.WaitForExit(5000);
-            else
-            {
-                process.WaitForExit();
+                public Kind Stream => stream;
+                public string Line => line;
             }
 
-            return (process.StandardOutput.ReadToEnd(), process.StandardError.ReadToEnd(), process.ExitCode);
+            public List<Message> Messages { get; } = [];
+            public void EventsLogged(IEnumerable<Event> Events)
+            {
+                foreach (var evt in Events)
+                {
+                    switch ((LogEventType)evt.EventType)
+                    {
+                        case LogEventType.Debug:
+                            Messages.Add(new(Kind.Verbose, evt.Message));
+                            break;
+                        case LogEventType.Information:
+                            Messages.Add(new(Kind.Stdout, evt.Message));
+                            break;
+                        case LogEventType.Warning:
+                            Messages.Add(new(Kind.Stdout, evt.Message));
+                            break;
+                        case LogEventType.Error:
+                            Messages.Add(new(Kind.Stderr, evt.Message));
+                            break;
+                    }
+                }
+            }
+
+            public IEnumerable<string> Lines(Func<Message, bool> pred) => Messages.Where(pred).Select(x => x.Line);
+
+            public void Flush() { }
+        }
+        private (string Stdout, string Stderr, int ExitCode) RunTest(bool verbose)
+        {
+            using var _ = Session.Create(SessionOptions.OverlayComponentSettings | SessionOptions.RedirectLogging);
+            var evt = new LogCollector();
+            Log.AddListener(evt);
+            int status = CliActionExecutor.Execute("package", "test", "MyPlugin5");
+            var stdout = string.Join("\n", evt.Lines(x => x.Stream == LogCollector.Kind.Stdout || (verbose && x.Stream == LogCollector.Kind.Verbose)));
+            var stderr = string.Join("\n", evt.Lines(x => x.Stream == LogCollector.Kind.Stderr));
+            return (stdout, stderr, status);
         }
 
         private void InstallTestPackage()
         {
-            var process = new Process
+            var status = new PackageInstallAction()
             {
-                StartInfo =
-                {
-                    FileName = "tap",
-                    Arguments = $"package install -f ./TapPackages/MyPlugin5.TapPackage",
-                    WorkingDirectory = WorkingDirectory,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = false,
-                    RedirectStandardError = false,
-                    CreateNoWindow = true
-                }
-            };
-            process.Start();
-            process.WaitForExit();
+                Packages = ["./TapPackages/MyPlugin5.TapPackage"],
+                Force = true,
+            }.Execute(CancellationToken.None);
+            Assert.That(status, Is.Zero);
         }
 
         private void Backup()
@@ -128,7 +140,7 @@ namespace OpenTap.Package.UnitTests
         public void BasicTest()
         {
             Restore();
-            var (stdout, stderr, exitCode) = RunTest(true);
+            var (stdout, _, exitCode) = RunTest(true);
 
             StringAssert.Contains("Tried to test MyPlugin5, but there was nothing to do.", stdout);
             Assert.AreEqual(exitCode, 0);
@@ -196,11 +208,11 @@ namespace OpenTap.Package.UnitTests
             var testAction = $@"<ActionStep ActionName = ""test"" ExeFile=""{exeName}"" Arguments='hello' />";
             AddTestElement(testAction);
 
-            var normalOutput = RunTest(false);
-            StringAssert.Contains($"Starting test step '{exeName} hello'", normalOutput.Stdout);
-            StringAssert.DoesNotContain("Successfully ran test step", normalOutput.Stdout);
-            Assert.AreNotEqual(0, normalOutput.ExitCode);
-            StringAssert.Contains("Failed to run test package action", normalOutput.Stderr);
+            var (Stdout, Stderr, ExitCode) = RunTest(false);
+            StringAssert.Contains($"Starting test step '{exeName} hello'", Stdout);
+            StringAssert.DoesNotContain("Successfully ran test step", Stdout);
+            Assert.AreNotEqual(0, ExitCode);
+            StringAssert.Contains("Failed to run test package action", Stderr);
         }
     }
 }
