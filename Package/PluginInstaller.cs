@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Threading;
 using System.ComponentModel;
+using OpenTap.Package.Zip;
 
 namespace OpenTap.Package
 {
@@ -294,7 +295,7 @@ namespace OpenTap.Package
             try
             {
                 using var fileStream = new FileStream(packagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                using var zip = new ZipArchive(fileStream, ZipArchiveMode.Read);
+                using var zip = new ThreadSafeZipReader(fileStream, true);
                 foreach (var part in zip.Entries)
                 {
                     if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
@@ -423,8 +424,7 @@ namespace OpenTap.Package
             List<string> installedParts = new List<string>();
             try
             {
-                using (var packageStream = File.OpenRead(packagePath))
-                using (var zip = new ZipArchive(packageStream, ZipArchiveMode.Read))
+                using (var zip = new ThreadSafeZipReader(File.OpenRead(packagePath), false))
                 {
                     foreach (var part in zip.Entries)
                     {
@@ -542,7 +542,7 @@ namespace OpenTap.Package
             try
             {
                 using var fileStream = new FileStream(packagePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                using var zip = new ZipArchive(fileStream, ZipArchiveMode.Read);
+                using var zip = new ThreadSafeZipReader(fileStream, true);
                 foreach (var part in zip.Entries)
                 {
                     if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
