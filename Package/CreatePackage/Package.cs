@@ -13,6 +13,7 @@ using System.IO.Compression;
 using Tap.Shared;
 using System.Xml.Serialization;
 using OpenTap.Cli;
+using OpenTap.Package.Zip;
 
 namespace OpenTap.Package
 {
@@ -905,7 +906,7 @@ namespace OpenTap.Package
             var files = new HashSet<string>();
             fs.Seek(0, SeekOrigin.Begin);
             // Verify that we can extract the archive without errors
-            using (var zip = new ZipArchive(fs, ZipArchiveMode.Read, true))
+            using (var zip = new ThreadSafeZipReader(fs, true))
             {
                 foreach (var part in zip.Entries)
                 {

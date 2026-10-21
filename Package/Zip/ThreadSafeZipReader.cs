@@ -13,16 +13,18 @@ namespace OpenTap.Package.Zip;
 
 internal class ThreadSafeZipReader : IDisposable
 {
-    readonly FileStream f;
+    readonly Stream f;
+    readonly bool leaveOpen;
     private readonly object flock = new();
 
-    public ThreadSafeZipReader(string path)
+    public ThreadSafeZipReader(Stream stream, bool leaveOpen)
     {
+        f = stream;
+        this.leaveOpen = leaveOpen;
         byte[] magic = "PK\x03\x04"u8.ToArray();
-        f = File.OpenRead(path);
         byte[] header = new byte[4];
         if (f.Read(header, 0, 4) != 4 || !header.SequenceEqual(magic))
-            throw new ArgumentException("File is not a zip archive.", nameof(path));
+            throw new ArgumentException("Stream is not a zip archive.", nameof(stream));
 
         byte[] eocd = new byte[22];
         f.Seek(f.Length - eocd.Length, SeekOrigin.Begin);
@@ -78,9 +80,12 @@ internal class ThreadSafeZipReader : IDisposable
 
     public void Dispose()
     {
-        lock (flock)
+        if (!leaveOpen)
         {
-            f.Dispose();
+            lock (flock)
+            {
+                f.Dispose();
+            }
         }
     }
 
@@ -120,7 +125,7 @@ internal class ThreadSafeZipReader : IDisposable
 
     class EndOfCentralDirectory
     {
-        private readonly byte[] Signature = [0x50, 0x4b, 0x05, 0x06];
+        private readonly static byte[] EocdSignature = [0x50, 0x4b, 0x05, 0x06];
         public ushort NumberOfThisDisk;
         public ushort DiskWhereCentralDirectoryStarts;
         public ushort NumberOfCentralDirectoryRecordsOnThisDisk;
@@ -133,8 +138,8 @@ internal class ThreadSafeZipReader : IDisposable
         public EndOfCentralDirectory(byte[] content)
         {
             using var reader = new BinaryReader(new MemoryStream(content));
-            byte[] sig = reader.ReadBytes(4);
-            if (!Signature.SequenceEqual(sig)) throw new InvalidOperationException("Invalid eocd header");
+            if (!reader.ReadBytes(4).SequenceEqual(EocdSignature))
+                throw new InvalidOperationException("Invalid eocd header");
             NumberOfThisDisk = reader.ReadUInt16();
             DiskWhereCentralDirectoryStarts = reader.ReadUInt16();
             NumberOfCentralDirectoryRecordsOnThisDisk = reader.ReadUInt16();
@@ -148,7 +153,7 @@ internal class ThreadSafeZipReader : IDisposable
 
 class CentralDirectory
 {
-    private readonly byte[] Signature = [0x50, 0x4b, 0x01, 0x02];
+    private static readonly byte[] cdSignature = [0x50, 0x4b, 0x01, 0x02];
     public ushort VersionMadeBy;
     public ushort MinimumVersion;
     public ushort GeneralPurpose;
@@ -171,8 +176,8 @@ class CentralDirectory
 
     public CentralDirectory(BinaryReader reader)
     {
-        var sig = reader.ReadBytes(4);
-        if (!Signature.SequenceEqual(sig)) throw new InvalidOperationException("Invalid central directory signature.");
+        if (!reader.ReadBytes(4).SequenceEqual(cdSignature))
+            throw new InvalidOperationException("Invalid central directory signature.");
         VersionMadeBy = reader.ReadUInt16();
         MinimumVersion = reader.ReadUInt16();
         GeneralPurpose = reader.ReadUInt16();

@@ -17,6 +17,7 @@ using System.Runtime.InteropServices;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using System.Security.Cryptography;
+using OpenTap.Package.Zip;
 
 namespace OpenTap.Package
 {
@@ -369,9 +370,8 @@ namespace OpenTap.Package
                     // If the file does not exist, it is likely part of the packagedef, and has not been extracted yet.
                     // Try to extract it to a temporary location and open that instead.
 #pragma warning disable CS0618 // Type or member is obsolete
-                    using var packageStream = File.OpenRead(_packageDef.Location);
+                    using var zip = new ThreadSafeZipReader(File.OpenRead(_packageDef.Location), false);
 #pragma warning restore CS0618 // Type or member is obsolete
-                    using var zip = new ZipArchive(packageStream, ZipArchiveMode.Read);
                     foreach (var part in zip.Entries)
                     {
                         if (norm(part.FullName).Equals(norm(_eula.Source), StringComparison.OrdinalIgnoreCase))
@@ -822,7 +822,7 @@ namespace OpenTap.Package
 
             try
             {
-                using (var zip = new ZipArchive(File.OpenRead(path), ZipArchiveMode.Read))
+                using (var zip = new ThreadSafeZipReader(File.OpenRead(path), false))
                 {
                     foreach (var part in zip.Entries)
                     {
