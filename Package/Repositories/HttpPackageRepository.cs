@@ -14,6 +14,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Xml;
 using OpenTap.Repository.Client;
 using OpenTap.Authentication;
@@ -558,11 +559,37 @@ namespace OpenTap.Package
         /// <summary>  Creates a display friendly string of this. </summary>
         public override string ToString() =>  $"[HttpPackageRepository: {Url}]";
 
+        /// <summary>
+        /// Sends a dependency query with retry logic if we get BadGateway, ServiceUnavailable or GateWayTimeout.
+        /// </summary>
+        internal static HttpResponseMessage SendDependencyQuery(HttpClient httpClient, string url, string query)
+        {
+            const int maxAttempts = 5;
+            for (int attempt = 0; ; attempt++)
+            {
+                TapThread.ThrowIfAborted();
+                using var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Content = new StringContent(query, Encoding.UTF8, "application/json");
+                request.Headers.Add("Accept", "application/json");
+                var response = httpClient.SendAsync(request, TapThread.Current.AbortToken).GetAwaiter().GetResult();
+                bool transient = response.StatusCode is HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout;
+                if (!transient || attempt == maxAttempts - 1)
+                    return response;
+
+                var status = response.StatusCode;
+                response.Dispose();
+                var delay = TimeSpan.FromSeconds(1 << attempt);
+                log.Debug("Querying '{0}' returned {1} {2}; retrying in {3} seconds ({4}/{5}).",
+                    url, (int)status, status, delay.TotalSeconds, attempt + 1, maxAttempts - 1);
+                TapThread.Sleep(delay);
+            }
+        }
+
         PackageDependencyGraph IQueryPrereleases.QueryPrereleases(string os, CpuArchitecture deploymentInstallationArchitecture, string preRelease, string name)
         {
             string repoUrl = Url;
             var sw = Stopwatch.StartNew();
-            var httpClient = HttpPackageRepository.GetAuthenticatedClient(new Uri(repoUrl, UriKind.Absolute)).HttpClient;
+            using var httpClient = HttpPackageRepository.GetAuthenticatedClient(new Uri(repoUrl, UriKind.Absolute)).HttpClient;
             httpClient.DefaultRequestHeaders.Add("WWW-Authenticate", "token");
             httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
@@ -591,16 +618,13 @@ namespace OpenTap.Package
     }}
 }}";
             var postTo = repoUrl.TrimEnd('/') + "/4.0/query";
-            var req = new HttpRequestMessage(HttpMethod.Post, postTo);
-            req.Content = new StringContent(graphqlQuery, Encoding.UTF8, "application/json");
-            req.Headers.Add("Accept", "application/json");
-            var res = httpClient.SendAsync(req).Result;
+            using var res = SendDependencyQuery(httpClient, postTo, graphqlQuery);
             if (res.IsSuccessStatusCode)
             {
                 var graph = new PackageDependencyGraph();
                 var packages = res.Content.ReadAsStringAsync().Result;
                 {
-                    var json = JsonDocument.Parse(packages);
+                    using var json = JsonDocument.Parse(packages);
                     var data = json.RootElement.GetProperty("data");
                     var objects = data.GetProperty("objects");
                     // The result will be wrapped in { "data": { "objects": ... } }
