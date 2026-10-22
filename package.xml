@@ -62,17 +62,6 @@
         <File Path="tap.exe">
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
-        <!-- We ship an additional 'tap.exe' file because 'tap.exe' is not overwritten on Windows.
-             It is not possible to overwrite because that executable is currently installing OpenTAP.
-             This additional 'tap.exe.new' overwrites the previous 'tap.exe' file as a post-install action
-             We still need to ship the original 'tap.exe' file in the package in case the package is being deployed
-             by manually unzipping -->
-        <File Path="Packages/OpenTAP/tap.exe.new" SourcePath="tap.exe" >
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
-        </File>
-        <File Path="Packages/OpenTAP/tap.dll.new" SourcePath="tap.dll" >
-            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
-        </File>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll.$(Architecture)"/>
         <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.source" SourcePath="libgit2-b7bad55.source"/>
     </Files>
