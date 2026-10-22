@@ -48,7 +48,7 @@ public class HttpRepositoryTest
         using var client = new HttpClient(handler);
         const string query = "query Query { objects { name } }";
         using var response = HttpPackageRepository.SendDependencyQuery(client,
-            "https://repository.example/4.0/query", query, CancellationToken.None);
+            "https://repository.example/4.0/query", query);
 
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
         Assert.That(handler.Requests.Count, Is.EqualTo(3));
@@ -63,7 +63,7 @@ public class HttpRepositoryTest
         using var handler = new QueryHandler(_ => HttpStatusCode.BadGateway);
         using var client = new HttpClient(handler);
         using var response = HttpPackageRepository.SendDependencyQuery(client,
-            "https://repository.example/4.0/query", "query", CancellationToken.None);
+            "https://repository.example/4.0/query", "query");
 
         Assert.That(handler.Requests.Count, Is.EqualTo(5));
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.BadGateway));
@@ -79,38 +79,9 @@ public class HttpRepositoryTest
         using var handler = new QueryHandler(_ => status);
         using var client = new HttpClient(handler);
         using var response = HttpPackageRepository.SendDependencyQuery(client,
-            "https://repository.example/4.0/query", "query", CancellationToken.None);
+            "https://repository.example/4.0/query", "query");
 
         Assert.That(handler.Requests.Count, Is.EqualTo(1));
         Assert.That(response.StatusCode, Is.EqualTo(status));
-    }
-
-    [Test]
-    public void DependencyQueryCancellationStopsRetryWait()
-    {
-        using var cancellation = new CancellationTokenSource();
-        using var handler = new QueryHandler(_ =>
-        {
-            cancellation.Cancel();
-            return HttpStatusCode.BadGateway;
-        });
-        using var client = new HttpClient(handler);
-
-        Assert.Catch<OperationCanceledException>(() => HttpPackageRepository.SendDependencyQuery(client,
-            "https://repository.example/4.0/query", "query", cancellation.Token));
-        Assert.That(handler.Requests.Count, Is.EqualTo(1));
-    }
-
-    [Test]
-    public void DependencyQueryDoesNotSendWhenAlreadyCanceled()
-    {
-        using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
-        using var handler = new QueryHandler(_ => HttpStatusCode.OK);
-        using var client = new HttpClient(handler);
-
-        Assert.Catch<OperationCanceledException>(() => HttpPackageRepository.SendDependencyQuery(client,
-            "https://repository.example/4.0/query", "query", cancellation.Token));
-        Assert.That(handler.Requests, Is.Empty);
     }
 }
