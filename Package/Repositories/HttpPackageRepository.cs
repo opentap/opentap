@@ -141,7 +141,14 @@ namespace OpenTap.Package
                 }
                 catch (Exception ex) when (ex is IOException || ex is HttpRequestException || transient)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (retry == maxRetries - 1)
+                    {
+                        log.Error($"Failed to download package {package.Name} from {Url} after {maxRetries} attempts.");
+                        throw;
+                    }
                     cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(1));
+                    cancellationToken.ThrowIfCancellationRequested();
                 }
                 catch (Exception)
                 {
