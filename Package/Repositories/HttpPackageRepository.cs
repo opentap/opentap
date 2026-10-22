@@ -562,17 +562,16 @@ namespace OpenTap.Package
         /// <summary>
         /// Sends a dependency query with retry logic if we get BadGateway, ServiceUnavailable or GateWayTimeout.
         /// </summary>
-        internal static HttpResponseMessage SendDependencyQuery(HttpClient httpClient, string url, string query,
-            CancellationToken cancellationToken)
+        internal static HttpResponseMessage SendDependencyQuery(HttpClient httpClient, string url, string query)
         {
             const int maxAttempts = 5;
             for (int attempt = 0; ; attempt++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                TapThread.ThrowIfAborted();
                 using var request = new HttpRequestMessage(HttpMethod.Post, url);
                 request.Content = new StringContent(query, Encoding.UTF8, "application/json");
                 request.Headers.Add("Accept", "application/json");
-                var response = httpClient.SendAsync(request, cancellationToken).GetAwaiter().GetResult();
+                var response = httpClient.SendAsync(request, TapThread.Current.AbortToken).GetAwaiter().GetResult();
                 bool transient = response.StatusCode is HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout;
                 if (!transient || attempt == maxAttempts - 1)
                     return response;
@@ -582,7 +581,7 @@ namespace OpenTap.Package
                 var delay = TimeSpan.FromSeconds(1 << attempt);
                 log.Debug("Querying '{0}' returned {1} {2}; retrying in {3} seconds ({4}/{5}).",
                     url, (int)status, status, delay.TotalSeconds, attempt + 1, maxAttempts - 1);
-                Task.Delay(delay, cancellationToken).GetAwaiter().GetResult();
+                TapThread.Sleep(delay);
             }
         }
 
@@ -619,7 +618,7 @@ namespace OpenTap.Package
     }}
 }}";
             var postTo = repoUrl.TrimEnd('/') + "/4.0/query";
-            using var res = SendDependencyQuery(httpClient, postTo, graphqlQuery, TapThread.Current.AbortToken);
+            using var res = SendDependencyQuery(httpClient, postTo, graphqlQuery);
             if (res.IsSuccessStatusCode)
             {
                 var graph = new PackageDependencyGraph();
