@@ -314,7 +314,7 @@ namespace OpenTap.Package
 
         }
 
-        private static bool EulaAccept(PackageDef package)
+        internal static bool EulaAccept(PackageDef package)
         {
             if (string.IsNullOrWhiteSpace(package?.EULA?.Identifier)) return true;
 
@@ -337,6 +337,26 @@ namespace OpenTap.Package
             return false;
         }
 
+        internal static void CheckEula(PackageDef package)
+        {
+            if (!EulaAccept(package))
+                throw new Cli.ExitCodeException((int)PackageExitCodes.EulaNotAccepted, "EULA not accepted.");
+        }
+
+        internal static void RunInstallActions(PackageDef package, string target)
+        {
+            var pi = new PluginInstaller();
+            if (pi.ExecuteAction(package, Installer.Install, false, target) == ActionResult.Error)
+            {
+                log.Error($"Install package action failed to execute for '{package.Name}'.");
+                tryUninstall(package, target);
+                throw new Exception($"Failed to install package '{package.Name}'.");
+            }
+
+            CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install,
+                new CustomPackageActionArgs(null, false));
+        }
+
         /// <summary>
         /// Tries to install a plugin from 'path', throws an exception on error.
         /// </summary>
@@ -346,8 +366,7 @@ namespace OpenTap.Package
             checkFileExists(path);
 
             var package = PackageDef.FromPackage(path);
-            if (!EulaAccept(package))
-                throw new Cli.ExitCodeException((int)PackageExitCodes.EulaNotAccepted, "EULA not accepted.");
+            CheckEula(package);
 
             var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : target;
 
@@ -367,7 +386,7 @@ namespace OpenTap.Package
             catch (Exception e)
             {
                 log.Error($"Install failed to execute for '{package.Name}'.");
-                tryUninstall(path, package, target);
+                tryUninstall(package, target);
                 throw new Exception($"Failed to install package '{path}'.", e);
             }
 
@@ -377,26 +396,16 @@ namespace OpenTap.Package
                 return package;
             }
 
-            var pi = new PluginInstaller();
-            if (pi.ExecuteAction(package, Installer.Install, false, target) == ActionResult.Error)
-            {
-                log.Error($"Install package action failed to execute for '{package.Name}'.");
-                tryUninstall(path, package, target);
-                throw new Exception($"Failed to install package '{path}'.");
-            }
-
-            CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install,
-                new CustomPackageActionArgs(null, false));
-
+            RunInstallActions(package, target);
             return package;
         }
 
-        static void tryUninstall(string path, PackageDef package, string target)
+        internal static void tryUninstall(PackageDef package, string target)
         {
             log.Info("Uninstalling package '{0}'.", package.Name);
             Uninstall(package, target);
             log.Flush();
-            log.Info("Uninstalled package '{0}'.", path);
+            log.Info("Uninstalled package '{0}'.", package.Name);
         }
 
         static void checkExtension(string path)
@@ -416,11 +425,15 @@ namespace OpenTap.Package
             }
         }
 
-        static bool ZipExclude(string fullname)
+        internal static bool ZipExclude(string fullname)
         {
             if (string.IsNullOrWhiteSpace(fullname))
                 return true;
+            /* archiver generated metadata files */
             if (Path.GetFileName(fullname) == "[Content_Types].xml" || Path.GetFileName(fullname) == ".rels" || fullname.StartsWith("package/services/metadata/core-properties"))
+                return true;
+            /* path traversal */
+            if (fullname.StartsWith("/") || fullname.Replace('\\', '/').Contains("../"))
                 return true;
             return false;
         }

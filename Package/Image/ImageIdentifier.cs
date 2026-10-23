@@ -1,13 +1,14 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Buffers;
 
 namespace OpenTap.Package
 {
@@ -199,103 +200,139 @@ namespace OpenTap.Package
                 Install(modifyOrAdd, currentInstallation.Directory, progress, cancellationToken);
         }
 
+        struct Stage1Result
+        {
+            public PackageDef Package;
+            public string FilePath;
+            public Installer.StagedPackage Ctx;
+        }
+
+        /// <summary>
+        /// This proxy helps us simulateously save a file stream from the package repository while also extracting the stream in-flight.
+        /// </summary>
+        class DownloadProxyStream : Stream
+        {
+            public delegate void OnWrite(byte[] buffer, int offset, int count);
+            private readonly OnWrite onWrite;
+
+            private long _written = 0;
+            public DownloadProxyStream(OnWrite onWrite)
+            {
+                this.onWrite = onWrite;
+            }
+
+            public override bool CanRead => false;
+            public override bool CanSeek => false;
+            public override bool CanWrite => true;
+            public override long Length => throw new NotSupportedException();
+            public override long Position { get => _written; set => throw new NotSupportedException(); }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                onWrite(buffer, offset, count);
+                _written += count;
+            }
+
+            public override void Flush() { }
+            public override int Read(byte[] buffer, int offset, int count) { throw new NotSupportedException(); }
+            public override long Seek(long offset, SeekOrigin origin) { throw new NotSupportedException(); }
+            public override void SetLength(long value) { throw new NotSupportedException(); }
+        }
+
+        static Stream GetPackageStream(PackageDef package, CancellationToken token, out string filepath)
+        {
+            if (package.PackageSource is IFilePackageDefSource fd)
+            {
+                filepath = fd.PackageFilePath;
+                return File.OpenRead(fd.PackageFilePath);
+            }
+
+            if (CachedLocation(package) is string cachedLocation)
+            {
+                filepath = cachedLocation;
+                return File.OpenRead(cachedLocation);
+            }
+
+            filepath = Download(package, null, token);
+            return File.OpenRead(filepath);
+        }
+
+        static Task<Stage1Result> StagePackage(Installer installer, PackageDef package, CancellationToken token)
+        {
+            var src = new TaskCompletionSource<Stage1Result>();
+            TapThread.Start(() =>
+            {
+                Stage1Result result;
+                result.Package = package;
+                try
+                {
+                    Stream packageStream = GetPackageStream(package, token, out result.FilePath);
+                    result.Ctx = installer.StagePackage(package.Name, packageStream);
+                    src.SetResult(result);
+                }
+                catch (Exception ex)
+                {
+                    src.SetException(ex);
+                }
+            });
+            return src.Task;
+        }
+
         private static void Install(IEnumerable<PackageDef> modifyOrAdd, string target,
             ProgressUpdateDelegate progress, CancellationToken cancellationToken)
         {
+            var sw = Stopwatch.StartNew();
             progress ??= (percent, message) => { };
-            var packagesInOrder = OrderPackagesForInstallation(modifyOrAdd);
-
-            var channel = new BlockingCollection<(int id, string what, object value)>();
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var packagesInOrder = OrderPackagesForInstallation(modifyOrAdd);
+            var installer = new Installer(target, cancellationToken);
+
+            List<Exception> installErrors = [];
+            installer.Error += installErrors.Add;
+
+            var Stage1 = new Task<Stage1Result>[packagesInOrder.Count];
 
             for (int i = 0; i < packagesInOrder.Count; i++)
             {
-                int index = i;
-                var package = packagesInOrder[index];
-                TapThread.Start(() =>
-                {
-                    string path = null;
-                    try
-                    {
-                        // If the package is a file, download it directory instead of caching it
-                        if (package.PackageSource is IFilePackageDefSource fd)
-                        {
-                            path = fd.PackageFilePath;
-                        }
-                        else
-                        {
-                            if (CachedLocation(package) is string cachedLocation)
-                            {
-                                log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
-                            }
-                            else
-                            {
-                                void Progress(int percent, string message)
-                                {
-                                    channel.Add((index, "progress", percent));
-                                }
-                                Download(package, Progress, cts.Token);
-                            }
-                            path = CachedLocation(package);
-                        }
-                        channel.Add((index, "done", path));
-                    }
-                    catch (Exception ex)
-                    {
-                        channel.Add((index, "error", ex));
-                    }
-                });
+                PackageDef p = packagesInOrder[i];
+                Stage1[i] = StagePackage(installer, p, cts.Token);
             }
 
-            var downloadProgress = new int[packagesInOrder.Count];
-            // Download progress is the cumulative download progress divided by 2 
-            void announceProgress(string message)
+            int[] StagingProgress = new int[packagesInOrder.Count];
+            int[] InstallProgress = new int[packagesInOrder.Count];
+
+            void AnnounceProgress(string message)
             {
-                var completed = (double)downloadProgress.Sum() / downloadProgress.Length;
-                progress((int)(completed / 2), message);
+                double stg = (double)StagingProgress.Sum() / StagingProgress.Length;
+                double inst = (double)InstallProgress.Sum() / InstallProgress.Length;
+                progress((int)(stg * 0.8 + inst * 0.2), message);
             }
 
-            string[] paths = new string[packagesInOrder.Count];
-            int missing = packagesInOrder.Count;
-            while (missing > 0)
+            TapThread.Start(() =>
             {
-                var (idx, what, data) = channel.Take();
-                switch (what)
+                Task<Stage1Result>[] missing = [.. Stage1];
+                while (!cts.IsCancellationRequested && missing.Length > 0)
                 {
-                    case "progress":
-                        downloadProgress[idx] = (int)data;
-                        announceProgress($"Downloading {packagesInOrder[idx].Name}");
-                        break;
-                    case "done":
-                        paths[idx] = (string)data;
-                        missing--;
-                        downloadProgress[idx] = 100;
-                        announceProgress($"Downloaded {packagesInOrder[idx].Name}");
-                        break;
-                    case "error":
-                        ExceptionDispatchInfo.Capture((Exception)data).Throw();
-                        break;
-                    default: throw new InvalidOperationException(what);
+                    int done = Task.WaitAny(missing, cts.Token);
+                    if (done >= 0)
+                    {
+                        Stage1Result completed = missing[done].Result;
+                        missing = [.. missing.Except(x => x == missing[done])];
+                        var index = packagesInOrder.IndexOf(completed.Package);
+                        StagingProgress[index] = 100;
+                        AnnounceProgress($"Staged {completed.Package.Name}");
+                    }
                 }
-            }
+            });
 
-            // installProgress already accounts for packages that were already downloaded, so the 
-            Installer installer = new Installer(target, cancellationToken);
-            installer.ProgressUpdate += (percent, message) => progress(percent, message);   
-            installer.PackagePaths.Clear();
-            installer.PackagePaths.AddRange(paths);
-
-            List<Exception> installErrors = new List<Exception>();
-            installer.Error += installErrors.Add;
-
-            try
+            for (int i = 0; i < packagesInOrder.Count; i++)
             {
-                installer.InstallThread();
+                var ctx = Stage1[i].Result;
+                installer.InstallStagedPackage(sw, ctx.FilePath, ctx.Ctx);
+                InstallProgress[i] = 100;
+                AnnounceProgress($"Installed {ctx.Package.Name}");
             }
-            catch (Exception ex)
-            {
-                installErrors.Add(ex);
-            }
+            installer.FinalizeInstall();
 
             if (installErrors.Any())
                 throw new AggregateException("Image deployment failed to install packages.", installErrors);
@@ -346,14 +383,14 @@ namespace OpenTap.Package
             return (int)(n / of * 100);
         }
 
-        private static void Download(PackageDef package, ProgressUpdateDelegate progress,
+        private static string Download(PackageDef package, ProgressUpdateDelegate progress,
             CancellationToken token)
         {
             progress ??= (percent, message) => { };
             if (CachedLocation(package) is string cachedLocation)
             {
                 log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
-                return;
+                return cachedLocation;
             }
 
             string filename = PackageCacheHelper.GetCacheFilePath(package);
@@ -385,6 +422,7 @@ namespace OpenTap.Package
                 throw new Exception(
                     $"Unable to downlaod package {package.Name} because its source type '{package.PackageSource.GetType().Name}' is not supported.");
             }
+            return filename;
         }
 
         private static string CachedLocation(PackageDef package)

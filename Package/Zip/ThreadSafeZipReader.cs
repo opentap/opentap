@@ -8,6 +8,8 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using OpenTap.Cli;
 
 namespace OpenTap.Package.Zip;
 
@@ -17,13 +19,13 @@ internal class ThreadSafeZipReader : IDisposable
     readonly bool leaveOpen;
     private readonly object flock = new();
 
+    static readonly byte[] localFileHeaderMagic = "PK\x03\x04"u8.ToArray();
     public ThreadSafeZipReader(Stream stream, bool leaveOpen)
     {
         f = stream;
         this.leaveOpen = leaveOpen;
-        byte[] magic = "PK\x03\x04"u8.ToArray();
         byte[] header = new byte[4];
-        if (f.Read(header, 0, 4) != 4 || !header.SequenceEqual(magic))
+        if (f.Read(header, 0, 4) != 4 || !header.SequenceEqual(localFileHeaderMagic))
             throw new ArgumentException("Stream is not a zip archive.", nameof(stream));
 
         byte[] eocd = new byte[22];
@@ -37,6 +39,66 @@ internal class ThreadSafeZipReader : IDisposable
         {
             CentralDirectory cd = new(reader);
             Entries.Add(new(cd, this));
+        }
+    }
+
+    class SubStream : Stream
+    {
+        long totalSize;
+        readonly Stream inner; long remaining;
+        public SubStream(Stream inner, long length) 
+        { 
+            this.inner = inner; 
+            remaining = length; 
+            totalSize = length;
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (remaining <= 0) return 0;
+            int n = inner.Read(buffer, offset, (int)Math.Min(count, remaining));
+            remaining -= n;
+            return n;
+        }
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => totalSize;
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override long Seek(long o, SeekOrigin s) => throw new NotSupportedException();
+        public override void SetLength(long v) => throw new NotSupportedException();
+        public override void Write(byte[] b, int o, int c) => throw new NotSupportedException();
+    }
+
+    public class File(Stream stream, string fullname)
+    {
+        public Stream Stream => stream;
+        public string Fullname => fullname;
+    }
+
+    public static IEnumerable<File> StreamOnePass(Stream stream)
+    {
+        var magic = new byte[4];
+        while (stream.Read(magic, 0, 4) == 4 && magic.SequenceEqual(localFileHeaderMagic))
+        {
+            var reader = new BinaryReader(stream, Encoding.Default, true);
+            var header = new LocalFileHeader(reader);
+            if ((header.generalPurpose & 8) != 0)
+            {
+                /* TODO: Files larger than 4GB can typically not be streamed because archivers write their size to 
+                 * another record at the end of the archive instead of the local header.
+                 * In this case, there are no streaming benefits, so we should just give up, wait until the full archive is available,
+                 * and hand it off to ZipArchive. */
+                throw new Exception($"File {header.FullName} is not streamable.");
+            }
+            bool compressed = header.compression == 8;
+            SubStream sub = new(stream, compressed ? (long)header.compressedSize : (long)header.uncompressedSize);
+            Stream s = compressed ? new DeflateStream(sub, CompressionMode.Decompress) : sub;
+            yield return new File(s, Encoding.UTF8.GetString(header.filename));
+            /* ensure the base stream is fast-forwarded to the next local file header */
+            sub.CopyTo(Stream.Null);
         }
     }
 
@@ -63,6 +125,11 @@ internal class ThreadSafeZipReader : IDisposable
             {
                 reader.f.Seek(cd.RelativeOffsetOfLocalFileHeader, SeekOrigin.Begin);
                 using var binreader = new BinaryReader(reader.f, Encoding.Default, true);
+                if (!binreader.ReadBytes(4).SequenceEqual(localFileHeaderMagic))
+                {
+                    /* TODO: zip64 generally not streamable */
+                    throw new Exception("Bad local file header magic");
+                }
                 var header = new LocalFileHeader(binreader);
                 if (header.compression == 0)
                 {
@@ -97,17 +164,17 @@ internal class ThreadSafeZipReader : IDisposable
         public ushort lastModificationTime;
         public ushort lastModificationDate;
         public uint crc32;
-        public uint compressedSize;
-        public uint uncompressedSize;
+        public ulong compressedSize;
+        public ulong uncompressedSize;
         public ushort fileNameLength;
         public ushort extraFieldLength;
         public byte[] filename;
         public byte[] extra;
 
+        public string FullName => Encoding.UTF8.GetString(filename);
+
         public LocalFileHeader(BinaryReader reader)
         {
-            var magic = new byte[] { (byte)'P', (byte)'K', 3, 4 };
-            if (!magic.SequenceEqual(reader.ReadBytes(4))) throw new InvalidOperationException("Bad file header");
             version = reader.ReadUInt16();
             generalPurpose = reader.ReadUInt16();
             compression = reader.ReadUInt16();
@@ -176,7 +243,8 @@ class CentralDirectory
 
     public CentralDirectory(BinaryReader reader)
     {
-        if (!reader.ReadBytes(4).SequenceEqual(cdSignature))
+        byte[] signature = reader.ReadBytes(4);
+        if (!signature.SequenceEqual(cdSignature))
             throw new InvalidOperationException("Invalid central directory signature.");
         VersionMadeBy = reader.ReadUInt16();
         MinimumVersion = reader.ReadUInt16();

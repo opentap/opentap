@@ -12,6 +12,7 @@ using System.Reflection;
 using System.Text;
 using System.Threading;
 using OpenTap.Cli;
+using OpenTap.Package.Zip;
 
 namespace OpenTap.Package
 {
@@ -47,6 +48,111 @@ namespace OpenTap.Package
             }
         }
 
+        internal class StagedPackage
+        {
+            readonly List<(string stage, string target)> ExtractedFiles = [];
+            public static StagedPackage StageFromStream(Stream packageStream, string stagingDir)
+            {
+                StagedPackage ctx = new();
+                foreach (var file in ThreadSafeZipReader.StreamOnePass(packageStream))
+                {
+                    var path = file.Fullname.Replace('\\', '/');
+                    if (PluginInstaller.ZipExclude(path)) continue;
+                    var target = Path.Combine(stagingDir, path);
+                    Directory.CreateDirectory(Path.GetDirectoryName(target));
+                    using (var fs = File.Create(target))
+                    {
+                        file.Stream.CopyTo(fs);
+                    }
+                    ctx.ExtractedFiles.Add((target, path));
+                }
+                return ctx;
+            }
+
+            public void InstallStagedFilesToDestination(string target)
+            {
+                foreach (var file in ExtractedFiles)
+                {
+                    var path = Path.Combine(target, file.target);
+                    Directory.CreateDirectory(Path.GetDirectoryName(path));
+                    File.Move(file.stage, path);
+                }
+            }
+        }
+
+        internal StagedPackage StagePackage(string packageName, Stream packageStream)
+        {
+            var stagingDir = Path.Combine(TapDir, ".install");
+            var ignoreFile = Path.Combine(stagingDir, ".OpenTapIgnore");
+            if (!File.Exists(ignoreFile))
+            {
+                Directory.CreateDirectory(stagingDir);
+                try { File.Create(ignoreFile, 1).Close(); }
+                catch { /* ignore */ }
+            }
+            return StagedPackage.StageFromStream(packageStream, Path.Combine(TapDir, ".install", packageName));
+        }
+
+        internal void InstallStagedPackage(Stopwatch timer, string packagePath, StagedPackage ctx)
+        {
+            PackageDef package = PackageDef.FromPackage(packagePath);
+            PluginInstaller.CheckEula(package);
+
+            WaitForPackageFilesFree(TapDir, [packagePath]);
+            RenamePackageFiles(TapDir, [packagePath]);
+
+            var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : TapDir;
+            ctx.InstallStagedFilesToDestination(destination);
+
+            if (!UnpackOnly)
+            {
+                PluginInstaller.RunInstallActions(package, TapDir);
+            }
+
+            if (ShouldSearch(package))
+            {
+                Search(timer, package);
+            }
+        }
+
+        internal void AbortInstall()
+        {
+            var stagingDir = Path.Combine(TapDir, ".install");
+            Directory.Delete(stagingDir, true);
+        }
+
+        internal void FinalizeInstall()
+        {
+            var stagingDir = Path.Combine(TapDir, ".install");
+            Directory.Delete(stagingDir, true);
+            new Installation(TapDir).AnnouncePackageChange();
+        }
+
+        private bool ShouldSearch(PackageDef pkg)
+        {
+            if (pkg.IsSystemWide()) return false;
+            var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t))
+                .Where(t => t.BaseType == nameof(ICustomPackageData));
+            // Only search again, if the new plugins are not already loaded.
+            return newPlugins.Any(np => TypeData.GetTypeData(np.Name) == null);
+        }
+
+        private void Search(Stopwatch timer, PackageDef pkg)
+        {
+            if (ExecutorClient.IsRunningIsolated)
+            {
+                // Only load installed assemblies if we're running isolated. 
+                log.Info(timer,
+                        $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
+                PluginManager.DirectoriesToSearch.Add(TapDir);
+                PluginManager.SearchAsync();
+            }
+            else
+                log.Warning(
+                        $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
+
+        }
+
         internal void InstallThread()
         {
             if (cancellationToken.IsCancellationRequested)
@@ -77,23 +183,9 @@ namespace OpenTap.Package
                         if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) &&
                             PackagePaths.Last() != fileName)
                         {
-                            var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t))
-                                .Where(t => t.BaseType == nameof(ICustomPackageData));
-                            if (newPlugins.Any(np =>
-                                    TypeData.GetTypeData(np.Name) ==
-                                    null)) // Only search again, if the new plugins are not already loaded.
+                            if (ShouldSearch(pkg))
                             {
-                                if (ExecutorClient.IsRunningIsolated)
-                                {
-                                    // Only load installed assemblies if we're running isolated. 
-                                    log.Info(timer,
-                                        $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
-                                    PluginManager.DirectoriesToSearch.Add(TapDir);
-                                    PluginManager.SearchAsync();
-                                }
-                                else
-                                    log.Warning(
-                                        $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
+                                Search(timer, pkg);
                             }
                         }
                     }
@@ -223,7 +315,6 @@ namespace OpenTap.Package
                     progressPercent += (double)80 / PackagePaths.Count();
                 }
 
-                OnProgressUpdate(90, "");
                 OnProgressUpdate(100, "Done");
             }
             catch (Exception ex)
