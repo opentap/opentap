@@ -36,6 +36,36 @@ namespace OpenTap.Engine.UnitTests
             }
         }
 
+        public enum FailPoint { Run, PreRun, PostRun }
+        public class TestStepExpectedExceptionTest : TestStep
+        {
+            private Verdict _verdict;
+            private FailPoint _failPoint;
+
+            public TestStepExpectedExceptionTest(Verdict verdict, FailPoint failPoint)
+            {
+                _verdict = verdict;
+                _failPoint = failPoint;
+            }
+
+            public override void PrePlanRun()
+            {
+                if (_failPoint == FailPoint.PreRun)
+                    throw new ExpectedException("", _verdict);
+            }
+
+            public override void Run()
+            {
+                if (_failPoint == FailPoint.Run)
+                    throw new ExpectedException("", _verdict);
+            }
+            public override void PostPlanRun()
+            {
+                if (_failPoint == FailPoint.PostRun)
+                    throw new ExpectedException("", _verdict);
+            }
+        }
+
         public class TestStepPreExceptionTest : TestStep
         {
             public override void PrePlanRun()
@@ -309,6 +339,21 @@ namespace OpenTap.Engine.UnitTests
             {
                 EngineSettings.Current.AbortTestPlan = preAbortTestPlan;
             }
+        }
+
+        [Test]
+        [Pairwise]
+        public void TestPlanStepExpectedExceptionTest(
+            [Values(Verdict.Pass, Verdict.Aborted, Verdict.Inconclusive, Verdict.NotSet, Verdict.Error, Verdict.Fail)] Verdict verdict,
+            [Values(FailPoint.PreRun, FailPoint.Run, FailPoint.PostRun)] FailPoint failPoint)
+        {
+            TestPlan plan = new TestPlan();
+            TestStepExpectedExceptionTest step = new TestStepExpectedExceptionTest(verdict, failPoint);
+
+            plan.Steps.Add(step);
+
+            TestPlanRun result = plan.Execute();
+            Assert.AreEqual(verdict, result.Verdict);
         }
 
         [Test]
