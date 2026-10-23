@@ -25,7 +25,6 @@ namespace OpenTap.Package
         internal delegate void ErrorDelegate(Exception ex);
         internal event ErrorDelegate Error;
 
-        internal bool DoSleep { get; set; }
         internal List<string> PackagePaths { get; private set; }
         internal string TapDir { get; set; }
         internal bool UnpackOnly { get; set; }
@@ -35,7 +34,6 @@ namespace OpenTap.Package
         internal Installer(string tapDir, CancellationToken cancellationToken)
         {
             this.cancellationToken = cancellationToken;
-            DoSleep = true;
             UnpackOnly = false;
             PackagePaths = [];
             TapDir = tapDir?.Trim() ?? Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
@@ -118,12 +116,7 @@ namespace OpenTap.Package
                     }
                 }
 
-
-                if (DoSleep)
-                    Thread.Sleep(100);
-
                 OnProgressUpdate(100, $"Package installation finished.");
-                Thread.Sleep(50);
             }
             catch (Exception ex)
             {
@@ -231,12 +224,7 @@ namespace OpenTap.Package
                 }
 
                 OnProgressUpdate(90, "");
-
-                if (DoSleep)
-                    Thread.Sleep(100);
-
                 OnProgressUpdate(100, "Done");
-                Thread.Sleep(50); // Let Eventhandler get the last OnProgressUpdate
             }
             catch (Exception ex)
             {
