@@ -280,7 +280,7 @@ namespace OpenTap.Package
             }
 
             // installProgress already accounts for packages that were already downloaded, so the 
-            Installer installer = new Installer(target, cancellationToken) { DoSleep = false };
+            Installer installer = new Installer(target, cancellationToken);
             installer.ProgressUpdate += (percent, message) => progress(percent, message);   
             installer.PackagePaths.Clear();
             installer.PackagePaths.AddRange(paths);
@@ -308,11 +308,10 @@ namespace OpenTap.Package
             orderedPackagesToUninstall.Reverse();
 
             List<Exception> uninstallErrors = new List<Exception>();
-            var newInstaller = new Installer(target, cancellationToken) { DoSleep = false };
+            var newInstaller = new Installer(target, cancellationToken);
             newInstaller.ProgressUpdate += (percent, message) => progress?.Invoke(percent, message); 
 
             newInstaller.Error += ex => uninstallErrors.Add(ex);
-            newInstaller.DoSleep = false;
 
             newInstaller.PackagePaths.AddRange(orderedPackagesToUninstall.Select(x => (x.PackageSource as XmlPackageDefSource)?.PackageDefFilePath).ToList());
             
