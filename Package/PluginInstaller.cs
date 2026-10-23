@@ -30,6 +30,49 @@ namespace OpenTap.Package
         NothingToDo
     }
 
+    /// <summary> Exception originating from a failed PackageAction </summary>
+    public class PackageActionException(string message, List<PackageActionException.Output> mixedOutput, int exitCode, long[] expectedExitCodes) : Exception(message)
+    {
+        /// <summary> Source Stream </summary>
+        public enum Stream
+        {
+            /// <summary> StandardOut </summary>
+            StandardOut,
+            /// <summary> StandardError </summary>
+            StandardError,
+        };
+
+        /// <summary>
+        /// Represents a line originating from a stream
+        /// </summary>
+        public class Output(string line, Stream stream)
+        {
+            /// <summary>
+            /// Output line
+            /// </summary>
+            public string Line { get; } = line;
+            /// <summary>
+            /// Source stream
+            /// </summary>
+            public Stream Stream { get; } = stream;
+        }
+
+        /// <summary>
+        /// Represents the output and errors associated with the failed package action in the order the output arrived.
+        /// </summary>
+        public List<Output> MixedOutput { get; } = mixedOutput;
+
+        /// <summary>
+        /// The exitcode of the failing package action.
+        /// </summary>
+        public int ExitCode { get; } = exitCode;
+
+        /// <summary>
+        /// The exitcodes required for the package action to succeed.
+        /// </summary>
+        public long[] ExpectedExitCodes { get; } = expectedExitCodes;
+    }
+
     /// <summary>
     /// Executes a package action on a single package. Can optionally be used to execute a builtin action first.
     /// </summary>
@@ -54,19 +97,25 @@ namespace OpenTap.Package
         {
             try
             {
+                ExecuteException = null;
                 if (Execute != null)
                 {
                     return Execute(pluginInstaller, this, package, force, target);
                 }
                 else
+                {
                     return ExecutePackageActionSteps(package, force, target);
+                }
             }
             catch (Exception ex)
             {
                 log.Error(ex.Message);
+                ExecuteException = ex;
                 return ActionResult.Error;
             }
         }
+
+        internal Exception ExecuteException { get; private set; } = null;
 
         internal ActionResult ExecutePackageActionSteps(PackageDef package, bool force, string workingDirectory)
         {
@@ -132,7 +181,17 @@ namespace OpenTap.Package
                 // If its not an interactive session
                 if (NonInteractiveUserInputInterface.IsSet())
                     pi.Environment["OPENTAP_NONINTERACTIVE"] = "true";
-                
+
+                List<PackageActionException.Output> mixedOutput = [];
+                void AddOutput(bool error, string line)
+                {
+                    if (string.IsNullOrWhiteSpace(line)) return;
+                    var stream = error ? PackageActionException.Stream.StandardError : PackageActionException.Stream.StandardOut;
+                    var elem = new PackageActionException.Output(line, stream);
+                    lock (mixedOutput)
+                        mixedOutput.Add(elem);
+                }
+
                 try
                 {
                     Process p;
@@ -152,6 +211,7 @@ namespace OpenTap.Package
 
                         p.ErrorDataReceived += (s, e) =>
                         {
+                            AddOutput(true, e.Data);
                             if (step.Quiet) 
                                 return;
                             if (!string.IsNullOrEmpty(e.Data))
@@ -164,6 +224,7 @@ namespace OpenTap.Package
                         };
                         p.OutputDataReceived += (s, e) =>
                         {
+                            AddOutput(false, e.Data);
                             if (step.Quiet) 
                                 return;
                             if (!string.IsNullOrEmpty(e.Data))
@@ -183,7 +244,7 @@ namespace OpenTap.Package
 
                     if (step.ExpectedExitCodes != "*")
                     {
-                        var expectedExitCodes = step.ExpectedExitCodes.Split(',').TrySelect(int.Parse,
+                        var expectedExitCodes = step.ExpectedExitCodes.Split(',').TrySelect(long.Parse,
                                 (_, stringValue) => log.Error($"Failed to parse string '{stringValue}' as an integer."))
                             .ToHashSet();
 
@@ -191,7 +252,11 @@ namespace OpenTap.Package
                             expectedExitCodes.Add(0);
 
                         if (!expectedExitCodes.Contains(p.ExitCode))
-                            throw new Exception($"Failed to run {step.ActionName} step {stepName}. Unexpected exitcode: {p.ExitCode}");
+                        {
+                            long[] expected = [.. expectedExitCodes];
+                            Array.Sort(expected);
+                            throw new PackageActionException($"Failed to run {step.ActionName} step {stepName}. Unexpected exitcode: {p.ExitCode}", mixedOutput, p.ExitCode, expected);
+                        }
                     }
 
                     log.Info(sw, $"Successfully ran {step.ActionName} step  {stepName}. {(p.ExitCode != 0 ? $"Exitcode: {p.ExitCode}" : "")}");
@@ -203,9 +268,8 @@ namespace OpenTap.Package
                 catch (Exception e)
                 {
                     log.Error(sw, e.Message);
-
                     if (!force)
-                        throw new Exception($"Failed to run {step.ActionName} package action.");
+                        throw new Exception($"Failed to run {step.ActionName} package action.", e);
                 }
             }
 
@@ -220,7 +284,7 @@ namespace OpenTap.Package
                 var message = line;
                 string split = " : ";
 
-                var logParts = line.Split(new string[] { split }, StringSplitOptions.None);
+                var logParts = line.Split([split], StringSplitOptions.None);
 
                 if (logParts.Length < 4)
                 {
@@ -381,7 +445,9 @@ namespace OpenTap.Package
             {
                 log.Error($"Install package action failed to execute for '{package.Name}'.");
                 tryUninstall(path, package, target);
-                throw new Exception($"Failed to install package '{path}'.");
+                var msg = $"Failed to install package '{path}'.";
+                if (pi.ExecuteException != null) throw new Exception(msg, pi.ExecuteException);
+                throw new Exception(msg);
             }
 
             CustomPackageActionHelper.RunCustomActions(package, PackageActionStage.Install,
@@ -575,6 +641,7 @@ namespace OpenTap.Package
             pi.ExecuteAction(package, Installer.Uninstall, true, target);
         }
 
+        internal Exception ExecuteException { get; private set; } = null;
         internal ActionResult ExecuteAction(PackageDef package, string actionName, bool force, string target)
         {
             ActionExecuter action = builtinActions.FirstOrDefault(r => r.ActionName == actionName);
@@ -582,7 +649,10 @@ namespace OpenTap.Package
             if (action == null)
                 action = new ActionExecuter { ActionName = actionName };
 
-            return action.DoExecute(this, package, force, target);
+            ExecuteException = null;
+            var result = action.DoExecute(this, package, force, target);
+            ExecuteException = action.ExecuteException;
+            return result;
         }
 
         private static ActionResult DoUninstall(PluginInstaller pluginInstaller, ActionExecuter action, PackageDef package, bool force, string target)
@@ -613,7 +683,7 @@ namespace OpenTap.Package
                 if (action.ExecutePackageActionSteps(package, force, target) == ActionResult.Error)
                     throw new Exception();
             }
-            catch
+            catch (Exception)
             {
                 log.Error($"Uninstall package action failed to execute for package '{package.Name}'.");
                 result = ActionResult.Error;
