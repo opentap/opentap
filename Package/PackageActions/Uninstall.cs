@@ -100,7 +100,7 @@ namespace OpenTap.Package
                 }
             }
 
-            Installer installer = new Installer(Target, cancellationToken) {DoSleep = false};
+            Installer installer = new Installer(Target, cancellationToken);
             installer.PackagePaths.AddRange(packagePaths);
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;

@@ -26,7 +26,7 @@ namespace OpenTap.Package
             var target = LockingPackageAction.GetLocalInstallationDir();
 
 
-            Installer installer = new Installer(target, cancellationToken) {DoSleep = false};
+            Installer installer = new Installer(target, cancellationToken);
             installer.ProgressUpdate += RaiseProgressUpdate;
             installer.Error += RaiseError;
 
