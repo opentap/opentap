@@ -297,7 +297,7 @@ namespace OpenTap.Package
                 using var zip = new ZipArchive(fileStream, ZipArchiveMode.Read);
                 foreach (var part in zip.Entries)
                 {
-                    if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
+                    if (ZipExclude(part.FullName))
                         continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
 
                     string path = Uri.UnescapeDataString(part.FullName);
@@ -415,6 +415,15 @@ namespace OpenTap.Package
             }
         }
 
+        static bool ZipExclude(string fullname)
+        {
+            if (string.IsNullOrWhiteSpace(fullname))
+                return true;
+            if (Path.GetFileName(fullname) == "[Content_Types].xml" || Path.GetFileName(fullname) == ".rels" || fullname.StartsWith("package/services/metadata/core-properties"))
+                return true;
+            return false;
+        }
+
         /// <summary>
         /// Unpacks a *.TapPackages file to the specified directory.
         /// </summary>
@@ -428,11 +437,7 @@ namespace OpenTap.Package
                 {
                     foreach (var part in zip.Entries)
                     {
-                        if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
-                            continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
-                        if (string.IsNullOrWhiteSpace(part.Name))
-                            continue;
-
+                        if (ZipExclude(part.FullName)) continue;
                         string path = Uri.UnescapeDataString(part.FullName).Replace('\\', '/');
                         path = Path.Combine(destinationDir, path).Replace('\\', '/');
 
@@ -545,8 +550,8 @@ namespace OpenTap.Package
                 using var zip = new ZipArchive(fileStream, ZipArchiveMode.Read);
                 foreach (var part in zip.Entries)
                 {
-                    if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
-                        continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
+                    if (ZipExclude(part.FullName))
+                        continue;
 
                     string path = Uri.UnescapeDataString(part.FullName);
                     if (path == relativeFilePath)
