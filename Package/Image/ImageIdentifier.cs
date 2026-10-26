@@ -1,13 +1,16 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
+using System.Buffers;
+using OpenTap.Cli;
+using OpenTap.Package.Zip;
 
 namespace OpenTap.Package
 {
@@ -199,106 +202,240 @@ namespace OpenTap.Package
                 Install(modifyOrAdd, currentInstallation.Directory, progress, cancellationToken);
         }
 
-        private static void Install(IEnumerable<PackageDef> modifyOrAdd, string target,
-            ProgressUpdateDelegate progress, CancellationToken cancellationToken)
+        struct StagingResult
         {
-            progress ??= (percent, message) => { };
-            var packagesInOrder = OrderPackagesForInstallation(modifyOrAdd);
+            public PackageDef Package;
+            public string FilePath;
+            public StagingInstaller.StagedPackage Ctx;
+        }
 
-            var channel = new BlockingCollection<(int id, string what, object value)>();
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        static bool Passthrough(Exception ex) => ex is OperationCanceledException or ExitCodeException;
 
-            for (int i = 0; i < packagesInOrder.Count; i++)
+        static Stream GetPackageStream(PackageDef package, CancellationToken token, out string filepath)
+        {
+            if (package.PackageSource is IFilePackageDefSource fd)
             {
-                int index = i;
-                var package = packagesInOrder[index];
+                filepath = fd.PackageFilePath;
+                return File.OpenRead(fd.PackageFilePath);
+            }
+
+            if (CachedLocation(package) is string cachedLocation)
+            {
+                filepath = cachedLocation;
+                return File.OpenRead(cachedLocation);
+            }
+
+            // TODO: Update this so the download stream can be consumed in-flight.
+            // When that happens, read errors while staging from the stream may also be network errors.
+            try
+            {
+                filepath = Download(package, null, token);
+            }
+            catch (Exception ex) when (package.PackageSource is IRepositoryPackageDefSource repo && !Passthrough(ex))
+            {
+                throw DeploymentError(ExitCodes.NetworkError,
+                    $"Failed to download {Describe(package)} from '{repo.RepositoryUrl}': {ex.Message}", ex);
+            }
+            return File.OpenRead(filepath);
+        }
+
+        static string Describe(PackageDef package) => $"package '{package.Name}' version {package.Version}";
+
+        static ExitCodeException DeploymentError(ExitCodes code, string message, Exception inner) =>
+            DeploymentError((int)code, message, inner);
+
+        static ExitCodeException DeploymentError(PackageExitCodes code, string message, Exception inner) =>
+            DeploymentError((int)code, message, inner);
+
+        /// <summary>
+        /// Creates the exception used to report a deployment failure. <see cref="ExitCodeException"/> cannot carry
+        /// an inner exception, so the original exception is logged at debug level to keep the stack trace.
+        /// </summary>
+        static ExitCodeException DeploymentError(int code, string message, Exception inner)
+        {
+            if (inner != null)
+                log.Debug(inner);
+            return new ExitCodeException(code, message);
+        }
+
+        /// <summary>
+        /// Maps an exception thrown while staging (extracting) a package to an <see cref="ExitCodeException"/>.
+        /// Exceptions that already carry an exit code, and cancellations, are returned unchanged.
+        /// </summary>
+        static Exception StagingError(PackageDef package, string filePath, Exception ex)
+        {
+            switch (ex)
+            {
+                case ExitCodeException:
+                case OperationCanceledException:
+                    return ex;
+                // Corrupt, truncated or otherwise unreadable package archives.
+                // UnstreamableZipException is not listed: it never reaches here, because staging falls back to
+                // ZipArchive when it is thrown.
+                case InvalidDataException:
+                case EndOfStreamException:
+                    return DeploymentError(PackageExitCodes.InvalidPackageArchive,
+                        $"Failed to extract {Describe(package)} from '{filePath}': the package file is invalid or corrupt. {ex.Message}", ex);
+                default:
+                    return DeploymentError(PackageExitCodes.PackageInstallError,
+                        $"Failed to extract {Describe(package)} from '{filePath ?? "<unknown>"}': {ex.Message}", ex);
+            }
+        }
+
+        const int StagingWorkerCount = 8;
+
+        /// <summary>
+        /// Stages all packages using a bounded pool of worker threads. Workers pick packages in
+        /// install order, so the packages the sequential install loop needs first are staged first.
+        /// </summary>
+        static Task<StagingResult>[] StagePackages(StagingInstaller installer, IReadOnlyList<PackageDef> packages, CancellationToken token)
+        {
+            var sources = new TaskCompletionSource<StagingResult>[packages.Count];
+            for (int i = 0; i < sources.Length; i++)
+                sources[i] = new TaskCompletionSource<StagingResult>();
+
+            int next = -1;
+            int workers = Math.Min(StagingWorkerCount, packages.Count);
+            for (int w = 0; w < workers; w++)
+            {
                 TapThread.Start(() =>
                 {
-                    string path = null;
-                    try
+                    int i;
+                    while ((i = Interlocked.Increment(ref next)) < packages.Count)
                     {
-                        // If the package is a file, download it directory instead of caching it
-                        if (package.PackageSource is IFilePackageDefSource fd)
+                        var package = packages[i];
+                        if (token.IsCancellationRequested)
                         {
-                            path = fd.PackageFilePath;
+                            sources[i].TrySetCanceled(token);
+                            continue;
                         }
-                        else
+                        StagingResult result = new() { Package = package };
+                        try
                         {
-                            if (CachedLocation(package) is string cachedLocation)
+                            using Stream packageStream = GetPackageStream(package, token, out result.FilePath);
+                            try 
                             {
-                                log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
+                                result.Ctx = installer.StagePackageFromStream(result.FilePath, packageStream, token);
                             }
-                            else
+                            catch (UnstreamableZipException)
                             {
-                                void Progress(int percent, string message)
+                                /* File cannot be streamed. Fall back to native ZipArchive.
+                                 * By exhausting the stream we can be sure the download operation is complete.
+                                 * The file should now be locally available. */
+                                packageStream.CopyTo(Stream.Null);
+                                for (int retry = 0; retry < 10; retry++)
                                 {
-                                    channel.Add((index, "progress", percent));
+                                    /* The downloaded file may be incrementally downloaded to a temp path.
+                                     * Wait for it to exist before proceeding */
+                                    if (File.Exists(result.FilePath)) break;
+                                    /* sleep for 1, 2, 4, ... 1024 ms (total of ~2s)
+                                     * This should be more than enough since we already exhausted the stream. */
+                                    TapThread.Sleep(1 << retry);
                                 }
-                                Download(package, Progress, cts.Token);
+                                if (!File.Exists(result.FilePath))
+                                    throw new FileNotFoundException("The package file does not exist.", result.FilePath);
+                                result.Ctx = installer.StagePackageFromFile(result.FilePath, token);
                             }
-                            path = CachedLocation(package);
+                            sources[i].SetResult(result);
                         }
-                        channel.Add((index, "done", path));
-                    }
-                    catch (Exception ex)
-                    {
-                        channel.Add((index, "error", ex));
+                        catch (Exception) when (token.IsCancellationRequested)
+                        {
+                            // Staging was cancelled, either by the user or because the deployment already failed.
+                            // Errors raised as a side effect of cancellation (e.g. an aborted download) are not
+                            // the cause of the failure, so they are not reported.
+                            sources[i].TrySetCanceled(token);
+                        }
+                        catch (Exception ex)
+                        {
+                            sources[i].SetException(StagingError(package, result.FilePath, ex));
+                        }
                     }
                 });
             }
+            return [.. sources.Select(s => s.Task)];
+        }
 
-            var downloadProgress = new int[packagesInOrder.Count];
-            // Download progress is the cumulative download progress divided by 2 
-            void announceProgress(string message)
+        private static void Install(IEnumerable<PackageDef> modifyOrAdd, string target,
+            ProgressUpdateDelegate progress, CancellationToken cancellationToken)
+        {
+            var sw = Stopwatch.StartNew();
+            progress ??= (percent, message) => { };
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var packagesInOrder = OrderPackagesForInstallation(modifyOrAdd);
+            var installer = new StagingInstaller(target);
+
+            // Start staging first, so it runs while existing files are moved aside below.
+            var StagedPackages = StagePackages(installer, packagesInOrder, cts.Token);
+
+            int[] StagingProgress = new int[packagesInOrder.Count];
+            int[] InstallProgress = new int[packagesInOrder.Count];
+
+            void AnnounceProgress(string message)
             {
-                var completed = (double)downloadProgress.Sum() / downloadProgress.Length;
-                progress((int)(completed / 2), message);
+                double stg = (double)StagingProgress.Sum() / StagingProgress.Length;
+                double inst = (double)InstallProgress.Sum() / InstallProgress.Length;
+                progress((int)(stg * 0.8 + inst * 0.2), message);
             }
 
-            string[] paths = new string[packagesInOrder.Count];
-            int missing = packagesInOrder.Count;
-            while (missing > 0)
+            for (int i = 0; i < StagedPackages.Length; i++)
             {
-                var (idx, what, data) = channel.Take();
-                switch (what)
+                int index = i;
+                StagedPackages[i].ContinueWith(t =>
                 {
-                    case "progress":
-                        downloadProgress[idx] = (int)data;
-                        announceProgress($"Downloading {packagesInOrder[idx].Name}");
-                        break;
-                    case "done":
-                        paths[idx] = (string)data;
-                        missing--;
-                        downloadProgress[idx] = 100;
-                        announceProgress($"Downloaded {packagesInOrder[idx].Name}");
-                        break;
-                    case "error":
-                        ExceptionDispatchInfo.Capture((Exception)data).Throw();
-                        break;
-                    default: throw new InvalidOperationException(what);
-                }
+                    StagingProgress[index] = 100;
+                    AnnounceProgress($"Staged {packagesInOrder[index].Name}");
+                }, cts.Token, TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
             }
-
-            // installProgress already accounts for packages that were already downloaded, so the 
-            Installer installer = new Installer(target, cancellationToken);
-            installer.ProgressUpdate += (percent, message) => progress(percent, message);   
-            installer.PackagePaths.Clear();
-            installer.PackagePaths.AddRange(paths);
-
-            List<Exception> installErrors = new List<Exception>();
-            installer.Error += installErrors.Add;
 
             try
             {
-                installer.InstallThread();
+                // Move existing files aside for all packages at once. Uses only the package definitions, so it runs
+                // on this thread while packages are staged, and must finish before the first package is installed.
+                installer.PrepareDestination(packagesInOrder);
+
+                for (int i = 0; i < packagesInOrder.Count; i++)
+                {
+                    // GetResult() rethrows the worker's exception directly. Task.Result would wrap it in an
+                    // AggregateException, losing the exit code and the error message.
+                    var ctx = StagedPackages[i].GetAwaiter().GetResult();
+                    try
+                    {
+                        installer.InstallStagedPackage(sw, ctx.Ctx);
+                    }
+                    catch (Exception ex) when (ex is not ExitCodeException && ex is not OperationCanceledException)
+                    {
+                        throw DeploymentError(PackageExitCodes.PackageInstallError,
+                            $"Failed to install {Describe(ctx.Package)}: {ex.Message}", ex);
+                    }
+                    InstallProgress[i] = 100;
+                    AnnounceProgress($"Installed {ctx.Package.Name}");
+                }
             }
             catch (Exception ex)
             {
-                installErrors.Add(ex);
+                // Stop staging and wait for the workers to finish, so nothing is written to the staging directory
+                // while it is being deleted.
+                cts.Cancel();
+                try { Task.WaitAll(StagedPackages); } catch { /* inspected below */ }
+
+                // Staging runs in parallel, so other packages may have failed independently of the error that
+                // stopped the deployment. Report them as well, so the user sees every problem at once.
+                foreach (var task in StagedPackages)
+                {
+                    if (task.IsFaulted && task.Exception?.InnerException is Exception stagingError && stagingError != ex)
+                        log.Error(stagingError.Message);
+                }
+
+                installer.Rollback();
+
+                if (ex is OperationCanceledException && cancellationToken.IsCancellationRequested)
+                    throw new OperationCanceledException("Deployment operation cancelled by user", ex, cancellationToken);
+                if (ex is ExitCodeException || ex is OperationCanceledException)
+                    throw;
+                throw DeploymentError(PackageExitCodes.PackageInstallError, $"Image deployment failed: {ex.Message}", ex);
             }
 
-            if (installErrors.Any())
-                throw new AggregateException("Image deployment failed to install packages.", installErrors);
+            installer.FinalizeInstall();
         }
 
         private static void Uninstall(IEnumerable<PackageDef> packagesToUninstall, string target,
@@ -311,18 +448,31 @@ namespace OpenTap.Package
             var newInstaller = new Installer(target, cancellationToken);
             newInstaller.ProgressUpdate += (percent, message) => progress?.Invoke(percent, message); 
 
-            newInstaller.Error += ex => uninstallErrors.Add(ex);
+            newInstaller.Error += uninstallErrors.Add;
 
             newInstaller.PackagePaths.AddRange(orderedPackagesToUninstall.Select(x => (x.PackageSource as XmlPackageDefSource)?.PackageDefFilePath).ToList());
             
             int exitCode = newInstaller.RunCommand(Installer.PrepareUninstall, false, false);
-            if (uninstallErrors.Any() || exitCode != 0)
-                throw new AggregateException("Image deployment failed to uninstall existing packages.", uninstallErrors);
+            ThrowOnUninstallError(exitCode, uninstallErrors, cancellationToken);
             
             exitCode = newInstaller.RunCommand(Installer.Uninstall, false, true);
+            ThrowOnUninstallError(exitCode, uninstallErrors, cancellationToken);
+        }
 
-            if (uninstallErrors.Any() || exitCode != 0)
-                throw new AggregateException("Image deployment failed to uninstall existing packages.", uninstallErrors);
+        static void ThrowOnUninstallError(int exitCode, List<Exception> errors, CancellationToken cancellationToken)
+        {
+            if (exitCode == (int)ExitCodes.Success && errors.Count == 0)
+                return;
+            if (exitCode == (int)ExitCodes.UserCancelled || cancellationToken.IsCancellationRequested)
+                throw new OperationCanceledException("Deployment operation cancelled by user", cancellationToken);
+
+            foreach (var error in errors)
+            {
+                log.Error(error.Message);
+                log.Debug(error);
+            }
+            throw new ExitCodeException((int)PackageExitCodes.PackageUninstallError,
+                "Image deployment failed to uninstall existing packages.");
         }
 
         private static List<PackageDef> OrderPackagesForInstallation(IEnumerable<PackageDef> packages)
@@ -346,14 +496,14 @@ namespace OpenTap.Package
             return (int)(n / of * 100);
         }
 
-        private static void Download(PackageDef package, ProgressUpdateDelegate progress,
+        private static string Download(PackageDef package, ProgressUpdateDelegate progress,
             CancellationToken token)
         {
             progress ??= (percent, message) => { };
             if (CachedLocation(package) is string cachedLocation)
             {
                 log.Info($"Package {package.Name} exists in cache: {cachedLocation}");
-                return;
+                return cachedLocation;
             }
 
             string filename = PackageCacheHelper.GetCacheFilePath(package);
@@ -385,6 +535,7 @@ namespace OpenTap.Package
                 throw new Exception(
                     $"Unable to downlaod package {package.Name} because its source type '{package.PackageSource.GetType().Name}' is not supported.");
             }
+            return filename;
         }
 
         private static string CachedLocation(PackageDef package)
@@ -397,6 +548,5 @@ namespace OpenTap.Package
             }
             return null;
         }
-
     }
 }
