@@ -504,32 +504,34 @@ namespace OpenTap.Package
                 throw;
             }
 
-            SetHiddenAttributes(installedParts);
+            SetHiddenAttributes(destinationDir, installedParts);
             return installedParts;
         }
 
-        private static void SetHiddenAttributes(List<string> parts)
+        internal static void SetHiddenAttributes(string root, List<string> paths)
         {
-            if (OperatingSystem.Current == OperatingSystem.Windows)
-            {
-                foreach (var path in parts)
-                {
-                    // Set file hidden attribute
-                    if (Path.GetFileName(path).StartsWith("."))
-                        File.SetAttributes(path, FileAttributes.Hidden);
+            if (OperatingSystem.Current != OperatingSystem.Windows) return;
+            root = root.Replace('\\', '/').TrimEnd('/');
 
-                    // Set directory hidden attribute
-                    var hiddenIndex = path.IndexOf("/.");
-                    while (hiddenIndex > 0)
+            foreach (var inputpath in paths)
+            {
+                var path = inputpath.Replace('\\', '/');
+                if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase)) continue;
+                // Set file hidden attribute
+                if (Path.GetFileName(path).StartsWith("."))
+                    File.SetAttributes(path, FileAttributes.Hidden);
+
+                // Set directory hidden attribute
+                var hiddenIndex = path.IndexOf("/.", root.Length);
+                while (hiddenIndex > 0)
+                {
+                    var hiddenDirLength = path.Substring(++hiddenIndex).IndexOf('/');
+                    if (hiddenDirLength > 0)
                     {
-                        var hiddenDirLength = path.Substring(++hiddenIndex).IndexOf('/');
-                        if (hiddenDirLength > 0)
-                        {
-                            var tempPath = path.Substring(0, hiddenIndex + hiddenDirLength + 1);
-                            File.SetAttributes(tempPath, FileAttributes.Hidden);
-                        }
-                        hiddenIndex = path.IndexOf("/.", ++hiddenIndex);
+                        var tempPath = path.Substring(0, hiddenIndex + hiddenDirLength + 1);
+                        File.SetAttributes(tempPath, FileAttributes.Hidden);
                     }
+                    hiddenIndex = path.IndexOf("/.", ++hiddenIndex);
                 }
             }
         }
