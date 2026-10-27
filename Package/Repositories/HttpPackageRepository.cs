@@ -103,7 +103,7 @@ namespace OpenTap.Package
 
         Action<string, long, long> IPackageDownloadProgress.OnProgressUpdate { get; set; }
 
-        void DoDownloadPackage(PackageDef package, FileStream fileStream, CancellationToken cancellationToken)
+        internal void DoDownloadPackage(PackageDef package, Stream fileStream, CancellationToken cancellationToken, Action<long, long> progress)
         {
             var totalSize = -1L;
             // this retry loop is to robustly to download the package even if the connection is intermittently lost
@@ -129,15 +129,12 @@ namespace OpenTap.Package
                     transient = true;
                     if (totalSize < 0) totalSize = responseStream.Length;
 
+                    const int updateInterval = 1000;
                     var task = responseStream.CopyToAsync(fileStream, _DefaultCopyBufferSize, cancellationToken);
-                    ConsoleUtils.ReportProgressTillEnd(task, $"Downloading {package.Name}",
-                        () => fileStream.Position,
-                        () => totalSize,
-                        (header, pos, len) =>
-                        {
-                            ConsoleUtils.printProgress(header, pos, len);
-                            (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
-                        });
+                    progress(fileStream.Position, totalSize);
+                    while (!task.Wait(updateInterval))
+                        progress(fileStream.Position, totalSize);
+                    progress(fileStream.Position, totalSize);
                     break;
                 }
                 catch (Exception ex) when (ex is IOException || ex is HttpRequestException || transient)
@@ -320,7 +317,14 @@ namespace OpenTap.Package
                         OS = package.OS
                     };
 
-                    DoDownloadPackage(packageDef, tmpFile, cancellationToken);
+                    string header = $"Downloading {package.Name}";
+                    void Progress(long pos, long len)
+                    {
+                        ConsoleUtils.printProgress(header, pos, len);
+                        (this as IPackageDownloadProgress).OnProgressUpdate?.Invoke(header, pos, len);
+                    }
+                    DoDownloadPackage(packageDef, tmpFile, cancellationToken, Progress);
+                    Console.WriteLine();
                 }
 
                 if (cancellationToken.IsCancellationRequested == false)

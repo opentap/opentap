@@ -13,9 +13,10 @@ namespace OpenTap
         {
             // 61 Downloading 'MyPlugin2|1.3.3+Build-something' (23.26% | 1.02 kB of 4.40 kB)
             var downloadProgress = 100.0 * pos / len;
+            var completed = new string('=', (int) (30 * pos / len));
+            var missing = new string(' ', (int) (30 - 30 * pos / len));
             var progressString = $"({downloadProgress:0.00}% | {Utils.BytesToReadable(pos)} of {Utils.BytesToReadable(len)})";
-            Console.Write(
-                $"{header} [{new string('=', (int) (30 * pos / len))}{new string(' ', (int) (30 - 30 * pos / len))}] {progressString}   \r");
+            Console.Write($"{header} [{completed}{missing}] {progressString}   \r");
         }
 
         public static void PrintProgressTillEnd(Task task, string header, Func<long> pos, Func<long> len)
@@ -39,33 +40,6 @@ namespace OpenTap
                 while (!task.Wait(updateDelayMs));
 
                 updateProgress(header, len(), len());
-            }
-            finally
-            {
-                Console.WriteLine();
-            }
-        }
-        public static async Task ReportProgressTillEndAsync(Task task, string header, Func<long> pos, Func<long> len,
-            Action<string, long, long> updateProgress, int updateDelayMs = 1000)
-        {
-            updateProgress ??= ((h, p, l) => { });
-
-            if (task == await Task.WhenAny(task, Task.Delay(updateDelayMs)))
-                return;
-            
-            try
-            {
-                do
-                {
-                    updateProgress(header, pos(), len());
-                    
-                    //Task.WhenAny returns the completed task.
-                    // if task is completed we can stop iterating.
-                } while (task != await Task.WhenAny(task, Task.Delay(updateDelayMs)));
-                
-                if(task.IsCanceled == false && task.IsFaulted == false)
-                    updateProgress(header, len(), len()); // print 100%
-                await task; // throw exceptions if necessary.
             }
             finally
             {
