@@ -300,8 +300,7 @@ namespace OpenTap.Package
                     if (ZipExclude(part.FullName))
                         continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
 
-                    string path = Uri.UnescapeDataString(part.FullName);
-                    files.Add(path);
+                    files.Add(part.FullName);
                 }
             }
             catch (InvalidDataException)
@@ -438,7 +437,7 @@ namespace OpenTap.Package
                     foreach (var part in zip.Entries)
                     {
                         if (ZipExclude(part.FullName)) continue;
-                        string path = Uri.UnescapeDataString(part.FullName).Replace('\\', '/');
+                        string path = part.FullName.Replace('\\', '/');
                         path = Path.Combine(destinationDir, path).Replace('\\', '/');
 
                         var sw = Stopwatch.StartNew();
@@ -553,8 +552,7 @@ namespace OpenTap.Package
                     if (ZipExclude(part.FullName))
                         continue;
 
-                    string path = Uri.UnescapeDataString(part.FullName);
-                    if (path == relativeFilePath)
+                    if (part.FullName == relativeFilePath)
                     {
                         part.Open().CopyTo(destination);
                         return true;
