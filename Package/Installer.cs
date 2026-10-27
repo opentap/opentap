@@ -47,6 +47,31 @@ namespace OpenTap.Package
             }
         }
 
+        internal static bool ShouldSearch(PackageDef pkg)
+        {
+            if (pkg.IsSystemWide()) return false;
+            var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t))
+                .Where(t => t.BaseType == nameof(ICustomPackageData));
+            // Only search again, if the new plugins are not already loaded.
+            return newPlugins.Any(np => TypeData.GetTypeData(np.Name) == null);
+        }
+
+        internal static void Search(Stopwatch timer, PackageDef pkg, string TapDir)
+        {
+            if (ExecutorClient.IsRunningIsolated)
+            {
+                // Only load installed assemblies if we're running isolated. 
+                log.Info(timer,
+                        $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
+                PluginManager.DirectoriesToSearch.Add(TapDir);
+                PluginManager.SearchAsync();
+            }
+            else
+                log.Warning(
+                        $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
+
+        }
+
         internal void InstallThread()
         {
             if (cancellationToken.IsCancellationRequested)
@@ -77,23 +102,9 @@ namespace OpenTap.Package
                         if (pkg.Files.Any(s => s.Plugins.Any(p => p.BaseType == nameof(ICustomPackageData))) &&
                             PackagePaths.Last() != fileName)
                         {
-                            var newPlugins = pkg.Files.SelectMany(s => s.Plugins.Select(t => t))
-                                .Where(t => t.BaseType == nameof(ICustomPackageData));
-                            if (newPlugins.Any(np =>
-                                    TypeData.GetTypeData(np.Name) ==
-                                    null)) // Only search again, if the new plugins are not already loaded.
+                            if (ShouldSearch(pkg))
                             {
-                                if (ExecutorClient.IsRunningIsolated)
-                                {
-                                    // Only load installed assemblies if we're running isolated. 
-                                    log.Info(timer,
-                                        $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
-                                    PluginManager.DirectoriesToSearch.Add(TapDir);
-                                    PluginManager.SearchAsync();
-                                }
-                                else
-                                    log.Warning(
-                                        $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations, but these will not be loaded.");
+                                Search(timer, pkg, TapDir);
                             }
                         }
                     }
@@ -223,7 +234,6 @@ namespace OpenTap.Package
                     progressPercent += (double)80 / PackagePaths.Count();
                 }
 
-                OnProgressUpdate(90, "");
                 OnProgressUpdate(100, "Done");
             }
             catch (Exception ex)
@@ -324,7 +334,7 @@ namespace OpenTap.Package
             }
         }
 
-        private string BuildString(FileInfo[] filesInUse)
+        internal static string BuildString(FileInfo[] filesInUse)
         {
             var sb = new StringBuilder();
             sb.AppendLine("The following files cannot be modified because they are in use:");
@@ -344,7 +354,7 @@ namespace OpenTap.Package
             return sb.ToString();
         }
 
-        static readonly TimeSpan waitForFilesTimeout = TimeSpan.FromMinutes(2);
+        internal static readonly TimeSpan waitForFilesTimeout = TimeSpan.FromMinutes(2);
 
         private bool isPackageFilesInUse(string tapDir, List<string> packagePaths)
         {

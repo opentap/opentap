@@ -335,6 +335,12 @@ namespace OpenTap.Package
             return false;
         }
 
+        internal static void CheckEula(PackageDef package)
+        {
+            if (!EulaAccept(package))
+                throw new Cli.ExitCodeException((int)PackageExitCodes.EulaNotAccepted, "EULA not accepted.");
+        }
+
         /// <summary>
         /// Tries to install a plugin from 'path', throws an exception on error.
         /// </summary>
@@ -344,8 +350,7 @@ namespace OpenTap.Package
             checkFileExists(path);
 
             var package = PackageDef.FromPackage(path);
-            if (!EulaAccept(package))
-                throw new Cli.ExitCodeException((int)PackageExitCodes.EulaNotAccepted, "EULA not accepted.");
+            CheckEula(package);
 
             var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : target;
 
@@ -414,11 +419,22 @@ namespace OpenTap.Package
             }
         }
 
-        static bool ZipExclude(string fullname)
+        internal static bool ZipExclude(string fullname)
         {
             if (string.IsNullOrWhiteSpace(fullname))
                 return true;
-            if (Path.GetFileName(fullname) == "[Content_Types].xml" || Path.GetFileName(fullname) == ".rels" || fullname.StartsWith("package/services/metadata/core-properties"))
+            // Zip entries may use either separator. Normalize so the checks below behave the same on all platforms
+            // (Path.GetFileName does not treat '\' as a separator on Unix).
+            var normalized = fullname.Replace('\\', '/');
+            /* directory entries (ZipArchiveEntry.Name is empty for these) */
+            if (normalized.EndsWith("/"))
+                return true;
+            /* archiver generated metadata files */
+            var name = Path.GetFileName(normalized);
+            if (name == "[Content_Types].xml" || name == ".rels" || normalized.StartsWith("package/services/metadata/core-properties"))
+                return true;
+            /* path traversal */
+            if (normalized.StartsWith("/") || normalized.Contains("../"))
                 return true;
             return false;
         }
