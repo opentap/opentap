@@ -56,13 +56,12 @@ namespace OpenTap.Package
             return newPlugins.Any(np => TypeData.GetTypeData(np.Name) == null);
         }
 
-        internal static void Search(Stopwatch timer, PackageDef pkg, string TapDir)
+        internal static void Search(PackageDef pkg, string TapDir)
         {
             if (ExecutorClient.IsRunningIsolated)
             {
                 // Only load installed assemblies if we're running isolated. 
-                log.Info(timer,
-                        $"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
+                log.Info($"Package '{pkg.Name}' contains possibly relevant plugins for next package installations. Searching for plugins..");
                 PluginManager.DirectoriesToSearch.Add(TapDir);
                 PluginManager.SearchAsync();
             }
@@ -104,7 +103,7 @@ namespace OpenTap.Package
                         {
                             if (ShouldSearch(pkg))
                             {
-                                Search(timer, pkg, TapDir);
+                                Search(pkg, TapDir);
                             }
                         }
                     }

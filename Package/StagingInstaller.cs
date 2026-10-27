@@ -264,7 +264,7 @@ internal class StagingInstaller
 
         if (SearchBetweenInstalls && Installer.ShouldSearch(package))
         {
-            Installer.Search(timer, package, TapDir);
+            Installer.Search(package, TapDir);
         }
     }
 

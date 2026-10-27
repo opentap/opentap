@@ -306,7 +306,6 @@ namespace OpenTap.Package
         private static void Install(IEnumerable<PackageDef> modifyOrAdd, string target,
             ProgressUpdateDelegate progress, CancellationToken cancellationToken)
         {
-            var sw = Stopwatch.StartNew();
             progress ??= (percent, message) => { };
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             var packagesInOrder = OrderPackagesForInstallation(modifyOrAdd);
@@ -361,10 +360,11 @@ namespace OpenTap.Package
                     // GetResult() rethrows the worker's exception directly. Task.Result would wrap it in an
                     // AggregateException, losing the exit code and the error message.
                     var ctx = task.GetAwaiter().GetResult();
+                    var sw = Stopwatch.StartNew();
                     var pkg = packagesInOrder[i];
                     try
                     {
-                        log.Info(sw, $"Installing {pkg.Name} version {pkg.Version}");
+                        log.Info($"Installing {pkg.Name} version {pkg.Version}");
                         installer.InstallStagedPackage(sw, ctx);
                         log.Info(sw, $"Installed {pkg.Name} version {pkg.Version}");
                     }
