@@ -17,7 +17,7 @@ namespace OpenTap.Package
     /// <summary>
     /// Image that specifies a list of <see cref="PackageSpecifier"/> to install and a list of repositories to get the packages from.
     /// </summary>
-    public class ImageIdentifier 
+    public class ImageIdentifier
     {
         /// <summary>
         /// A delegate used by <see cref="ProgressUpdate"/>
@@ -29,7 +29,7 @@ namespace OpenTap.Package
         /// Called by the action to indicate how far it has gotten. Will usually be called with a progressPercent of 100 to indicate that it is done.
         /// </summary>
         public event ProgressUpdateDelegate ProgressUpdate;
-        
+
         internal bool Cached => Packages.All(s => CachedLocation(s) != null);
         static TraceSource log = Log.CreateSource("OpenTAP");
 
@@ -209,34 +209,129 @@ namespace OpenTap.Package
             public StagingInstaller.StagedPackage Ctx;
         }
 
-        static bool Passthrough(Exception ex) => ex is OperationCanceledException or ExitCodeException;
+        static bool PassthroughException(Exception ex) => ex is OperationCanceledException or ExitCodeException;
 
-        static Stream GetPackageStream(PackageDef package, CancellationToken token, out string filepath)
+        static Stream GetPackageStream(PackageDef package, Action<long, long> downloadProgress, CancellationToken token, out string filepath)
         {
+            filepath = null;
             if (package.PackageSource is IFilePackageDefSource fd)
             {
                 filepath = fd.PackageFilePath;
-                return File.OpenRead(fd.PackageFilePath);
             }
-
-            if (CachedLocation(package) is string cachedLocation)
+            else if (CachedLocation(package) is string cachedLocation)
             {
                 filepath = cachedLocation;
-                return File.OpenRead(cachedLocation);
+            }
+            else if (package.PackageSource is IRepositoryPackageDefSource repoSource
+                && PackageRepositoryHelpers.DetermineRepositoryType(repoSource.RepositoryUrl) is HttpPackageRepository http)
+            {
+                filepath = PackageCacheHelper.GetCacheFilePath(package);
+                return StartStreamingDownload(http, package, filepath, downloadProgress, token);
             }
 
-            // TODO: Update this so the download stream can be consumed in-flight.
-            // When that happens, read errors while staging from the stream may also be network errors.
+            if (filepath != null)
+            {
+                /* The package is already on disk. The zip reader reads it from start to end, so the amount read
+                 * tracks extraction, and is reported in place of download progress. */
+                return new ReadProgressStream(File.OpenRead(filepath), downloadProgress);
+            }
+
             try
             {
-                filepath = Download(package, null, token);
+                /* In this case, we don't know the actual download size, and the progress callback
+                 * only gives us the percentage completion.
+                 * Just report percentage/100. */
+                downloadProgress(0, 100);
+                filepath = Download(package, (pct, _) => downloadProgress(pct, 100), token);
             }
-            catch (Exception ex) when (package.PackageSource is IRepositoryPackageDefSource repo && !Passthrough(ex))
+            catch (Exception ex) when (package.PackageSource is IRepositoryPackageDefSource repo && !PassthroughException(ex))
             {
-                throw DeploymentError(ExitCodes.NetworkError,
-                    $"Failed to download {Describe(package)} from '{repo.RepositoryUrl}': {ex.Message}", ex);
+                throw NetworkError(package, repo.RepositoryUrl, ex);
             }
-            return File.OpenRead(filepath);
+
+            /* The download already reported its progress. Reporting the read progress here would restart at 0%. */
+            var stream = File.OpenRead(filepath);
+            downloadProgress(stream.Length, stream.Length);
+            return stream;
+        }
+
+        static ExitCodeException NetworkError(PackageDef package, string repositoryUrl, Exception ex)
+        {
+            /* Some repository errors have no message, e.g. an error response without a body. */
+            var reason = string.IsNullOrWhiteSpace(ex.Message) ? ex.GetType().Name : ex.Message;
+            return DeploymentError(ExitCodes.NetworkError,
+                $"Failed to download {Describe(package)} from '{repositoryUrl}': {reason}", ex);
+        }
+
+        /// <summary>
+        /// Starts downloading a package into the package cache, and returns a stream that reads the package while it is
+        /// being downloaded. The download is written to a temporary file next to <paramref name="cachePath"/>, which is
+        /// moved into the cache when the download completes. Reading the returned stream to the end therefore
+        /// guarantees that the package is available at <paramref name="cachePath"/>.
+        /// Download errors are rethrown by the stream as <see cref="ExitCodes.NetworkError"/>.
+        /// </summary>
+        static Stream StartStreamingDownload(HttpPackageRepository repo, PackageDef package, string cachePath,
+            Action<long, long> downloadProgress, CancellationToken token)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(cachePath));
+            var tmpPath = cachePath + "." + Guid.NewGuid().ToString("N");
+            /* FileShare.Delete allows the temporary file to be moved into the cache while it is still being read. */
+            const FileShare share = FileShare.ReadWrite | FileShare.Delete;
+            /* bufferSize: 1 disables FileStream's buffers. Each write goes straight to the file before the reader is
+             * signaled, and the reader does not cache the end of the file. TailingFileStream does its own buffering. */
+            var file = new FileStream(tmpPath, FileMode.CreateNew, FileAccess.Write, share, bufferSize: 1);
+            var signal = new FileWriteSignal();
+            var writer = new SignalingWriteStream(file, signal);
+            FileStream reader;
+            try
+            {
+                reader = new FileStream(tmpPath, FileMode.Open, FileAccess.Read, share, bufferSize: 1);
+            }
+            catch
+            {
+                writer.Dispose();
+                File.Delete(tmpPath);
+                throw;
+            }
+
+            log.Info($"Downloading {package.Name} version {package.Version} from {repo.Url}");
+            TapThread.Start(() =>
+            {
+                try
+                {
+                    var timer = Stopwatch.StartNew();
+                    /* Disposing the writer flushes it, so all data is in the file before the download completes. */
+                    using (writer)
+                        repo.DoDownloadPackage(package, writer, token, downloadProgress);
+                    token.ThrowIfCancellationRequested();
+                    /* The file must be moved into the cache before signal.Complete() is called. The reader only reports
+                     * the end of the stream after it has seen Complete(), so when a reader has read the stream to the
+                     * end, the file is guaranteed to be at cachePath. The ZipArchive fallback in StagePackages relies on
+                     * this to open the cached file without waiting for it to appear. */
+                    if (File.Exists(cachePath))
+                        File.Delete(cachePath);
+                    File.Move(tmpPath, cachePath);
+                    log.Debug(timer, "Downloaded {0} version {1} ({2}).", package.Name, package.Version,
+                        Utils.BytesToReadable(new FileInfo(cachePath).Length));
+                    signal.Complete();
+                }
+                catch (Exception ex) when (token.IsCancellationRequested)
+                {
+                    signal.Complete(new OperationCanceledException("Download cancelled.", ex, token));
+                }
+                catch (Exception ex)
+                {
+                    signal.Complete(PassthroughException(ex) ? ex : NetworkError(package, repo.Url, ex));
+                }
+                finally
+                {
+                    /* Does nothing if the file was moved into the cache. */
+                    try { File.Delete(tmpPath); }
+                    catch (Exception ex) { log.Debug("Unable to delete temporary download '{0}': {1}", tmpPath, ex.Message); }
+                }
+            }, $"Download {package.Name}");
+
+            return new TailingFileStream(reader, signal, token);
         }
 
         static string Describe(PackageDef package) => $"package '{package.Name}' version {package.Version}";
@@ -269,9 +364,6 @@ namespace OpenTap.Package
                 case ExitCodeException:
                 case OperationCanceledException:
                     return ex;
-                // Corrupt, truncated or otherwise unreadable package archives.
-                // UnstreamableZipException is not listed: it never reaches here, because staging falls back to
-                // ZipArchive when it is thrown.
                 case InvalidDataException:
                 case EndOfStreamException:
                     return DeploymentError(PackageExitCodes.InvalidPackageArchive,
@@ -288,7 +380,7 @@ namespace OpenTap.Package
         /// Stages all packages using a bounded pool of worker threads. Workers pick packages in
         /// install order, so the packages the sequential install loop needs first are staged first.
         /// </summary>
-        static Task<StagingResult>[] StagePackages(StagingInstaller installer, IReadOnlyList<PackageDef> packages, CancellationToken token)
+        static Task<StagingResult>[] StagePackages(StagingInstaller installer, IReadOnlyList<PackageDef> packages, CancellationToken token, Action<int, int, string> onProgress)
         {
             var sources = new TaskCompletionSource<StagingResult>[packages.Count];
             for (int i = 0; i < sources.Length; i++)
@@ -300,54 +392,51 @@ namespace OpenTap.Package
             {
                 TapThread.Start(() =>
                 {
-                    int i;
-                    while ((i = Interlocked.Increment(ref next)) < packages.Count)
+                    int pkgIndex;
+                    while ((pkgIndex = Interlocked.Increment(ref next)) < packages.Count)
                     {
-                        var package = packages[i];
+                        var package = packages[pkgIndex];
                         if (token.IsCancellationRequested)
                         {
-                            sources[i].TrySetCanceled(token);
+                            sources[pkgIndex].TrySetCanceled(token);
                             continue;
                         }
                         StagingResult result = new() { Package = package };
                         try
                         {
-                            using Stream packageStream = GetPackageStream(package, token, out result.FilePath);
-                            try 
+                            void downloadProgress(long count, long total)
+                            {
+                                if (total == 0) return;
+                                double percentage = 100 * (double)count / total;
+                                onProgress(pkgIndex, (int)percentage, "Downloading");
+                            }
+                            using Stream packageStream = GetPackageStream(package, downloadProgress, token, out result.FilePath);
+                            try
                             {
                                 result.Ctx = installer.StagePackageFromStream(result.FilePath, packageStream, token);
                             }
                             catch (UnstreamableZipException)
                             {
                                 /* File cannot be streamed. Fall back to native ZipArchive.
-                                 * By exhausting the stream we can be sure the download operation is complete.
-                                 * The file should now be locally available. */
+                                 * For a streaming download, reading to the end does not race with the download thread
+                                 * moving the file into the cache: the stream only ends after the download has signaled
+                                 * completion, which happens after the move (see StartStreamingDownload). The file is
+                                 * therefore at result.FilePath once CopyTo returns. */
                                 packageStream.CopyTo(Stream.Null);
-                                for (int retry = 0; retry < 10; retry++)
-                                {
-                                    /* The downloaded file may be incrementally downloaded to a temp path.
-                                     * Wait for it to exist before proceeding */
-                                    if (File.Exists(result.FilePath)) break;
-                                    /* sleep for 1, 2, 4, ... 1024 ms (total of ~2s)
-                                     * This should be more than enough since we already exhausted the stream. */
-                                    TapThread.Sleep(1 << retry);
-                                }
-                                if (!File.Exists(result.FilePath))
-                                    throw new FileNotFoundException("The package file does not exist.", result.FilePath);
                                 result.Ctx = installer.StagePackageFromFile(result.FilePath, token);
                             }
-                            sources[i].SetResult(result);
+                            sources[pkgIndex].SetResult(result);
                         }
                         catch (Exception) when (token.IsCancellationRequested)
                         {
                             // Staging was cancelled, either by the user or because the deployment already failed.
                             // Errors raised as a side effect of cancellation (e.g. an aborted download) are not
                             // the cause of the failure, so they are not reported.
-                            sources[i].TrySetCanceled(token);
+                            sources[pkgIndex].TrySetCanceled(token);
                         }
                         catch (Exception ex)
                         {
-                            sources[i].SetException(StagingError(package, result.FilePath, ex));
+                            sources[pkgIndex].SetException(StagingError(package, result.FilePath, ex));
                         }
                     }
                 });
@@ -364,18 +453,29 @@ namespace OpenTap.Package
             var packagesInOrder = OrderPackagesForInstallation(modifyOrAdd);
             var installer = new StagingInstaller(target);
 
-            // Start staging first, so it runs while existing files are moved aside below.
-            var StagedPackages = StagePackages(installer, packagesInOrder, cts.Token);
-
             int[] StagingProgress = new int[packagesInOrder.Count];
             int[] InstallProgress = new int[packagesInOrder.Count];
 
             void AnnounceProgress(string message)
             {
-                double stg = (double)StagingProgress.Sum() / StagingProgress.Length;
-                double inst = (double)InstallProgress.Sum() / InstallProgress.Length;
-                progress((int)(stg * 0.8 + inst * 0.2), message);
+                try
+                {
+                    double stg = (double)StagingProgress.Sum() / StagingProgress.Length;
+                    double inst = (double)InstallProgress.Sum() / InstallProgress.Length;
+                    progress((int)(stg * 0.8 + inst * 0.2), message);
+                }
+                catch
+                {
+                    /* ignore */
+                }
             }
+
+            // Start staging first, so it runs while existing files are moved aside below.
+            var StagedPackages = StagePackages(installer, packagesInOrder, cts.Token, (package, percentage, what) =>
+            {
+                StagingProgress[package] = percentage;
+                AnnounceProgress($"{what} {packagesInOrder[package].Name}");
+            });
 
             for (int i = 0; i < StagedPackages.Length; i++)
             {
@@ -446,15 +546,15 @@ namespace OpenTap.Package
 
             List<Exception> uninstallErrors = new List<Exception>();
             var newInstaller = new Installer(target, cancellationToken);
-            newInstaller.ProgressUpdate += (percent, message) => progress?.Invoke(percent, message); 
+            newInstaller.ProgressUpdate += (percent, message) => progress?.Invoke(percent, message);
 
             newInstaller.Error += uninstallErrors.Add;
 
             newInstaller.PackagePaths.AddRange(orderedPackagesToUninstall.Select(x => (x.PackageSource as XmlPackageDefSource)?.PackageDefFilePath).ToList());
-            
+
             int exitCode = newInstaller.RunCommand(Installer.PrepareUninstall, false, false);
             ThrowOnUninstallError(exitCode, uninstallErrors, cancellationToken);
-            
+
             exitCode = newInstaller.RunCommand(Installer.Uninstall, false, true);
             ThrowOnUninstallError(exitCode, uninstallErrors, cancellationToken);
         }
