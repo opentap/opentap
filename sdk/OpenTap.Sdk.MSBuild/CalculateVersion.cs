@@ -221,16 +221,23 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             // 3. An xml tag enclosing a value, such as <GitVersion>1.2.3</GitVersion>
 
             // Case 1: calculate the version
-            if (new[] { "true", "1" , "gitversion", "auto", "git" }.Contains(InputVersion.Trim(), StringComparer.OrdinalIgnoreCase))
+            switch (InputVersion.Trim().ToLower())
             {
-                if (tryCalculateGitversion(out shortVersion, out longVersion))
-                {
-                    OutputShortVersion = shortVersion;
-                    OutputLongVersion = longVersion;
-                    return true;
-                }
-
-                return false;
+                case "true":
+                case "1":
+                case "gitversion":
+                case "auto":
+                case "git":
+                    if (tryCalculateGitversion(out shortVersion, out longVersion))
+                    {
+                        OutputShortVersion = shortVersion;
+                        OutputLongVersion = longVersion;
+                        return true;
+                    }
+                    Log.LogError($"{TargetName}: Failed to calculate gitversion.");
+                    return false;
+                default:
+                    break;
             }
 
             // Case 2/3: parse the provided version from the input
