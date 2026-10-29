@@ -52,6 +52,113 @@
     <PackagePayloadFiles Include="$(OpenTapDocsDir)\**\*"/>
   </ItemGroup>
 
+  <!--
+    Move locked files out of the way (Windows only, opt-in with OpenTapMoveLockedFiles=true).
+    On Windows, a running process which has loaded e.g. MyPlugin.dll or OpenTap.dll from the output directory
+    (such as an OpenTAP GUI) prevents the build from overwriting it. A locked file can still be renamed, so
+    files which are both locked and about to be overwritten are moved to $(OutDir).uninstall/build-<project>-<guid>/.
+    Files which the build would not write are never touched, so incremental builds are not affected.
+    After the build, files which were not replaced are moved back (a rename, so timestamps are preserved).
+
+    This runs in two places because the OpenTAP payload (incl. OpenTap.dll) is copied by our own target, separately
+    from the SDK's copy of the build output. Each item needs:
+      Destination: the file in the output directory which will be overwritten.
+      Mode: IfDifferent (size/timestamp differ), IfNewer (source is newer), or Always.
+  -->
+  <UsingTask TaskName="Keysight.OpenTap.Sdk.MSBuild.MoveLockedOutputFiles" AssemblyFile="$(MSBuildThisFileDirectory)\Keysight.OpenTap.Sdk.MSBuild.dll"/>
+  <UsingTask TaskName="Keysight.OpenTap.Sdk.MSBuild.FinishMovedOutputFiles" AssemblyFile="$(MSBuildThisFileDirectory)\Keysight.OpenTap.Sdk.MSBuild.dll"/>
+  <PropertyGroup>
+    <_OpenTapMoveLockedFiles Condition="'$(IsWindows)' == 'true' And '$(OpenTapMoveLockedFiles)' == 'true' And '$(OutDir)' != ''">true</_OpenTapMoveLockedFiles>
+  </PropertyGroup>
+
+  <Target Name="OpenTapMoveLockedPayloadFiles"
+          Condition="'$(_OpenTapMoveLockedFiles)' == 'true'"
+          BeforeTargets="CopyOpenTapPayloadFiles">
+    <ItemGroup>
+      <_OpenTapLockCheck Include="@(PackagePayloadFiles)" Destination="$(OutDir)%(PackagePayloadFiles.RecursiveDir)%(PackagePayloadFiles.Filename)%(PackagePayloadFiles.Extension)" Mode="IfNewer"/>
+    </ItemGroup>
+    <MoveLockedOutputFiles Files="@(_OpenTapLockCheck)" OutDir="$(OutDir)" ProjectFile="$(MSBuildProjectFullPath)">
+      <Output TaskParameter="MovedFiles" ItemName="_OpenTapMovedFiles"/>
+    </MoveLockedOutputFiles>
+    <ItemGroup>
+      <_OpenTapLockCheck Remove="@(_OpenTapLockCheck)"/>
+    </ItemGroup>
+  </Target>
+
+  <!-- Mirrors the Copy tasks in CopyFilesToOutputDirectory and its dependencies (Microsoft.Common.CurrentVersion.targets).
+       It runs before _CopyFilesMarkedCopyLocal, which is the first of them. Copy conditions are respected, because
+       moving a file which is then not copied would remove it from the output directory. -->
+  <Target Name="OpenTapMoveLockedBuildOutputFiles"
+          Condition="'$(_OpenTapMoveLockedFiles)' == 'true'"
+          DependsOnTargets="GetCopyToOutputDirectoryItems;ComputeIntermediateSatelliteAssemblies"
+          BeforeTargets="_CopyFilesMarkedCopyLocal;CopyFilesToOutputDirectory">
+    <PropertyGroup>
+      <_OpenTapSkipUnchangedMode>Always</_OpenTapSkipUnchangedMode>
+      <_OpenTapSkipUnchangedMode Condition="'$(SkipCopyUnchangedFiles)' == 'true'">IfDifferent</_OpenTapSkipUnchangedMode>
+      <_OpenTapCopyAlwaysMode>Always</_OpenTapCopyAlwaysMode>
+      <_OpenTapCopyAlwaysMode Condition="'$(SkipUnchangedFilesOnCopyAlways)' == 'true'">IfDifferent</_OpenTapCopyAlwaysMode>
+    </PropertyGroup>
+    <ItemGroup>
+      <!-- The assembly being built, e.g. MyPlugin.dll -->
+      <_OpenTapLockCheck Include="@(IntermediateAssembly)" Destination="$(OutDir)%(IntermediateAssembly.Filename)%(IntermediateAssembly.Extension)" Mode="$(_OpenTapSkipUnchangedMode)"
+                         Condition="'$(CopyBuildOutputToOutputDirectory)' != 'false' And '$(SkipCopyBuildProduct)' != 'true'"/>
+      <_OpenTapLockCheck Include="@(IntermediateRefAssembly)" Destination="$(TargetRefPath)" Mode="$(_OpenTapSkipUnchangedMode)"
+                         Condition="'$(ProduceReferenceAssembly)' == 'true' And '$(TargetRefPath)' != '' And '$(CopyBuildOutputToOutputDirectory)' != 'false' And '$(SkipCopyBuildProduct)' != 'true'"/>
+      <_OpenTapLockCheck Include="@(AddModules)" Destination="$(OutDir)%(AddModules.Filename)%(AddModules.Extension)" Mode="$(_OpenTapSkipUnchangedMode)"/>
+      <_OpenTapLockCheck Include="$(IntermediateOutputPath)$(_SGenDllName)" Destination="$(OutDir)$(_SGenDllName)" Mode="$(_OpenTapSkipUnchangedMode)"
+                         Condition="'$(_SGenDllCreated)' == 'true'"/>
+      <_OpenTapLockCheck Include="@(_DebugSymbolsIntermediatePath)" Destination="$(OutDir)%(_DebugSymbolsIntermediatePath.Filename)%(_DebugSymbolsIntermediatePath.Extension)" Mode="$(_OpenTapSkipUnchangedMode)"
+                         Condition="'$(_DebugSymbolsProduced)' == 'true' And '$(SkipCopyingSymbolsToOutputDirectory)' != 'true' And '$(CopyOutputSymbolsToOutputDirectory)' != 'false'"/>
+      <_OpenTapLockCheck Include="@(DocFileItem)" Destination="$(OutDir)%(DocFileItem.Filename)%(DocFileItem.Extension)" Mode="$(_OpenTapSkipUnchangedMode)"
+                         Condition="'$(_DocumentationFileProduced)' == 'true' And '$(CopyDocumentationFileToOutputDirectory)' != 'false'"/>
+      <_OpenTapLockCheck Include="@(IntermediateSatelliteAssembliesWithTargetPath)" Destination="$(OutDir)%(IntermediateSatelliteAssembliesWithTargetPath.Culture)\$(TargetName).resources.dll" Mode="$(_OpenTapSkipUnchangedMode)"/>
+      <_OpenTapLockCheck Include="@(ReferenceComWrappersToCopyLocal)" Destination="$(OutDir)%(ReferenceComWrappersToCopyLocal.Filename)%(ReferenceComWrappersToCopyLocal.Extension)" Mode="$(_OpenTapSkipUnchangedMode)"/>
+      <_OpenTapLockCheck Include="@(ResolvedIsolatedComModules)" Destination="$(OutDir)%(ResolvedIsolatedComModules.Filename)%(ResolvedIsolatedComModules.Extension)" Mode="$(_OpenTapSkipUnchangedMode)"/>
+      <_OpenTapLockCheck Include="@(_DeploymentLooseManifestFile)" Destination="$(OutDir)%(_DeploymentLooseManifestFile.Filename)%(_DeploymentLooseManifestFile.Extension)" Mode="$(_OpenTapSkipUnchangedMode)"/>
+      <_OpenTapLockCheck Include="@(NativeReferenceFile)" Destination="$(OutDir)%(NativeReferenceFile.Filename)%(NativeReferenceFile.Extension)" Mode="$(_OpenTapSkipUnchangedMode)"/>
+      <_OpenTapLockCheck Include="@(WinMDExpArtifacts)" Destination="$(OutDir)%(WinMDExpArtifacts.Filename)%(WinMDExpArtifacts.Extension)" Mode="$(_OpenTapSkipUnchangedMode)"/>
+      <!-- Copy-local references, including OpenTap.dll and package references -->
+      <_OpenTapLockCheck Include="@(ReferenceCopyLocalPaths)" Destination="$(OutDir)%(ReferenceCopyLocalPaths.DestinationSubDirectory)%(ReferenceCopyLocalPaths.Filename)%(ReferenceCopyLocalPaths.Extension)" Mode="$(_OpenTapSkipUnchangedMode)"
+                         Condition="'$(UseCommonOutputDirectory)' != 'true'"/>
+      <!-- Content / None items with CopyToOutputDirectory (PreserveNewest, Always, IfDifferent), including transitive items -->
+      <_OpenTapLockCheck Include="@(_SourceItemsToCopyToOutputDirectory)" Destination="$(OutDir)%(_SourceItemsToCopyToOutputDirectory.TargetPath)" Mode="IfNewer"/>
+      <_OpenTapLockCheck Include="@(_SourceItemsToCopyToOutputDirectoryAlways)" Destination="$(OutDir)%(_SourceItemsToCopyToOutputDirectoryAlways.TargetPath)" Mode="$(_OpenTapCopyAlwaysMode)"/>
+      <_OpenTapLockCheck Include="@(_SourceItemsToCopyToOutputDirectoryIfDifferent)" Destination="$(OutDir)%(_SourceItemsToCopyToOutputDirectoryIfDifferent.TargetPath)" Mode="IfDifferent"/>
+      <_OpenTapLockCheck Include="@(AppConfigWithTargetPath)" Destination="$(OutDir)%(AppConfigWithTargetPath.TargetPath)" Mode="IfNewer"/>
+    </ItemGroup>
+    <MoveLockedOutputFiles Files="@(_OpenTapLockCheck)" OutDir="$(OutDir)" ProjectFile="$(MSBuildProjectFullPath)">
+      <Output TaskParameter="MovedFiles" ItemName="_OpenTapMovedFiles"/>
+    </MoveLockedOutputFiles>
+    <ItemGroup>
+      <_OpenTapLockCheck Remove="@(_OpenTapLockCheck)"/>
+    </ItemGroup>
+  </Target>
+
+  <!-- Runs after all files have been copied. CopyOpenTapPayloadFiles runs before Build, so AfterTargets="Build" is
+       after both copy steps. If the build fails before this, files which were moved aside are restored by the next build. -->
+  <Target Name="OpenTapFinishMovedOutputFiles"
+          Condition="'$(_OpenTapMoveLockedFiles)' == 'true' And '@(_OpenTapMovedFiles)' != ''"
+          AfterTargets="Build">
+    <FinishMovedOutputFiles MovedFiles="@(_OpenTapMovedFiles)"/>
+    <ItemGroup>
+      <_OpenTapMovedFiles Remove="@(_OpenTapMovedFiles)"/>
+    </ItemGroup>
+  </Target>
+
+  <!--
+    Announce a package change in the output directory after every build (all platforms, opt out with
+    OpenTapAnnounceBuild=false). Running OpenTAP processes using the output directory (e.g. Editor) receive
+    Installation.PackageChangedEvent, and can check whether any loaded plugins changed on disk.
+    Runs after OpenTapFinishMovedOutputFiles, so moved files have been restored first.
+  -->
+  <UsingTask TaskName="Keysight.OpenTap.Sdk.MSBuild.AnnounceOpenTapBuild" AssemblyFile="$(MSBuildThisFileDirectory)\Keysight.OpenTap.Sdk.MSBuild.dll"/>
+  <Target Name="OpenTapAnnounceBuild"
+          Condition="'$(OpenTapAnnounceBuild)' != 'false' And '$(OutDir)' != '' And Exists('$(OutDir)') And Exists('$(OpenTapRuntimeDir)')"
+          DependsOnTargets="OpenTapFinishMovedOutputFiles"
+          AfterTargets="Build">
+    <AnnounceOpenTapBuild OutDir="$(OutDir)" OpenTapRuntimeDir="$(OpenTapRuntimeDir)"/>
+  </Target>
+
   <Target Name="CopyOpenTapPayloadFiles"
           Inputs="@(PackagePayloadFiles)"
           Outputs="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
