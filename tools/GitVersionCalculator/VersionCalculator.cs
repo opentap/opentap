@@ -1,3 +1,8 @@
+#nullable enable
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace GitVersionCalculator;
@@ -35,7 +40,7 @@ public sealed class VersionCalculator
             if (PreRelease == other.PreRelease) return 0;
             if (string.IsNullOrEmpty(PreRelease)) return 1;
             if (string.IsNullOrEmpty(other.PreRelease)) return -1;
-            var a = PreRelease.Split('.'); var b = other.PreRelease.Split('.');
+            var a = PreRelease!.Split('.'); var b = other.PreRelease!.Split('.');
             for (int i = 0; i < Math.Min(a.Length, b.Length); i++)
             {
                 c = int.TryParse(a[i], out var ai) && int.TryParse(b[i], out var bi) ? ai.CompareTo(bi) : string.Compare(a[i], b[i]);
@@ -66,7 +71,7 @@ public sealed class VersionCalculator
             content = repo.ReadFile(commit, path);
             if (content != null) { cfg.Path = path; break; }
             if (dir.Length == 0) break;
-            int slash = dir.LastIndexOf('/'); dir = slash < 0 ? "" : dir[..slash];
+            int slash = dir.LastIndexOf('/'); dir = slash < 0 ? "" : dir.Substring(0, slash);
         }
         bool betaSet = false;
         if (content != null) foreach (var raw in content.TrimStart('\uFEFF').Split('\n'))
@@ -120,7 +125,7 @@ public sealed class VersionCalculator
             var name = $"refs/remotes/{remote}/HEAD";
             if (repo.Refs.TryGetValue(name, out var symbolic) && symbolic.StartsWith("ref: "))
             {
-                var branch = repo.Branches.FirstOrDefault(b => b.Ref == symbolic[5..]);
+                var branch = repo.Branches.FirstOrDefault(b => b.Ref == symbolic.Substring(5));
                 if (branch != null) return branch;
             }
         }
@@ -159,7 +164,7 @@ public sealed class VersionCalculator
             if (head != null) return head.ShortName;
         }
         var onDefault = repo.Walk(beta.Id, firstParent: true).ToList();
-        var defaultIds = onDefault.ToHashSet();
+        var defaultIds = new HashSet<string>(onDefault);
         if (defaultIds.Contains(target))
             return repo.Branches.FirstOrDefault(b => Match(cfg.ReleaseBranch, b.ShortName) && b.Id == target)?.ShortName ?? beta.ShortName;
         var tips = repo.Branches.Where(b => b.Id == target && !b.FriendlyName.EndsWith("HEAD")).ToList();
@@ -176,14 +181,14 @@ public sealed class VersionCalculator
         {
             var merge = repo.ReadCommit(id);
             if (merge.Parents.Length < 2) continue;
-            string? walk = merge.Parents[^1];
+            string? walk = merge.Parents[merge.Parents.Length - 1];
             while (walk != null && !defaultIds.Contains(walk))
             {
                 if (walk == target)
                 {
                     var match = Regex.Match(merge.Message, "Merge branch '([^']*)'");
                     if (!match.Success) { Warning?.Invoke("Old branch name cannot be determined."); return "DELETED"; }
-                    var name = match.Groups[1].Value; return name.StartsWith("origin/") ? name[7..] : name;
+                    var name = match.Groups[1].Value; return name.StartsWith("origin/") ? name.Substring(7) : name;
                 }
                 walk = repo.ReadCommit(walk).Parents.FirstOrDefault();
             }
@@ -216,14 +221,14 @@ public sealed class VersionCalculator
         foreach (var tag in repo.Refs.Keys.Where(k => k.StartsWith("refs/tags/")))
         {
             var id = repo.ResolveRef(tag)!;
-            if (Match(cfg.ReleaseTag, tag[10..]) && repo.ReadObject(id).Type == "tag" && repo.PeelCommit(id) == target) { pre = null; break; }
+            if (Match(cfg.ReleaseTag, tag.Substring(10)) && repo.ReadObject(id).Type == "tag" && repo.PeelCommit(id) == target) { pre = null; break; }
         }
-        string metadata = target[..8];
+        string metadata = target.Substring(0, 8);
         if (pre == "alpha")
         {
             branch = branch == "(no branch)" ? "NONE" : Regex.Replace(branch, "[^a-zA-Z0-9-]", "-");
             if (cfg.MaxBranchChars < 0) throw new InvalidDataException("max branch chars must not be negative.");
-            if (branch.Length > cfg.MaxBranchChars) branch = branch[..cfg.MaxBranchChars];
+            if (branch.Length > cfg.MaxBranchChars) branch = branch.Substring(0, cfg.MaxBranchChars);
             metadata += "." + branch;
         }
         if (pre != null)
