@@ -27,21 +27,17 @@ namespace OpenTap.Package
 
         private void UpdatePrerelease(string name, string version)
         {
-            var newGraphs = graphs
-                .Where(g => repos[g] is IQueryPrereleases)
-                .AsParallel()
-                .Select(g =>
-                {
-                    var newGraph =
-                        (repos[g] as IQueryPrereleases).QueryPrereleases(os, deploymentInstallationArchitecture,
-                            version, name);
-                    g.Absorb(newGraph);
-                    return newGraph;
-                });
-            foreach (var g in newGraphs)
+            object absorbLock = new();
+            var queryableGraphs = graphs.Where(g => repos[g] is IQueryPrereleases);
+            Utils.TapThreadForEach([.. queryableGraphs], g =>
             {
-                Graph.Absorb(g);
-            }
+                var newGraph =
+                    (repos[g] as IQueryPrereleases).QueryPrereleases(os, deploymentInstallationArchitecture,
+                        version, name);
+                g.Absorb(newGraph);
+                lock (absorbLock)
+                    Graph.Absorb(newGraph);
+            });
         }
 
         readonly List<PackageDependencyGraph> graphs = new List<PackageDependencyGraph>();
@@ -62,14 +58,19 @@ namespace OpenTap.Package
 
             var repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToArray();
             graphs.Clear();
-            var graphList = repositories.AsParallel().TrySelect(repo => (graph: GetGraph(repo), repo: repo),
-                (ex, repo) =>
+            var graphList = Utils.TapThreadForEach(repositories, repo =>
+            {
+                try
+                {
+                    return (graph: GetGraph(repo), repo: repo);
+                }
+                catch (Exception ex)
                 {
                     var innermost = GetInnermostException(ex);
                     if (innermost is TaskCanceledException or OperationCanceledException)
                     {
                         log.Warning($"Timeout while querying '{repo.Url}': {innermost.Message}", innermost);
-                    } 
+                    }
                     else if (innermost is PackageQueryException)
                     {
                         log.Warning($"Error querying '{repo.Url}': {innermost.Message}", innermost);
@@ -78,14 +79,16 @@ namespace OpenTap.Package
                     {
                         log.Warning($"Repository is unreachable: {innermost.Message}", innermost);
                     }
-                });
+                    return default;
+                }
+            });
             foreach (var r in graphList)
             {
                 if (r.graph == null)
                     continue; // error while querying repo.
                 graphs.Add(r.graph);
                 repos[r.graph] = r.repo;
-                graph.Absorb(r.graph);   
+                graph.Absorb(r.graph);
             }
         }
 
