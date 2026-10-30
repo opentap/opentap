@@ -110,6 +110,61 @@ namespace OpenTap.Package.UnitTests
             StringAssert.Contains("Shallow history", ((MockBuildEngine)task.BuildEngine).buildEvents.OfType<BuildErrorEventArgs>().Single().Message);
         }
 
+        private void AssertFailureWithError(CalculateVersion task, string message)
+        {
+            Assert.IsFalse(task.Execute());
+            var errors = ((MockBuildEngine)task.BuildEngine).buildEvents.OfType<BuildErrorEventArgs>().ToList();
+            Assert.AreEqual(1, errors.Count, "A failed task must log an error without duplicate diagnostics.");
+            StringAssert.Contains(message, errors[0].Message);
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("   ")]
+        public void MissingInputLogsError(string input)
+        {
+            AssertFailureWithError(CreateTask(input), "must be provided");
+        }
+
+        [TestCase("<Version>", "Failed to parse input")]
+        [TestCase("not-a-version", "Expected element named 'Version'")]
+        [TestCase("<Version>invalid</Version>", "not a valid semantic version")]
+        public void InvalidInputLogsError(string input, string message)
+        {
+            AssertFailureWithError(CreateTask(input), message);
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("\0")]
+        public void InvalidSourcePathLogsError(string sourceFile)
+        {
+            var task = CreateTask();
+            task.SourceFile = sourceFile;
+            AssertFailureWithError(task, "Unable to determine assembly version");
+        }
+
+        [Test]
+        public void MissingProjectDirectoryLogsError()
+        {
+            AssertFailureWithError(CreateTask(subdirectory: "nonexistent"), "Unable to determine assembly version");
+        }
+
+        [Test]
+        public void MissingGitVersionFileLogsError()
+        {
+            Git("init");
+            AssertFailureWithError(CreateTask(), "does not have a .gitversion file");
+        }
+
+        [Test]
+        public void CorruptRepositoryLogsError()
+        {
+            CommitVersion("1.2.3");
+            File.Delete(Path.Combine(directory, ".git", "HEAD"));
+            AssertFailureWithError(CreateTask(), "Unable to calculate gitversion");
+        }
+
         [Test]
         public void CalculatorWarningsAreForwarded()
         {

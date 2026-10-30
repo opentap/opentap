@@ -152,6 +152,27 @@ namespace Keysight.OpenTap.Sdk.MSBuild
 
         public override bool Execute()
         {
+            // Input validation and repository discovery can fail before the calculator is constructed.
+            // Ensure these failures also produce a useful MSBuild error, rather than an unhandled task exception.
+            try
+            {
+                return ExecuteCore();
+            }
+            catch (Exception ex)
+            {
+                Log.LogError($"{TargetName}: Unable to determine assembly version: {ex.Message}");
+                return false;
+            }
+        }
+
+        private bool ExecuteCore()
+        {
+            if (string.IsNullOrWhiteSpace(InputVersion))
+            {
+                Log.LogError($"{TargetName}: A version or automatic versioning flag must be provided.");
+                return false;
+            }
+
             string shortVersion;
             string longVersion;
             string input;
