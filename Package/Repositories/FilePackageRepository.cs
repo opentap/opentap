@@ -446,7 +446,7 @@ namespace OpenTap.Package
             var packagesFiles = allFiles.Where(f => f.Extension.ToLower() == ".tappackages").ToHashSet();
 
             // Deserializer .TapPackages files
-            Parallel.ForEach(packagesFiles, packagesFile =>
+            Utils.TapThreadForEach([.. packagesFiles], packagesFile =>
             {
                 List<PackageDef> packages;
                 try
@@ -479,7 +479,7 @@ namespace OpenTap.Package
             });
 
             // Deserialize all regular packages
-            Parallel.ForEach(allFiles, pluginFile =>
+            Utils.TapThreadForEach([.. allFiles], pluginFile =>
             {
                 if (packagesFiles.Contains(pluginFile))
                     return;

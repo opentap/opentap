@@ -737,27 +737,25 @@ namespace OpenTap.Package
             var root = XElement.Load(stream);
             List<PackageDef> packages = new List<PackageDef>();
 
-            Parallel.ForEach(root.Nodes(), node =>
+            Utils.TapThreadForEach([.. root.Nodes()], node =>
             {
-                using (Stream str = new MemoryStream())
+                using Stream str = new MemoryStream();
+                if (node is XElement nodeElement)
                 {
-                    if (node is XElement nodeElement)
+                    nodeElement.Save(str);
+                    str.Seek(0, 0);
+                    var package = FromXml(str);
+                    if (package != null)
                     {
-                        nodeElement.Save(str);
-                        str.Seek(0, 0);
-                        var package = FromXml(str);
-                        if (package != null)
+                        lock (packages)
                         {
-                            lock (packages)
-                            {
-                                packages.Add(package);
-                            }
+                            packages.Add(package);
                         }
                     }
-                    else
-                    {
-                        throw new XmlException("Invalid XML");
-                    }
+                }
+                else
+                {
+                    throw new XmlException("Invalid XML");
                 }
             });
 

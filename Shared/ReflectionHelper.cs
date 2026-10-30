@@ -1482,6 +1482,33 @@ namespace OpenTap
             }
             
         }
+
+        public static void TapThreadForEach<TIn>(TIn[] items, Action<TIn> body, int? numWorkers = null, CancellationToken? token = null)
+        {
+            bool Func(TIn x)
+            {
+                body(x);
+                return true;
+            }
+            TapThreadForEach(items, Func, numWorkers, token);
+        }
+
+        public static TOut[] TapThreadForEach<TIn, TOut>(TIn[] items, Func<TIn, TOut> body, int? numWorkers = null, CancellationToken? token = null)
+        {
+            if (items == null) throw new ArgumentNullException(nameof(items));
+            if (body == null) throw new ArgumentNullException(nameof(body));
+
+            var parent = TapThread.Current;
+            var options = new ParallelOptions
+            {
+                CancellationToken = token ?? parent.AbortToken,
+                MaxDegreeOfParallelism = numWorkers ?? -1
+            };
+
+            TOut[] result = new TOut[items.Length];
+            Parallel.ForEach(items, options, (item, _, idx) => TapThread.WithNewContext(() => result[idx] = body(item), parent));
+            return result;
+        }
     }
 
     static internal class Sequence

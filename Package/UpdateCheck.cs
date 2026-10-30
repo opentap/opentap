@@ -47,7 +47,8 @@ namespace OpenTap.Package
 
             var installation = new Installation(ExecutorClient.ExeDir);
             IPackageIdentifier[] installedPackages = installation.GetPackages().ToArray();
-            Parallel.ForEach(PackageManagerSettings.Current.GetEnabledRepositories(null), repo =>
+            var repos = PackageManagerSettings.Current.GetEnabledRepositories(null).ToArray();
+            Utils.TapThreadForEach(repos, repo =>
             {
                 try
                 {
