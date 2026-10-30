@@ -1,4 +1,8 @@
-using System.Buffers.Binary;
+#nullable enable
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -12,8 +16,8 @@ public sealed class GitRepository
     public record Commit(string Id, string Tree, string[] Parents, long Time, string Message);
     public record Branch(string Ref, string Id)
     {
-        public string FriendlyName => Ref.StartsWith("refs/heads/") ? Ref[11..] : Ref[13..];
-        public string ShortName => FriendlyName.StartsWith("origin/") ? FriendlyName[7..] : FriendlyName;
+        public string FriendlyName => Ref.StartsWith("refs/heads/") ? Ref.Substring(11) : Ref.Substring(13);
+        public string ShortName => FriendlyName.StartsWith("origin/") ? FriendlyName.Substring(7) : FriendlyName;
     }
     private record PackIndex(string Pack, byte[] Bytes, int Count);
     private readonly List<string> objectDirs = new();
@@ -33,7 +37,7 @@ public sealed class GitRepository
     public string? HeadRef { get; }
     public string? HeadId => ResolveRef("HEAD");
     public IEnumerable<string> Remotes => config.Keys.Where(k => k.StartsWith("remote.", StringComparison.OrdinalIgnoreCase))
-        .Select(k => k[7..k.LastIndexOf('.')]).Distinct(StringComparer.Ordinal);
+        .Select(k => k.Substring(7, k.LastIndexOf('.') - 7)).Distinct(StringComparer.Ordinal);
 
     public GitRepository(string directory)
     {
@@ -45,13 +49,13 @@ public sealed class GitRepository
             root = Path.GetDirectoryName(root) ?? throw new ArgumentException("Directory is not in a Git repository.");
         }
         Root = root;
-        RelativeDirectory = Path.GetRelativePath(root, requested).Replace('\\', '/');
+        RelativeDirectory = RelativePath(root, requested).Replace('\\', '/');
         if (RelativeDirectory == ".") RelativeDirectory = "";
         var dotgit = Path.Combine(root, ".git");
         GitDir = Directory.Exists(dotgit) ? dotgit : File.Exists(dotgit)
-            ? Path.GetFullPath(File.ReadAllText(dotgit).Trim()["gitdir:".Length..].Trim(), root) : root;
+            ? FullPath(File.ReadAllText(dotgit).Trim().Substring("gitdir:".Length).Trim(), root) : root;
         var commonFile = Path.Combine(GitDir, "commondir");
-        CommonDir = File.Exists(commonFile) ? Path.GetFullPath(File.ReadAllText(commonFile).Trim(), GitDir) : GitDir;
+        CommonDir = File.Exists(commonFile) ? FullPath(File.ReadAllText(commonFile).Trim(), GitDir) : GitDir;
         ReadConfig(Path.Combine(CommonDir, "config"));
         if (GetConfig("extensions.objectformat") is { } format && format != "sha1")
             throw new NotSupportedException("Only SHA-1 Git repositories are supported.");
@@ -66,12 +70,23 @@ public sealed class GitRepository
         if (Refs.Keys.Any(k => k.StartsWith("refs/replace/"))) throw new NotSupportedException("Replace refs are not supported.");
         var head = File.ReadAllText(Path.Combine(GitDir, "HEAD")).Trim();
         Refs["HEAD"] = head;
-        HeadRef = head.StartsWith("ref: ") ? head[5..] : null;
+        HeadRef = head.StartsWith("ref: ") ? head.Substring(5) : null;
         Branches = Refs.Keys.Where(k => k.StartsWith("refs/heads/") || k.StartsWith("refs/remotes/"))
-            .Order(StringComparer.Ordinal).Select(k => new Branch(k, ResolveRef(k)!)).Where(b => b.Id != null).ToList();
+            .OrderBy(value => value, StringComparer.Ordinal).Select(k => new Branch(k, ResolveRef(k)!)).Where(b => b.Id != null).ToList();
         AddObjectDirectory(Path.Combine(CommonDir, "objects"));
     }
-    public string? GetConfig(string key) => config.GetValueOrDefault(key);
+    public string? GetConfig(string key) => config.TryGetValue(key, out var value) ? value : null;
+
+    private static string FullPath(string path, string directory) => Path.GetFullPath(Path.Combine(directory, path));
+    private static string RelativePath(string directory, string path)
+    {
+        var comparison = Path.DirectorySeparatorChar == '\\' ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        if (string.Equals(directory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+            path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar), comparison)) return ".";
+        // Both arguments are absolute paths. A trailing separator makes the base URI a directory.
+        var root = new Uri(directory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar);
+        return Uri.UnescapeDataString(root.MakeRelativeUri(new Uri(path)).ToString());
+    }
     private void ReadConfig(string path)
     {
         if (!File.Exists(path)) return;
@@ -83,7 +98,7 @@ public sealed class GitRepository
             var m = Regex.Match(line, "^\\[([^\\] \\t]+)(?:\\s+\"(.*)\")?\\]$");
             if (m.Success) { section = m.Groups[1].Value + (m.Groups[2].Success ? "." + m.Groups[2].Value : ""); continue; }
             int equal = line.IndexOf('=');
-            if (equal >= 0) config[section + "." + line[..equal].Trim()] = line[(equal + 1)..].Trim().Trim('"');
+            if (equal >= 0) config[section + "." + line.Substring(0, equal).Trim()] = line.Substring(equal + 1).Trim().Trim('"');
         }
     }
     private void ReadRefs(string dir)
@@ -92,14 +107,14 @@ public sealed class GitRepository
         if (File.Exists(packed)) foreach (var line in File.ReadLines(packed))
         {
             if (line.Length == 0 || line[0] is '#' or '^') continue;
-            var parts = line.Split(' ', 2);
+            var parts = line.Split(new[] { ' ' }, 2);
             if (parts.Length == 2) Refs[parts[1]] = parts[0];
         }
         var refs = Path.Combine(dir, "refs");
         if (Directory.Exists(refs)) foreach (var file in Directory.EnumerateFiles(refs, "*", SearchOption.AllDirectories))
         {
             if (file.EndsWith(".lock")) continue;
-            Refs[Path.GetRelativePath(dir, file).Replace('\\', '/')] = File.ReadAllText(file).Trim();
+            Refs[RelativePath(dir, file).Replace('\\', '/')] = File.ReadAllText(file).Trim();
         }
     }
     public string? ResolveRef(string name)
@@ -109,7 +124,7 @@ public sealed class GitRepository
         {
             if (!visited.Add(name)) throw new InvalidDataException("Cyclic symbolic reference.");
             if (!value.StartsWith("ref: ")) return value;
-            name = value[5..];
+            name = value.Substring(5);
         }
         return null;
     }
@@ -126,16 +141,16 @@ public sealed class GitRepository
                 var matches = new HashSet<string>();
                 foreach (var dir in objectDirs)
                 {
-                    var subdir = Path.Combine(dir, prefix[..2]);
+                    var subdir = Path.Combine(dir, prefix.Substring(0, 2));
                     if (Directory.Exists(subdir)) foreach (var file in Directory.EnumerateFiles(subdir))
                     {
-                        var candidate = prefix[..2] + Path.GetFileName(file);
+                        var candidate = prefix.Substring(0, 2) + Path.GetFileName(file);
                         if (candidate.Length == 40 && candidate.StartsWith(prefix)) matches.Add(candidate);
                     }
                 }
                 foreach (var pack in packs) for (int i = 0; i < pack.Count; i++)
                 {
-                    var candidate = Convert.ToHexString(pack.Bytes.AsSpan(1032 + i * 20, 20)).ToLowerInvariant();
+                    var candidate = ToHex(pack.Bytes, 1032 + i * 20, 20);
                     if (candidate.StartsWith(prefix)) matches.Add(candidate);
                 }
                 if (matches.Count != 1) throw new ArgumentException("Commit prefix is missing or ambiguous.");
@@ -153,7 +168,7 @@ public sealed class GitRepository
             var obj = ReadObject(id);
             if (obj.Type == "commit") return id;
             if (obj.Type != "tag") throw new ArgumentException("Revision does not refer to a commit.");
-            id = Encoding.UTF8.GetString(obj.Data).Split('\n').First(l => l.StartsWith("object "))[7..];
+            id = Encoding.UTF8.GetString(obj.Data).Split('\n').First(l => l.StartsWith("object ")).Substring(7);
         }
         throw new InvalidDataException("Cyclic tag.");
     }
@@ -163,7 +178,7 @@ public sealed class GitRepository
         var remote = GetConfig("branch." + branch.FriendlyName + ".remote");
         var merge = GetConfig("branch." + branch.FriendlyName + ".merge");
         if (remote == null || merge == null) return null;
-        var reference = remote == "." ? merge : "refs/remotes/" + remote + "/" + merge["refs/heads/".Length..];
+        var reference = remote == "." ? merge : "refs/remotes/" + remote + "/" + merge.Substring("refs/heads/".Length);
         return Branches.FirstOrDefault(b => b.Ref == reference);
     }
     private void AddObjectDirectory(string directory)
@@ -172,7 +187,7 @@ public sealed class GitRepository
         if (objectDirs.Contains(directory)) return;
         objectDirs.Add(directory);
         var packDir = Path.Combine(directory, "pack");
-        if (Directory.Exists(packDir)) foreach (var file in Directory.EnumerateFiles(packDir, "*.idx").Order(StringComparer.Ordinal))
+        if (Directory.Exists(packDir)) foreach (var file in Directory.EnumerateFiles(packDir, "*.idx").OrderBy(value => value, StringComparer.Ordinal))
         {
             var bytes = File.ReadAllBytes(file);
             if (bytes.Length < 1032 || U32(bytes, 0) != 0xff744f63 || U32(bytes, 4) != 2)
@@ -184,8 +199,8 @@ public sealed class GitRepository
         var alternates = Path.Combine(directory, "info", "alternates");
         if (File.Exists(alternates)) foreach (var line in File.ReadLines(alternates).Where(l => l.Length > 0))
         {
-            if (line.StartsWith('"')) throw new NotSupportedException("Quoted alternate object paths are not supported.");
-            AddObjectDirectory(Path.GetFullPath(line, directory));
+            if (line.StartsWith("\"", StringComparison.Ordinal)) throw new NotSupportedException("Quoted alternate object paths are not supported.");
+            AddObjectDirectory(FullPath(line, directory));
         }
     }
     public GitObject ReadObject(string id)
@@ -194,18 +209,19 @@ public sealed class GitRepository
         if (objects.TryGetValue(id, out var cached)) return cached;
         foreach (var dir in objectDirs)
         {
-            var file = Path.Combine(dir, id[..2], id[2..]);
+            var file = Path.Combine(dir, id.Substring(0, 2), id.Substring(2));
             if (!File.Exists(file)) continue;
             using var input = File.OpenRead(file);
             var data = Inflate(input);
             int zero = Array.IndexOf(data, (byte)0);
             if (zero < 0) throw new InvalidDataException("Invalid loose object header.");
             var header = Encoding.ASCII.GetString(data, 0, zero).Split(' ');
-            var body = data[(zero + 1)..];
+            var body = new byte[data.Length - zero - 1];
+            Buffer.BlockCopy(data, zero + 1, body, 0, body.Length);
             if (header.Length != 2 || long.Parse(header[1]) != body.Length) throw new InvalidDataException("Invalid loose object size.");
             return objects[id] = new GitObject(header[0], body);
         }
-        var wanted = Convert.FromHexString(id);
+        var wanted = Enumerable.Range(0, 20).Select(i => Convert.ToByte(id.Substring(i * 2, 2), 16)).ToArray();
         foreach (var pack in packs)
         {
             int low = wanted[0] == 0 ? 0 : checked((int)U32(pack.Bytes, 8 + (wanted[0] - 1) * 4));
@@ -213,14 +229,15 @@ public sealed class GitRepository
             while (low <= high)
             {
                 int mid = low + (high - low) / 2;
-                int compare = pack.Bytes.AsSpan(1032 + mid * 20, 20).SequenceCompareTo(wanted);
+                int compare = 0;
+                for (int i = 0; i < wanted.Length && compare == 0; i++)
+                    compare = pack.Bytes[1032 + mid * 20 + i].CompareTo(wanted[i]);
                 if (compare < 0) low = mid + 1;
                 else if (compare > 0) high = mid - 1;
                 else
                 {
                     uint offset = U32(pack.Bytes, 1032 + pack.Count * 24 + mid * 4);
-                    long position = (offset & 0x80000000) == 0 ? offset : checked((long)BinaryPrimitives.ReadUInt64BigEndian(
-                        pack.Bytes.AsSpan(checked(1032 + pack.Count * 28 + (int)(offset & 0x7fffffff) * 8), 8)));
+                    long position = (offset & 0x80000000) == 0 ? offset : checked((long)U64(pack.Bytes, checked(1032 + pack.Count * 28 + (int)(offset & 0x7fffffff) * 8)));
                     return objects[id] = ReadPacked(pack.Pack, position, 0);
                 }
             }
@@ -255,7 +272,9 @@ public sealed class GitRepository
         }
         else if (type == 7)
         {
-            var hash = new byte[20]; input.ReadExactly(hash); baseId = Convert.ToHexString(hash).ToLowerInvariant();
+            var hash = new byte[20];
+            for (int i = 0; i < hash.Length; i++) hash[i] = (byte)Next(input);
+            baseId = ToHex(hash, 0, hash.Length);
         }
         var data = Inflate(input);
         if (data.LongLength != size) throw new InvalidDataException("Invalid packed object size.");
@@ -289,12 +308,12 @@ public sealed class GitRepository
                 for (int i = 0; i < 3; i++) if ((op & (1 << (i + 4))) != 0) size |= delta[p++] << (8 * i);
                 if (size == 0) size = 65536;
                 if (offset < 0 || size > basis.Length - offset || size > result.Length - output) throw new InvalidDataException("Invalid delta copy.");
-                basis.AsSpan(offset, size).CopyTo(result.AsSpan(output)); output += size;
+                Buffer.BlockCopy(basis, offset, result, output, size); output += size;
             }
             else
             {
                 if (op == 0 || op > delta.Length - p || op > result.Length - output) throw new InvalidDataException("Invalid delta insert.");
-                delta.AsSpan(p, op).CopyTo(result.AsSpan(output)); p += op; output += op;
+                Buffer.BlockCopy(delta, p, result, output, op); p += op; output += op;
             }
         }
         if (output != result.Length) throw new InvalidDataException("Delta result size mismatch.");
@@ -302,11 +321,32 @@ public sealed class GitRepository
     }
     private static byte[] Inflate(Stream input)
     {
+        #if NETSTANDARD2_0
+        // Git uses zlib framing; .NET Framework's DeflateStream expects raw DEFLATE.
+        int cmf = Next(input), flg = Next(input);
+        if ((cmf & 15) != 8 || (cmf >> 4) > 7 || ((cmf << 8) + flg) % 31 != 0 || (flg & 32) != 0)
+            throw new InvalidDataException("Invalid or unsupported zlib header.");
+        using var z = new DeflateStream(input, CompressionMode.Decompress, leaveOpen: true);
+#else
         using var z = new ZLibStream(input, CompressionMode.Decompress, leaveOpen: true);
+#endif
         using var output = new MemoryStream(); z.CopyTo(output); return output.ToArray();
     }
     private static int Next(Stream input) { int b = input.ReadByte(); return b < 0 ? throw new EndOfStreamException() : b; }
-    private static uint U32(byte[] data, int offset) => BinaryPrimitives.ReadUInt32BigEndian(data.AsSpan(offset, 4));
+    private static uint U32(byte[] data, int offset) =>
+        ((uint)data[offset] << 24) | ((uint)data[offset + 1] << 16) | ((uint)data[offset + 2] << 8) | data[offset + 3];
+    private static ulong U64(byte[] data, int offset) => ((ulong)U32(data, offset) << 32) | U32(data, offset + 4);
+    private static string ToHex(byte[] data, int offset, int count)
+    {
+        const string digits = "0123456789abcdef";
+        var chars = new char[count * 2];
+        for (int i = 0; i < count; i++)
+        {
+            chars[i * 2] = digits[data[offset + i] >> 4];
+            chars[i * 2 + 1] = digits[data[offset + i] & 15];
+        }
+        return new string(chars);
+    }
     public Commit ReadCommit(string id)
     {
         if (commits.TryGetValue(id, out var cached)) return cached;
@@ -314,10 +354,10 @@ public sealed class GitRepository
         if (obj.Type != "commit") throw new InvalidDataException("Expected a commit object.");
         var text = Encoding.UTF8.GetString(obj.Data); var split = text.IndexOf("\n\n", StringComparison.Ordinal);
         if (split < 0) throw new InvalidDataException("Invalid commit.");
-        var lines = text[..split].Split('\n');
+        var lines = text.Substring(0, split).Split('\n');
         var committer = lines.First(l => l.StartsWith("committer ")).Split(' ');
-        return commits[id] = new Commit(id, lines.First(l => l.StartsWith("tree "))[5..],
-            lines.Where(l => l.StartsWith("parent ")).Select(l => l[7..]).ToArray(), long.Parse(committer[^2]), text[(split + 2)..].Split('\n')[0]);
+        return commits[id] = new Commit(id, lines.First(l => l.StartsWith("tree ")).Substring(5),
+            lines.Where(l => l.StartsWith("parent ")).Select(l => l.Substring(7)).ToArray(), long.Parse(committer[committer.Length - 2]), text.Substring(split + 2).Split('\n')[0]);
     }
     private Dictionary<string, (string Mode, string Id)> ReadTree(string id)
     {
@@ -330,7 +370,7 @@ public sealed class GitRepository
             if (space < p || zero < space || zero + 21 > obj.Data.Length) throw new InvalidDataException("Invalid tree entry.");
             var mode = Encoding.ASCII.GetString(obj.Data, p, space - p);
             var name = Encoding.UTF8.GetString(obj.Data, space + 1, zero - space - 1);
-            entries[name] = (mode, Convert.ToHexString(obj.Data.AsSpan(zero + 1, 20)).ToLowerInvariant()); p = zero + 21;
+            entries[name] = (mode, ToHex(obj.Data, zero + 1, 20)); p = zero + 21;
         }
         return trees[id] = entries;
     }
@@ -355,8 +395,9 @@ public sealed class GitRepository
     {
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var todo = new Stack<string>(); if (start != null) todo.Push(start);
-        while (todo.TryPop(out var id))
+        while (todo.Count > 0)
         {
+            var id = todo.Pop();
             if (!seen.Add(id)) continue;
             var parents = ReadCommit(id).Parents;
             foreach (var parent in firstParent ? parents.Take(1) : parents) todo.Push(parent);
@@ -380,16 +421,19 @@ public sealed class GitRepository
         var all = Reachable(start);
         var children = all.ToDictionary(id => id, _ => 0);
         if (topological) foreach (var id in all) foreach (var parent in ReadCommit(id).Parents) children[parent]++;
-        var queue = new PriorityQueue<string, (long, string)>();
-        if (topological) { foreach (var id in all.Where(id => children[id] == 0)) queue.Enqueue(id, (-ReadCommit(id).Time, id)); }
-        else queue.Enqueue(start, (-ReadCommit(start).Time, start));
+        var queue = new SortedSet<(long Time, string Id)>();
+        if (topological) { foreach (var id in all.Where(id => children[id] == 0)) queue.Add((-ReadCommit(id).Time, id)); }
+        else queue.Add((-ReadCommit(start).Time, start));
         var emitted = new HashSet<string>();
-        while (queue.TryDequeue(out var id, out _))
+        while (queue.Count > 0)
         {
+            var next = queue.Min;
+            queue.Remove(next);
+            var id = next.Id;
             if (!emitted.Add(id)) continue;
             yield return id;
             foreach (var parent in ReadCommit(id).Parents)
-                if (!topological || --children[parent] == 0) queue.Enqueue(parent, (-ReadCommit(parent).Time, parent));
+                if (!topological || --children[parent] == 0) queue.Add((-ReadCommit(parent).Time, parent));
         }
     }
 }
