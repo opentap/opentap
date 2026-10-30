@@ -96,7 +96,7 @@ namespace OpenTap
         public TapThread MainThread { get; }
 
         #region Internal Members used by the TestPlan
-        internal IEnumerable<IResultListener> ResultListeners => resultWorkers.Keys;
+        internal IEnumerable<IResultListener> ResultListeners => resultWorkers.ReadOnlySnapshot.Keys;
 
         /// <summary>
         /// Result listeners can be added just before the test plan actually starts.
@@ -107,9 +107,7 @@ namespace OpenTap
                 throw new ArgumentNullException(nameof(listener));
             if (ResultListenersSealed)
                 throw new Exception("Test plan already started. ResultListeners cannot be added at this point");
-            if (resultWorkers.ContainsKey(listener))
-                return;
-            resultWorkers.Add(listener, new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, listener.ToString()));
+            resultWorkers.Add(listener);
         }
 
         /// <summary>
@@ -124,8 +122,6 @@ namespace OpenTap
                 throw new ArgumentNullException(nameof(listener));
             if (ResultListenersSealed)
                 throw new Exception("Test plan is running. ResultListeners cannot be removed at this point");
-            if (!resultWorkers.ContainsKey(listener))
-                return;
             resultWorkers.Remove(listener);
         }
 
@@ -144,14 +140,58 @@ namespace OpenTap
         #region Result propagation dispatcher system
         bool isBusy()
         {
-            foreach (var worker in resultWorkers.Values)
+            foreach (var worker in resultWorkers.ReadOnlySnapshot.Values)
             {
                 if (worker.QueueSize > 0) return true;
             }
             return false;
         }
 
-        readonly Dictionary<IResultListener, WorkQueue> resultWorkers;
+        /// <summary>
+        /// Holds the result workers. Shared between a run and its composite runs.
+        /// Copy-on-write: the current dictionary is never mutated. Writers replace it under a lock,
+        /// so readers can enumerate it without locking while e.g. a faulty listener is removed from another thread.
+        /// </summary>
+        class ResultWorkerTable
+        {
+            readonly object writeLock = new object();
+            volatile Dictionary<IResultListener, WorkQueue> current = [];
+
+            /// <summary>
+            /// The current snapshot of result workers. Read-only: it may be enumerated concurrently by other threads, so it must never be modified.
+            /// Use <see cref="Add"/> and <see cref="Remove"/> instead.
+            /// </summary>
+            public Dictionary<IResultListener, WorkQueue> ReadOnlySnapshot => current;
+
+            /// <summary> Adds a worker for the listener unless it already has one. </summary>
+            public void Add(IResultListener listener)
+            {
+                lock (writeLock)
+                {
+                    if (current.ContainsKey(listener))
+                        return;
+                    current = new Dictionary<IResultListener, WorkQueue>(current)
+                    {
+                        [listener] = new WorkQueue(WorkQueue.Options.LongRunning | WorkQueue.Options.TimeAveraging, listener.ToString())
+                    };
+                }
+            }
+
+            /// <summary> Removes the listener's worker if it has one. </summary>
+            public void Remove(IResultListener listener)
+            {
+                lock (writeLock)
+                {
+                    if (!current.ContainsKey(listener))
+                        return;
+                    var next = new Dictionary<IResultListener, WorkQueue>(current);
+                    next.Remove(listener);
+                    current = next;
+                }
+            }
+        }
+
+        readonly ResultWorkerTable resultWorkers;
 
         double resultLatencyLimit = EngineSettings.Current.ResultLatencyLimit;
         object workThrottleLock = new object();
@@ -159,10 +199,10 @@ namespace OpenTap
         internal void ThrottleResultPropagation()
         {
 
-            if (resultWorkers.Count == 0) return;
+            if (resultWorkers.ReadOnlySnapshot.Count == 0) return;
             lock (workThrottleLock)
             {
-                foreach (var worker in resultWorkers)
+                foreach (var worker in resultWorkers.ReadOnlySnapshot)
                 {
                     var avg = worker.Value.AverageTimeSpent;
                     var estimatedDelay = new TimeSpan(avg.Ticks * worker.Value.QueueSize).TotalSeconds;
@@ -201,10 +241,12 @@ namespace OpenTap
 
         internal void WaitForResultListener(IResultListener rl)
         {
+            // the listener may have been removed as faulty.
+            if (!resultWorkers.ReadOnlySnapshot.TryGetValue(rl, out var worker)) return;
             do
             {
-                resultWorkers[rl].Wait();
-            } while (resultWorkers[rl].IsBusy);
+                worker.Wait();
+            } while (worker.IsBusy);
         }
         #endregion
 
@@ -261,7 +303,7 @@ namespace OpenTap
                 onTestPlanCompleted(r);
             }, blocking: true);
 
-            foreach (var kw in resultWorkers)
+            foreach (var kw in resultWorkers.ReadOnlySnapshot)
             {
                 kw.Value.Wait();
             }
@@ -278,13 +320,13 @@ namespace OpenTap
             if (!IsCompositeRun)
             {
                 // now clean up the result listener workers and wait for them to end.
-                foreach (var kw in resultWorkers)
+                foreach (var kw in resultWorkers.ReadOnlySnapshot)
                 {
                     kw.Value.Dispose();
                 }
             }
 
-            foreach (var kw in resultWorkers)
+            foreach (var kw in resultWorkers.ReadOnlySnapshot)
             {
                 using (TimeoutOperation.Create(() => log.Info("Waiting for result propagation for {0}", kw.Key)))
                 {
@@ -304,7 +346,7 @@ namespace OpenTap
         internal int ScheduleInResultProcessingThread<T>(IInvokable<T, WorkQueue> r)
         {
             int count = 0;
-            foreach (var item in resultWorkers)
+            foreach (var item in resultWorkers.ReadOnlySnapshot)
             {
                 if (item.Key is T x)
                 {
@@ -337,9 +379,10 @@ namespace OpenTap
         {
             if (!blocking)
                 return ScheduleInResultProcessingThread(r);
-            if (resultWorkers.Count == 0) return 0;
+            var workerCount = resultWorkers.ReadOnlySnapshot.Count;
+            if (workerCount == 0) return 0;
 
-            using (var sem = new SemaphoreSlim(0, resultWorkers.Count))
+            using (var sem = new SemaphoreSlim(0, workerCount))
             {
                 int count = ScheduleInResultProcessingThread<T>(l =>
                 {
@@ -608,7 +651,7 @@ namespace OpenTap
         {
             MainThread = TapThread.Current;
             FailedToStart = false;
-            resultWorkers = new Dictionary<IResultListener, WorkQueue>();
+            resultWorkers = new ResultWorkerTable();
 
             { // AbortCondition
 
