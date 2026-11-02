@@ -862,6 +862,9 @@ namespace OpenTap
             foreach (var item in _monitors)
                 item.ExitTestPlanRun(currentExecutionState);
 
+            // Composite runs keep their result workers alive between executions.
+            // Closing the plan ends their lifetime and releases the worker threads.
+            currentExecutionState.DisposeResultWorkers();
             currentExecutionState = null;
             Log.Debug(timer, "TestPlan closed.");
 
