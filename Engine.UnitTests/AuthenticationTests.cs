@@ -6,6 +6,53 @@ namespace OpenTap.UnitTests
 {
     public class AuthenticationTests
     {
+        [TestCase("https://example.com:8443/packages", null, "port")]
+        [TestCase("http://example.com:8443/packages", null, "port")]
+        [TestCase("https://EXAMPLE.COM:8443/packages", null, "port")]
+        [TestCase("https://example.com:9443/packages", null, "host")]
+        [TestCase("https://example.com/packages", null, "host")]
+        [TestCase("https://example.com:443/packages", null, "host")]
+        [TestCase("https://example.com:8443/packages", "custom", "explicit")]
+        [TestCase("https://example.com:8443/packages", "missing", "port")]
+        [TestCase("https://unrelated.example:8443/packages", null, null)]
+        public void SelectToken(string url, string domain, string expectedToken)
+        {
+            var settings = new AuthenticationSettings();
+            // Put the host-only token first to verify that authority takes precedence over list order.
+            settings.Tokens.Add(new TokenInfo("host", null, "example.com"));
+            settings.Tokens.Add(new TokenInfo("port", null, "example.com:8443"));
+            settings.Tokens.Add(new TokenInfo("explicit", null, "custom"));
+            Assert.That(settings.GetToken(new Uri(url), domain)?.AccessToken, Is.EqualTo(expectedToken));
+        }
+
+        [Test]
+        public void PortSpecificTokenDoesNotMatchOtherPorts()
+        {
+            var settings = new AuthenticationSettings();
+            settings.Tokens.Add(new TokenInfo("port", null, "example.com:8443"));
+            Assert.That(settings.GetToken(new Uri("https://example.com:9443")), Is.Null);
+            Assert.That(settings.GetToken(new Uri("https://example.com")), Is.Null);
+        }
+
+        [TestCase("http://[::1]:8080", "port")]
+        [TestCase("http://[::1]:8081", "host")]
+        [TestCase("http://[::1]", "host")]
+        public void SelectIpv6Token(string url, string expectedToken)
+        {
+            var settings = new AuthenticationSettings();
+            settings.Tokens.Add(new TokenInfo("host", null, "[::1]"));
+            settings.Tokens.Add(new TokenInfo("port", null, "[::1]:8080"));
+            Assert.That(settings.GetToken(new Uri(url))?.AccessToken, Is.EqualTo(expectedToken));
+        }
+
+        [Test]
+        public void GetTokenRequiresAbsoluteUri()
+        {
+            var settings = new AuthenticationSettings();
+            Assert.Throws<ArgumentNullException>(() => settings.GetToken(null));
+            Assert.Throws<ArgumentException>(() => settings.GetToken(new Uri("relative", UriKind.Relative)));
+        }
+
         [Test]
         public void ParseTokens()
         {
