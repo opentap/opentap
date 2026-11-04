@@ -89,15 +89,18 @@ namespace OpenTap.Authentication
         void PrepareRequest(HttpRequestMessage request, string domain, CancellationToken cancellationToken)
         {
             TokenInfo token = null;
-            if (domain != null)
+            /* first check if a token matches the specified domain */
+            if (domain != null) 
                 token = Tokens.FirstOrDefault(t => t.Domain == domain);
+            /* if no token matches the domain, check if a token matches the URI */
             if (token == null)
-                token = Tokens.FirstOrDefault(t => t.Domain == request.RequestUri.Host);
+                token = this.GetTokenFromUri(request.RequestUri);
             if (token != null)
             {
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.AccessToken);
             }
         }
+
 
         private static string userAgent = null;
 
@@ -105,7 +108,7 @@ namespace OpenTap.Authentication
         /// Get a HttpClient with a preconfigued BaseAddress and preconfigured authentication using a Bearer token from <see cref="Tokens"/>.
         /// It is up to the caller of this method to control the lifetime of the HttpClient
         /// </summary>
-        /// <param name="domain">This value is compared to <see cref="TokenInfo.Domain"/> to find the token from <see cref="Tokens"/> to use as Bearer token for requests. If unspecified, the host part of the request URI is used.</param>
+        /// <param name="domain">This value is compared to <see cref="TokenInfo.Domain"/> to find the token from <see cref="Tokens"/> to use as Bearer token for requests. If unspecified or unmatched, the request URI authority (host and non-default port) is matched first, followed by the host alone.</param>
         /// <param name="withRetryPolicy">If the request should be retried in case of transient errors.</param>
         /// <param name="baseAddress">The base address used in the returned client. A relative URL given here will be relative to <see cref="BaseAddress"/>. Default is <see cref="BaseAddress"/>.</param>
         /// <returns>A preconfigued HttpClient object</returns>
