@@ -165,7 +165,7 @@ namespace OpenTap.Package
         {
             try
             {
-                Parallel.ForEach(source, body);
+                source.AsParallelTapThread().ForAll(body);
             }
             catch (AggregateException ex)
             {
