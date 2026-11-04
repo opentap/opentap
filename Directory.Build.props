@@ -12,8 +12,6 @@
     <Configurations>Debug;Release</Configurations>
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <!-- Keep audit data retrieval failures visible without failing builds. Actual vulnerability warnings are unchanged. -->
-    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900</WarningsNotAsErrors>
     <IsDebug>false</IsDebug>
     <OpenTapAppTargetFramework>net9</OpenTapAppTargetFramework>
     <TargetFramework>netstandard2.0</TargetFramework>
