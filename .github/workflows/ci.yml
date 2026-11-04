@@ -170,6 +170,8 @@ jobs:
     env:
       ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
       GitVersion: ${{ needs.GetVersion.outputs.GitVersion }}
+      # Runners sharing a user account must not contend over NuGet's HTTP/audit cache.
+      NUGET_HTTP_CACHE_PATH: ${{ runner.temp }}/nuget-http-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.Architecture }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
