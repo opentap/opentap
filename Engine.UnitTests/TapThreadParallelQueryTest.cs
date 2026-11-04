@@ -70,6 +70,42 @@ namespace OpenTap.Engine.UnitTests
         }
 
         [Test]
+        public void SelectAbortsScheduledWorkersWhenSourceEnumerationFails()
+        {
+            using var started = new ManualResetEventSlim();
+            using var completed = new ManualResetEventSlim();
+            bool cancelled = false;
+            var sourceFailure = new InvalidOperationException("Source failed.");
+
+            System.Collections.Generic.IEnumerable<int> Source()
+            {
+                yield return 1;
+                Assert.IsTrue(started.Wait(TimeSpan.FromSeconds(10)), "Worker did not start.");
+                throw sourceFailure;
+            }
+
+            var query = Source().AsParallelTapThread().Select(item =>
+            {
+                var token = TapThread.Current.AbortToken;
+                started.Set();
+                try
+                {
+                    cancelled = token.WaitHandle.WaitOne(TimeSpan.FromSeconds(10));
+                    return item;
+                }
+                finally
+                {
+                    completed.Set();
+                }
+            });
+
+            Assert.AreSame(sourceFailure, Assert.Throws<InvalidOperationException>(() => query.ToArray()));
+            Assert.IsTrue(completed.Wait(TimeSpan.FromSeconds(10)), "Worker did not finish.");
+            Assert.IsTrue(cancelled, "Worker did not receive cancellation.");
+            Assert.IsFalse(TapThread.Current.AbortToken.IsCancellationRequested, "Caller should not be aborted.");
+        }
+
+        [Test]
         public void SelectAggregatesWorkerExceptions()
         {
             var query = new[] { 1, 2 }.AsParallelTapThread().Select<int>(item =>

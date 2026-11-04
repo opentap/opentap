@@ -1529,21 +1529,36 @@ namespace OpenTap
                 {
                     /* Note: this starts an unbounded number of TapThreads. TapThread has some internal throttling, so in practice it should be okay. */
                     List<Task<TResult>> tasks = [];
-                    foreach (var item in this)
+                    List<TapThread> workers = [];
+                    bool cancelled = false;
+                    try
                     {
-                        var completion = new TaskCompletionSource<TResult>();
-                        tasks.Add(completion.Task);
-                        TapThread.Start(() =>
+                        foreach (var item in this)
                         {
-                            try
+                            var completion = new TaskCompletionSource<TResult>();
+                            tasks.Add(completion.Task);
+                            workers.Add(TapThread.Start(() =>
                             {
-                                completion.SetResult(selector(item));
-                            }
-                            catch (Exception ex)
-                            {
-                                completion.SetException(ex);
-                            }
-                        });
+                                if (Volatile.Read(ref cancelled)) return;
+                                try
+                                {
+                                    TapThread.ThrowIfAborted();
+                                    completion.SetResult(selector(item));
+                                }
+                                catch (Exception ex)
+                                {
+                                    completion.SetException(ex);
+                                }
+                            }));
+                        }
+                    }
+                    catch
+                    {
+                        Volatile.Write(ref cancelled, true);
+                        // Best-effort cancellation if source enumeration or scheduling fails.
+                        foreach (var worker in workers)
+                            try { worker.Abort(); } catch { }
+                        throw;
                     }
                     /* Wait for all tasks to complete before returning the enumerator.
                      * We could return before awaiting the tasks, but WaitAll() gives us a nice AggregateException on failure.
