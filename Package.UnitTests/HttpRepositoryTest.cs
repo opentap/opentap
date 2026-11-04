@@ -20,7 +20,13 @@ public class HttpRepositoryTest
     [TestCase("port", "custom")]
     [TestCase("port", "missing")]
     [TestCase("port", "CUSTOM")]
-    public async Task RepositoryAndAuthenticationClientsSelectTokens(string tokenKind, string domain)
+    [TestCase("host", null, "../packages")]
+    [TestCase("port", null, "../packages")]
+    [TestCase("none", null, "../packages")]
+    [TestCase("host", null, "/api/packages")]
+    [TestCase("port", null, "/api/packages")]
+    [TestCase("none", null, "/api/packages")]
+    public async Task RepositoryAndAuthenticationClientsSelectTokens(string tokenKind, string domain, string relativeUrl = null)
     {
         using var session = Session.Create(SessionOptions.OverlayComponentSettings);
         using var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -28,6 +34,7 @@ public class HttpRepositoryTest
         var port = ((IPEndPoint)listener.LocalEndpoint).Port;
         var uri = new Uri($"http://127.0.0.1:{port}/");
         var settings = AuthenticationSettings.Current;
+        settings.BaseAddress = new Uri(uri, "base/").AbsoluteUri;
         settings.Tokens = new List<TokenInfo>();
         if (tokenKind != "none")
             settings.Tokens.Add(new("host-token", null, uri.Host));
@@ -39,11 +46,12 @@ public class HttpRepositoryTest
         var expected = tokenKind == "none" ? null : $"Bearer {tokenKind}-token";
         var expectedClientToken = domain == "custom" ? "Bearer explicit-token" : expected;
 
-        async Task<string> ReceiveRequest()
+        async Task<(string RequestLine, string Authorization)> ReceiveRequest()
         {
             using var connection = await listener.AcceptTcpClientAsync().WaitAsync(TimeSpan.FromSeconds(10));
             using var stream = connection.GetStream();
             using var reader = new StreamReader(stream, System.Text.Encoding.ASCII, false, 1024, true);
+            var requestLine = await reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10));
             string authorization = null;
             string line;
             while (!string.IsNullOrEmpty(line = await reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(10))))
@@ -51,21 +59,33 @@ public class HttpRepositoryTest
                     authorization = line.Substring("Authorization:".Length).Trim();
             var response = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 7\r\nConnection: close\r\n\r\n\"4.0.0\""u8.ToArray();
             await stream.WriteAsync(response);
-            return authorization;
+            return (requestLine, authorization);
         }
 
-        var repoClient = HttpPackageRepository.GetAuthenticatedClient(uri);
+        var requestUri = uri;
+        if (relativeUrl != null)
+        {
+            // Relative repository URLs must be resolved before selecting the destination's token.
+            var repository = PackageRepositoryHelpers.DetermineRepositoryType(relativeUrl);
+            var expectedPath = relativeUrl.StartsWith("/") ? relativeUrl : "/packages";
+            Assert.That(repository, Is.TypeOf<HttpPackageRepository>());
+            Assert.That(repository.Url, Is.EqualTo(new Uri(uri, expectedPath).AbsoluteUri));
+            requestUri = new Uri(repository.Url, UriKind.Absolute);
+        }
+        var repoClient = HttpPackageRepository.GetAuthenticatedClient(requestUri);
         using var repoHttpClient = repoClient.HttpClient;
         var received = ReceiveRequest();
         using (var client = settings.GetClient(domain))
-        using (var response = await client.GetAsync(uri).WaitAsync(TimeSpan.FromSeconds(10)))
+        using (var response = await client.GetAsync(relativeUrl ?? uri.AbsoluteUri).WaitAsync(TimeSpan.FromSeconds(10)))
             response.EnsureSuccessStatusCode();
-        Assert.That(await received, Is.EqualTo(expectedClientToken));
+        var clientRequest = await received;
+        Assert.That(clientRequest.RequestLine, Is.EqualTo($"GET {requestUri.PathAndQuery} HTTP/1.1"));
+        Assert.That(clientRequest.Authorization, Is.EqualTo(expectedClientToken));
 
         received = ReceiveRequest();
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         await Task.Run(() => repoClient.Version(cancellation.Token));
-        Assert.That(await received, Is.EqualTo(expected));
+        Assert.That((await received).Authorization, Is.EqualTo(expected));
     }
 
     private sealed class QueryHandler(Func<int, HttpStatusCode> getStatus) : HttpMessageHandler
