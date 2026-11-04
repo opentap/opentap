@@ -1483,11 +1483,9 @@ namespace OpenTap
             
         }
 
-        internal sealed class TapThreadParallelQuery<T>(Func<IEnumerable<T>> wrapper) : IEnumerable<T>
+        internal sealed class TapThreadParallelQuery<T>(Func<IEnumerable<T>> source) : IEnumerable<T>
         {
-            private IEnumerable<T> _source = null;
-            private IEnumerable<T> Source => _source ??= wrapper();
-            public IEnumerator<T> GetEnumerator() => Source.GetEnumerator();
+            public IEnumerator<T> GetEnumerator() => source().GetEnumerator();
             IEnumerator IEnumerable.GetEnumerator()
             {
                 return GetEnumerator();

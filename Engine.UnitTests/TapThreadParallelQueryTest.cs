@@ -25,6 +25,41 @@ namespace OpenTap.Engine.UnitTests
             Assert.AreEqual(count, calls);
         }
 
+        [Test]
+        public void SelectReevaluatesOnEachEnumeration()
+        {
+            int calls = 0;
+            var query = new[] { 1, 2, 3 }.AsParallelTapThread().Select(item =>
+            {
+                Interlocked.Increment(ref calls);
+                return item * item;
+            });
+
+            CollectionAssert.AreEquivalent(new[] { 1, 4, 9 }, query.ToArray());
+            Assert.AreEqual(3, calls);
+            CollectionAssert.AreEquivalent(new[] { 1, 4, 9 }, query.ToArray());
+            Assert.AreEqual(6, calls);
+        }
+
+        [Test]
+        public void TrySelectReevaluatesOnEachEnumeration()
+        {
+            int calls = 0;
+            int failures = 0;
+            var query = new[] { 0, 2 }.AsParallelTapThread().TrySelect(item =>
+            {
+                Interlocked.Increment(ref calls);
+                return 10 / item;
+            }, ex => Interlocked.Increment(ref failures));
+
+            CollectionAssert.AreEqual(new[] { 5 }, query.ToArray());
+            Assert.AreEqual(2, calls);
+            Assert.AreEqual(1, failures);
+            CollectionAssert.AreEqual(new[] { 5 }, query.ToArray());
+            Assert.AreEqual(4, calls);
+            Assert.AreEqual(2, failures);
+        }
+
         [TestCase(0)]
         [TestCase(5)]
         public void ForAllExecutesEveryItemBeforeReturning(int count)
