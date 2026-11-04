@@ -387,10 +387,7 @@ namespace OpenTap
         /// <param name="verdict">New verdict to set.</param>
         protected void UpgradeVerdict(Verdict verdict)
         {
-            if ((int)verdict > (int)this.Verdict)
-            {
-                this.Verdict = verdict;
-            }
+            TestStepExtensions.UpgradeVerdict(this, verdict);
         }
 
         /// <summary>
@@ -924,15 +921,11 @@ namespace OpenTap
         static readonly object upgradeVerdictLock = new object();
         internal static void UpgradeVerdict(this ITestStep step, Verdict newVerdict)
         {
-            if (step.Verdict < newVerdict)
+            var lockObj = step.StepRun?.upgradeVerdictLock ?? upgradeVerdictLock;
+            lock (lockObj)
             {
-                var lockObj = step.StepRun?.upgradeVerdictLock ?? upgradeVerdictLock;
-
-                lock (lockObj)
-                {
-                    if (step.Verdict < newVerdict) 
-                        step.Verdict = newVerdict;
-                }
+                if (step.Verdict < newVerdict)
+                    step.Verdict = newVerdict;
             }
         }
 

@@ -10,6 +10,55 @@ namespace OpenTap.Engine.UnitTests
     [TestFixture]
     public class TestStepTests
     {
+        class VerdictStep : TestStep, ITestStep
+        {
+            public bool VerdictReadUnderLock { get; private set; }
+            public bool VerdictWrittenUnderLock { get; private set; }
+
+            // Observe lock ownership at the actual read and write, without relying on thread timing.
+            Verdict ITestStep.Verdict
+            {
+                get
+                {
+                    Assert.IsTrue(Monitor.IsEntered(StepRun.upgradeVerdictLock),
+                        "The verdict comparison must hold the step run's lock.");
+                    VerdictReadUnderLock = true;
+                    return Verdict;
+                }
+                set
+                {
+                    Assert.IsTrue(Monitor.IsEntered(StepRun.upgradeVerdictLock),
+                        "The verdict assignment must hold the step run's lock.");
+                    VerdictWrittenUnderLock = true;
+                    Verdict = value;
+                }
+            }
+
+            public override void Run() { }
+
+            public void SetVerdict(Verdict verdict)
+            {
+                UpgradeVerdict(verdict);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void UpgradeVerdictUsesStepRunLock(bool useExtension)
+        {
+            var step = new VerdictStep();
+            step.StepRun = new TestStepRun(step, Guid.NewGuid());
+
+            if (useExtension)
+                TestStepExtensions.UpgradeVerdict(step, Verdict.Pass);
+            else
+                step.SetVerdict(Verdict.Pass);
+
+            Assert.IsTrue(step.VerdictReadUnderLock, "Upgrade must use the shared, locked verdict comparison.");
+            Assert.IsTrue(step.VerdictWrittenUnderLock, "Upgrade must use the shared, locked verdict assignment.");
+            Assert.AreEqual(Verdict.Pass, step.Verdict);
+        }
+
         [Test]
         public void FormattedName()
         {
