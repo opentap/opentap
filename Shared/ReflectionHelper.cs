@@ -16,6 +16,7 @@ using System.Text;
 using System.Threading;
 using OpenTap.Translation;
 using System.Threading.Tasks;
+using OpenTap.Authentication;
 
 //**** WARNING ****//
 // This file is used in many projects(link existing), but only with internal protection.
@@ -1482,6 +1483,31 @@ namespace OpenTap
             }
             
         }
+
+        /// <summary>
+        /// Selects a token for a request, preferring an explicitly configured domain, then the URI authority
+        /// (host and non-default port), then a host-only token. A token for another port is never selected.
+        /// </summary>
+        /// <param name="settings">The authentication settings containing the configured tokens.</param>
+        /// <param name="uri">The absolute request URI.</param>
+        /// <param name="domain">An optional explicit token domain, compared exactly to <see cref="TokenInfo.Domain"/>.</param>
+        /// <returns>The matching token, or null if no token matches.</returns>
+        internal static TokenInfo GetToken(this AuthenticationSettings settings, Uri uri, string domain = null)
+        {
+            if (uri == null)
+                throw new ArgumentNullException(nameof(uri));
+            if (!uri.IsAbsoluteUri)
+                throw new ArgumentException("Request URI must be absolute.", nameof(uri));
+
+            var tokens = settings.Tokens;
+            TokenInfo token = null;
+            if (domain != null)
+                token = tokens.FirstOrDefault(t => t.Domain == domain);
+            return token
+                ?? tokens.FirstOrDefault(t => string.Equals(t.Domain, uri.Authority, StringComparison.OrdinalIgnoreCase))
+                ?? tokens.FirstOrDefault(t => string.Equals(t.Domain, uri.Host, StringComparison.OrdinalIgnoreCase));
+        }
+
     }
 
     static internal class Sequence

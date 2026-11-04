@@ -83,20 +83,16 @@ namespace OpenTap.Package
 
             // This is kind of a hack. AuthenticationSettings does some work to set up User-Agent headers.
             // Here we just copy the headers from the authentication client to the repo client.
-            var httpClient = AuthenticationSettings.Current.GetClient();
+            using var httpClient = AuthenticationSettings.Current.GetClient();
             foreach (var agent in httpClient.DefaultRequestHeaders.GetValues("User-Agent"))
             {
                 repoClient.HttpClient.DefaultRequestHeaders.Add("User-Agent", agent);
             }
 
             // Manually transfer any bearer tokens from the authentication client to the repo client.
-            foreach (var token in AuthenticationSettings.Current.Tokens)
-            {
-                if (token.Domain == uri.Authority)
-                {
-                    repoClient.AddAuthentication(new BearerTokenAuthentication(token.AccessToken));
-                }
-            }
+            var token = AuthenticationSettings.Current.GetToken(uri);
+            if (token != null)
+                repoClient.AddAuthentication(new BearerTokenAuthentication(token.AccessToken));
 
             return repoClient;
         }
