@@ -276,7 +276,8 @@ namespace OpenTap
                     
                     
                     List<AssemblyRef> refNames = new List<AssemblyRef>();
-                    using (FileStream str = new FileStream(file, FileMode.Open, FileAccess.Read))
+                    // FileShare.Delete allows the file to be moved/deleted (e.g. by an uninstall) while we read it.
+                    using (FileStream str = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
                     {
                         var binFormat = ExecutableFormatDetector.Detect(str, file);
                     
@@ -539,7 +540,8 @@ namespace OpenTap
             CurrentAsm = asm;
             ReadPrivateTypesInCurrentAsm = false;
             TypesInCurrentAsm = new Dictionary<TypeDefinitionHandle, TypeData>();
-            using (FileStream file = new FileStream(asm.Location, FileMode.Open, FileAccess.Read))
+            // FileShare.Delete allows the file to be moved/deleted (e.g. by an uninstall) while we read it.
+            using (FileStream file = new FileStream(asm.Location, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete))
             using (PEReader header = new PEReader(file, PEStreamOptions.LeaveOpen))
             {
                 CurrentReader = header.GetMetadataReader();

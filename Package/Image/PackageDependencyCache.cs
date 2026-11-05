@@ -29,7 +29,7 @@ namespace OpenTap.Package
         {
             var newGraphs = graphs
                 .Where(g => repos[g] is IQueryPrereleases)
-                .AsParallel()
+                .AsParallelTapThread()
                 .Select(g =>
                 {
                     var newGraph =
@@ -62,7 +62,7 @@ namespace OpenTap.Package
 
             var repositories = Repositories.Select(PackageRepositoryHelpers.DetermineRepositoryType).ToArray();
             graphs.Clear();
-            var graphList = repositories.AsParallel().TrySelect(repo => (graph: GetGraph(repo), repo: repo),
+            var graphList = repositories.AsParallelTapThread().TrySelect(repo => (graph: GetGraph(repo), repo: repo),
                 (ex, repo) =>
                 {
                     var innermost = GetInnermostException(ex);

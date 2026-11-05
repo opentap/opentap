@@ -410,6 +410,49 @@ namespace OpenTap.UnitTests
             }
         }
 
+        class WorkerTrackingResultListener : ResultListener
+        {
+            public List<TapThread> Workers = [];
+            public override void OnTestPlanRunCompleted(TestPlanRun planRun, Stream logStream)
+            {
+                Workers.Add(TapThread.Current);
+            }
+        }
+
+        [TestCase(1)]
+        [TestCase(2)]
+        public void ClosingPlanReleasesResultWorkerThreads(int executions)
+        {
+            var listener = new WorkerTrackingResultListener();
+            var plan = new TestPlan { PrintTestPlanRunSummary = false };
+            plan.Steps.Add(new MyStep());
+
+            for (int iteration = 0; iteration < 3; iteration++)
+            {
+                plan.Open([listener]);
+                listener.Workers.Clear();
+                try
+                {
+                    for (int execution = 0; execution < executions; execution++)
+                    {
+                        var run = plan.Execute([listener]);
+                        Assert.That(run.Verdict, Is.EqualTo(Verdict.Pass));
+                        Assert.That(listener.Workers.Count, Is.EqualTo(execution + 1),
+                            "Each execution must deliver its completion callback before returning.");
+                    }
+                }
+                finally
+                {
+                    plan.Close();
+                }
+
+                Assert.That(SpinWait.SpinUntil(
+                    () => listener.Workers.All(worker => worker.Status == TapThreadStatus.HierarchyCompleted),
+                    TimeSpan.FromSeconds(5)), Is.True,
+                    "Result worker threads must exit after the plan is closed.");
+            }
+        }
+
         [Test]
         public void TestResultsOptimizeBug()
         {

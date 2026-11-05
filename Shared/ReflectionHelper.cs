@@ -16,6 +16,7 @@ using System.Text;
 using System.Threading;
 using OpenTap.Translation;
 using System.Threading.Tasks;
+using OpenTap.Authentication;
 
 //**** WARNING ****//
 // This file is used in many projects(link existing), but only with internal protection.
@@ -1482,6 +1483,117 @@ namespace OpenTap
             }
             
         }
+
+        internal sealed class TapThreadParallelQuery<T>(Func<IEnumerable<T>> source) : IEnumerable<T>
+        {
+            public IEnumerator<T> GetEnumerator() => source().GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator()
+            {
+                return GetEnumerator();
+            }
+
+            internal void ForAll(Action<T> action)
+            {
+                using var it = Select(x => { action(x); return true; }).GetEnumerator();
+                /* exhaust the iterator and discard results */
+                while (it.MoveNext()) {}
+            }
+
+            internal TapThreadParallelQuery<TResult> TrySelect<TResult>(Func<T, TResult> selector,
+                Action<Exception, T> handler) => TrySelect<TResult, Exception>(selector, handler);
+
+            internal TapThreadParallelQuery<TResult> TrySelect<TResult>(Func<T, TResult> selector,
+                Action<Exception> handler) => TrySelect<TResult, Exception>(selector, (ex, item) => handler(ex));
+
+            internal TapThreadParallelQuery<TResult> TrySelect<TResult, TException>(Func<T, TResult> selector,
+                Action<TException, T> handler) where TException : Exception
+            {
+                var results = Select(item =>
+                {
+                    try
+                    {
+                        return (success: true, value: selector(item));
+                    }
+                    catch (TException ex)
+                    {
+                        handler(ex, item);
+                        return (success: false, value: default(TResult));
+                    }
+                });
+                return new TapThreadParallelQuery<TResult>(() =>
+                    results.Where(result => result.success).Select(result => result.value));
+            }
+
+            internal TapThreadParallelQuery<TResult> Select<TResult>(Func<T, TResult> selector)
+            {
+                return new TapThreadParallelQuery<TResult>(() =>
+                {
+                    /* Note: this starts an unbounded number of TapThreads. TapThread has some internal throttling, so in practice it should be okay. */
+                    List<Task<TResult>> tasks = [];
+                    List<TapThread> workers = [];
+                    bool cancelled = false;
+                    try
+                    {
+                        foreach (var item in this)
+                        {
+                            var completion = new TaskCompletionSource<TResult>();
+                            tasks.Add(completion.Task);
+                            workers.Add(TapThread.Start(() =>
+                            {
+                                if (Volatile.Read(ref cancelled)) return;
+                                try
+                                {
+                                    TapThread.ThrowIfAborted();
+                                    completion.SetResult(selector(item));
+                                }
+                                catch (Exception ex)
+                                {
+                                    completion.SetException(ex);
+                                }
+                            }));
+                        }
+                    }
+                    catch
+                    {
+                        Volatile.Write(ref cancelled, true);
+                        // Best-effort cancellation if source enumeration or scheduling fails.
+                        foreach (var worker in workers)
+                            try { worker.Abort(); } catch { }
+                        throw;
+                    }
+                    /* Wait for all tasks to complete before returning the enumerator.
+                     * We could return before awaiting the tasks, but WaitAll() gives us a nice AggregateException on failure.
+                     * The advantage of not waiting is that LINQ consumers can proceed as soon as a result is ready,
+                     * but we only use this internally and I don't currently see a strong use case. */
+                    Task.WaitAll([.. tasks]);
+                    return tasks.Select(x => x.Result);
+                });
+            }
+        }
+
+        public static TapThreadParallelQuery<T> AsParallelTapThread<T>(this IEnumerable<T> source)
+        {
+            return new TapThreadParallelQuery<T>(() => source);
+        }
+        /// <summary>
+        /// Selects a token for a request, preferring the URI authority (host and non-default port),
+        /// then a host-only token. A token for another port is never selected.
+        /// </summary>
+        /// <param name="settings">The authentication settings containing the configured tokens.</param>
+        /// <param name="uri">The absolute request URI.</param>
+        /// <returns>The matching token, or null if no token matches.</returns>
+        internal static TokenInfo GetTokenFromUri(this AuthenticationSettings settings, Uri uri)
+        {
+            if (uri == null)
+                throw new ArgumentNullException(nameof(uri));
+            if (!uri.IsAbsoluteUri)
+                throw new ArgumentException("Request URI must be absolute.", nameof(uri));
+
+            var tokens = settings.Tokens;
+            return tokens.FirstOrDefault(t => string.Equals(t.Domain, uri.Authority, StringComparison.OrdinalIgnoreCase))
+                ?? tokens.FirstOrDefault(t => string.Equals(t.Domain, uri.Host, StringComparison.OrdinalIgnoreCase));
+        }
+
     }
 
     static internal class Sequence

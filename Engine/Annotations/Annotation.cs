@@ -2674,13 +2674,18 @@ namespace OpenTap
                 switch (filter)
                 {
                     case StepSelectorAttribute.FilterTypes.All:
-                        return Utils.FlattenHeirarchy(step.GetParent<TestPlan>().ChildTestSteps, x => x.ChildTestSteps);
+                        var plan = step.GetParent<TestPlan>();
+                        return plan == null
+                            ? Enumerable.Empty<ITestStep>()
+                            : Utils.FlattenHeirarchy(plan.ChildTestSteps, x => x.ChildTestSteps);
                     case StepSelectorAttribute.FilterTypes.AllExcludingSelf:
                         return getSteps(step, StepSelectorAttribute.FilterTypes.All).Where(x => x.Id != step.Id);
                     case StepSelectorAttribute.FilterTypes.Children:
                         return step.ChildTestSteps;
                     case StepSelectorAttribute.FilterTypes.Sibling:
-                        return step.Parent.ChildTestSteps.Where(x => x.Id != step.Id);
+                        return step.Parent == null
+                            ? Enumerable.Empty<ITestStep>()
+                            : step.Parent.ChildTestSteps.Where(x => x.Id != step.Id);
                     default:
                         throw new InvalidOperationException("Invalid filter type: " + filter);
                 }
