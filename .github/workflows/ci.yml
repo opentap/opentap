@@ -931,6 +931,8 @@ jobs:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
     runs-on: [self-hosted, windows]
+    permissions:
+      id-token: write # Required for NuGet trusted publishing
     needs:
       - Package-NuGet
     steps:
@@ -939,13 +941,22 @@ jobs:
         with:
           name: nuget-package
           path: .
+      - name: NuGet login
+        id: nuget_login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}
       - name: Package
-        run: nuget push OpenTAP.*.nupkg ${{ secrets.NUGET_KEY }} -NonInteractive -Source https://api.nuget.org/v3/index.json -SkipDuplicate
+        run: nuget push OpenTAP.*.nupkg $env:NUGET_KEY -NonInteractive -Source https://api.nuget.org/v3/index.json -SkipDuplicate
+        env:
+          NUGET_KEY: ${{ steps.nuget_login.outputs.NUGET_API_KEY }}
 
   Publish-Templates:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
     environment: nuget.org
     runs-on: [self-hosted, windows]
+    permissions:
+      id-token: write # Required for NuGet trusted publishing
     needs:
       - Package-Templates
     steps:
@@ -954,8 +965,15 @@ jobs:
         with:
           name: package-templates
           path: .
+      - name: NuGet login
+        id: nuget_login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}
       - name: Package
-        run: dotnet nuget push OpenTAP.Templates*.nupkg -k ${{ secrets.NUGET_KEY }} -s https://api.nuget.org/v3/index.json # --skip-duplicate --no-symbols
+        run: dotnet nuget push OpenTAP.Templates*.nupkg -k $env:NUGET_KEY -s https://api.nuget.org/v3/index.json --skip-duplicate
+        env:
+          NUGET_KEY: ${{ steps.nuget_login.outputs.NUGET_API_KEY }}
 
   Publish-TapPackages:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
