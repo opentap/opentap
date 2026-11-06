@@ -196,7 +196,7 @@ jobs:
             bin/Release/*
 
   Build-MacOS:
-    runs-on: macos-14
+    runs-on: macos-26
     needs: GetVersion
     env:
       ShortVersion: ${{ needs.GetVersion.outputs.ShortVersion }}
@@ -352,7 +352,7 @@ jobs:
       - run: bin/Release/tap run tests/regression.TapPlan --verbose --color
 
   TestMacPlan:
-    runs-on: macos-14
+    runs-on: macos-26
     needs: 
       - Build-MacOS
       - Package-Templates
