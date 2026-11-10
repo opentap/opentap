@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!-- This project only exposes the .NET SDK's NuGet pack target. The package
+         contents and metadata continue to be defined by OpenTAP.nuspec. -->
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <NuspecFile>OpenTAP.nuspec</NuspecFile>
+    <NuspecBasePath>$(MSBuildProjectDirectory)</NuspecBasePath>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+  </PropertyGroup>
+</Project>
