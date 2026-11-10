@@ -11,6 +11,27 @@ namespace OpenTap.Image.Tests
     [TestFixture]
     public class Resolve
     {
+        [TestCase("8.8.0", "I", true, "9.22.1")]
+        [TestCase("9.14.0", "ExactDependency", true, null)]
+        [TestCase("9.14.0", "ExactDependency", false, "9.13.1")]
+        public void NoDowngradeDependencies(string installedVersion, string packageName, bool noDowngrade, string expectedVersion)
+        {
+            var image = MockRepository.CreateSpecifier();
+            image.Packages.Add(new PackageSpecifier(packageName, VersionSpecifier.Any));
+            image.InstalledPackages = System.Collections.Immutable.ImmutableArray.Create(new PackageDef
+            {
+                Name = "OpenTAP", Version = SemanticVersion.Parse(installedVersion),
+                OS = "Windows", Architecture = CpuArchitecture.AnyCPU
+            });
+            image.NoDowngrade = noDowngrade;
+
+            if (expectedVersion == null)
+                Assert.Throws<ImageResolveException>(() => image.Resolve(CancellationToken.None));
+            else
+                Assert.AreEqual(SemanticVersion.Parse(expectedVersion), image.Resolve(CancellationToken.None)
+                    .Packages.Single(p => p.Name == "OpenTAP").Version);
+        }
+
         [Test]
         public void ResolveAndVerifyID()
         {

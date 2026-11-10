@@ -32,6 +32,9 @@ namespace OpenTap.Package
         /// <summary> The installed packages. </summary>
         internal ImmutableArray<PackageDef> InstalledPackages { get; set; } = ImmutableArray<PackageDef>.Empty;
 
+        /// <summary> Exclude versions older than the installed packages during resolution. </summary>
+        internal bool NoDowngrade { get; set; }
+
         /// <summary> Creates a new instance. </summary>
         public ImageSpecifier(List<PackageSpecifier> packages, string name = "")
         {
@@ -142,6 +145,11 @@ namespace OpenTap.Package
             cache.LoadFromRepositories();
             cache.AddPackages(InstalledPackages);
             cache.AddPackages(AdditionalPackages);
+            if (NoDowngrade)
+            {
+                foreach (var installed in InstalledPackages)
+                    cache.Graph.MinimumVersions[installed.Name] = installed.Version;
+            }
             var sw = Stopwatch.StartNew();
             
             var resolver = new ImageResolver(cancellationToken);
