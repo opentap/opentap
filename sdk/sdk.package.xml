@@ -10,15 +10,11 @@
     <PackageDependency Package="OpenTAP" Version="^$(GitVersion)" />
       </Dependencies>
   <Files>
-    <File Path="Packages/SDK/Keysight.OpenTap.Sdk.MSBuild.dll" SourcePath="Keysight.OpenTap.Sdk.MSBuild.dll">
-      <SetAssemblyInfo Attributes="Version"/>
-    </File>
-    <File Path="Packages/SDK/OpenTap.Sdk.New.dll" SourcePath="OpenTap.Sdk.New.dll">
-      <SetAssemblyInfo Attributes="Version"/>
-    </File>
+    <File Path="Packages/SDK/Keysight.OpenTap.Sdk.MSBuild.dll" SourcePath="Keysight.OpenTap.Sdk.MSBuild.dll"/>
+    <File Path="Packages/SDK/OpenTap.Sdk.New.dll" SourcePath="OpenTap.Sdk.New.dll"/>
     <File Path="OpenTap.xml"/>
     <File Path="OpenTap.Package.xml"/>
-    <File Path="Packages/SDK/OpenTap.Templates.$(GitLongVersion).nupkg"/>
+    <File Path="Packages/SDK/OpenTap.Templates.nupkg"/>
     <File Path="Packages/SDK/PackageSchema.xsd"/>
     <File Path="Packages/SDK/OpenTAP Developer Guide.pdf" SourcePath="Packages/SDK/Examples/OpenTAP Developer Guide.pdf"/>
     <File Path="Packages/SDK/Examples/.OpenTapIgnore"/>
@@ -62,6 +58,6 @@
       *: Previously we specified a number of different known exit codes, but microsoft keeps changing it so it is hopeless to keep up.
       Enough is enough. Just accept any failure exit code.
     -->
-		<ActionStep ExpectedExitCodes="*" Quiet="true" ExeFile="dotnet" Arguments='new --install Packages/SDK/OpenTap.Templates.$(GitLongVersion).nupkg' ActionName="install" Optional="true"/>
+		<ActionStep ExpectedExitCodes="*" Quiet="true" ExeFile="dotnet" Arguments='new --install Packages/SDK/OpenTap.Templates.nupkg' ActionName="install" Optional="true"/>
 	</PackageActionExtensions>
 </Package>
