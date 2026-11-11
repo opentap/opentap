@@ -10,17 +10,52 @@ using Mono.Cecil;
 using Mono.Cecil.Cil;
 using NUnit.Framework;
 using OpenTap.EngineUnitTestUtils;
+using OpenTap.Diagnostic;
 
 namespace OpenTap.Package.UnitTests;
 
 [TestFixture]
 public class UninstallContextTest
 {
+    sealed class RetryOutputListener(TextWriter output, string testName) : ILogListener
+    {
+        public void EventsLogged(IEnumerable<OpenTap.Diagnostic.Event> events)
+        {
+            foreach (var evt in events)
+            {
+                if (evt.Message.StartsWith("[UNINSTALL-RETRY]", StringComparison.Ordinal))
+                    output.WriteLine($"{testName}: {evt.Message}");
+            }
+        }
 
-    [Test]
+        public void Flush() => output.Flush();
+    }
+
+    IDisposable retryOutputSession;
+
+    [SetUp]
+    public void SetUpRetryOutput()
+    {
+        retryOutputSession = Session.Create(SessionOptions.RedirectLogging);
+        Log.AddListener(new RetryOutputListener(TestContext.Out, TestContext.CurrentContext.Test.FullName));
+    }
+
+    [TearDown]
+    public void TearDownRetryOutput()
+    {
+        try
+        {
+            Log.Flush();
+        }
+        finally
+        {
+            retryOutputSession.Dispose();
+        }
+    }
+
+    [Test, Repeat(100)]
     public void TestDeleteFile()
     {
-        using var _ = Session.Create(SessionOptions.RedirectLogging);
         var ll = new TestTraceListener();
         Log.AddListener(ll);
         var uninstallContext = UninstallContext.Create(Installation.Current);
@@ -44,6 +79,7 @@ public class UninstallContextTest
         }
         
         uninstallContext.UndoAllDeletions();
+        Log.Flush();
 
         Assert.That(ll.ErrorMessage, Is.Empty);
         Assert.That(ll.WarningMessage, Is.Empty);
@@ -83,7 +119,6 @@ public class UninstallContextTest
         public void Dispose() => Directory.Delete(DirectoryPath, true);
     }
 
-    [Test]
     public void TestDeletePackageSuccessAndSharedFiles()
     {
         using var fixture = new DeletePackageFixture();
@@ -97,7 +132,6 @@ public class UninstallContextTest
             Assert.That(File.ReadAllText(fixture.Original(file.FileName)), Is.EqualTo(file.FileName));
     }
 
-    [Test]
     public void TestDeletePackageSweepsBeforeRetrying()
     {
         using var fixture = new DeletePackageFixture();
@@ -123,8 +157,6 @@ public class UninstallContextTest
         fixture.Context.UndoAllDeletions();
     }
 
-    [Test]
-    [Platform("Win")]
     public void TestDeletePackageRetriesLockedFile()
     {
         using var fixture = new DeletePackageFixture();
@@ -148,7 +180,6 @@ public class UninstallContextTest
         Assert.That(File.ReadAllText(fixture.Original("first.txt")), Is.EqualTo("first.txt"));
     }
 
-    [Test]
     public void TestDeletePackageAlreadyCancelled()
     {
         using var fixture = new DeletePackageFixture();
@@ -159,7 +190,6 @@ public class UninstallContextTest
             Assert.That(File.Exists(fixture.Original(file.FileName)), Is.True);
     }
 
-    [Test]
     public void TestDeletePackageRetryBudgetAndRollback()
     {
         using var fixture = new DeletePackageFixture();
@@ -171,7 +201,6 @@ public class UninstallContextTest
             Assert.That(File.ReadAllText(fixture.Original(file.FileName)), Is.EqualTo(file.FileName));
     }
 
-    [Test]
     public void TestDeletePackageCancellationRollsBack()
     {
         using var fixture = new DeletePackageFixture();
@@ -196,7 +225,6 @@ public class UninstallContextTest
             Assert.That(File.ReadAllText(fixture.Original(file.FileName)), Is.EqualTo(file.FileName));
     }
 
-    [Test]
     public void TestRenamePackageFilesFromArchive()
     {
         using var fixture = new DeletePackageFixture();
@@ -211,8 +239,6 @@ public class UninstallContextTest
             Assert.That(File.Exists(fixture.Original(file.RelativeDestinationPath)), Is.False);
     }
 
-    [TestCase(false)]
-    [TestCase(true)]
     public void TestRenamePackageFilesFromXml(bool invalidSecondPackage)
     {
         using var fixture = new DeletePackageFixture();
@@ -231,7 +257,6 @@ public class UninstallContextTest
             Assert.That(File.Exists(fixture.Original(file.FileName)), Is.EqualTo(invalidSecondPackage));
     }
 
-    [Test]
     public void TestUndoAllDeletionsContinuesAfterFailure()
     {
         using var fixture = new DeletePackageFixture();
