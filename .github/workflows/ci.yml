@@ -278,7 +278,6 @@ jobs:
       - name: Test
         run: |
           $ErrorActionPreference = "Stop"
-          #Copy-Item .\bin\Release\runtimes\win-x64\native\git2-b7bad55.dll .\bin\Release
           cd bin/Release                                                                       # Timeout: 10 minutes (normally takes 5 minutes to run)
           dotnet vstest OpenTap.Package.UnitTests.dll --logger:"console;verbosity=detailed" -- RunConfiguration.TestSessionTimeout=600000 RunConfiguration.TreatNoTestsAsError=true
 
@@ -592,7 +591,6 @@ jobs:
           $env:Platform = "Windows"
           cd bin/Release
           Remove-Item -Recurse -Force ./Packages
-          #cp .\runtimes\win-x64\native\git2-b7bad55.dll .
           .\tap.exe package create ../../package.xml --install -v -c
           Copy-Item "../../sdk/Examples" "Packages/SDK/Examples" -Recurse
           Copy-Item "../../Package/PackageSchema.xsd" "Packages/SDK/PackageSchema.xsd"

@@ -679,6 +679,8 @@ This table demonstrates the general behavior of conditions. Assume `$(a) = 1` an
 Consider this example (which is an excerpt from the OpenTAP package definition) for a real world use case.
 Some elements have been omitted for brevity
 
+> OpenTAP no longer ships the libgit native dependency, but the example is kept for illustrative purposes
+
 ```xml
 <Package Version="$(GitVersion)" OS="$(Platform)" Architecture="$(Architecture)" Name="OpenTAP" >
     <Variables>

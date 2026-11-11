@@ -7,12 +7,14 @@ using NUnit.Framework;
 using LibGit2Sharp;
 using System.IO;
 using System.Diagnostics;
+using GitVersionCalculator;
 
 namespace OpenTap.Package.UnitTests
 {
     [TestFixture]
     public class GitVersionCalculatorTests
     {
+        // LibGit2Sharp is used only to construct the histories exercised by the managed implementation.
         Signature me = new Signature("Me", "me@opentap.io", DateTime.Now);
         MergeOptions noFastForward = new MergeOptions { FastForwardStrategy = FastForwardStrategy.NoFastForward };
 
@@ -41,24 +43,26 @@ namespace OpenTap.Package.UnitTests
         [DebuggerStepThrough]
         void verifyVersion(LibGit2Sharp.Repository repo, int major, int minor, int patch, string prerelease, string branchName = "", string dir = null)
         {
-            verifyVersion(repo, repo.Head.Tip, major, minor, patch, prerelease, branchName, dir);
+            var managedRepo = new GitRepository(repo.Info.WorkingDirectory);
+            verifyVersion(managedRepo, managedRepo.HeadId, major, minor, patch, prerelease, branchName, dir);
         }
 
         [DebuggerStepThrough]
-        void verifyVersion(LibGit2Sharp.Repository repo, Commit c, int major, int minor, int patch, string prerelease, string branchName = null, string dir = null)
+        void verifyVersion(GitRepository repo, string commitId, int major, int minor, int patch, string prerelease, string branchName = null, string dir = null)
         {
-            var metadata = c.Sha.Substring(0, 8);  // (note: hashes will differ each time this is run)
+            var metadata = commitId.Substring(0, 8);  // (note: hashes will differ each time this is run)
             if (!String.IsNullOrEmpty(branchName))
                 metadata += "." + branchName;
-            using (var calc = new GitVersionCalulator(Path.Combine(repo.Info.WorkingDirectory, dir ?? "")))
-            {
-                SemanticVersion tv = calc.GetVersion();
-                Assert.AreEqual(major, tv.Major, "Unexpected major version number.");
-                Assert.AreEqual(minor, tv.Minor, "Unexpected minor version number.");
-                Assert.AreEqual(patch, tv.Patch, "Unexpected patch version number.");
-                Assert.AreEqual(prerelease, tv.PreRelease, "Unexpected prerelease.");
-                Assert.AreEqual(metadata, tv.BuildMetadata, "Unexpected build metadata.");
-            }
+            var calc = new GitVersionCalulator(Path.Combine(repo.Root, dir ?? ""));
+            SemanticVersion tv = calc.GetVersion(commitId);
+            // Exercise both the implicit HEAD and explicit revision entry points.
+            if (commitId == repo.HeadId)
+                Assert.AreEqual(tv, calc.GetVersion());
+            Assert.AreEqual(major, tv.Major, "Unexpected major version number.");
+            Assert.AreEqual(minor, tv.Minor, "Unexpected minor version number.");
+            Assert.AreEqual(patch, tv.Patch, "Unexpected patch version number.");
+            Assert.AreEqual(prerelease, tv.PreRelease, "Unexpected prerelease.");
+            Assert.AreEqual(metadata, tv.BuildMetadata, "Unexpected build metadata.");
         }
 
         LibGit2Sharp.Repository repo;
@@ -148,7 +152,7 @@ namespace OpenTap.Package.UnitTests
             // | *   (tag: v2.1) Bumped version to 2.1
             // |/
             // *     (tag: v2.0, release2x) Bumped version to 2.0
-            var commit210rc = repo.Head.Tip;
+            var commit210rc = new GitRepository(repo.Info.WorkingDirectory).HeadId;
             verifyVersion(repo, 2, 1, 0, "rc.1");
 
             var hotfixBranch = repo.CreateBranch("hotfix");
@@ -181,7 +185,7 @@ namespace OpenTap.Package.UnitTests
             //verifyVersion(2, 1, 0, "alpha.1.1", shortHash211alpha + ".hotfix");   // TODO: This fails and we should try to improve. See TODO in GitVersionCalculator 
 
             Commands.Checkout(repo, commit210rc);
-            verifyVersion(repo,commit210rc, 2, 1, 0, "rc.1");
+            verifyVersion(new GitRepository(repo.Info.WorkingDirectory), commit210rc, 2, 1, 0, "rc.1");
         }
 
 

@@ -7,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace GitVersionCalculator;
 
-public sealed record CalculatedVersion(int Major, int Minor, int Patch, string? PreRelease, string? BuildMetadata)
+internal sealed record CalculatedVersion(int Major, int Minor, int Patch, string? PreRelease, string? BuildMetadata)
 {
     public override string ToString() => $"{Major}.{Minor}.{Patch}" +
         (string.IsNullOrEmpty(PreRelease) ? "" : "-" + PreRelease) +
@@ -15,7 +15,7 @@ public sealed record CalculatedVersion(int Major, int Minor, int Patch, string? 
 }
 
 /// <summary>Standalone implementation of OpenTAP's Git version policy.</summary>
-public sealed class VersionCalculator
+internal sealed class VersionCalculator
 {
     private readonly GitRepository repo;
     private readonly Dictionary<string, Config> configs = new();

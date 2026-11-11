@@ -7,10 +7,21 @@ using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace GitVersionCalculator;
+#if NETSTANDARD
+// Records only require this compiler marker; no newer runtime is needed.
+namespace System.Runtime.CompilerServices
+{
+    internal static class IsExternalInit
+    {
+    }
+}
+#endif
+
+namespace GitVersionCalculator
+{
 
 /// <summary>Read-only subset of Git's SHA-1 object database. No executable or native dependencies.</summary>
-public sealed class GitRepository
+internal sealed class GitRepository
 {
     public record GitObject(string Type, byte[] Data);
     public record Commit(string Id, string Tree, string[] Parents, long Time, string Message);
@@ -433,4 +444,5 @@ public sealed class GitRepository
                 if (!topological || --children[parent] == 0) queue.Add((-ReadCommit(parent).Time, parent));
         }
     }
+}
 }

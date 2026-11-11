@@ -11,7 +11,7 @@ using OpenTap.Package;
 
 namespace Keysight.OpenTap.Sdk.MSBuild
 {
-    internal interface IImageDeployer
+    public interface IImageDeployer
     {
         void Install(ImageSpecifier spec, Installation install, CancellationToken cts);
     }
