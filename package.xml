@@ -5,7 +5,6 @@
         <Organisation>Keysight Technologies</Organisation>
     </Description>
     <Variables>
-        <!-- We include some native dependencies based on the platform and architecture, notably libgit2sharp -->
         <Architecture Condition="$(Architecture) == ''">x64</Architecture>
         <Platform Condition="$(Platform) == ''">Windows</Platform>
         <!--Set Sign=false to disable Signing elements. This is useful for local debug builds -->
@@ -54,28 +53,16 @@
     </Files>
     
     <!-- Windows only files -->
-    <Files Condition="$(Platform) != Windows">
-        <File Path="tap.runtimeconfig.json" SourcePath="../../Shared/tap.runtimeconfig.json" />
-    </Files>
     <Files Condition="$(Platform) == Windows">
         <File Path="tap.runtimeconfig.json" SourcePath="../../Shared/tap.runtimeconfig.WindowsDesktop.json" />
         <File Path="tap.exe">
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
-        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.dll.$(Architecture)"/>
-        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/git2-b7bad55.source" SourcePath="libgit2-b7bad55.source"/>
     </Files>
-    <!-- Linux files -->
-    <Files Condition="$(Platform) == Linux">
+    <!-- non-windows files -->
+    <Files Condition="$(Platform) != Windows">
+        <File Path="tap.runtimeconfig.json" SourcePath="../../Shared/tap.runtimeconfig.json" />
         <File Path="tap" SourcePath="tap.sh"/>
-        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so.$(Architecture)"/>
-        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.so.musl.$(Architecture)"/>
-    </Files>
-    <!-- MacOS files -->
-    <Files Condition="$(Platform) == MacOS">
-        <File Path="tap" SourcePath="tap.sh"/>
-<!--        <File Path="tap"/>-->
-        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/libgit2-b7bad55.dylib.$(Architecture)"/>
     </Files>
     <!-- Markdown documentation -->
     <Files>
@@ -84,8 +71,6 @@
     <!-- License Texts -->
     <Files>
         <File Path="Packages/OpenTAP/LICENSE.txt" SourcePath="LICENSE.txt" />
-        <File Path="Dependencies/LibGit2Sharp.0.27.0.0/LICENSE.txt"
-              SourcePath="libgit2sharp.license.md"/>
         <File Path="Dependencies/Mono.Cecil.0.10.1.0/LICENSE.txt"
               SourcePath="Mono.Cecil.License.txt"/>
         <File Path="Dependencies/System.Reflection.Metadata.1.4.3.0/LICENSE.txt"

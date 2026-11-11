@@ -7,7 +7,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using LibGit2Sharp;
+using GitVersionCalculator;
+using Commit = GitVersionCalculator.GitRepository.Commit;
 using OpenTap.Cli;
 
 namespace OpenTap.Package
@@ -85,27 +86,11 @@ namespace OpenTap.Package
             }
 
             string versionString = null;
-            using (GitVersionCalulator calc = new GitVersionCalulator(RepoPath))
-            {
-                try
-                {
-                    if (String.IsNullOrEmpty(Sha))
-                        versionString = calc.GetVersion().ToString(FieldCount);
-                    else
-                        versionString = calc.GetVersion(Sha).ToString(FieldCount);
-                }
-                catch (Exception ex)
-                {
-                    if (ex.Message.Contains("object not found - no match for id"))
-                    {
-                        throw new ExitCodeException((int) ExitCodes.GeneralException,
-                            "Failed getting git version because the repository history is incomplete.\n" +
-                            "Please ensure that the repository has a full version history (git fetch --unshallow).\n" +
-                            "If this is occurring on a gitlab runner, ensure 'Git shallow clone' is set to 0.");
-                    }
-                    throw;
-                }
-            }
+            var calc = new GitVersionCalulator(RepoPath);
+            if (String.IsNullOrEmpty(Sha))
+                versionString = calc.GetVersion().ToString(FieldCount);
+            else
+                versionString = calc.GetVersion(Sha).ToString(FieldCount);
             if (!String.IsNullOrEmpty(ReplaceFile))
             {
                 if (!File.Exists(ReplaceFile))
@@ -157,263 +142,266 @@ namespace OpenTap.Package
             ConsoleColor graphColor = ConsoleColor.DarkYellow;
             ConsoleColor versionColor = ConsoleColor.DarkRed;
 
-            using (GitVersionCalulator versionCalculater = new GitVersionCalulator(RepoPath))
-            using (LibGit2Sharp.Repository repo = new LibGit2Sharp.Repository(RepoPath))
+            var versionCalculater = new GitVersionCalulator(RepoPath);
+            var repo = new GitRepository(RepoPath);
+            string tip = repo.HeadId;
+            if (!string.IsNullOrEmpty(Sha))
             {
-                Commit tip = repo.Head.Tip;
-                if (!string.IsNullOrEmpty(Sha))
+                try
                 {
-                    tip = repo.Lookup<Commit>(Sha);
-                    if(tip == null)
-                    {
-                        log.Error($"The commit with reference {Sha} does not exist in the repository.");
-                        return (int)ExitCodes.ArgumentError;
-                    }
+                    tip = repo.ResolveCommit(Sha);
                 }
-                IEnumerable<Commit> History = repo.Commits.QueryBy(new CommitFilter() { IncludeReachableFrom = tip, SortBy = CommitSortStrategies.Topological });
-
-
-                // Run through to determine max Position (number of concurrent branches) to be able to indent correctly later
-                int maxLines = int.Parse(PrintLog);
-                int lineCount = 0;
-                Dictionary<Commit, int> commitPosition = new Dictionary<Commit, int>();
-                commitPosition.Add(History.First(), 0);
-                int maxPosition = 0;
-                foreach (Commit c in History)
+                catch (ArgumentException)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    log.Error($"The commit with reference {Sha} does not exist in the repository.");
+                    return (int)ExitCodes.ArgumentError;
+                }
+            }
+            if (tip == null)
+                return (int)ExitCodes.Success;
+            IEnumerable<Commit> History = repo.Walk(tip, topological: true).Select(repo.ReadCommit);
 
-                    if (maxPosition < commitPosition[c])
-                        maxPosition = commitPosition[c];
 
-                    if(!c.Parents.Any())
-                    {
-                        // this is the very first commit in the repo. Stop here.
-                        maxLines = ++lineCount;
-                        break;
-                    }
-                    Commit p1 = c.Parents.First();
-                    if (c.Parents.Count() > 1)
-                    {
-                        Commit p2 = c.Parents.Last();
+            // Run through to determine max Position (number of concurrent branches) to be able to indent correctly later
+            int maxLines = int.Parse(PrintLog);
+            int lineCount = 0;
+            Dictionary<Commit, int> commitPosition = new Dictionary<Commit, int>();
+            commitPosition.Add(History.First(), 0);
+            int maxPosition = 0;
+            foreach (Commit c in History)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
 
-                        if (commitPosition.ContainsKey(p1))
-                            if (commitPosition[p1] != commitPosition[c])
-                            {
-                                int startPos = Math.Min(commitPosition[p1], commitPosition[c]);
-                                int endPos = Math.Max(commitPosition[p1], commitPosition[c]);
+                if (maxPosition < commitPosition[c])
+                    maxPosition = commitPosition[c];
 
-                                commitPosition[c] = startPos;
+                if(!c.Parents.Any())
+                {
+                    // this is the very first commit in the repo. Stop here.
+                    maxLines = ++lineCount;
+                    break;
+                }
+                Commit p1 = repo.ReadCommit(c.Parents.First());
+                if (c.Parents.Count() > 1)
+                {
+                    Commit p2 = repo.ReadCommit(c.Parents.Last());
 
-                                foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
-                                {
-                                    commitPosition.Remove(kvp.Key);
-                                }
-                            }
-
-                        if (!commitPosition.ContainsKey(p2))
-                        {
-                            // move out to an position out for the new branch
-                            int newPosition = commitPosition[c] + 1;
-                            while (commitPosition.ContainsValue(newPosition) &&
-                                    (newPosition <= commitPosition.Values.Max()))
-                                newPosition++;
-                            commitPosition[p2] = newPosition;
-
-                            commitPosition[p1] = commitPosition[c];
-                        }
-                        else if (!commitPosition.ContainsKey(p1))
-                        {
-                            commitPosition[p1] = commitPosition[c];
-                        }
-                    }
-                    else
-                    {
-                        if (!commitPosition.ContainsKey(p1))
-                            commitPosition[p1] = commitPosition[c];
-
+                    if (commitPosition.ContainsKey(p1))
                         if (commitPosition[p1] != commitPosition[c])
                         {
                             int startPos = Math.Min(commitPosition[p1], commitPosition[c]);
                             int endPos = Math.Max(commitPosition[p1], commitPosition[c]);
 
-                            // c is now merged back, no need to keep track of it (or any other commit on this branch)
-                            // this way we can reuse the position for another branch 
+                            commitPosition[c] = startPos;
+
                             foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
                             {
                                 commitPosition.Remove(kvp.Key);
                             }
-                            commitPosition[p1] = startPos;
-                            foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == startPos).ToList())
-                            {
-                                if(kvp.Key != p1)
-                                    commitPosition.Remove(kvp.Key);
-                            }
+                        }
+
+                    if (!commitPosition.ContainsKey(p2))
+                    {
+                        // move out to an position out for the new branch
+                        int newPosition = commitPosition[c] + 1;
+                        while (commitPosition.ContainsValue(newPosition) &&
+                                (newPosition <= commitPosition.Values.Max()))
+                            newPosition++;
+                        commitPosition[p2] = newPosition;
+
+                        commitPosition[p1] = commitPosition[c];
+                    }
+                    else if (!commitPosition.ContainsKey(p1))
+                    {
+                        commitPosition[p1] = commitPosition[c];
+                    }
+                }
+                else
+                {
+                    if (!commitPosition.ContainsKey(p1))
+                        commitPosition[p1] = commitPosition[c];
+
+                    if (commitPosition[p1] != commitPosition[c])
+                    {
+                        int startPos = Math.Min(commitPosition[p1], commitPosition[c]);
+                        int endPos = Math.Max(commitPosition[p1], commitPosition[c]);
+
+                        // c is now merged back, no need to keep track of it (or any other commit on this branch)
+                        // this way we can reuse the position for another branch
+                        foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
+                        {
+                            commitPosition.Remove(kvp.Key);
+                        }
+                        commitPosition[p1] = startPos;
+                        foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == startPos).ToList())
+                        {
+                            if(kvp.Key != p1)
+                                commitPosition.Remove(kvp.Key);
                         }
                     }
-                    if (++lineCount >= maxLines)
-                        break;
                 }
-                {
-                    maxPosition++;
-                }
+                if (++lineCount >= maxLines)
+                    break;
+            }
+            {
+                maxPosition++;
+            }
 
+            {
+                // Run through again to print
+                lineCount = 0;
+                commitPosition = new Dictionary<Commit, int>();
+                commitPosition.Add(History.First(), 0);
+                HashSet<Commit> taggedCommits = repo.Refs.Keys.Where(r => r.StartsWith("refs/tags/", StringComparison.Ordinal))
+                    .Select(r => repo.ReadCommit(repo.PeelCommit(repo.ResolveRef(r)))).ToHashSet();
+                foreach (Commit c in History)
                 {
-                    // Run through again to print
-                    lineCount = 0;
-                    commitPosition = new Dictionary<Commit, int>();
-                    commitPosition.Add(History.First(), 0);
-                    HashSet<Commit> taggedCommits = repo.Tags.Select(t => t.Target.Peel<Commit>()).ToHashSet();
-                    foreach (Commit c in History)
+                    cancellationToken.ThrowIfCancellationRequested();
+                    void DrawPositionSpacer(int fromPos,int toPos)
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
-                        void DrawPositionSpacer(int fromPos,int toPos)
+                        for (int i = fromPos; i < toPos; i++)
                         {
-                            for (int i = fromPos; i < toPos; i++)
-                            {
-                                if(commitPosition.ContainsValue(i))
-                                    Console.Write("\u2502 ");
-                                else
-                                    Console.Write("  ");
-                            }
-                        }
-                        void DrawMergePositionSpacer(int fromPos, int toPos)
-                        {
-                            for (int i = fromPos; i < toPos; i++)
-                            {
-                                if (commitPosition.ContainsValue(i))
-                                    Console.Write("\u2502\u2500");
-                                else
-                                    Console.Write("\u2500\u2500");
-                            }
-                        }
-
-                        Console.ForegroundColor = graphColor;
-                        DrawPositionSpacer(0, commitPosition[c]);
-                        Console.ForegroundColor = defaultColor;
-                        if (taggedCommits.Contains(c))
-                            Console.Write("v ");
-                        else
-                            Console.Write("* ");
-                        Console.ForegroundColor = graphColor;
-                        DrawPositionSpacer(commitPosition[c] + 1, maxPosition);
-
-                        Console.ForegroundColor = versionColor;
-                        Console.Write(versionCalculater.GetVersion(c).ToString(FieldCount));
-                        Console.ForegroundColor = defaultColor;
-
-                        Console.Write(" - ");
-                        Console.Write(c.MessageShort.Trim());
-
-                        if (++lineCount >= maxLines)
-                        {
-                            Console.WriteLine();
-                            break;
-                        }
-
-                        if (c.Parents.Any())
-                        {
-                            Commit p1 = c.Parents.First();
-                            //Console.Write("Parent1: " + p1.Sha.Substring(0,8));
-                            Console.WriteLine();
-                            Console.ForegroundColor = graphColor;
-                            if (c.Parents.Count() > 1)
-                            {
-                                Commit p2 = c.Parents.Last();
-
-                                int startPos;
-                                int endPos;
-
-                                if (commitPosition.ContainsKey(p1))
-                                    if (commitPosition[p1] != commitPosition[c])
-                                    {
-                                        startPos = Math.Min(commitPosition[p1], commitPosition[c]);
-                                        // something we already printed has the current commit as its parent, draw the line to that commit now
-                                        DrawPositionSpacer(0, startPos);
-                                        // Draw ├─┘
-                                        Console.Write("\u251C\u2500");
-                                        endPos = Math.Max(commitPosition[p1], commitPosition[c]);
-                                        DrawMergePositionSpacer(startPos + 1, endPos);
-                                        Console.Write("\u2518 ");
-                                        DrawPositionSpacer(endPos + 1, maxPosition);
-                                        Console.WriteLine();
-                                        commitPosition[c] = startPos;
-                                        foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
-                                        {
-                                            commitPosition.Remove(kvp.Key);
-                                        }
-                                    }
-
-                                if (!commitPosition.ContainsKey(p2))
-                                {
-                                    DrawPositionSpacer(0, commitPosition[c]);
-                                    // move out to an position out for the new branch
-                                    int newPosition = commitPosition[c] + 1;
-                                    while (commitPosition.ContainsValue(newPosition) &&
-                                            (newPosition <= commitPosition.Values.Max()))
-                                        newPosition++;
-                                    commitPosition[p2] = newPosition;
-
-                                    commitPosition[p1] = commitPosition[c];
-                                    // Draw ├─┐
-                                    Console.Write("\u251C\u2500");
-                                    DrawMergePositionSpacer(commitPosition[c] + 1, commitPosition[p2]);
-                                    Console.Write("\u2510 ");
-                                    DrawPositionSpacer(commitPosition[p2] + 1, maxPosition);
-                                    Console.WriteLine();
-                                }
-                                else if (!commitPosition.ContainsKey(p1))
-                                {
-                                    commitPosition[p1] = commitPosition[c];
-                                    // this branch is merged several times
-                                    startPos = Math.Min(commitPosition[p2], commitPosition[c]);
-                                    DrawPositionSpacer(0, startPos);
-                                    // draws something like: ├─┤
-                                    Console.Write("\u251C\u2500");
-                                    endPos = Math.Max(commitPosition[p2], commitPosition[c]);
-                                    DrawMergePositionSpacer(startPos + 1, endPos);
-                                    Console.Write("\u2524 ");
-                                    DrawPositionSpacer(endPos + 1, maxPosition);
-                                    Console.WriteLine();
-                                }
-                                //else
-                                //{
-                                //    DrawPositionSpacer(0, commitPosition[p2]);
-                                //    Console.Write("\u251C\u2500");
-                                //    DrawMergePositionSpacer(commitPosition[p2] + 1, commitPosition[c]);
-                                //    Console.WriteLine("\u2524");
-                                //}
-                            }
+                            if(commitPosition.ContainsValue(i))
+                                Console.Write("\u2502 ");
                             else
-                            {
-                                if (!commitPosition.ContainsKey(p1))
-                                    commitPosition[p1] = commitPosition[c];
+                                Console.Write("  ");
+                        }
+                    }
+                    void DrawMergePositionSpacer(int fromPos, int toPos)
+                    {
+                        for (int i = fromPos; i < toPos; i++)
+                        {
+                            if (commitPosition.ContainsValue(i))
+                                Console.Write("\u2502\u2500");
+                            else
+                                Console.Write("\u2500\u2500");
+                        }
+                    }
 
+                    Console.ForegroundColor = graphColor;
+                    DrawPositionSpacer(0, commitPosition[c]);
+                    Console.ForegroundColor = defaultColor;
+                    if (taggedCommits.Contains(c))
+                        Console.Write("v ");
+                    else
+                        Console.Write("* ");
+                    Console.ForegroundColor = graphColor;
+                    DrawPositionSpacer(commitPosition[c] + 1, maxPosition);
+
+                    Console.ForegroundColor = versionColor;
+                    Console.Write(versionCalculater.GetVersion(c.Id).ToString(FieldCount));
+                    Console.ForegroundColor = defaultColor;
+
+                    Console.Write(" - ");
+                    Console.Write(c.Message.Trim());
+
+                    if (++lineCount >= maxLines)
+                    {
+                        Console.WriteLine();
+                        break;
+                    }
+
+                    if (c.Parents.Any())
+                    {
+                        Commit p1 = repo.ReadCommit(c.Parents.First());
+                        Console.WriteLine();
+                        Console.ForegroundColor = graphColor;
+                        if (c.Parents.Count() > 1)
+                        {
+                            Commit p2 = repo.ReadCommit(c.Parents.Last());
+
+                            int startPos;
+                            int endPos;
+
+                            if (commitPosition.ContainsKey(p1))
                                 if (commitPosition[p1] != commitPosition[c])
                                 {
-                                    int startPos = Math.Min(commitPosition[p1], commitPosition[c]);
+                                    startPos = Math.Min(commitPosition[p1], commitPosition[c]);
+                                    // something we already printed has the current commit as its parent, draw the line to that commit now
                                     DrawPositionSpacer(0, startPos);
                                     // Draw ├─┘
                                     Console.Write("\u251C\u2500");
-                                    int endPos = Math.Max(commitPosition[p1], commitPosition[c]);
+                                    endPos = Math.Max(commitPosition[p1], commitPosition[c]);
                                     DrawMergePositionSpacer(startPos + 1, endPos);
                                     Console.Write("\u2518 ");
                                     DrawPositionSpacer(endPos + 1, maxPosition);
                                     Console.WriteLine();
-                                    // c is now merged back, no need to keep track of it (or any other commit on this branch)
-                                    // this way we can reuse the position for another branch 
+                                    commitPosition[c] = startPos;
                                     foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
                                     {
                                         commitPosition.Remove(kvp.Key);
                                     }
-                                    commitPosition[p1] = startPos;
-                                    foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == startPos).ToList())
-                                    {
-                                        if(kvp.Key != p1)
-                                            commitPosition.Remove(kvp.Key);
-                                    }
-
                                 }
+
+                            if (!commitPosition.ContainsKey(p2))
+                            {
+                                DrawPositionSpacer(0, commitPosition[c]);
+                                // move out to an position out for the new branch
+                                int newPosition = commitPosition[c] + 1;
+                                while (commitPosition.ContainsValue(newPosition) &&
+                                        (newPosition <= commitPosition.Values.Max()))
+                                    newPosition++;
+                                commitPosition[p2] = newPosition;
+
+                                commitPosition[p1] = commitPosition[c];
+                                // Draw ├─┐
+                                Console.Write("\u251C\u2500");
+                                DrawMergePositionSpacer(commitPosition[c] + 1, commitPosition[p2]);
+                                Console.Write("\u2510 ");
+                                DrawPositionSpacer(commitPosition[p2] + 1, maxPosition);
+                                Console.WriteLine();
+                            }
+                            else if (!commitPosition.ContainsKey(p1))
+                            {
+                                commitPosition[p1] = commitPosition[c];
+                                // this branch is merged several times
+                                startPos = Math.Min(commitPosition[p2], commitPosition[c]);
+                                DrawPositionSpacer(0, startPos);
+                                // draws something like: ├─┤
+                                Console.Write("\u251C\u2500");
+                                endPos = Math.Max(commitPosition[p2], commitPosition[c]);
+                                DrawMergePositionSpacer(startPos + 1, endPos);
+                                Console.Write("\u2524 ");
+                                DrawPositionSpacer(endPos + 1, maxPosition);
+                                Console.WriteLine();
+                            }
+                            //else
+                            //{
+                            //    DrawPositionSpacer(0, commitPosition[p2]);
+                            //    Console.Write("\u251C\u2500");
+                            //    DrawMergePositionSpacer(commitPosition[p2] + 1, commitPosition[c]);
+                            //    Console.WriteLine("\u2524");
+                            //}
+                        }
+                        else
+                        {
+                            if (!commitPosition.ContainsKey(p1))
+                                commitPosition[p1] = commitPosition[c];
+
+                            if (commitPosition[p1] != commitPosition[c])
+                            {
+                                int startPos = Math.Min(commitPosition[p1], commitPosition[c]);
+                                DrawPositionSpacer(0, startPos);
+                                // Draw ├─┘
+                                Console.Write("\u251C\u2500");
+                                int endPos = Math.Max(commitPosition[p1], commitPosition[c]);
+                                DrawMergePositionSpacer(startPos + 1, endPos);
+                                Console.Write("\u2518 ");
+                                DrawPositionSpacer(endPos + 1, maxPosition);
+                                Console.WriteLine();
+                                // c is now merged back, no need to keep track of it (or any other commit on this branch)
+                                // this way we can reuse the position for another branch
+                                foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == endPos).ToList())
+                                {
+                                    commitPosition.Remove(kvp.Key);
+                                }
+                                commitPosition[p1] = startPos;
+                                foreach (var kvp in commitPosition.Where((KeyValuePair<Commit, int> kvp) => kvp.Value == startPos).ToList())
+                                {
+                                    if(kvp.Key != p1)
+                                        commitPosition.Remove(kvp.Key);
+                                }
+
                             }
                         }
                     }
