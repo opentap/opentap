@@ -715,8 +715,7 @@ namespace OpenTap
                 }
                 finally
                 {
-                    Interlocked.Decrement(ref readerRefCount);
-                    if (readerRefCount == 0)
+                    if (Interlocked.Decrement(ref readerRefCount) == 0)
                     {
                         inStream.Dispose();
                         finishedSignal.SetResult(true);
