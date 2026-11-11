@@ -402,16 +402,22 @@ namespace OpenTap.Package
         {
             var mover = UninstallContext.Create(new Installation(tapDir));
 
-            foreach (string packageFileName in packagePaths)
+            try
             {
-                foreach (string file in PluginInstaller.FilesInPackage(packageFileName))
+                foreach (string packageFileName in packagePaths)
                 {
-                    if (!mover.Delete(file))
-                    {
-                        mover.UndoAllDeletions();
-                        throw new Exception($"Unable to delete file '{file}'.");
-                    }
+                    var package = string.Equals(Path.GetExtension(packageFileName), ".xml", StringComparison.OrdinalIgnoreCase)
+                        ? PackageDef.FromXml(packageFileName)
+                        : PackageDef.FromPackage(packageFileName);
+                    if (!mover.Delete(package))
+                        throw new Exception($"Unable to delete files from package '{package.Name}'.");
                 }
+            }
+            catch
+            {
+                // Also restore earlier packages if reading a later package fails.
+                mover.UndoAllDeletions();
+                throw;
             }
         }
 

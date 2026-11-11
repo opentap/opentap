@@ -620,6 +620,9 @@ namespace OpenTap.Package
             }
 
             var mover = UninstallContext.Create(installation);
+            if (!mover.Delete(package, filesToRemain))
+                throw new Exception($"Unable to delete files from package '{package.Name}'.");
+
             foreach (var file in package.Files)
             {
                 string fullPath = Path.Combine(destination, file.RelativeDestinationPath);
@@ -630,13 +633,6 @@ namespace OpenTap.Package
                     continue;
                 }
 
-                log.Debug("Deleting file '{0}'.", file.RelativeDestinationPath);
-                if (!mover.Delete(file))
-                {
-                    mover.UndoAllDeletions();
-                    throw new Exception($"Unable to delete file '{file.RelativeDestinationPath}'.");
-                }
-                
                 DeleteEmptyDirectory(new FileInfo(fullPath).Directory);
             }
 

@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Threading;
 
 namespace OpenTap.Package;
 
@@ -66,12 +69,70 @@ internal class UninstallContext
         }
     }
 
-    public bool Delete(PackageFile file)
+    internal bool Delete(PackageFile file)
     {
         return Delete(file.RelativeDestinationPath);
     }
 
-    public bool Delete(string path)
+    /// <summary>
+    /// Moves all package files, sweeping every file before retrying failures. Shared files may be excluded.
+    /// Returns false after exhausting retries and restores all moves on a best-effort basis.
+    /// Cancellation also restores moves before propagating. Total backoff is at most ten seconds.
+    /// </summary>
+    public bool Delete(PackageDef package, ISet<string> filesToRemain = null)
+        => Delete(package, filesToRemain, TapThread.Current.AbortToken);
+
+    internal bool Delete(PackageDef package, ISet<string> filesToRemain, CancellationToken cancellationToken)
+    {
+        if (package == null) throw new ArgumentNullException(nameof(package));
+        try
+        {
+            const int timeout = 10000;
+            var pending = package.Files.Where(f => filesToRemain?.Contains(f.RelativeDestinationPath) != true).ToList();
+            var sw = Stopwatch.StartNew();
+            int delay = 100;
+            List<PackageFile> failed = [];
+            while (true)
+            {
+                failed = [];
+                cancellationToken.ThrowIfCancellationRequested();
+                foreach (var file in pending)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!Delete(file.RelativeDestinationPath, false))
+                        failed.Add(file);
+                }
+                cancellationToken.ThrowIfCancellationRequested();
+                if (failed.Count == 0) return true;
+                int remaining = timeout - (int)sw.ElapsedMilliseconds;
+                if (remaining <= 0)
+                    break;
+
+                pending = failed;
+                // Every wait is followed by a sweep, including the final wait at the deadline.
+                int wait = Math.Min(delay, remaining);
+                log.Debug("Retrying {0} package files in {1} ms.", pending.Count, wait);
+                if (cancellationToken.WaitHandle.WaitOne(wait))
+                    cancellationToken.ThrowIfCancellationRequested();
+                delay = Math.Min(delay * 2, 1000);
+            }
+
+            /* failure */
+            foreach (var file in failed)
+                log.Error("Unable to delete file '{0}' after retrying.", file.RelativeDestinationPath);
+            UndoAllDeletions();
+            return false;
+        }
+        catch
+        {
+            UndoAllDeletions();
+            throw;
+        }
+    }
+
+    internal bool Delete(string path) => Delete(path, true);
+
+    private bool Delete(string path, bool reportError)
     {
         var fullname = Path.Combine(install.Directory, path);
         if (File.Exists(fullname))
@@ -86,7 +147,10 @@ internal class UninstallContext
             }
             catch(Exception e)
             {
-                log.Error("Unable to move file {0} to {1}: {2}", fullname, destination, e.Message);
+                if (reportError)
+                    log.Error("Unable to move file {0} to {1}: {2}", fullname, destination, e.Message);
+                else
+                    log.Debug("Unable to move file {0} to {1}: {2}", fullname, destination, e.Message);
                 log.Debug(e);
                 return false;
             }
@@ -97,11 +161,22 @@ internal class UninstallContext
 
     public void UndoAllDeletions()
     {
-        foreach (var move in Moves)
+        // Retain unsuccessful moves so a caller may attempt recovery again. Never retry or wait here.
+        for (int i = Moves.Count - 1; i >= 0; i--)
         {
-            File.Move(move.DeletedFile, move.OriginalFile);
-            log.Debug("File {0} reverted to {1}.", move.DeletedFile, move.OriginalFile);
+            var move = Moves[i];
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(move.OriginalFile));
+                File.Move(move.DeletedFile, move.OriginalFile);
+                Moves.RemoveAt(i);
+                log.Debug("File {0} reverted to {1}.", move.DeletedFile, move.OriginalFile);
+            }
+            catch (Exception e)
+            {
+                log.Error("Unable to restore file {0} from {1}: {2}", move.OriginalFile, move.DeletedFile, e.Message);
+                log.Debug(e);
+            }
         }
-        Moves.Clear();
     }
 }

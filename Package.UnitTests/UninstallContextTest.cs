@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.Versioning;
+using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using NUnit.Framework;
@@ -28,10 +31,7 @@ public class UninstallContextTest
             Assert.That(File.Exists(file.RelativeDestinationPath));
         }
 
-        foreach (var file in Installation.Current.GetOpenTapPackage().Files)
-        {
-            uninstallContext.Delete(file);
-        }
+        Assert.That(uninstallContext.Delete(Installation.Current.GetOpenTapPackage()), Is.True);
 
         // After deleting the files verify that all files are deleted.
         List<string> stillExistingFiles = new();
@@ -57,6 +57,194 @@ public class UninstallContextTest
         }
         Assert.That(File.Exists(".uninstall/.OpenTapIgnore"), Is.True);
         
+    }
+
+    sealed class DeletePackageFixture : IDisposable
+    {
+        public readonly string DirectoryPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+        public readonly PackageDef Package = new() { Name = "DeletePackageTest" };
+        public readonly UninstallContext Context;
+        public readonly string Target;
+
+        public DeletePackageFixture()
+        {
+            Directory.CreateDirectory(DirectoryPath);
+            Context = UninstallContext.Create(new Installation(DirectoryPath));
+            Target = Directory.GetDirectories(Path.Combine(DirectoryPath, ".uninstall")).Single();
+            foreach (string name in new[] { "first.txt", "second.txt", "third.txt" })
+            {
+                File.WriteAllText(Path.Combine(DirectoryPath, name), name);
+                Package.Files.Add(new PackageFile { FileName = name, RelativeDestinationPath = name });
+            }
+        }
+
+        public string Original(string name) => Path.Combine(DirectoryPath, name);
+        public string Moved(string name) => Path.Combine(Target, name);
+        public void Dispose() => Directory.Delete(DirectoryPath, true);
+    }
+
+    [Test]
+    public void TestDeletePackageSuccessAndSharedFiles()
+    {
+        using var fixture = new DeletePackageFixture();
+        var shared = new HashSet<string> { "second.txt" };
+        Assert.That(fixture.Context.Delete(fixture.Package, shared), Is.True);
+        Assert.That(File.Exists(fixture.Original("first.txt")), Is.False);
+        Assert.That(File.Exists(fixture.Original("second.txt")), Is.True);
+        Assert.That(File.Exists(fixture.Original("third.txt")), Is.False);
+        fixture.Context.UndoAllDeletions();
+        foreach (var file in fixture.Package.Files)
+            Assert.That(File.ReadAllText(fixture.Original(file.FileName)), Is.EqualTo(file.FileName));
+    }
+
+    [Test]
+    public void TestDeletePackageSweepsBeforeRetrying()
+    {
+        using var fixture = new DeletePackageFixture();
+        // A directory at the move destination fails File.Move on every platform.
+        Directory.CreateDirectory(fixture.Moved("first.txt"));
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var release = Task.Run(() =>
+        {
+            Assert.That(SpinWait.SpinUntil(() => File.Exists(fixture.Moved("third.txt")), 3000), Is.True,
+                "The last file must be swept before retrying the first.");
+            Directory.Delete(fixture.Moved("first.txt"));
+        });
+        try
+        {
+            Assert.That(fixture.Context.Delete(fixture.Package, null, cancellation.Token), Is.True);
+        }
+        finally
+        {
+            release.GetAwaiter().GetResult();
+        }
+        foreach (var file in fixture.Package.Files)
+            Assert.That(File.Exists(fixture.Original(file.FileName)), Is.False);
+        fixture.Context.UndoAllDeletions();
+    }
+
+    [Test]
+    [Platform("Win")]
+    public void TestDeletePackageRetriesLockedFile()
+    {
+        using var fixture = new DeletePackageFixture();
+        using var locked = new FileStream(fixture.Original("first.txt"), FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var release = Task.Run(() =>
+        {
+            Assert.That(SpinWait.SpinUntil(() => File.Exists(fixture.Moved("third.txt")), 3000), Is.True);
+            locked.Dispose();
+        });
+        try
+        {
+            Assert.That(fixture.Context.Delete(fixture.Package, null, cancellation.Token), Is.True);
+        }
+        finally
+        {
+            release.GetAwaiter().GetResult();
+        }
+        Assert.That(File.Exists(fixture.Original("first.txt")), Is.False);
+        fixture.Context.UndoAllDeletions();
+        Assert.That(File.ReadAllText(fixture.Original("first.txt")), Is.EqualTo("first.txt"));
+    }
+
+    [Test]
+    public void TestDeletePackageAlreadyCancelled()
+    {
+        using var fixture = new DeletePackageFixture();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        Assert.Throws<OperationCanceledException>(() => fixture.Context.Delete(fixture.Package, null, cancellation.Token));
+        foreach (var file in fixture.Package.Files)
+            Assert.That(File.Exists(fixture.Original(file.FileName)), Is.True);
+    }
+
+    [Test]
+    public void TestDeletePackageRetryBudgetAndRollback()
+    {
+        using var fixture = new DeletePackageFixture();
+        Directory.CreateDirectory(fixture.Moved("first.txt"));
+        var timer = Stopwatch.StartNew();
+        Assert.That(fixture.Context.Delete(fixture.Package), Is.False);
+        Assert.That(timer.Elapsed.TotalSeconds, Is.InRange(9.5, 15), "Retries must be bounded.");
+        foreach (var file in fixture.Package.Files)
+            Assert.That(File.ReadAllText(fixture.Original(file.FileName)), Is.EqualTo(file.FileName));
+    }
+
+    [Test]
+    public void TestDeletePackageCancellationRollsBack()
+    {
+        using var fixture = new DeletePackageFixture();
+        Directory.CreateDirectory(fixture.Moved("first.txt"));
+        using var cancellation = new CancellationTokenSource();
+        var cancel = Task.Run(() =>
+        {
+            Assert.That(SpinWait.SpinUntil(() => File.Exists(fixture.Moved("third.txt")), 3000), Is.True);
+            cancellation.Cancel();
+        });
+        var timer = Stopwatch.StartNew();
+        try
+        {
+            Assert.Throws<OperationCanceledException>(() => fixture.Context.Delete(fixture.Package, null, cancellation.Token));
+        }
+        finally
+        {
+            cancel.GetAwaiter().GetResult();
+        }
+        Assert.That(timer.Elapsed.TotalSeconds, Is.LessThan(3));
+        foreach (var file in fixture.Package.Files)
+            Assert.That(File.ReadAllText(fixture.Original(file.FileName)), Is.EqualTo(file.FileName));
+    }
+
+    [Test]
+    public void TestRenamePackageFilesFromArchive()
+    {
+        using var fixture = new DeletePackageFixture();
+        string archive = Path.GetFullPath("TapPackages/MyPlugin1.TapPackage");
+        var package = PackageDef.FromPackage(archive);
+        PluginInstaller.UnpackPackage(archive, fixture.DirectoryPath);
+        Assert.That(package.Files, Is.Not.Empty);
+        foreach (var file in package.Files)
+            Assert.That(File.Exists(fixture.Original(file.RelativeDestinationPath)), Is.True);
+        Installer.RenamePackageFiles(fixture.DirectoryPath, new List<string> { archive });
+        foreach (var file in package.Files)
+            Assert.That(File.Exists(fixture.Original(file.RelativeDestinationPath)), Is.False);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void TestRenamePackageFilesFromXml(bool invalidSecondPackage)
+    {
+        using var fixture = new DeletePackageFixture();
+        string xml = Path.Combine(fixture.DirectoryPath, "input.xml");
+        File.WriteAllText(xml, "<Package Name=\"DeletePackageTest\" Version=\"1.0.0\" xmlns=\"http://opentap.io/schemas/package\"><Files>" +
+            string.Join("", fixture.Package.Files.Select(f => $"<File Path=\"{f.FileName}\" />")) + "</Files></Package>");
+        var paths = new List<string> { xml };
+        if (invalidSecondPackage)
+        {
+            paths.Add(Path.Combine(fixture.DirectoryPath, "missing.TapPackage"));
+            Assert.Catch(() => Installer.RenamePackageFiles(fixture.DirectoryPath, paths));
+        }
+        else
+            Installer.RenamePackageFiles(fixture.DirectoryPath, paths);
+        foreach (var file in fixture.Package.Files)
+            Assert.That(File.Exists(fixture.Original(file.FileName)), Is.EqualTo(invalidSecondPackage));
+    }
+
+    [Test]
+    public void TestUndoAllDeletionsContinuesAfterFailure()
+    {
+        using var fixture = new DeletePackageFixture();
+        Assert.That(fixture.Context.Delete(fixture.Package), Is.True);
+        File.WriteAllText(fixture.Original("second.txt"), "replacement");
+        Assert.DoesNotThrow(() => fixture.Context.UndoAllDeletions());
+        Assert.That(File.ReadAllText(fixture.Original("first.txt")), Is.EqualTo("first.txt"));
+        Assert.That(File.ReadAllText(fixture.Original("third.txt")), Is.EqualTo("third.txt"));
+        Assert.That(File.ReadAllText(fixture.Original("second.txt")), Is.EqualTo("replacement"));
+        Assert.That(File.Exists(fixture.Moved("second.txt")), Is.True);
+        File.Delete(fixture.Original("second.txt"));
+        fixture.Context.UndoAllDeletions();
+        Assert.That(File.ReadAllText(fixture.Original("second.txt")), Is.EqualTo("second.txt"));
     }
 
     class TestAsmDef(string assemblyName, string @namespace, string className, string displayName, int majorVersion, string helpLink = null)
