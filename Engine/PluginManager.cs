@@ -437,7 +437,7 @@ namespace OpenTap
         {
             string hash = " - ";
 
-            using (var file = new FileStream(assembly.Location, FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 4 * 4096))
+            using (var file = new FileStream(assembly.Location, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4 * 4096))
             {
                 byte[] hashValue = BitConverter.GetBytes(MurMurHash3.Hash(file));
 

@@ -74,7 +74,7 @@ public class UninstallContextTest
         var asmName = new AssemblyNameDefinition(def.assemblyName, new Version(def.majorVersion, 0));
         string moduleName = "TestModule";
 
-        var asm = AssemblyDefinition.CreateAssembly(asmName, moduleName, ModuleKind.Dll);
+        using var asm = AssemblyDefinition.CreateAssembly(asmName, moduleName, ModuleKind.Dll);
 
         var teststep = asm.MainModule.ImportReference(typeof(TestStep));
         var runMethod = asm.MainModule.ImportReference(typeof(TestStep).GetMethod("Run", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance)).Resolve();
