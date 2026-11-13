@@ -37,6 +37,7 @@ static class Build
     private static string hostTapPlatform = "";
     private static string hostArch = "";
     private static string gitVersion = "";
+    private static string templatePackagePath = "";
     private static readonly Lazy<string> RepoToken = new(() =>
         Environment.GetEnvironmentVariable("KS8500_REPO_TOKEN") ??
         throw new BuildFailure("KS8500_REPO_TOKEN is not configured."));
@@ -64,109 +65,106 @@ static class Build
     public static async Task<int> RunAsync(string[] args)
     {
         ParseArguments(args);
-        ValidatePublishingOptions();
         repoRoot = FindRepoRoot(Environment.CurrentDirectory);
         ciDir = Path.Combine(repoRoot, "CI");
         artifactsDir = Path.Combine(ciDir, "artifacts");
 
-        if (!skipDevGuide && OperatingSystem.IsMacOS())
-        {
-            throw new BuildFailure($"Cannot generate developer guide PDF on {hostTapPlatform}. Specify `--skip-devguide` to skip.");
-        }
-
-        if (SigningEnabled.Value)
-        {
-            Info("Signing enabled");
-        }
-        else if (!skipSign)
-        {
-            throw new BuildFailure("Signing not available. Specify `--skip-sign` to create an unsigned build.");
-        }
-        else
-        {
-            Info("Signing disabled");
-        }
-
-        Directory.CreateDirectory(artifactsDir);
-        DetectHost();
-
-        /* Rebuilding locally fails if .OpenTapIgnore exists in bin/Release. Ensure it doesn't. */
         var OpenTapIgnore = Path.Combine(repoRoot, "bin", "Release", ".OpenTapIgnore");
-        if (File.Exists(OpenTapIgnore))
-            File.Delete(OpenTapIgnore);
-
-        Info($"Detected host: {hostPlatform} {hostArch}");
-
-        // Calculate once, in-process, so every build uses the same version.
-        var calculator = new GitVersionCalculator.VersionCalculator(repoRoot)
+        var graph = new BuildGraph(Info);
+        var setup = graph.Job("setup", async () =>
         {
-            Warning = message => Warn($"Warning: {message}")
-        };
-        var version = calculator.GetVersion();
-        var shortVersion = $"{version.Major}.{version.Minor}.{version.Patch}";
-        SetVersionEnvironment(shortVersion, version.ToString());
+            if (!skipDevGuide && OperatingSystem.IsMacOS())
+            {
+                throw new BuildFailure($"Cannot generate developer guide PDF on {hostTapPlatform}. Specify `--skip-devguide` to skip.");
+            }
 
-        // Preserve get-gitversion's output formats for downstream workflow jobs.
-        var githubOutput = Environment.GetEnvironmentVariable("GITHUB_OUTPUT");
-        if (!string.IsNullOrEmpty(githubOutput))
+            if (SigningEnabled.Value)
+            {
+                Info("Signing enabled");
+            }
+            else if (!skipSign)
+            {
+                throw new BuildFailure("Signing not available. Specify `--skip-sign` to create an unsigned build.");
+            }
+            else
+            {
+                Info("Signing disabled");
+            }
+
+            Directory.CreateDirectory(artifactsDir);
+            DetectHost();
+
+            /* Rebuilding locally fails if .OpenTapIgnore exists in bin/Release. Ensure it doesn't. */
+            if (File.Exists(OpenTapIgnore))
+                File.Delete(OpenTapIgnore);
+
+            Info($"Detected host: {hostPlatform} {hostArch}");
+
+            // Calculate once, in-process, so every build uses the same version.
+            var calculator = new GitVersionCalculator.VersionCalculator(repoRoot)
+            {
+                Warning = message => Warn($"Warning: {message}")
+            };
+            var version = calculator.GetVersion();
+            var shortVersion = $"{version.Major}.{version.Minor}.{version.Patch}";
+            SetVersionEnvironment(shortVersion, version.ToString());
+
+            // Preserve get-gitversion's output formats for downstream workflow jobs.
+            var githubOutput = Environment.GetEnvironmentVariable("GITHUB_OUTPUT");
+            if (!string.IsNullOrEmpty(githubOutput))
+            {
+                var longVersion = shortVersion +
+                    (string.IsNullOrEmpty(version.PreRelease) ? "" : "-" + version.PreRelease);
+                await File.AppendAllTextAsync(githubOutput,
+                    $"ShortVersion={shortVersion}\nLongVersion={longVersion}\nGitVersion={gitVersion}\n");
+            }
+        }).RequiresSecrets("KS8500_REPO_TOKEN");
+        if (!skipSign)
+            setup.RequiresSecrets("TAP_SIGN_CERT", "TAP_SIGN_ADDRESS", "TAP_SIGN_AUTH");
+        var templates = graph.Job("templates", PackageTemplatesAsync).DependsOn(setup);
+        var crossBuild = graph.Job("cross-build", () => RunAsync("dotnet",
+            ["build", Path.Combine(ciDir, "multi-target.slnx"), "--configuration", "Release"], repoRoot)).DependsOn(setup);
+        var documentation = graph.Job("documentation", PrepareDocumentation).DependsOn(setup);
+        var tools = graph.Job("build-tools", async () =>
         {
-            var longVersion = shortVersion +
-                (string.IsNullOrEmpty(version.PreRelease) ? "" : "-" + version.PreRelease);
-            await File.AppendAllTextAsync(githubOutput,
-                $"ShortVersion={shortVersion}\nLongVersion={longVersion}\nGitVersion={gitVersion}\n");
-        }
+            File.WriteAllText(OpenTapIgnore, "");
+            var ks8500 = $"https://internal.automation.keysight.com/api/repository;token={RepoToken.Value}";
+            if (SigningEnabled.Value)
+                await RunTapAsync(["package", "install", "Sign", "-f", "--repository", ks8500], repoRoot);
+            await RunTapAsync(["package", "install", "SmartInstaller", "-f", "--version",
+                smartInstallerVersion, "--repository", ks8500], repoRoot);
+        }).DependsOn(crossBuild).RequiresSecrets("KS8500_REPO_TOKEN");
 
-        // Obtain the Sdk.New and OpenTap.Sdk.MSBuild assemblies, which are not part of tap.csproj.
-        Debug($"Building OpenTAP {gitVersion}");
-        await RunAsync("dotnet", ["build", Path.Combine(ciDir, "bootstrap.slnx"), "--configuration", "Release"], repoRoot);
-
-        /* templates can build independently of all other jobs */
-        var templateTask = PackageTemplatesAsync();
-
-        Debug($"Building OpenTAP {gitVersion} for all targets");
-        await RunAsync("dotnet", ["build", Path.Combine(ciDir, "multi-target.slnx"), "--configuration", "Release"], repoRoot);
-
-        PrepareDocumentation();
-
-        File.WriteAllText(OpenTapIgnore, "");
-
-        var ks8500 = $"https://internal.automation.keysight.com/api/repository;token={RepoToken.Value}";
-        if (SigningEnabled.Value)
-            await RunTapAsync(["package", "install", "Sign", "-f", "--repository", ks8500], repoRoot);
-        await RunTapAsync(["package", "install", "SmartInstaller", "-f", "--version", smartInstallerVersion, "--repository", ks8500], repoRoot);
-
-        await Task.WhenAll(Targets.Select(PackageOpenTapAsync));
-        /* PackageSdk requires OpenTAP to be installed as a package. Wait for packages to finish building. */
-        var sdkTask = ContinueOnSuccess(templateTask, PackageSdkAsync);
-        /* PackageNuget needs all OpenTap.TapPackages before it can start. */
-        var nugetTask = PackageNuGetAsync();
-        /* The installers bundle the SDK package, so add that task as a prerequisite. */
-        var installerTask = ContinueOnSuccess(sdkTask, BuildInstallers);
-        await Task.WhenAll([templateTask, sdkTask, nugetTask, installerTask]);
-
-        // Never publish artifacts from a partially failed build.
-        var publishingTasks = new List<Task>();
+        var packages = Targets.ToDictionary(target => target.Rid, target =>
+            graph.Job($"package-{target.Rid}", () => PackageOpenTapAsync(target))
+                .DependsOn(crossBuild, documentation, tools));
+        var packagesComplete = graph.Node("packages-complete")
+            .DependsOn(packages.Values.ToArray());
+        // SDK packaging mutates the shared host installation. Keep it behind ALL
+        // package creation jobs, not just the host package, to avoid discovery races.
+        var sdk = graph.Job("sdk", PackageSdkAsync).DependsOn(templates, packagesComplete);
+        var nuget = graph.Job("nuget", PackageNuGetAsync).DependsOn(packagesComplete);
+        var windowsInstaller = graph.Job("installer-windows", () => BuildInstallerAsync(
+            "win", "Windows", "opentap.installer.xml", $"OpenTAP.{gitVersion}.exe"))
+            .DependsOn(sdk, packages["win-x64"]);
+        // Each installer gets a private tooling copy, so both can run concurrently.
+        var linuxInstaller = graph.Job("installer-linux", () => BuildInstallerAsync(
+            "linux", "Linux", "opentap.installer.linux.xml", "OpenTAP"))
+            .DependsOn(sdk, packages["linux-x64"]);
+        var buildComplete = graph.Node("build-complete")
+            .DependsOn(templates, sdk, nuget, windowsInstaller, linuxInstaller);
         if (publishPackages)
-            publishingTasks.Add(PublishPackagesAsync());
+            graph.Job("publish-packages", PublishPackagesAsync).DependsOn(buildComplete)
+                .RequiresSecrets("PUBLIC_REPO_TOKEN");
         if (publishInstallers)
-            publishingTasks.Add(PublishInstallersAsync());
-        await Task.WhenAll(publishingTasks);
+            graph.Job("publish-installers", PublishInstallersAsync).DependsOn(buildComplete)
+                .RequiresSecrets("INSTALLER_PUBLISH_KEY", "INSTALLER_PUBLISH_KEY_ARCHIVE",
+                    "TAP_SIGN_CERT", "TAP_SIGN_ADDRESS", "TAP_SIGN_AUTH");
+
+        graph.Validate();
+        ValidatePublishingOptions();
+        await graph.RunAsync();
         return 0;
-    }
-
-    // Awaiting preserves the prerequisite's failure or cancellation and skips the
-    // continuation unless it succeeds. Await the continuation too, avoiding nested tasks.
-    private static async Task ContinueOnSuccess(Task prerequisite, Func<Task> continuation)
-    {
-        await prerequisite.ConfigureAwait(false);
-        await continuation().ConfigureAwait(false);
-    }
-
-    private static async Task BuildInstallers()
-    {
-        // SmartInstaller shares Bundle/ beside tap, so reuse the host tooling sequentially.
-        await BuildInstallerAsync("win", "Windows", "opentap.installer.xml", $"OpenTAP.{gitVersion}.exe");
-        await BuildInstallerAsync("linux", "Linux", "opentap.installer.linux.xml", "OpenTAP");
     }
 
     private static async Task BuildInstallerAsync(string targetOs, string packagePlatform,
@@ -181,6 +179,13 @@ static class Build
         File.Copy(Path.Combine(artifactsDir, "SDK.TapPackage"),
             Path.Combine(installerDir, "SDK.TapPackage"), true);
 
+        // SmartInstaller writes Bundle/ beside tap. Isolate the entire host installation
+        // for each target, rather than only giving it a separate working directory.
+        var toolsDir = Path.Combine(installerDir, "tools");
+        CopyDirectory(Path.Combine(repoRoot, "bin", "Release", $"{hostPlatform}-{hostArch}"), toolsDir);
+        var tap = Path.Combine(toolsDir, ExecutableName("tap"));
+        MakeExecutable(tap);
+
         var output = Path.Combine(artifactsDir, outputName);
         // Remove stale output so a failed creation cannot leave an old installer behind.
         DeletePath(output);
@@ -192,7 +197,7 @@ static class Build
         if (targetOs == "win" && !SigningEnabled.Value)
             arguments.Add("--no-sign");
 
-        await RunTapAsync(arguments.ToArray(), installerDir);
+        await RunAsync(tap, arguments.ToArray(), installerDir);
         if (!File.Exists(output) || new FileInfo(output).Length == 0)
             throw new BuildFailure($"{packagePlatform} installer was not created: {output}");
         Info($"Created {packagePlatform} installer: {output}");
@@ -235,18 +240,13 @@ static class Build
 
     private static void ValidatePublishingOptions()
     {
-        if (publishPackages)
-            RequireSecret("PUBLIC_REPO_TOKEN");
         if (publishInstallers)
         {
-            RequireSecret("INSTALLER_PUBLISH_KEY");
             var archiveCredential = RequireSecret("INSTALLER_PUBLISH_KEY_ARCHIVE");
             if (!archiveCredential.Contains(':'))
                 throw new BuildFailure("INSTALLER_PUBLISH_KEY_ARCHIVE must have the form username:password.");
             if (skipSign || !SigningEnabled.Value)
                 throw new BuildFailure("Installer publishing requires signing; --skip-sign cannot be used.");
-            RequireSecret("TAP_SIGN_ADDRESS");
-            RequireSecret("TAP_SIGN_AUTH");
         }
     }
 
@@ -365,7 +365,7 @@ static class Build
         gitVersion = fullVersion;
     }
 
-    private static void PrepareDocumentation()
+    private static async Task PrepareDocumentation()
     {
         /* delete files that should not be shipped in the package doc folder. */
         var destination = Path.Combine(ciDir, "doc");
@@ -424,7 +424,13 @@ static class Build
             Path.Combine(destination, "src", "solution", ".github", "workflows", "ci.yml")
         ]);
 
-        await RunAsync("dotnet", ["pack", "--configuration", "Release", "--output", artifactsDir], destination);
+        // Select only this invocation's output, not packages left in artifacts by older builds.
+        var outputDir = Path.Combine(ciDir, "template-package");
+        DeletePath(outputDir);
+        await RunAsync("dotnet", ["pack", "--configuration", "Release", "--output", outputDir], destination);
+        var package = Directory.GetFiles(outputDir, "OpenTap.Templates.*.nupkg").Single();
+        templatePackagePath = Path.Combine(artifactsDir, Path.GetFileName(package));
+        File.Copy(package, templatePackagePath, true);
     }
 
     private static async Task PackageSdkAsync()
@@ -440,8 +446,7 @@ static class Build
         ReplaceInFiles("$(GitVersion)", gitVersion,
             [Path.Combine(sdkDir, "Examples", "Directory.Build.props")]);
 
-        var templatePackage = Directory.GetFiles(artifactsDir, "OpenTap.Templates.*.nupkg").Single();
-        File.Copy(templatePackage, Path.Combine(sdkDir, "OpenTap.Templates.nupkg"), true);
+        File.Copy(templatePackagePath, Path.Combine(sdkDir, "OpenTap.Templates.nupkg"), true);
 
         var guide = Path.Combine(sdkDir, "Examples", "OpenTAP Developer Guide.pdf");
         if (skipDevGuide)

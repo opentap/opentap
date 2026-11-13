@@ -1,6 +1,0 @@
-<Solution>
-  <Configurations>
-    <BuildType Name="Release" />
-  </Configurations>
-  <Project Path="bootstrap.csproj" />
-</Solution>
