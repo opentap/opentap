@@ -13,29 +13,9 @@ env:
   OPENTAP_NO_UPDATE_CHECK: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_CONSOLE_ANSI_COLOR: true
-  SMARTINSTALLER_IMAGE: ghcr.io/opentap/smartinstaller:3.1.0-rc.3  # smartinstaller/15ae441d61cffb5591bea7f17a1cb93ba0c2709a
 
 
 jobs:
-  GetVersion:
-    runs-on:
-       group: OpenTAP-SpokeVPC
-       labels:  [Linux, X64]
-    container: ghcr.io/opentap/oci-images/build-dotnet:v10
-    outputs:
-      ShortVersion: ${{ steps.gitversion.outputs.ShortVersion }}
-      LongVersion: ${{ steps.gitversion.outputs.LongVersion }}
-      GitVersion: ${{ steps.gitversion.outputs.GitVersion }}
-      SmartInstallerVersion: ${{ steps.smartInstallerVersion.outputs.ver }}
-    steps:
-      # The get-gitversion action installs OpenTAP and fetches with fetch-depth: 0
-      - name: GitVersion
-        id: gitversion
-        uses: opentap/get-gitversion@d1353d4355f2c12e09bb7886ccc9aa7d18243ebc #2.0
-      - name: SmartInstallerVersion
-        id: smartInstallerVersion
-        run: echo "VER=$SMARTINSTALLER_IMAGE" >> $GITHUB_OUTPUT
-
   Build-Test-Binaries:
     # These binaries are used only by the test jobs below and are never shipped.
     runs-on: windows-2022
@@ -213,6 +193,10 @@ jobs:
       - run: bin/Debug/tap run tests/regression.TapPlan --verbose --color
 
   BuildAndPackage:
+    outputs:
+      ShortVersion: ${{ steps.build.outputs.ShortVersion }}
+      LongVersion: ${{ steps.build.outputs.LongVersion }}
+      GitVersion: ${{ steps.build.outputs.GitVersion }}
     runs-on:
       group: OpenTAP-SpokeVPC
       labels:  [Linux, X64]
@@ -232,6 +216,7 @@ jobs:
         if: ${{ env.SIGN_SERVER_CERT != '' }}
         run: printf '%s' "$SIGN_SERVER_CERT" > "$TAP_SIGN_CERT"
       - name: Build
+        id: build
         run: ./CI/build.sh
       - name: Upload OpenTAP packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -312,7 +297,6 @@ jobs:
     container: ghcr.io/opentap/oci-images/build-dotnet:v10
     needs:
       - BuildAndPackage
-      - GetVersion
     steps: 
       - name: Download Artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -325,12 +309,12 @@ jobs:
           INSTALLER_PUBLISH_KEY: ${{ secrets.INSTALLER_PUBLISH_KEY }}
         run: | 
           curl -i -X POST 'http://packages.opentap.io/4.0/Objects/www/' \
-               -H 'Metadata-Version: "${{ needs.GetVersion.outputs.LongVersion }}"' \
+               -H 'Metadata-Version: "${{ needs.BuildAndPackage.outputs.LongVersion }}"' \
                -H 'Metadata-OS: "Windows"' \
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
                --form 'file=@"OpenTAP.exe"'
       - name: Upload Installer to Archive
-        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"OpenTAP.exe" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/WindowsX32/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}.exe"
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"OpenTAP.exe" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/WindowsX32/OpenTAP.${{ needs.BuildAndPackage.outputs.LongVersion }}.exe"
 
   Publish-Installer-Linux:
     if: contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main'
@@ -341,7 +325,6 @@ jobs:
     container: ghcr.io/opentap/oci-images/build-dotnet:v10
     needs:
       - BuildAndPackage
-      - GetVersion
     steps:
       - name: Download Artifacts
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -352,12 +335,12 @@ jobs:
           INSTALLER_PUBLISH_KEY: ${{ secrets.INSTALLER_PUBLISH_KEY }}
         run: | 
           curl -i -X POST 'http://packages.opentap.io/4.0/Objects/www/' \
-               -H 'Metadata-Version: "${{ needs.GetVersion.outputs.LongVersion }}"' \
+               -H 'Metadata-Version: "${{ needs.BuildAndPackage.outputs.LongVersion }}"' \
                -H 'Metadata-OS: "Linux"' \
                -H "Authorization: Token: $INSTALLER_PUBLISH_KEY" \
                --form 'file=@"OpenTAP"'
       - name: Upload Installer to Archive
-        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"OpenTAP" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/LinuxX64/OpenTAP.${{ needs.GetVersion.outputs.LongVersion }}"
+        run: curl --user ${{ secrets.INSTALLER_PUBLISH_KEY_ARCHIVE }} --data-binary @"OpenTAP" -X PUT "https://artifactory.it.keysight.com/artifactory/generic-local-automation/OpenTAP/LinuxX64/OpenTAP.${{ needs.BuildAndPackage.outputs.LongVersion }}"
 
   Docker-Linux:
     if: github.ref == 'refs/heads/main' || contains(github.ref, 'refs/heads/release') || contains(github.ref, 'refs/tags/v')
@@ -377,7 +360,6 @@ jobs:
             tag-suffix: "-slim-hardened"
     needs:
       - BuildAndPackage
-      - GetVersion
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -398,7 +380,7 @@ jobs:
         run: echo "TAG_NAME=rc" >> $GITHUB_ENV
       - name: Set tag (release)
         if: contains(github.ref, 'refs/tags/v')
-        run: echo "TAG_NAME=${{needs.GetVersion.outputs.ShortVersion}}" >> $GITHUB_ENV
+        run: echo "TAG_NAME=${{needs.BuildAndPackage.outputs.ShortVersion}}" >> $GITHUB_ENV
       - name: Log in to Docker Hub
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:

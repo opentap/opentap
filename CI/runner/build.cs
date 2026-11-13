@@ -101,6 +101,16 @@ static class Build
         var shortVersion = $"{version.Major}.{version.Minor}.{version.Patch}";
         SetVersionEnvironment(shortVersion, version.ToString());
 
+        // Preserve get-gitversion's output formats for downstream workflow jobs.
+        var githubOutput = Environment.GetEnvironmentVariable("GITHUB_OUTPUT");
+        if (!string.IsNullOrEmpty(githubOutput))
+        {
+            var longVersion = shortVersion +
+                (string.IsNullOrEmpty(version.PreRelease) ? "" : "-" + version.PreRelease);
+            await File.AppendAllTextAsync(githubOutput,
+                $"ShortVersion={shortVersion}\nLongVersion={longVersion}\nGitVersion={gitVersion}\n");
+        }
+
         // Obtain the Sdk.New and OpenTap.Sdk.MSBuild assemblies, which are not part of tap.csproj.
         Debug($"Building OpenTAP {gitVersion}");
         await RunAsync("dotnet", ["build", Path.Combine(ciDir, "bootstrap.slnx"), "--configuration", "Release"], repoRoot);
