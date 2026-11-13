@@ -4,3 +4,4 @@ templates/
 LICENSE.txt
 artifacts/
 nuget/
+installers/

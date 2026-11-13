@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 
+
 try
 {
     return await Build.RunAsync(args);
@@ -21,6 +22,7 @@ static void WriteError(string message) => Build.Error(message);
 
 static class Build
 {
+    private static string smartInstallerVersion = "3.4.0-alpha.5.1+1619c20e.package-sources";
     private static bool verbose;
     private static bool skipDevGuide = false;
     private static bool skipSign = false;
@@ -31,6 +33,17 @@ static class Build
     private static string hostTapPlatform = "";
     private static string hostArch = "";
     private static string gitVersion = "";
+    private static readonly Lazy<string> RepoToken = new(() =>
+        Environment.GetEnvironmentVariable("KS8500_REPO_TOKEN") ??
+        throw new BuildFailure("KS8500_REPO_TOKEN is not configured."));
+
+    private static readonly Lazy<bool> SigningEnabled = new(() =>
+    {
+        var certificate = Environment.GetEnvironmentVariable("TAP_SIGN_CERT");
+        return !string.IsNullOrEmpty(RepoToken.Value) &&
+               !string.IsNullOrEmpty(certificate) &&
+               new FileInfo(certificate).Exists && new FileInfo(certificate).Length > 0;
+    });
 
     private static readonly (string Rid, string Platform, string Architecture)[] Targets =
     [
@@ -56,12 +69,7 @@ static class Build
             throw new BuildFailure($"Cannot generate developer guide PDF on {hostTapPlatform}. Specify `--skip-devguide` to skip.");
         }
 
-        var token = Environment.GetEnvironmentVariable("KS8500_REPO_TOKEN");
-        var certificate = Environment.GetEnvironmentVariable("TAP_SIGN_CERT");
-        var signingEnabled = !string.IsNullOrEmpty(token) &&
-                             !string.IsNullOrEmpty(certificate) &&
-                             new FileInfo(certificate).Exists && new FileInfo(certificate).Length > 0;
-        if (signingEnabled)
+        if (SigningEnabled.Value)
         {
             Info("Signing enabled");
         }
@@ -107,17 +115,64 @@ static class Build
 
         File.WriteAllText(OpenTapIgnore, "");
 
-        if (signingEnabled)
-            await RunTapAsync(["package", "install", "Sign", "-f", "-v", "--repository",
-                 $"https://internal.automation.keysight.com/api/repository;token={token}"], repoRoot);
+        var ks8500 = $"https://internal.automation.keysight.com/api/repository;token={RepoToken.Value}";
+        if (SigningEnabled.Value)
+            await RunTapAsync(["package", "install", "Sign", "-f", "--repository", ks8500], repoRoot);
+        await RunTapAsync(["package", "install", "SmartInstaller", "-f", "--version", smartInstallerVersion, "--repository", ks8500], repoRoot);
 
-        await Task.WhenAll(Targets.Select(target => PackageOpenTapAsync(target, signingEnabled)));
+        await Task.WhenAll(Targets.Select(PackageOpenTapAsync));
         /* PackageSdk requires OpenTAP to be installed as a package. Wait for packages to finish building. */
-        var sdkTask = PackageSdkAsync(token);
+        var sdkTask = ContinueOnSuccess(templateTask, PackageSdkAsync);
         /* PackageNuget needs all OpenTap.TapPackages before it can start. */
         var nugetTask = PackageNuGetAsync();
-        await Task.WhenAll([templateTask, sdkTask, nugetTask]);
+        /* The installers bundle the SDK package, so add that task as a prerequisite. */
+        var installerTask = ContinueOnSuccess(sdkTask, BuildInstallers);
+        await Task.WhenAll([templateTask, sdkTask, nugetTask, installerTask]);
         return 0;
+    }
+
+    // Awaiting preserves the prerequisite's failure or cancellation and skips the
+    // continuation unless it succeeds. Await the continuation too, avoiding nested tasks.
+    private static async Task ContinueOnSuccess(Task prerequisite, Func<Task> continuation)
+    {
+        await prerequisite.ConfigureAwait(false);
+        await continuation().ConfigureAwait(false);
+    }
+
+    private static async Task BuildInstallers()
+    {
+        // SmartInstaller shares Bundle/ beside tap, so reuse the host tooling sequentially.
+        await BuildInstallerAsync("win", "Windows", "opentap.installer.xml", $"OpenTAP.{gitVersion}.exe");
+        await BuildInstallerAsync("linux", "Linux", "opentap.installer.linux.xml", "OpenTAP");
+    }
+
+    private static async Task BuildInstallerAsync(string targetOs, string packagePlatform,
+        string configuration, string outputName)
+    {
+        Debug($"Building {packagePlatform} x64 installer");
+        var installerDir = Path.Combine(ciDir, "installers", targetOs);
+        DeletePath(installerDir);
+        CopyDirectory(Path.Combine(repoRoot, "Installer", "Assets"), installerDir);
+        File.Copy(Path.Combine(artifactsDir, $"OpenTAP.{gitVersion}.{packagePlatform}.x64.TapPackage"),
+            Path.Combine(installerDir, "OpenTAP.TapPackage"), true);
+        File.Copy(Path.Combine(artifactsDir, "SDK.TapPackage"),
+            Path.Combine(installerDir, "SDK.TapPackage"), true);
+
+        var output = Path.Combine(artifactsDir, outputName);
+        // Remove stale output so a failed creation cannot leave an old installer behind.
+        DeletePath(output);
+        var arguments = new List<string>
+        {
+            "installer", "create", configuration, "-v",
+            "--target-os", targetOs, "--arch", "x64", "--out", output
+        };
+        if (targetOs == "win" && !SigningEnabled.Value)
+            arguments.Add("--no-sign");
+
+        await RunTapAsync(arguments.ToArray(), installerDir);
+        if (!File.Exists(output) || new FileInfo(output).Length == 0)
+            throw new BuildFailure($"{packagePlatform} installer was not created: {output}");
+        Info($"Created {packagePlatform} installer: {output}");
     }
 
     public static void ParseArguments(string[] args)
@@ -195,8 +250,7 @@ static class Build
     }
 
     private static async Task PackageOpenTapAsync(
-        (string Rid, string Platform, string Architecture) target,
-        bool signingEnabled)
+        (string Rid, string Platform, string Architecture) target)
     {
         Debug($"Building OpenTAP package for {target.Rid}");
         var binDir = Path.Combine(repoRoot, "bin", "Release", target.Rid);
@@ -210,7 +264,7 @@ static class Build
             new()
             {
                 ["Platform"] = target.Platform,
-                ["Sign"] = signingEnabled ? "true" : "false",
+                ["Sign"] = SigningEnabled.Value ? "true" : "false",
                 ["Architecture"] = target.Architecture
             });
     }
@@ -242,7 +296,7 @@ static class Build
         await RunAsync("dotnet", ["pack", "--configuration", "Release", "--output", artifactsDir], destination);
     }
 
-    private static async Task PackageSdkAsync(string? token)
+    private static async Task PackageSdkAsync()
     {
         Debug("Building SDK package");
         await InstallOpenTapAsPackageAsync();
@@ -266,7 +320,7 @@ static class Build
         else
         {
             await RunTapAsync(["package", "install", "DocumentationGeneration", "-f", "--version", "1.0.2",
-                    "--repository", $"https://internal.automation.keysight.com/api/repository;token={token ?? ""}"],
+                    "--repository", $"https://internal.automation.keysight.com/api/repository;token={RepoToken.Value}"],
                     binDir);
 
             await RunTapAsync(["generate-pdf", Path.Combine(repoRoot, "doc", "Developer Guide", "Readme.md"), "--toc",
@@ -426,10 +480,16 @@ static class Build
         }
     }
 
-    private static void Info(string message) => Console.WriteLine(message);
-    private static void Debug(string message) => Console.WriteLine($"\e[90mDEBUG: {message}\e[0m");
-    private static void Warn(string message) => Console.Error.WriteLine($"\e[1;33mWARN: {message}\e[0m");
-    public static void Error(string message) => Console.Error.WriteLine($"\e[1;31mERROR: {message}\e[0m");
+    private static void Write(TextWriter w, string message)
+    {
+        // Logging must also work if resolving the required repository token failed.
+        var token = Environment.GetEnvironmentVariable("KS8500_REPO_TOKEN");
+        w.WriteLine(string.IsNullOrEmpty(token) ? message : message.Replace(token, "****"));
+    }
+    private static void Info(string message) => Write(Console.Out, message);
+    private static void Debug(string message) => Write(Console.Out, $"\e[90mDEBUG: {message}\e[0m");
+    private static void Warn(string message) => Write(Console.Error, $"\e[1;33mWARN: {message}\e[0m");
+    public static void Error(string message) => Write(Console.Error, $"\e[1;31mERROR: {message}\e[0m");
 
     private sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError)
     {
