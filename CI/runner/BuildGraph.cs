@@ -15,6 +15,16 @@ internal sealed class BuildGraph
     // An actionless node completes when all its dependencies succeed.
     public BuildJob Node(string name) => Job(name, () => Task.CompletedTask);
 
+    public BuildJob Job(string name, Action action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        return Job(name, () =>
+        {
+            action();
+            return Task.CompletedTask;
+        });
+    }
+
     public BuildJob Job(string name, Func<Task> action)
     {
         if (started)
@@ -82,12 +92,16 @@ internal sealed class BuildGraph
 
     public void Validate()
     {
-        var missing = jobs.SelectMany(job => job.Secrets
-            .Where(name => string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name)))
-            .Select(name => $"  {job.Name}: {name}"))
-            .ToArray();
-        if (missing.Length > 0)
-            throw new InvalidOperationException("Missing required environment variables:\n" + string.Join("\n", missing));
+        var errors = new List<string>();
+        var missingSecrets = new HashSet<BuildJob>();
+        foreach (var job in jobs)
+            foreach (var name in job.Secrets)
+                if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(name)))
+                {
+                    errors.Add($"  {job.Name}: required environment variable {name} is missing.");
+                    missingSecrets.Add(job);
+                }
+
         var visiting = new HashSet<BuildJob>();
         var visited = new HashSet<BuildJob>();
         void Visit(BuildJob job)
@@ -103,6 +117,25 @@ internal sealed class BuildGraph
         }
         foreach (var job in jobs)
             Visit(job);
+
+        bool HasMissingSecrets(BuildJob job) => missingSecrets.Contains(job) ||
+            job.Dependencies.Any(HasMissingSecrets);
+        foreach (var job in jobs)
+        {
+            // Do not evaluate predicates whose prerequisite credentials are missing.
+            if (HasMissingSecrets(job))
+                continue;
+            foreach (var requirement in job.Requirements)
+            {
+                bool satisfied;
+                try { satisfied = requirement.Predicate(); }
+                catch { satisfied = false; } // Report the declared message, never exception secrets.
+                if (!satisfied)
+                    errors.Add($"  {job.Name}: {requirement.Message}");
+            }
+        }
+        if (errors.Count > 0)
+            throw new InvalidOperationException("Build preflight validation failed:\n" + string.Join("\n", errors));
     }
 }
 
@@ -114,6 +147,8 @@ internal sealed class BuildJob
     private readonly BuildGraph graph;
     internal IReadOnlyList<BuildJob> Dependencies => dependencies;
     private readonly HashSet<string> secrets = new(StringComparer.Ordinal);
+    private readonly List<(Func<bool> Predicate, string Message)> requirements = new();
+    internal IEnumerable<(Func<bool> Predicate, string Message)> Requirements => requirements;
     private bool frozen;
     internal IEnumerable<string> Secrets => secrets;
 
@@ -127,6 +162,19 @@ internal sealed class BuildJob
         foreach (var job in jobs)
             if (!dependencies.Contains(job))
                 dependencies.Add(job);
+        return this;
+    }
+
+    // Predicates run during preflight, before ANY job executes. They must not depend
+    // on artifacts or state produced by prerequisite jobs.
+    public BuildJob Requires(Func<bool> predicate, string failureMessage)
+    {
+        if (frozen)
+            throw new InvalidOperationException("Cannot change requirements after the graph has started.");
+        ArgumentNullException.ThrowIfNull(predicate);
+        if (string.IsNullOrWhiteSpace(failureMessage))
+            throw new ArgumentException("A failure message is required.", nameof(failureMessage));
+        requirements.Add((predicate, failureMessage));
         return this;
     }
 
