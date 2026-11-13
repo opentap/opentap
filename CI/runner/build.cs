@@ -674,6 +674,15 @@ static class Build
         {
             var target = Path.Combine(destination, Path.GetRelativePath(source, file));
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            if (overwrite && OperatingSystem.IsWindows() && File.Exists(target))
+            {
+                // Windows rejects overwriting hidden/read-only destinations, including
+                // .OpenTapIgnore markers left by a previous build or package install.
+                var attributes = File.GetAttributes(target);
+                var writableAttributes = attributes & ~(FileAttributes.Hidden | FileAttributes.ReadOnly);
+                if (attributes != writableAttributes)
+                    File.SetAttributes(target, writableAttributes);
+            }
             File.Copy(file, target, overwrite);
         }
     }
