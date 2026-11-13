@@ -4,6 +4,8 @@
     <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <SkipInstallOpenTapAsPackage>true</SkipInstallOpenTapAsPackage>
+    <!-- OpenTAP resolves its own dependencies; avoid generating an unused shared tap.deps.json. -->
+    <GenerateDependencyFile>false</GenerateDependencyFile>
   </PropertyGroup>
 
   <ItemGroup>
