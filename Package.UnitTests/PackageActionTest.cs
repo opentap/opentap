@@ -12,6 +12,56 @@ namespace OpenTap.Package.UnitTests
 {
     public class PackageActionTest
     {
+        [TestCase("1.1.0", "2.0.0", true)]
+        [TestCase("1.1.0", "", true)]
+        [TestCase("1.1.0", "2.1.0-beta.1", true)]
+        [TestCase("1.1.0", "1.1.1", true)]
+        [TestCase("2.0.0", "2.0.0", true)]
+        [TestCase("2.0.0", "1.1.0", true)]
+        [TestCase("1.1.1", "1.1.0", true)]
+        [TestCase("2.1.0", "2.1.0-beta.1", true)]
+        [TestCase("2.0.0", "1.1.0", false)]
+        public void NoDowngradeResolutionTest(string installedVersion, string requestedVersion, bool noDowngrade)
+        {
+            var directory = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+            Directory.CreateDirectory(Path.Combine(directory, "Packages", "B"));
+            try
+            {
+                var installed = new PackageDef
+                {
+                    Name = "B", Version = SemanticVersion.Parse(installedVersion),
+                    OS = "Linux", Architecture = CpuArchitecture.x86
+                };
+                using (var stream = File.Create(Path.Combine(directory, "Packages", "B", "package.xml")))
+                    installed.SaveTo(stream);
+
+                var installation = new Installation(directory);
+                var repositories = new List<IPackageRepository> { OpenTap.Image.Tests.MockRepository.Instance };
+                List<PackageDef> ResolvePackages() => PackageActionHelpers.GatherPackagesAndDependencyDefs(
+                    installation, null, new[] { "B" }, requestedVersion, CpuArchitecture.x86, "Linux",
+                    repositories, force: false, noDowngrade: noDowngrade);
+
+                if (noDowngrade && SemanticVersion.TryParse(requestedVersion, out var requested) &&
+                    requested.CompareTo(installed.Version) < 0)
+                {
+                    Assert.Throws<ImageResolveException>(() => ResolvePackages());
+                }
+                else
+                {
+                    var result = ResolvePackages();
+                    if (requestedVersion == installedVersion)
+                        Assert.IsEmpty(result, "An already installed version should be skipped.");
+                    else
+                        Assert.AreEqual(SemanticVersion.Parse(requestedVersion == "" ? "2.1.1" : requestedVersion),
+                            result.Single().Version);
+                }
+            }
+            finally
+            {
+                Directory.Delete(directory, true);
+            }
+        }
+
         [Test]
         public void PackageInstallDelegateTest()
         {
