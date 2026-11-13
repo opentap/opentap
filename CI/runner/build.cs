@@ -1,6 +1,3 @@
-#:property TargetFramework=net10.0
-#:property PublishAot=false
-
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
@@ -87,29 +84,18 @@ static class Build
 
         Info($"Detected host: {hostPlatform} {hostArch}");
 
-        // Bootstrap with the base version so the initial assemblies are
-        // compatible with the full version calculated by OpenTAP.
-        var versionLine = File.ReadLines(Path.Combine(repoRoot, ".gitversion"))
-            .FirstOrDefault(line => line.StartsWith("version", StringComparison.Ordinal));
-        var shortVersion = versionLine?.Split('=', 2).ElementAtOrDefault(1)?.Trim();
-        if (string.IsNullOrEmpty(shortVersion))
-            throw new BuildFailure($"Unable to read version from {Path.Combine(repoRoot, ".gitversion")}");
+        // Calculate once, in-process, so every build uses the same version.
+        var calculator = new GitVersionCalculator.VersionCalculator(repoRoot)
+        {
+            Warning = message => Warn($"Warning: {message}")
+        };
+        var version = calculator.GetVersion();
+        var shortVersion = $"{version.Major}.{version.Minor}.{version.Patch}";
+        SetVersionEnvironment(shortVersion, version.ToString());
 
-        SetVersionEnvironment(shortVersion, shortVersion);
-
-        /* Build the bootstrap solution first. This is needed for two reasons:
-         * 1. To obtain the `Sdk.New` and `OpenTap.Sdk.Msbuild` dlls, which are not part of tap.csproj, and
-         * 2. To obtain a functional `tap` binary needed to compute gitversion. */
-        Debug("Building OpenTAP");
+        // Obtain the Sdk.New and OpenTap.Sdk.MSBuild assemblies, which are not part of tap.csproj.
+        Debug($"Building OpenTAP {gitVersion}");
         await RunAsync("dotnet", ["build", Path.Combine(ciDir, "bootstrap.slnx"), "--configuration", "Release"], repoRoot);
-
-        var bootstrapTap = Path.Combine(repoRoot, "bin", "Release", ExecutableName("tap"));
-        MakeExecutable(bootstrapTap);
-        gitVersion = await CaptureAsync(bootstrapTap, ["sdk", "gitversion"], repoRoot,
-            new() { ["OPENTAP_COLOR"] = "never", ["OPENTAP_WARNINGS_TO_STDERR"] = "true" });
-        shortVersion = await CaptureAsync(bootstrapTap, ["sdk", "gitversion", "--fields", "3"], repoRoot,
-            new() { ["OPENTAP_COLOR"] = "never", ["OPENTAP_WARNINGS_TO_STDERR"] = "true" });
-        SetVersionEnvironment(shortVersion, gitVersion);
 
         /* templates can build independently of all other jobs */
         var templateTask = PackageTemplatesAsync();
@@ -337,15 +323,6 @@ static class Build
         var tap = Path.Combine(repoRoot, "bin", "Release", $"{hostPlatform}-{hostArch}", ExecutableName("tap"));
         MakeExecutable(tap);
         await RunAsync(tap, arguments, workingDirectory, environment);
-    }
-
-    private static async Task<string> CaptureAsync(string executable, string[] arguments, string workingDirectory,
-        Dictionary<string, string>? environment = null)
-    {
-        var result = await StartAsync(executable, arguments, workingDirectory, environment, capture: true);
-        if (result.ExitCode != 0)
-            throw new BuildFailure($"Command failed ({executable}):\n{result.Output}");
-        return result.StandardOutput.Trim();
     }
 
     private static async Task RunAsync(string executable, string[] arguments,

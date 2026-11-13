@@ -1,9 +1,5 @@
 #!/usr/bin/env sh
 
-# We force `dotnet run` to read the script from stdin in order to run it in isolated mode.
-# When *not* running in isolated mode, `dotnet run` will implicitly scan parent directories
-# for Directory.Build.props, and child directories for C# implementation files, which
-# introduces unpredictable and undesirable behavior.
-
-BASEPATH="$(dirname "$0")"
-cat "${BASEPATH}/build.cs" | dotnet run - "$@"
+# The runner's local Directory.Build.props isolates it from repository build settings.
+BASEPATH="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+exec dotnet run "$BASEPATH/runner/build.cs" -- "$@"
