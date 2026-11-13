@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
+using System.Net.Http.Headers;
+using System.Text;
 
 
 try
@@ -26,6 +28,8 @@ static class Build
     private static bool verbose;
     private static bool skipDevGuide = false;
     private static bool skipSign = false;
+    private static bool publishPackages;
+    private static bool publishInstallers;
     private static string repoRoot = "";
     private static string ciDir = "";
     private static string artifactsDir = "";
@@ -60,6 +64,7 @@ static class Build
     public static async Task<int> RunAsync(string[] args)
     {
         ParseArguments(args);
+        ValidatePublishingOptions();
         repoRoot = FindRepoRoot(Environment.CurrentDirectory);
         ciDir = Path.Combine(repoRoot, "CI");
         artifactsDir = Path.Combine(ciDir, "artifacts");
@@ -138,6 +143,14 @@ static class Build
         /* The installers bundle the SDK package, so add that task as a prerequisite. */
         var installerTask = ContinueOnSuccess(sdkTask, BuildInstallers);
         await Task.WhenAll([templateTask, sdkTask, nugetTask, installerTask]);
+
+        // Never publish artifacts from a partially failed build.
+        var publishingTasks = new List<Task>();
+        if (publishPackages)
+            publishingTasks.Add(PublishPackagesAsync());
+        if (publishInstallers)
+            publishingTasks.Add(PublishInstallersAsync());
+        await Task.WhenAll(publishingTasks);
         return 0;
     }
 
@@ -197,6 +210,12 @@ static class Build
                 case "--skip-devguide":
                     skipDevGuide = true;
                     break;
+                case "--publish-packages":
+                    publishPackages = true;
+                    break;
+                case "--publish-installers":
+                    publishInstallers = true;
+                    break;
                 case "--skip-sign":
                     skipSign = true;
                     break;
@@ -204,6 +223,108 @@ static class Build
                     throw new BuildFailure($"Unknown argument: {arg}");
             }
         }
+    }
+
+    private static string RequireSecret(string name)
+    {
+        var value = Environment.GetEnvironmentVariable(name);
+        if (string.IsNullOrWhiteSpace(value))
+            throw new BuildFailure($"Required secret {name} is not configured.");
+        return value;
+    }
+
+    private static void ValidatePublishingOptions()
+    {
+        if (publishPackages)
+            RequireSecret("PUBLIC_REPO_TOKEN");
+        if (publishInstallers)
+        {
+            RequireSecret("INSTALLER_PUBLISH_KEY");
+            var archiveCredential = RequireSecret("INSTALLER_PUBLISH_KEY_ARCHIVE");
+            if (!archiveCredential.Contains(':'))
+                throw new BuildFailure("INSTALLER_PUBLISH_KEY_ARCHIVE must have the form username:password.");
+            if (skipSign || !SigningEnabled.Value)
+                throw new BuildFailure("Installer publishing requires signing; --skip-sign cannot be used.");
+            RequireSecret("TAP_SIGN_ADDRESS");
+            RequireSecret("TAP_SIGN_AUTH");
+        }
+    }
+
+    private static async Task PublishPackagesAsync()
+    {
+        Info("Publishing OpenTAP and SDK packages");
+        // The repository upload CLI is a separate plugin, not part of core OpenTAP.
+        await RunTapAsync(["package", "install", "Repository Client", "--version",
+            "1.0.3-beta.9+15a03b2b", "--force"], repoRoot);
+        var packages = Targets.Select(target => Path.Combine(artifactsDir,
+            $"OpenTAP.{gitVersion}.{target.Platform}.{target.Architecture}.TapPackage"))
+            .Append(Path.Combine(artifactsDir, "SDK.TapPackage")).ToArray();
+        foreach (var package in packages)
+            RequireArtifact(package);
+        var arguments = new List<string>
+        {
+            "repo", "upload", "--repository", "https://packages.opentap.io",
+            "--token", RequireSecret("PUBLIC_REPO_TOKEN"), "--parallel", "--skip-existing"
+        };
+        arguments.AddRange(packages);
+        await RunTapAsync(arguments.ToArray(), repoRoot);
+    }
+
+    private static void RequireArtifact(string path)
+    {
+        if (!File.Exists(path) || new FileInfo(path).Length == 0)
+            throw new BuildFailure($"Publishing artifact is missing or empty: {path}");
+    }
+
+    private static async Task PublishInstallersAsync()
+    {
+        var windows = Path.Combine(artifactsDir, $"OpenTAP.{gitVersion}.exe");
+        var linux = Path.Combine(artifactsDir, "OpenTAP");
+        RequireArtifact(windows);
+        RequireArtifact(linux);
+        using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(30) };
+        var longVersion = gitVersion.Split('+', 2)[0];
+        await Task.WhenAll(
+            PublishInstallerAsync(client, windows, "OpenTAP.exe", "Windows", "WindowsX32", ".exe", longVersion),
+            PublishInstallerAsync(client, linux, "OpenTAP", "Linux", "LinuxX64", "", longVersion));
+    }
+
+    private static async Task PublishInstallerAsync(HttpClient client, string path, string publicName,
+        string os, string archivePlatform, string extension, string longVersion)
+    {
+        Info($"Publishing {os} installer");
+        // Preserve the existing public endpoint and metadata contract.
+        using (var request = new HttpRequestMessage(HttpMethod.Post,
+            "http://packages.opentap.io/4.0/Objects/www/"))
+        {
+            request.Headers.TryAddWithoutValidation("Metadata-Version", $"\"{longVersion}\"");
+            request.Headers.TryAddWithoutValidation("Metadata-OS", $"\"{os}\"");
+            request.Headers.TryAddWithoutValidation("Authorization", "Token: " + RequireSecret("INSTALLER_PUBLISH_KEY"));
+            using var file = File.OpenRead(path);
+            using var form = new MultipartFormDataContent();
+            form.Add(new StreamContent(file), "file", publicName);
+            request.Content = form;
+            await SendUploadAsync(client, request, $"{os} public installer");
+        }
+
+        var archiveUrl = "https://artifactory.it.keysight.com/artifactory/generic-local-automation/" +
+            $"OpenTAP/{archivePlatform}/OpenTAP.{Uri.EscapeDataString(longVersion)}{extension}";
+        using (var request = new HttpRequestMessage(HttpMethod.Put, archiveUrl))
+        {
+            request.Headers.Authorization = new AuthenticationHeaderValue("Basic",
+                Convert.ToBase64String(Encoding.UTF8.GetBytes(RequireSecret("INSTALLER_PUBLISH_KEY_ARCHIVE"))));
+            using var file = File.OpenRead(path);
+            request.Content = new StreamContent(file);
+            await SendUploadAsync(client, request, $"{os} installer archive");
+        }
+    }
+
+    private static async Task SendUploadAsync(HttpClient client, HttpRequestMessage request, string description)
+    {
+        using var response = await client.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+            throw new BuildFailure($"Failed to publish {description}: HTTP {(int)response.StatusCode} {response.ReasonPhrase}.");
+        Info($"Published {description}");
     }
 
     private static void DetectHost()
@@ -393,7 +514,7 @@ static class Build
         string workingDirectory, Dictionary<string, string>? environment = null)
     {
         var failureMessage = $"[{executable}]({string.Join(", ", arguments)})";
-        var result = await StartAsync(executable, arguments, workingDirectory, environment, capture: !verbose);
+        var result = await StartAsync(executable, arguments, workingDirectory, environment, capture: !verbose || publishPackages || publishInstallers);
         if (result.ExitCode != 0)
             throw new BuildFailure(verbose ? failureMessage : $"{failureMessage}:\n{result.Output}");
     }
@@ -493,8 +614,16 @@ static class Build
     private static void Write(TextWriter w, string message)
     {
         // Logging must also work if resolving the required repository token failed.
-        var token = Environment.GetEnvironmentVariable("KS8500_REPO_TOKEN");
-        w.WriteLine(string.IsNullOrEmpty(token) ? message : message.Replace(token, "****"));
+        foreach (var name in new[] { "KS8500_REPO_TOKEN", "PUBLIC_REPO_TOKEN",
+            "INSTALLER_PUBLISH_KEY", "INSTALLER_PUBLISH_KEY_ARCHIVE", "TAP_SIGN_AUTH", "NUGET_KEY" })
+        {
+            var secret = Environment.GetEnvironmentVariable(name);
+            if (string.IsNullOrEmpty(secret))
+                continue;
+            message = message.Replace(secret, "****");
+            message = message.Replace(Convert.ToBase64String(Encoding.UTF8.GetBytes(secret)), "****");
+        }
+        w.WriteLine(message);
     }
     private static void Info(string message) => Write(Console.Out, message);
     private static void Debug(string message) => Write(Console.Out, $"\e[90mDEBUG: {message}\e[0m");
