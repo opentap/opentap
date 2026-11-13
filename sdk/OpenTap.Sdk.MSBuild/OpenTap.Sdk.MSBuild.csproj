@@ -37,11 +37,4 @@
     <ProjectReference Include="..\..\Engine\Tap.Engine.csproj" />
     <ProjectReference Include="..\..\Package\Tap.Package.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <Compile Include="../../tools/GitVersionCalculator/GitRepository.cs" />
-    <Compile Include="../../tools/GitVersionCalculator/VersionCalculator.cs" />
-  </ItemGroup>
-
-
 </Project>
