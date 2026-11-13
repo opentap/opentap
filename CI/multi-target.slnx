@@ -1,0 +1,16 @@
+<Solution>
+  <Configurations>
+    <BuildType Name="Release" />
+  </Configurations>
+  <!-- Build portable SDK assemblies once, alongside the RID-specific applications. -->
+  <Project Path="../sdk/OpenTap.Sdk.MSBuild/OpenTap.Sdk.MSBuild.csproj" />
+  <Project Path="../sdk/OpenTap.Sdk.New/OpenTap.Sdk.New.csproj" />
+  <!-- <Project Path="multi-target.win-arm64.csproj" /> -->
+  <Project Path="multi-target.win-x64.csproj" />
+  <Project Path="multi-target.win-x86.csproj" />
+  <Project Path="multi-target.linux-arm.csproj" />
+  <Project Path="multi-target.linux-arm64.csproj" />
+  <Project Path="multi-target.linux-x64.csproj" />
+  <Project Path="multi-target.osx-arm64.csproj" />
+  <Project Path="multi-target.osx-x64.csproj" />
+</Solution>

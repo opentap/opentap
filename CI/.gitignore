@@ -1,0 +1,8 @@
+*.txt
+doc/
+templates/
+template-package/
+LICENSE.txt
+artifacts/
+nuget/
+installers/

@@ -18,23 +18,18 @@
     <!-- Common files  -->
     <Files Condition="$(Debug) == false">
         <File Path="tap.dll">
-            <SetAssemblyInfo Attributes="Version" />
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="OpenTap.dll">
-            <SetAssemblyInfo Attributes="Version" />
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="OpenTap.Package.dll">
-            <SetAssemblyInfo Attributes="Version" />
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="Packages/OpenTAP/OpenTap.Plugins.BasicSteps.dll" SourcePath="OpenTap.Plugins.BasicSteps.dll">
-            <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
         <File Path="Packages/OpenTAP/OpenTap.Cli.dll" SourcePath="OpenTap.Cli.dll">
-            <SetAssemblyInfo Attributes="Version"/>
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
     </Files>
@@ -51,22 +46,22 @@
         <File Path="OpenTap.Cli.dll"/>
         <File Path="OpenTap.Cli.pdb"/>
     </Files>
-    
+
+    <Files>
+        <!-- Markdown documentation -->
+        <File Path="Packages/OpenTAP/doc/**" />
+        <File Path="tap.runtimeconfig.json" />
+    </Files>
+
     <!-- Windows only files -->
     <Files Condition="$(Platform) == Windows">
-        <File Path="tap.runtimeconfig.json" SourcePath="../../Shared/tap.runtimeconfig.WindowsDesktop.json" />
         <File Path="tap.exe">
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
     </Files>
     <!-- non-windows files -->
     <Files Condition="$(Platform) != Windows">
-        <File Path="tap.runtimeconfig.json" SourcePath="../../Shared/tap.runtimeconfig.json" />
         <File Path="tap" SourcePath="tap.sh"/>
-    </Files>
-    <!-- Markdown documentation -->
-    <Files>
-        <File Path="Packages/OpenTAP/doc/**" />
     </Files>
     <!-- License Texts -->
     <Files>
