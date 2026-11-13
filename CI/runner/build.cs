@@ -23,7 +23,9 @@ static void WriteError(string message) => Build.Error(message);
 
 static class Build
 {
-    private static string smartInstallerVersion = "3.4.0-alpha.5.1+1619c20e.package-sources";
+    // Experimental smartinstaller with some minor fixes needed for this script.
+    // https://github.com/opentap/smartinstaller/pull/385
+    private static string smartInstallerVersion = "3.4.0-alpha.5.2+b10989c9.package-sources";
     private static bool verbose;
     private static bool skipDevGuide;
     private static bool skipSign;
