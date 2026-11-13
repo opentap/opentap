@@ -29,6 +29,7 @@ static class Build
     private static bool skipSign;
     private static bool publishPackages;
     private static bool publishInstallers;
+    private static TimeSpan publishRetryWindow = TimeSpan.FromMinutes(10);
     private static string repoRoot = "";
     private static string ciDir = "";
     private static string artifactsDir = "";
@@ -63,6 +64,12 @@ static class Build
 
     public static async Task<int> RunAsync(string[] args)
     {
+        if (args.Contains("--help") || args.Contains("-h"))
+        {
+            PrintHelp();
+            return 0;
+        }
+
         ParseArguments(args);
         repoRoot = FindRepoRoot(Environment.CurrentDirectory);
         ciDir = Path.Combine(repoRoot, "CI");
@@ -119,10 +126,12 @@ static class Build
         if (publishPackages)
             graph.Job("publish-packages", PublishPackagesAsync)
                 .DependsOn(buildComplete)
+                .Retry(publishRetryWindow, TimeSpan.FromSeconds(30))
                 .RequiresSecrets("PUBLIC_REPO_TOKEN");
         if (publishInstallers)
             graph.Job("publish-installers", PublishInstallersAsync)
                 .DependsOn(buildComplete)
+                .Retry(publishRetryWindow, TimeSpan.FromSeconds(30))
                 .RequiresSecrets("INSTALLER_PUBLISH_KEY", "INSTALLER_PUBLISH_KEY_ARCHIVE",
                     "TAP_SIGN_CERT", "TAP_SIGN_ADDRESS", "TAP_SIGN_AUTH")
                 .Requires(() => SigningEnabled.Value,
@@ -213,10 +222,52 @@ static class Build
         Info($"Created {packagePlatform} installer: {output}");
     }
 
+    private static void PrintHelp() => Console.WriteLine("""
+        Usage: ./CI/build.sh [options]
+
+        Builds OpenTAP for all configured targets, SDK and NuGet packages,
+        templates, and Windows/Linux x64 installers. Publishing is opt-in.
+
+        Options:
+          -h, --help                    Show this help and exit without building.
+          -v, --verbose                 Show subprocess output (captured during publishing).
+          --skip-devguide               Skip PDF generation; include an empty guide placeholder.
+                                        Required for local builds on macOS.
+          --skip-sign                   Disable signing, even when credentials are available.
+          --publish-packages            Publish OpenTAP and SDK TapPackages to packages.opentap.io.
+                                        Existing package versions are skipped.
+          --publish-installers          Publish installers to public downloads and the archive.
+                                        Requires signing; incompatible with --skip-sign.
+          --publish-retry-minutes N     Publishing retry window in minutes (default: 10).
+                                        Accepts 0-1440, including fractions; 0 disables retries.
+                                        Fixed 30-second waits. In-flight uploads may outlast
+                                        the window. Build jobs are never retried.
+
+        Environment:
+          KS8500_REPO_TOKEN             Required to install internal build tools.
+          TAP_SIGN_CERT                 Path to a non-empty signing certificate file.
+          TAP_SIGN_ADDRESS              Signing service address.
+          TAP_SIGN_AUTH                 Signing service credentials.
+                                        Signing variables are required unless --skip-sign.
+          PUBLIC_REPO_TOKEN             Required with --publish-packages.
+          INSTALLER_PUBLISH_KEY         Public download credentials; required with
+                                        --publish-installers.
+          INSTALLER_PUBLISH_KEY_ARCHIVE  Archive credentials as username:password;
+                                        required with --publish-installers.
+
+        Missing requirements are checked before any build job starts.
+        NuGet publishing remains in a separate CI job, not this script.
+
+        Examples:
+          ./CI/build.sh --skip-devguide --skip-sign
+          ./CI/build.sh --publish-packages --publish-installers --publish-retry-minutes 15
+        """);
+
     public static void ParseArguments(string[] args)
     {
-        foreach (var arg in args)
+        for (var index = 0; index < args.Length; index++)
         {
+            var arg = args[index];
             switch (arg)
             {
                 case "--verbose" or "-v":
@@ -224,6 +275,14 @@ static class Build
                     break;
                 case "--skip-devguide":
                     skipDevGuide = true;
+                    break;
+                case "--publish-retry-minutes":
+                    if (++index >= args.Length ||
+                        !double.TryParse(args[index], System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out var minutes) ||
+                        !double.IsFinite(minutes) || minutes < 0 || minutes > 1440)
+                        throw new BuildFailure("--publish-retry-minutes requires a number between 0 and 1440.");
+                    publishRetryWindow = TimeSpan.FromMinutes(minutes);
                     break;
                 case "--publish-packages":
                     publishPackages = true;
@@ -319,7 +378,17 @@ static class Build
 
     private static async Task SendUploadAsync(HttpClient client, HttpRequestMessage request, string description)
     {
-        using var response = await client.SendAsync(request);
+        HttpResponseMessage response;
+        try
+        {
+            response = await client.SendAsync(request);
+        }
+        catch (OperationCanceledException ex) when (ex.InnerException is TimeoutException)
+        {
+            // HttpClient timeouts are retryable failures, not user cancellation.
+            throw new HttpRequestException($"Upload timed out: {description}.", ex);
+        }
+        using var responseScope = response;
         if (!response.IsSuccessStatusCode)
             throw new BuildFailure($"Failed to publish {description}: HTTP {(int)response.StatusCode} {response.ReasonPhrase}.");
         Info($"Published {description}");

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -73,20 +74,41 @@ internal sealed class BuildGraph
         }
 
         log($"[START] {job.Name}");
-        try
+        var timer = Stopwatch.StartNew();
+        for (var attempt = 1; ; attempt++)
         {
-            await job.Action().ConfigureAwait(false);
-            log($"[DONE] {job.Name}");
-        }
-        catch (OperationCanceledException)
-        {
-            log($"[CANCELED] {job.Name}");
-            throw;
-        }
-        catch
-        {
-            log($"[FAILED] {job.Name}");
-            throw;
+            try
+            {
+                if (job.RetryWindow > TimeSpan.Zero)
+                    log($"[ATTEMPT {attempt}] {job.Name}: elapsed {timer.Elapsed.TotalSeconds:F0}s, retry window {job.RetryWindow.TotalMinutes:g} min");
+                await job.Action().ConfigureAwait(false);
+                if (attempt > 1)
+                    log($"[RECOVERED] {job.Name}: succeeded on attempt {attempt} after {timer.Elapsed.TotalSeconds:F0}s");
+                log($"[DONE] {job.Name}");
+                return;
+            }
+            catch (OperationCanceledException)
+            {
+                log($"[CANCELED] {job.Name}");
+                throw;
+            }
+            catch (Exception ex)
+            {
+                log($"[ATTEMPT FAILED] {job.Name}: {ex.Message}");
+                var remaining = job.RetryWindow - timer.Elapsed;
+                if (remaining <= job.RetryDelay)
+                {
+                    log($"[FAILED] {job.Name}: attempt {attempt}, elapsed {timer.Elapsed.TotalSeconds:F0}s; retry window exhausted or disabled ({ex.GetType().Name})");
+                    throw;
+                }
+                log($"[RETRY WARNING] {job.Name}: attempt {attempt} failed ({ex.GetType().Name}); waiting {job.RetryDelay.TotalSeconds:g}s, {remaining.TotalSeconds:F0}s left in retry window");
+                await Task.Delay(job.RetryDelay).ConfigureAwait(false);
+                if (timer.Elapsed >= job.RetryWindow)
+                {
+                    log($"[FAILED] {job.Name}: retry window expired while waiting");
+                    throw;
+                }
+            }
         }
     }
 
@@ -151,6 +173,24 @@ internal sealed class BuildJob
     internal IEnumerable<(Func<bool> Predicate, string Message)> Requirements => requirements;
     private bool frozen;
     internal IEnumerable<string> Secrets => secrets;
+
+    internal TimeSpan RetryWindow { get; private set; }
+    internal TimeSpan RetryDelay { get; private set; }
+
+    // Retry only this action, not its prerequisites. The action must be safe to repeat.
+    // The window includes attempt durations and waits; in-flight actions are not interrupted.
+    public BuildJob Retry(TimeSpan window, TimeSpan delay)
+    {
+        if (frozen)
+            throw new InvalidOperationException("Cannot change retry policy after the graph has started.");
+        if (window < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(window));
+        if (delay <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(delay));
+        RetryWindow = window;
+        RetryDelay = delay;
+        return this;
+    }
 
     public BuildJob DependsOn(params BuildJob[] jobs)
     {
