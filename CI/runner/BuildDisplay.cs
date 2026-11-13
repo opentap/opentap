@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Text;
 
 // ANSI redraws are confined to interactive terminals; redirected logs stay plain.
 internal sealed class BuildDisplay : IDisposable
@@ -28,6 +29,8 @@ internal sealed class BuildDisplay : IDisposable
         rows = names.ToDictionary(name => name, _ => new Row());
         Interactive = interactive && !Console.IsOutputRedirected &&
             Environment.GetEnvironmentVariable("TERM") != "dumb";
+        if (Interactive)
+            Console.Out.Write("\u001b[?25l"); // Hide the cursor while animating.
         timer = new Timer(_ => Refresh(), null, Interactive ? 0 : Timeout.Infinite, 120);
     }
 
@@ -41,10 +44,12 @@ internal sealed class BuildDisplay : IDisposable
                 writer.WriteLine(message);
                 return;
             }
-            Clear();
-            // Keep failures, retry warnings, and ordinary output visible above the panel.
+            // Only clear when inserting permanent output, not on animation frames.
             if (!lifecycle || message.StartsWith("[FAILED]") || message.StartsWith("[RETRY WARNING]"))
+            {
+                Clear();
                 writer.WriteLine(message);
+            }
             Draw();
         }
     }
@@ -80,7 +85,6 @@ internal sealed class BuildDisplay : IDisposable
         lock (gate)
         {
             if (disposed || !Interactive) return;
-            Clear();
             Draw();
         }
     }
@@ -116,8 +120,24 @@ internal sealed class BuildDisplay : IDisposable
         }
         if (lines.Count - 1 < rows.Count)
             lines.Add($"  ... {rows.Count - lines.Count + 1} other jobs");
+        // Overwrite in place, writing the new content BEFORE erasing each line's
+        // tail. A single buffered write avoids exposing a blank panel on Windows.
+        var output = new StringBuilder();
+        if (drawnLines > 0)
+            output.Append($"\u001b[{drawnLines}A");
         foreach (var line in lines)
-            Console.Out.WriteLine(line.Length > width ? line.Substring(0, width) : line);
+        {
+            output.Append('\r');
+            output.Append(line.Length > width ? line.Substring(0, width) : line);
+            output.Append("\u001b[K\r\n");
+        }
+        // Clear obsolete rows if a terminal resize reduced the visible panel.
+        var obsoleteRows = Math.Max(0, drawnLines - lines.Count);
+        for (var index = 0; index < obsoleteRows; index++)
+            output.Append("\r\u001b[K\r\n");
+        if (obsoleteRows > 0)
+            output.Append($"\u001b[{obsoleteRows}A");
+        Console.Out.Write(output.ToString());
         drawnLines = lines.Count;
         frame++;
     }
@@ -128,8 +148,15 @@ internal sealed class BuildDisplay : IDisposable
         {
             if (disposed) return;
             timer.Dispose();
-            if (Interactive) { Clear(); Draw(); }
-            disposed = true;
+            try
+            {
+                if (Interactive) Draw();
+            }
+            finally
+            {
+                if (Interactive) Console.Out.Write("\u001b[?25h");
+                disposed = true;
+            }
         }
     }
 }
