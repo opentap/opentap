@@ -31,6 +31,8 @@ internal sealed class BuildDisplay : IDisposable
             Environment.GetEnvironmentVariable("TERM") != "dumb";
         if (Interactive)
             Console.Out.Write("\u001b[?25l"); // Hide the cursor while animating.
+        else
+            Console.Out.WriteLine($"OpenTAP build   {rows.Count} jobs");
         timer = new Timer(_ => Refresh(), null, Interactive ? 0 : Timeout.Infinite, 120);
     }
 
@@ -41,7 +43,15 @@ internal sealed class BuildDisplay : IDisposable
             bool lifecycle = Update(message);
             if (!Interactive || disposed)
             {
-                writer.WriteLine(message);
+                if (lifecycle)
+                {
+                    var name = message.Substring(message.IndexOf(']') + 1).TrimStart().Split(':', 2)[0];
+                    writer.WriteLine(FormatRow(name, rows[name], animated: false));
+                    if (message.StartsWith("[FAILED]") || message.StartsWith("[RETRY WARNING]"))
+                        writer.WriteLine("    " + message);
+                }
+                else
+                    writer.WriteLine(message);
                 return;
             }
             // Only clear when inserting permanent output, not on animation frames.
@@ -108,16 +118,7 @@ internal sealed class BuildDisplay : IDisposable
         var visible = rows.OrderBy(pair => pair.Value.State is "running" or "retrying" ? 0 : 1)
             .Take(Math.Max(1, height - 4));
         foreach (var pair in visible)
-        {
-            var row = pair.Value;
-            string icon = row.State switch
-            {
-                "running" => "|/-\\"[frame % 4].ToString(),
-                "retrying" => "~", "done" => "+", "failed" => "!",
-                "canceled" => "!", "skipped" => "-", _ => "."
-            };
-            lines.Add($"  {icon} {pair.Key,-24} {row.State,-9} {(row.Time.Elapsed.TotalSeconds > 0 ? row.Time.Elapsed.ToString(@"mm\:ss") : "")}");
-        }
+            lines.Add(FormatRow(pair.Key, pair.Value, animated: true));
         if (lines.Count - 1 < rows.Count)
             lines.Add($"  ... {rows.Count - lines.Count + 1} other jobs");
         // Overwrite in place, writing the new content BEFORE erasing each line's
@@ -142,6 +143,17 @@ internal sealed class BuildDisplay : IDisposable
         frame++;
     }
 
+    private string FormatRow(string name, Row row, bool animated)
+    {
+        string icon = row.State switch
+        {
+            "running" => animated ? "|/-\\"[frame % 4].ToString() : ">",
+            "retrying" => "~", "done" => "+", "failed" => "!",
+            "canceled" => "!", "skipped" => "-", _ => "."
+        };
+        return $"  {icon} {name,-24} {row.State,-9} {(row.Time.Elapsed.TotalSeconds > 0 ? row.Time.Elapsed.ToString(@"mm\:ss") : "")}";
+    }
+
     public void Dispose()
     {
         lock (gate)
@@ -150,7 +162,10 @@ internal sealed class BuildDisplay : IDisposable
             timer.Dispose();
             try
             {
-                if (Interactive) Draw();
+                if (Interactive)
+                    Draw();
+                else
+                    Console.Out.WriteLine($"OpenTAP build   {rows.Values.Count(row => row.State == "done")}/{rows.Count} complete   {elapsed.Elapsed:mm\\:ss} elapsed");
             }
             finally
             {
