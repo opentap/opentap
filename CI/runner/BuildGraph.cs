@@ -13,6 +13,8 @@ internal sealed class BuildGraph
 
     public BuildGraph(Action<string> log) => this.log = log;
 
+    public IEnumerable<string> JobNames => jobs.Select(job => job.Name);
+
     // An actionless node completes when all its dependencies succeed.
     public BuildJob Node(string name) => Job(name, () => Task.CompletedTask);
 

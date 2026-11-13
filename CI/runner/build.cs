@@ -27,6 +27,7 @@ static class Build
     // https://github.com/opentap/smartinstaller/pull/385
     private static string smartInstallerVersion = "3.4.0-alpha.5.2+b10989c9.package-sources";
     private static bool verbose;
+    private static BuildDisplay? display;
     private static bool skipDevGuide;
     private static bool skipSign;
     private static bool publishPackages;
@@ -141,7 +142,19 @@ static class Build
                 .Requires(() => RequireSecret("INSTALLER_PUBLISH_KEY_ARCHIVE").Contains(':'),
                     "INSTALLER_PUBLISH_KEY_ARCHIVE must have the form username:password.");
 
-        await graph.RunAsync();
+        // Preflight errors should be printed normally, without creating a live panel.
+        graph.Validate();
+        using var status = new BuildDisplay(graph.JobNames, !verbose);
+        display = status;
+        try
+        {
+            await graph.RunAsync();
+        }
+        finally
+        {
+            status.Dispose();
+            display = null;
+        }
         return 0;
     }
 
@@ -701,7 +714,10 @@ static class Build
             message = message.Replace(secret, "****");
             message = message.Replace(Convert.ToBase64String(Encoding.UTF8.GetBytes(secret)), "****");
         }
-        w.WriteLine(message);
+        if (display is { } status)
+            status.Write(w, message);
+        else
+            w.WriteLine(message);
     }
     private static void Info(string message) => Write(Console.Out, message);
     private static void Warn(string message) => Write(Console.Error, $"\e[1;33mWARN: {message}\e[0m");

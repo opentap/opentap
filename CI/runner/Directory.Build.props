@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileDirectory)BuildGraph.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)BuildDisplay.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../tools/GitVersionCalculator/GitRepository.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../../tools/GitVersionCalculator/VersionCalculator.cs" />
   </ItemGroup>
