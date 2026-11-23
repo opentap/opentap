@@ -5,4 +5,5 @@ template-package/
 LICENSE.txt
 artifacts/
 nuget/
+publish-tools/
 installers/

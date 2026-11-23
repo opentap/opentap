@@ -223,9 +223,9 @@ jobs:
         id: build
         shell: bash
         run: |
-          args=()
+          args=(all)
           if [[ "$PUBLISH_ARTIFACTS" == "true" ]]; then
-            args+=(--publish-packages --publish-installers)
+            args+=(publish-packages publish-installers)
           fi
           ./CI/build.sh "${args[@]}"
       - name: Upload OpenTAP packages
