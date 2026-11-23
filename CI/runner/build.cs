@@ -25,14 +25,15 @@ static class Build
 {
     // Experimental smartinstaller with some minor fixes needed for this script.
     // https://github.com/opentap/smartinstaller/pull/385
-    private static string smartInstallerVersion = "3.4.0-alpha.5.2+b10989c9.package-sources";
-    private static bool verbose;
+    private static readonly string smartInstallerVersion = "3.4.0-alpha.5.2+b10989c9.package-sources";
+    private static readonly string RepositoryClientVersion = "1.0.3-beta.9+15a03b2b";
+    private static readonly string DocumentationGenerationVersion = "1.0.2";
+    private static BuildJob setupOptions = null!;
+    private static bool verbose => setupOptions.GetOption("verbose");
     private static BuildDisplay? display;
-    private static bool skipDevGuide;
-    private static bool skipSign;
-    private static bool publishPackages;
-    private static bool publishInstallers;
-    private static TimeSpan publishRetryWindow = TimeSpan.FromMinutes(10);
+    private static BuildJob sdkOptions = null!;
+    private static BuildJob signingOptions = null!;
+    private static bool SkipSign => signingOptions.GetOption("skip-sign");
     private static string repoRoot = "";
     private static string ciDir = "";
     private static string artifactsDir = "";
@@ -48,7 +49,7 @@ static class Build
     private static readonly Lazy<bool> SigningEnabled = new(() =>
     {
         var certificate = Environment.GetEnvironmentVariable("TAP_SIGN_CERT");
-        return !skipSign && !string.IsNullOrEmpty(RepoToken.Value) &&
+        return !SkipSign && !string.IsNullOrEmpty(RepoToken.Value) &&
                !string.IsNullOrEmpty(certificate) &&
                new FileInfo(certificate).Exists && new FileInfo(certificate).Length > 0;
     });
@@ -67,88 +68,28 @@ static class Build
 
     public static async Task<int> RunAsync(string[] args)
     {
-        if (args.Contains("--help") || args.Contains("-h"))
+        var showHelp = args.Contains("--help") || args.Contains("-h");
+        var graph = CreateGraph();
+        if (showHelp)
         {
-            PrintHelp();
+            PrintHelp(graph);
             return 0;
         }
 
-        ParseArguments(args);
+        IReadOnlyList<BuildJob> selectedJobs;
+        try { selectedJobs = graph.SelectTargets(graph.ParseArguments(args, defaultTarget: "all")); }
+        catch (ArgumentException ex) { throw new BuildFailure(ex.Message); }
         repoRoot = FindRepoRoot(Environment.CurrentDirectory);
         ciDir = Path.Combine(repoRoot, "CI");
         artifactsDir = Path.Combine(ciDir, "artifacts");
 
-        var graph = new BuildGraph(Info);
-        var signing = graph.Node("signing");
-        if (!skipSign)
-            signing.RequiresSecrets("KS8500_REPO_TOKEN", "TAP_SIGN_CERT", "TAP_SIGN_ADDRESS", "TAP_SIGN_AUTH")
-                .Requires(() => SigningEnabled.Value,
-                    "Signing certificate is missing or empty. Use --skip-sign for an unsigned build.");
-
-        var setup = graph.Node("setup")
-            .DependsOn(
-                graph.Job("workspace", PrepareWorkspace),
-                graph.Job("version", CalculateVersionAsync),
-                signing);
-        var templates = graph.Job("templates", PackageTemplatesAsync)
-            .DependsOn(setup);
-        var crossBuild = graph.Job("cross-build", CrossBuildAsync)
-            .DependsOn(setup);
-        var documentation = graph.Job("documentation", PrepareDocumentation)
-            .DependsOn(setup);
-        var tools = graph.Job("build-tools", InstallBuildToolsAsync)
-            .DependsOn(crossBuild)
-            .RequiresSecrets("KS8500_REPO_TOKEN");
-
-        var packages = Targets.ToDictionary(target => target.Rid, target =>
-            graph.Job($"package-{target.Rid}", () => PackageOpenTapAsync(target))
-                .DependsOn(crossBuild, documentation, tools));
-        var packagesComplete = graph.Node("packages-complete")
-            .DependsOn(packages.Values.ToArray());
-
-        // SDK packaging mutates the shared host installation. Keep it behind ALL
-        // package creation jobs, not just the host package, to avoid discovery races.
-        var sdk = graph.Job("sdk", PackageSdkAsync)
-            .DependsOn(templates, packagesComplete)
-            .Requires(() => skipDevGuide || !OperatingSystem.IsMacOS(),
-                "Cannot generate developer guide PDF on macOS. Use --skip-devguide.");
-        var nuget = graph.Job("nuget", PackageNuGetAsync)
-            .DependsOn(packagesComplete);
-
-        var windowsInstaller = graph.Job("installer-windows", () => BuildInstallerAsync(
-            "win", "Windows", "opentap.installer.xml", $"OpenTAP.{gitVersion}.exe"))
-            .DependsOn(sdk, packages["win-x64"]);
-        // Each installer gets a private tooling copy, so both can run concurrently.
-        var linuxInstaller = graph.Job("installer-linux", () => BuildInstallerAsync(
-            "linux", "Linux", "opentap.installer.linux.xml", "OpenTAP"))
-            .DependsOn(sdk, packages["linux-x64"]);
-
-        var buildComplete = graph.Node("build-complete")
-            .DependsOn(templates, sdk, nuget, windowsInstaller, linuxInstaller);
-
-        if (publishPackages)
-            graph.Job("publish-packages", PublishPackagesAsync)
-                .DependsOn(buildComplete)
-                .Retry(publishRetryWindow, TimeSpan.FromSeconds(30))
-                .RequiresSecrets("PUBLIC_REPO_TOKEN");
-        if (publishInstallers)
-            graph.Job("publish-installers", PublishInstallersAsync)
-                .DependsOn(buildComplete)
-                .Retry(publishRetryWindow, TimeSpan.FromSeconds(30))
-                .RequiresSecrets("INSTALLER_PUBLISH_KEY", "INSTALLER_PUBLISH_KEY_ARCHIVE",
-                    "TAP_SIGN_CERT", "TAP_SIGN_ADDRESS", "TAP_SIGN_AUTH")
-                .Requires(() => SigningEnabled.Value,
-                    "Installer publishing requires a signed build; --skip-sign cannot be used.")
-                .Requires(() => RequireSecret("INSTALLER_PUBLISH_KEY_ARCHIVE").Contains(':'),
-                    "INSTALLER_PUBLISH_KEY_ARCHIVE must have the form username:password.");
-
         // Preflight errors should be printed normally, without creating a live panel.
-        graph.Validate();
-        using var status = new BuildDisplay(graph.JobNames, !verbose);
+        graph.Validate(selectedJobs);
+        using var status = new BuildDisplay(selectedJobs.Select(job => job.Name), !verbose);
         display = status;
         try
         {
-            await graph.RunAsync();
+            await graph.RunAsync(selectedJobs);
         }
         finally
         {
@@ -158,10 +99,111 @@ static class Build
         return 0;
     }
 
+    private static BuildGraph CreateGraph()
+    {
+        // The host RID is needed while constructing SDK's package dependency.
+        DetectHost();
+        var graph = new BuildGraph(Info);
+        var signing = graph.Node("signing", "Check signing requirements.")
+            .Option("skip-sign", "Disable signing.");
+        signingOptions = signing;
+        bool SigningRequested() => !signing.GetOption("skip-sign");
+        signing.RequiresSecret("KS8500_REPO_TOKEN", when: SigningRequested)
+            .RequiresSecret("TAP_SIGN_CERT", "Path to a non-empty signing certificate file.", when: SigningRequested)
+            .RequiresSecret("TAP_SIGN_ADDRESS", "Signing service address.", when: SigningRequested)
+            .RequiresSecret("TAP_SIGN_AUTH", "Signing service credentials.", when: SigningRequested)
+            .Requires(() => !SigningRequested() || SigningEnabled.Value,
+                "Signing certificate is missing or empty. Use --skip-sign for an unsigned build.");
+
+        var setup = graph.Node("setup", "Prepare the build environment.")
+            .Option("verbose", "Show captured subprocess output.")
+            .DependsOn(
+                graph.Job("workspace", PrepareWorkspace, "Prepare output directories."),
+                graph.Job("version", CalculateVersionAsync, "Determine the build version."),
+                signing);
+        setupOptions = setup;
+        var templates = graph.Job("template-package", PackageTemplatesAsync)
+            .DependsOn(setup);
+        var crossBuild = graph.Job("cross-build", CrossBuildAsync, "Compile binaries for all configured platforms.")
+            .DependsOn(setup);
+        var documentation = graph.Job("documentation", PrepareDocumentation, "Prepare documentation for packaging.")
+            .DependsOn(setup);
+        var installation = graph.Job("prepare-installation", PrepareInstallation,
+                "Prepare platform installations for package operations.")
+            .DependsOn(crossBuild);
+        var tools = graph.Job("build-tools", InstallBuildToolsAsync, "Install signing tools when signing is enabled.")
+            .DependsOn(installation)
+            .RequiresSecret("KS8500_REPO_TOKEN", "Internal build-tools repository token.", when: SigningRequested);
+
+        var packages = Targets.ToDictionary(target => target.Rid, target =>
+            graph.Job($"opentap-{target.Rid}", () => PackageOpenTapAsync(target))
+                .DependsOn(crossBuild, documentation, tools));
+        var packagesComplete = graph.Node("opentap-packages", "Build OpenTAP packages for all configured platforms.")
+            .DependsOn([.. packages.Values]);
+
+        // SDK packaging installs the host OpenTAP package and embeds the templates.
+        // Previously SDK depended on packagesComplete to prevent its host-installation
+        // mutations from overlapping other package jobs, which use the same host tap.
+        // That race was not confirmed; clean/dirty full-build smoke tests passed with
+        // this narrower dependency, avoiding unrelated packages for individual installers.
+        // If concurrent packaging failures surface, revisit the packagesComplete barrier.
+        var hostRid = $"{hostPlatform}-{hostArch}";
+        if (!packages.TryGetValue(hostRid, out var hostPackage))
+            throw new BuildFailure($"No OpenTAP package is configured for host {hostRid}.");
+        var sdk = graph.Job("sdk-package", PackageSdkAsync)
+            .Option("dummy-devguide", "Include an empty developer guide instead of generating the PDF.")
+            .DependsOn(templates, hostPackage);
+        sdkOptions = sdk;
+        sdk.RequiresSecret("KS8500_REPO_TOKEN", when: () => !sdk.GetOption("dummy-devguide"));
+        sdk.Requires(() => sdk.GetOption("dummy-devguide") || !OperatingSystem.IsMacOS(),
+            "Cannot generate developer guide PDF on macOS. Use --dummy-devguide.");
+        var nuget = graph.Job("nuget-package", PackageNuGetAsync)
+            .DependsOn(packagesComplete);
+
+        var windowsInstaller = graph.Job("installer-windows", () => BuildInstallerAsync(
+            "win", "Windows", "opentap.installer.xml", $"OpenTAP.{gitVersion}.exe"))
+            .DependsOn(sdk, packages["win-x64"])
+            .RequiresSecret("KS8500_REPO_TOKEN");
+        // Each installer gets a private tooling copy, so both can run concurrently.
+        var linuxInstaller = graph.Job("installer-linux", () => BuildInstallerAsync(
+            "linux", "Linux", "opentap.installer.linux.xml", "OpenTAP"))
+            .DependsOn(sdk, packages["linux-x64"])
+            .RequiresSecret("KS8500_REPO_TOKEN");
+
+        graph.Node("all", "Build OpenTAP, SDK, NuGet and template packages, and Windows/Linux installers. No publishing.")
+            .DependsOn(templates, sdk, nuget, windowsInstaller, linuxInstaller);
+
+        var publishPackages = graph.Job("publish-packages", PublishPackagesAsync, "Publish OpenTAP and SDK packages.")
+            .DependsOn(sdk, packagesComplete)
+            .RequiresSecret("PUBLIC_REPO_TOKEN", "Public package repository token.");
+        ConfigurePublishingRetry(publishPackages);
+        var publishInstallers = graph.Job("publish-installers", PublishInstallersAsync, "Publish installers to public downloads and the archive.")
+            .DependsOn(windowsInstaller, linuxInstaller)
+            .RequiresSecret("INSTALLER_PUBLISH_KEY", "Public download credentials.")
+            .RequiresSecret("INSTALLER_PUBLISH_KEY_ARCHIVE", "Archive credentials as username:password.")
+            .RequiresSecret("TAP_SIGN_CERT")
+            .RequiresSecret("TAP_SIGN_ADDRESS")
+            .RequiresSecret("TAP_SIGN_AUTH")
+            .Requires(() => SigningEnabled.Value,
+                "Installer publishing requires a signed build; --skip-sign cannot be used.")
+            .Requires(() => RequireSecret("INSTALLER_PUBLISH_KEY_ARCHIVE").Contains(':'),
+                "INSTALLER_PUBLISH_KEY_ARCHIVE must have the form username:password.");
+
+        ConfigurePublishingRetry(publishInstallers);
+        return graph;
+    }
+
+    private static bool ValidRetryMinutes(double minutes) => double.IsFinite(minutes) && minutes >= 0 && minutes <= 1440;
+
+    private static void ConfigurePublishingRetry(BuildJob job) => job
+        .Argument<double>("publish-retry-minutes", 10,
+            "Retry window in minutes (0-1440); 0 disables retries.",
+            ValidRetryMinutes, "--publish-retry-minutes requires a number between 0 and 1440.")
+        .Retry(() => TimeSpan.FromMinutes(job.GetArgument<double>("publish-retry-minutes")), TimeSpan.FromSeconds(30));
+
     private static void PrepareWorkspace()
     {
         Directory.CreateDirectory(artifactsDir);
-        DetectHost();
         // Rebuilding locally fails if .OpenTapIgnore exists in bin/Release.
         DeletePath(Path.Combine(repoRoot, "bin", "Release", ".OpenTapIgnore"));
         Info($"Detected host: {hostPlatform} {hostArch}");
@@ -192,14 +234,23 @@ static class Build
     private static Task CrossBuildAsync() => RunAsync("dotnet",
         ["build", Path.Combine(ciDir, "multi-target.slnx"), "--configuration", "Release"], repoRoot);
 
+    private static void PrepareInstallation()
+    {
+        // Cross-build leaves OpenTap.dll in bin/Release as well as in RID subdirectories.
+        // The marker prevents bin/Release from being treated as a parent installation,
+        // allowing package installs into the host RID directory (including SDK's
+        // OpenTAP install). This is needed even when signing tools are skipped.
+        // Write it after cross-build; PrepareWorkspace removes it before rebuilding.
+        File.WriteAllText(Path.Combine(repoRoot, "bin", "Release", ".OpenTapIgnore"), "");
+    }
+
     private static async Task InstallBuildToolsAsync()
     {
-        File.WriteAllText(Path.Combine(repoRoot, "bin", "Release", ".OpenTapIgnore"), "");
-        var ks8500 = $"https://internal.automation.keysight.com/api/repository;token={RepoToken.Value}";
         if (SigningEnabled.Value)
+        {
+            var ks8500 = $"https://internal.automation.keysight.com/api/repository;token={RepoToken.Value}";
             await RunTapAsync(["package", "install", "Sign", "-f", "--repository", ks8500], repoRoot);
-        await RunTapAsync(["package", "install", "SmartInstaller", "-f", "--version",
-            smartInstallerVersion, "--repository", ks8500], repoRoot);
+        }
     }
 
     private static async Task BuildInstallerAsync(string targetOs, string packagePlatform,
@@ -219,6 +270,11 @@ static class Build
         CopyDirectory(Path.Combine(repoRoot, "bin", "Release", $"{hostPlatform}-{hostArch}"), toolsDir);
         var tap = Path.Combine(toolsDir, ExecutableName("tap"));
         MakeExecutable(tap);
+        // Only installer targets need SmartInstaller. Install it in their private
+        // tooling copy rather than mutating the shared host used by package jobs.
+        await RunAsync(tap, ["package", "install", "SmartInstaller", "-f", "--version",
+            smartInstallerVersion, "--repository",
+            $"https://internal.automation.keysight.com/api/repository;token={RepoToken.Value}"], toolsDir);
 
         var output = Path.Combine(artifactsDir, outputName);
         // Remove stale output so a failed creation cannot leave an old installer behind.
@@ -231,86 +287,74 @@ static class Build
         if (targetOs == "win" && !SigningEnabled.Value)
             arguments.Add("--no-sign");
 
-        await RunAsync(tap, arguments.ToArray(), installerDir);
+        await RunAsync(tap, [.. arguments], installerDir);
         if (!File.Exists(output) || new FileInfo(output).Length == 0)
             throw new BuildFailure($"{packagePlatform} installer was not created: {output}");
         Info($"Created {packagePlatform} installer: {output}");
     }
 
-    private static void PrintHelp() => Console.WriteLine("""
-        Usage: ./CI/build.sh [options]
+    private static void PrintHelp(BuildGraph graph)
+    {
+        Console.WriteLine("""
+        Usage: ./CI/build.sh [options] [target ...]
 
-        Builds OpenTAP for all configured targets, SDK and NuGet packages,
-        templates, and Windows/Linux x64 installers. Publishing is opt-in.
+        Builds the named targets and their prerequisites, once each.
+        With no targets, builds all (all artifacts, no publishing).
 
         Options:
           -h, --help                    Show this help and exit without building.
-          -v, --verbose                 Show subprocess output (captured during publishing).
-          --skip-devguide               Skip PDF generation; include an empty guide placeholder.
-                                        Required for local builds on macOS.
-          --skip-sign                   Disable signing, even when credentials are available.
-          --publish-packages            Publish OpenTAP and SDK TapPackages to packages.opentap.io.
-                                        Existing package versions are skipped.
-          --publish-installers          Publish installers to public downloads and the archive.
-                                        Requires signing; incompatible with --skip-sign.
-          --publish-retry-minutes N     Publishing retry window in minutes (default: 10).
-                                        Accepts 0-1440, including fractions; 0 disables retries.
-                                        Fixed 30-second waits. In-flight uploads may outlast
-                                        the window. Build jobs are never retried.
-
-        Environment:
-          KS8500_REPO_TOKEN             Required to install internal build tools.
-          TAP_SIGN_CERT                 Path to a non-empty signing certificate file.
-          TAP_SIGN_ADDRESS              Signing service address.
-          TAP_SIGN_AUTH                 Signing service credentials.
-                                        Signing variables are required unless --skip-sign.
-          PUBLIC_REPO_TOKEN             Required with --publish-packages.
-          INSTALLER_PUBLISH_KEY         Public download credentials; required with
-                                        --publish-installers.
-          INSTALLER_PUBLISH_KEY_ARCHIVE  Archive credentials as username:password;
-                                        required with --publish-installers.
 
         Missing requirements are checked before any build job starts.
         NuGet publishing remains in a separate CI job, not this script.
 
         Examples:
-          ./CI/build.sh --skip-devguide --skip-sign
-          ./CI/build.sh --publish-packages --publish-installers --publish-retry-minutes 15
+          ./CI/build.sh nuget-package --skip-sign
+          ./CI/build.sh all publish-packages publish-installers --publish-retry-minutes 15
         """);
-
-    public static void ParseArguments(string[] args)
-    {
-        for (var index = 0; index < args.Length; index++)
+        Console.WriteLine("\nJob options:");
+        foreach (var argument in graph.Arguments)
         {
-            var arg = args[index];
-            switch (arg)
+            var valueHint = argument.IsFlag ? "" : " VALUE";
+            Console.WriteLine($"  --{argument.Name}{valueHint} ({argument.ValueType.Name}, default: {argument.DefaultText})");
+            if (!string.IsNullOrWhiteSpace(argument.Description))
+                Console.WriteLine($"    {argument.Description}");
+            Console.WriteLine($"    Used by: {string.Join(", ", graph.Jobs.Where(job => job.Arguments.Contains(argument)).Select(job => job.Name))}.");
+        }
+        Console.WriteLine("\nEnvironment (required by the listed targets and their dependents):");
+        var secrets = graph.Jobs.SelectMany(job => job.SecretRequirements.Select(secret => (Job: job.Name, Secret: secret)))
+            .GroupBy(entry => entry.Secret.Name, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal).ToArray();
+        if (secrets.Length > 0)
+        {
+            var secretWidth = secrets.Max(group => group.Key.Length);
+            foreach (var group in secrets)
             {
-                case "--verbose" or "-v":
-                    verbose = true;
-                    break;
-                case "--skip-devguide":
-                    skipDevGuide = true;
-                    break;
-                case "--publish-retry-minutes":
-                    if (++index >= args.Length ||
-                        !double.TryParse(args[index], System.Globalization.NumberStyles.Float,
-                            System.Globalization.CultureInfo.InvariantCulture, out var minutes) ||
-                        !double.IsFinite(minutes) || minutes < 0 || minutes > 1440)
-                        throw new BuildFailure("--publish-retry-minutes requires a number between 0 and 1440.");
-                    publishRetryWindow = TimeSpan.FromMinutes(minutes);
-                    break;
-                case "--publish-packages":
-                    publishPackages = true;
-                    break;
-                case "--publish-installers":
-                    publishInstallers = true;
-                    break;
-                case "--skip-sign":
-                    skipSign = true;
-                    break;
-                default:
-                    throw new BuildFailure($"Unknown argument: {arg}");
+                var description = group.Select(entry => entry.Secret.Description)
+                    .FirstOrDefault(text => !string.IsNullOrWhiteSpace(text));
+                Console.WriteLine($"  {group.Key.PadRight(secretWidth)}  {description}".TrimEnd());
+                Console.WriteLine($"  {new string(' ', secretWidth)}  Required by: {string.Join(", ", group.Select(entry => entry.Job))}.");
             }
+        }
+        Console.WriteLine("  Signing requirements are disabled by --skip-sign, except for installer publishing.");
+
+        // Group the graph's actual names so every selectable target remains discoverable.
+        var groups = graph.Jobs.GroupBy(job => job.Name.StartsWith("publish-", StringComparison.Ordinal)
+            ? "Publishing"
+            : job.Name is "all" or "sdk-package" or "template-package" or "nuget-package" ||
+              job.Name.StartsWith("opentap-", StringComparison.Ordinal) ||
+              job.Name.StartsWith("installer-", StringComparison.Ordinal)
+                ? "Artifacts"
+                : "Supporting targets");
+        var nameWidth = graph.JobNames.Max(name => name.Length);
+        Console.WriteLine("\nTargets:");
+        foreach (var heading in new[] { "Artifacts", "Publishing", "Supporting targets" })
+        {
+            Console.WriteLine($"\n  {heading}:");
+            foreach (var job in groups.Where(group => group.Key == heading).SelectMany(group => group)
+                         .OrderBy(job => job.Name == "all" ? "" : job.Name, StringComparer.Ordinal))
+                Console.WriteLine(string.IsNullOrWhiteSpace(job.Description)
+                    ? $"    {job.Name}"
+                    : $"    {job.Name.PadRight(nameWidth)}  {job.Description}");
         }
     }
 
@@ -325,9 +369,15 @@ static class Build
     private static async Task PublishPackagesAsync()
     {
         Info("Publishing OpenTAP and SDK packages");
-        // The repository upload CLI is a separate plugin, not part of core OpenTAP.
-        await RunTapAsync(["package", "install", "Repository Client", "--version",
-            "1.0.3-beta.9+15a03b2b", "--force"], repoRoot);
+        // Publishing may now overlap installer creation. Install the upload plugin
+        // in a private copy rather than mutating the shared host installation.
+        var toolsDir = Path.Combine(ciDir, "publish-tools");
+        DeletePath(toolsDir);
+        CopyDirectory(Path.Combine(repoRoot, "bin", "Release", $"{hostPlatform}-{hostArch}"), toolsDir);
+        var tap = Path.Combine(toolsDir, ExecutableName("tap"));
+        MakeExecutable(tap);
+        await RunAsync(tap, ["package", "install", "Repository Client", "--version",
+            RepositoryClientVersion, "--force"], toolsDir);
         var packages = Targets.Select(target => Path.Combine(artifactsDir,
             $"OpenTAP.{gitVersion}.{target.Platform}.{target.Architecture}.TapPackage"))
             .Append(Path.Combine(artifactsDir, "SDK.TapPackage")).ToArray();
@@ -339,7 +389,7 @@ static class Build
             "--token", RequireSecret("PUBLIC_REPO_TOKEN"), "--parallel", "--skip-existing"
         };
         arguments.AddRange(packages);
-        await RunTapAsync(arguments.ToArray(), repoRoot);
+        await RunAsync(tap, [.. arguments], toolsDir);
     }
 
     private static void RequireArtifact(string path)
@@ -527,13 +577,13 @@ static class Build
         File.Copy(templatePackagePath, Path.Combine(sdkDir, "OpenTap.Templates.nupkg"), true);
 
         var guide = Path.Combine(sdkDir, "Examples", "OpenTAP Developer Guide.pdf");
-        if (skipDevGuide)
+        if (sdkOptions.GetOption("dummy-devguide"))
         {
             File.WriteAllBytes(guide, []);
         }
         else
         {
-            await RunTapAsync(["package", "install", "DocumentationGeneration", "-f", "--version", "1.0.2",
+            await RunTapAsync(["package", "install", "DocumentationGeneration", "-f", "--version", DocumentationGenerationVersion,
                     "--repository", $"https://internal.automation.keysight.com/api/repository;token={RepoToken.Value}"],
                     binDir);
 
@@ -596,20 +646,22 @@ static class Build
         string workingDirectory, Dictionary<string, string>? environment = null)
     {
         var failureMessage = $"[{executable}]({string.Join(", ", arguments)})";
-        var result = await StartAsync(executable, arguments, workingDirectory, environment, capture: !verbose || publishPackages || publishInstallers);
+        var result = await StartAsync(executable, arguments, workingDirectory, environment);
         if (result.ExitCode != 0)
-            throw new BuildFailure(verbose ? failureMessage : $"{failureMessage}:\n{result.Output}");
+            throw new BuildFailure($"{failureMessage}:\n{result.Output}");
+        if (verbose && !string.IsNullOrEmpty(result.Output))
+            Info(result.Output);
     }
 
     private static async Task<ProcessResult> StartAsync(string executable, string[] arguments,
-        string workingDirectory, Dictionary<string, string>? environment, bool capture)
+        string workingDirectory, Dictionary<string, string>? environment)
     {
         var start = new ProcessStartInfo(executable)
         {
             WorkingDirectory = workingDirectory,
             UseShellExecute = false,
-            RedirectStandardOutput = capture,
-            RedirectStandardError = capture
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
         };
         foreach (var argument in arguments)
             start.ArgumentList.Add(argument);
@@ -618,12 +670,6 @@ static class Build
                 start.Environment[pair.Key] = pair.Value;
 
         using var process = Process.Start(start) ?? throw new BuildFailure($"Failed to start {executable}.");
-        if (!capture)
-        {
-            await process.WaitForExitAsync();
-            return new(process.ExitCode, "", "");
-        }
-
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
         await process.WaitForExitAsync();
