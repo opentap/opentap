@@ -211,9 +211,9 @@ namespace OpenTap.Engine.UnitTests
             GenerateAssemblyWithVersion("Test3/SameAssemblyDifferentVersions3.dll", "MyStep1", version: "1.1.0");
             PluginManager.SearchAsync().Wait();
             var asm1 = Assembly.Load("SameAssemblyDifferentVersions3, Version=1.1.0.0");
-            Assert.AreEqual(1, asm1.GetName().Version.Minor);
-            var asm2 = Assembly.Load("SameAssemblyDifferentVersions3, Version=1.0.0.0"); // here we get still get 1.1 even though we asked for 1.0, because it was already loaded.
-            Assert.AreEqual(1, asm2.GetName().Version.Minor); 
+            Assert.AreEqual(2, asm1.GetName().Version.Minor);
+            var asm2 = Assembly.Load("SameAssemblyDifferentVersions3, Version=1.0.0.0"); // The selected highest version remains authoritative.
+            Assert.AreEqual(2, asm2.GetName().Version.Minor);
         }
 
         interface FancyInterface<T>
@@ -426,8 +426,9 @@ namespace OpenTap.Engine.UnitTests
             var asm = Assembly.LoadFrom(asm1name);
             var asm2 = Assembly.Load("ResolveAssemblyVersions, Version=2.1.0.0, Culture=neutral, PublicKeyToken=null");
 
-            // this should give a warning
-            var asm3 = Assembly.Load("ResolveAssemblyVersions, Version=2.3.0.0, Culture=neutral, PublicKeyToken=null");
+            // An already loaded lower version cannot satisfy a newer request.
+            Assert.Throws<FileNotFoundException>(() =>
+                Assembly.Load("ResolveAssemblyVersions, Version=2.3.0.0, Culture=neutral, PublicKeyToken=null"));
 
             bool noexec = false;
             if (!noexec)
@@ -450,7 +451,6 @@ namespace OpenTap.Engine.UnitTests
             var asm5 = Assembly.Load("ResolveAssemblyVersions.2, Version=2.1.0.0, Culture=neutral, PublicKeyToken=null");
 
             Assert.IsTrue(asm == asm2);
-            Assert.IsTrue(asm3 == asm2);
 
             Assert.IsTrue(asm4 != asm2);
             Assert.IsTrue(asm4 == asm5);

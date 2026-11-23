@@ -604,11 +604,6 @@ namespace OpenTap
                 }
 
                 string filename;
-                if (asmLookup.TryGetValue(name, out filename))
-                {
-                    log.Debug("Found match for {0} in {1}", name , filename);
-                    return loadFrom(filename);
-                }
                 var requestedAsmName = new AssemblyName(name);
                 var requestedStrongNameToken = requestedAsmName.GetPublicKeyToken();
                 var asmName = name.Split(',')[0];
@@ -634,32 +629,22 @@ namespace OpenTap
                     }
 
                     var candidates = asmPaths.Select(p => new MatchingAssembly{Path = p, Name = tryGetAssemblyName(p)}).ToList();
-                    if (requestedStrongNameToken != null && requestedStrongNameToken.Length == 8)
-                    {
-                        // the requested assembly has a strong name, only consider assemblies that has that
-                        candidates.RemoveAll(c => false == requestedStrongNameToken.SequenceEqual(c.Name.GetPublicKeyToken()));
-                    }
+                    candidates.RemoveAll(c =>
+                        !string.Equals(c.Name.Name, requestedAsmName.Name, StringComparison.OrdinalIgnoreCase) ||
+                        !string.Equals(c.Name.CultureName ?? "", requestedAsmName.CultureName ?? "", StringComparison.OrdinalIgnoreCase) ||
+                        !(requestedStrongNameToken ?? new byte[0]).SequenceEqual(c.Name.GetPublicKeyToken() ?? new byte[0]));
 
-                    // The following logic to assembly loading is based on a significant amount of investigation, be careful when altering this.
-                    // The approach is to return exact version if it exists, otherwise return the highest version available.
-                    // This approach is consistent with how .NET Core resolves dependencies, if not exact version exists.
-
-
-                    // Try to find/load an exact match to the requested version:
-                    var matchingVersion = candidates.FirstOrDefault(c => c.Name.Version == requestedAsmName.Version);
-                    if (matchingVersion.Path != null)
-                    {
-                        Assembly asm = tryLoad(matchingVersion.Path);
-                        if (asm != null)
-                            return asm;
-                        candidates.Remove(matchingVersion);
-                    }
-
-
-                    // Try to load any remaining candidates from highest version to lowest:
-                    var ordered = candidates.OrderByDescending(c => c.Name.Version);
+                    // Choose highest first, even for an older reference. One shared load
+                    // context cannot upgrade an assembly after its first binding.
+                    var ordered = candidates.OrderByDescending(c => c.Name.Version)
+                        .ThenBy(c => c.Path, StringComparer.Ordinal);
                     foreach (var c in ordered)
                     {
+                        if (requestedAsmName.Version != null && c.Name.Version < requestedAsmName.Version)
+                        {
+                            log.Warning("Cannot satisfy {0}: highest remaining candidate is {1} from {2}", name, c.Name.FullName, c.Path);
+                            break;
+                        }
                         Assembly asm = tryLoad(c.Path);
                         if (asm != null)
                             return asm;
@@ -670,18 +655,13 @@ namespace OpenTap
                     if (asmLookup.TryGetValue(asmName, out filename))
                     {
                         log.Debug("Found match for {0} in {1}", name, filename);
-                        var asm = loadFrom(filename);
-                        if (asm != null)
-                        {
-                            if (requestedStrongNameToken != null && requestedStrongNameToken.Length == 8)
-                            {
-                                if (requestedStrongNameToken.SequenceEqual(asm.GetName().GetPublicKeyToken()) == false)
-                                    log.Warning("Using Assembly '{0}' as '{1}' (strong name mismatch)", name, asm.FullName);
-                                if (asm.GetName().Version < requestedAsmName.Version)
-                                    log.Warning("Using Assembly '{0}' as '{1}' (version mismatch)", name, asm.FullName);
-                            }
-                            return asm;
-                        }
+                        var candidate = tryGetAssemblyName(filename);
+                        if (string.Equals(candidate.Name, requestedAsmName.Name, StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(candidate.CultureName ?? "", requestedAsmName.CultureName ?? "", StringComparison.OrdinalIgnoreCase) &&
+                            (requestedStrongNameToken ?? new byte[0]).SequenceEqual(candidate.GetPublicKeyToken() ?? new byte[0]) &&
+                            (requestedAsmName.Version == null || candidate.Version >= requestedAsmName.Version))
+                            return loadFrom(filename);
+                        log.Warning("Cannot satisfy {0} with {1}", name, candidate.FullName);
                     }
                 }
             }
