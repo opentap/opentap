@@ -363,6 +363,7 @@ jobs:
     container: ghcr.io/opentap/oci-images/build-dotnet:v10
     permissions:
       id-token: write # Required for NuGet trusted publishing
+      packages: read # Pull docker containers from GHCR
     needs:
       - BuildAndPackage
     steps:
