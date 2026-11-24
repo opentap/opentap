@@ -154,15 +154,6 @@ namespace OpenTap.Package
 
             }
 
-            if (noDowngrade)
-            {
-                // if --no-downgrade is specified, none of the already installed packages are allowed to get downgraded
-                // hence they can be added as extra constraints for the dependency resolver.
-                var existingSpec = installation.GetPackages().Select(pkg =>
-                    new PackageSpecifier(pkg.Name, pkg.Version.AsCompatibleSpecifier(), pkg.Architecture, pkg.OS));
-                packages = packages.Concat(existingSpec).ToList();
-            }
-
             var img = ImageSpecifier.FromAddedPackages(installation, packages);
             if (!string.IsNullOrWhiteSpace(OS))
                 img.OS = OS;
@@ -172,6 +163,7 @@ namespace OpenTap.Package
             if (noDowngrade)
             {
                 img.InstalledPackages = installation.GetPackages().ToImmutableArray();
+                img.NoDowngrade = true;
             }
             img.Repositories = repositories.Select(x => x.Url).ToList();
             img.AdditionalPackages.AddRange(directlyReferencesPackages);

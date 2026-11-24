@@ -68,7 +68,7 @@ namespace OpenTap.Package
         [CommandLineArgument("non-interactive", Description = "Never prompt for user input.")]
         public bool NonInteractive { get; set; } = false;
 
-        [CommandLineArgument("no-downgrade", Description = "Don't install if the same or a newer version is already installed.")]
+        [CommandLineArgument("no-downgrade", Description = "Prevent downgrading any installed package, including dependencies.")]
         public bool NoDowngrade { get; set; }
 
         [CommandLineArgument("unpack-only", Description = "Only unpack the package payload into the installation directory and\n" +

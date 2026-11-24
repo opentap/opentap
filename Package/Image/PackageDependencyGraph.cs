@@ -13,6 +13,9 @@ namespace OpenTap.Package
     /// </summary>
     class PackageDependencyGraph
     {
+        // Unlike compatible specifiers, these lower bounds allow newer major versions.
+        internal Dictionary<string, SemanticVersion> MinimumVersions { get; } = new Dictionary<string, SemanticVersion>();
+
         // all the existing names and versions.
         readonly List<string> nameLookup = new List<string>();
         readonly List<SemanticVersion> versionLookup = new List<SemanticVersion>();
@@ -230,6 +233,8 @@ namespace OpenTap.Package
                 foreach (var v in thisVersions)
                 {
                     var semv = versionLookup[v];
+                    if (MinimumVersions.TryGetValue(packageSpecifier.Name, out var minimum) && semv.CompareTo(minimum) < 0)
+                        continue;
                     {
                         if (packageSpecifier.Version == VersionSpecifier.Any)
                         {
