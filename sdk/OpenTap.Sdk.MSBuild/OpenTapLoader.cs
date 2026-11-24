@@ -18,7 +18,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         #region Static Members
 
         private static object loadLock = new object();
-        private static void loadOpenTap(string tapDir, string runtimeDir)
+        internal static void LoadOpenTap(string tapDir, string runtimeDir)
         {
             // This alters the value returned by 'ExecutorClient.ExeDir' which would otherwise return the location of
             // OpenTap.dll which in an MSBuild context would be the nuget directory which leads to unexpected behavior
@@ -49,7 +49,7 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// <param name="runtimeDir"></param>
         public static IDisposable Create(string tapDir, string runtimeDir)
         {
-            loadOpenTap(tapDir, runtimeDir);
+            LoadOpenTap(tapDir, runtimeDir);
             return new OpenTapContext(tapDir);
         }
         
