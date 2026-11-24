@@ -32,7 +32,7 @@ Commercial support is available for the Keysight commercial version of OpenTAP,
 [PathWave Test Automation](https://www.keysight.com/us/en/products/software/pathwave-test-software/pathwave-test-automation-software.html).
 
 ## On what OS platforms does OpenTAP run?
-OpenTAP has been ported to and installs on both Windows and Linux hosts, as well as into Docker containers.  Learn more about OS support and installation options on the OpenTAP [Downloads page](https://opentap.io/downloads).
+OpenTAP has been ported to and installs on Windows, Linux (x86) and macOS (Apple silicon) hosts, as well as into Docker containers.  Learn more about OS support and installation options on the OpenTAP [Downloads page](https://opentap.io/downloads).
 
 ## What is an OpenTAP Plugin?
 The OpenTAP engine communicates with devices, instruments and users via plugins.  Plugins serve a range of functions: interfaces to instruments and 
