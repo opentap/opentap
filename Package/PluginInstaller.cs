@@ -297,11 +297,10 @@ namespace OpenTap.Package
                 using var zip = new ZipArchive(fileStream, ZipArchiveMode.Read);
                 foreach (var part in zip.Entries)
                 {
-                    if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
+                    if (ZipExclude(part.FullName))
                         continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
 
-                    string path = Uri.UnescapeDataString(part.FullName);
-                    files.Add(path);
+                    files.Add(part.FullName);
                 }
             }
             catch (InvalidDataException)
@@ -336,6 +335,12 @@ namespace OpenTap.Package
             return false;
         }
 
+        internal static void CheckEula(PackageDef package)
+        {
+            if (!EulaAccept(package))
+                throw new Cli.ExitCodeException((int)PackageExitCodes.EulaNotAccepted, "EULA not accepted.");
+        }
+
         /// <summary>
         /// Tries to install a plugin from 'path', throws an exception on error.
         /// </summary>
@@ -345,8 +350,7 @@ namespace OpenTap.Package
             checkFileExists(path);
 
             var package = PackageDef.FromPackage(path);
-            if (!EulaAccept(package))
-                throw new Cli.ExitCodeException((int)PackageExitCodes.EulaNotAccepted, "EULA not accepted.");
+            CheckEula(package);
 
             var destination = package.IsSystemWide() ? PackageDef.SystemWideInstallationDirectory : target;
 
@@ -415,6 +419,26 @@ namespace OpenTap.Package
             }
         }
 
+        internal static bool ZipExclude(string fullname)
+        {
+            if (string.IsNullOrWhiteSpace(fullname))
+                return true;
+            // Zip entries may use either separator. Normalize so the checks below behave the same on all platforms
+            // (Path.GetFileName does not treat '\' as a separator on Unix).
+            var normalized = fullname.Replace('\\', '/');
+            /* directory entries (ZipArchiveEntry.Name is empty for these) */
+            if (normalized.EndsWith("/"))
+                return true;
+            /* archiver generated metadata files */
+            var name = Path.GetFileName(normalized);
+            if (name == "[Content_Types].xml" || name == ".rels" || normalized.StartsWith("package/services/metadata/core-properties"))
+                return true;
+            /* path traversal */
+            if (normalized.StartsWith("/") || normalized.Contains("../"))
+                return true;
+            return false;
+        }
+
         /// <summary>
         /// Unpacks a *.TapPackages file to the specified directory.
         /// </summary>
@@ -428,12 +452,8 @@ namespace OpenTap.Package
                 {
                     foreach (var part in zip.Entries)
                     {
-                        if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
-                            continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
-                        if (string.IsNullOrWhiteSpace(part.Name))
-                            continue;
-
-                        string path = Uri.UnescapeDataString(part.FullName).Replace('\\', '/');
+                        if (ZipExclude(part.FullName)) continue;
+                        string path = part.FullName.Replace('\\', '/');
                         path = Path.Combine(destinationDir, path).Replace('\\', '/');
 
                         var sw = Stopwatch.StartNew();
@@ -500,32 +520,34 @@ namespace OpenTap.Package
                 throw;
             }
 
-            SetHiddenAttributes(installedParts);
+            SetHiddenAttributes(destinationDir, installedParts);
             return installedParts;
         }
 
-        private static void SetHiddenAttributes(List<string> parts)
+        internal static void SetHiddenAttributes(string root, List<string> paths)
         {
-            if (OperatingSystem.Current == OperatingSystem.Windows)
-            {
-                foreach (var path in parts)
-                {
-                    // Set file hidden attribute
-                    if (Path.GetFileName(path).StartsWith("."))
-                        File.SetAttributes(path, FileAttributes.Hidden);
+            if (OperatingSystem.Current != OperatingSystem.Windows) return;
+            root = root.Replace('\\', '/').TrimEnd('/');
 
-                    // Set directory hidden attribute
-                    var hiddenIndex = path.IndexOf("/.");
-                    while (hiddenIndex > 0)
+            foreach (var inputpath in paths)
+            {
+                var path = inputpath.Replace('\\', '/');
+                if (!path.StartsWith(root, StringComparison.OrdinalIgnoreCase)) continue;
+                // Set file hidden attribute
+                if (Path.GetFileName(path).StartsWith("."))
+                    File.SetAttributes(path, FileAttributes.Hidden);
+
+                // Set directory hidden attribute
+                var hiddenIndex = path.IndexOf("/.", root.Length);
+                while (hiddenIndex > 0)
+                {
+                    var hiddenDirLength = path.Substring(++hiddenIndex).IndexOf('/');
+                    if (hiddenDirLength > 0)
                     {
-                        var hiddenDirLength = path.Substring(++hiddenIndex).IndexOf('/');
-                        if (hiddenDirLength > 0)
-                        {
-                            var tempPath = path.Substring(0, hiddenIndex + hiddenDirLength + 1);
-                            File.SetAttributes(tempPath, FileAttributes.Hidden);
-                        }
-                        hiddenIndex = path.IndexOf("/.", ++hiddenIndex);
+                        var tempPath = path.Substring(0, hiddenIndex + hiddenDirLength + 1);
+                        File.SetAttributes(tempPath, FileAttributes.Hidden);
                     }
+                    hiddenIndex = path.IndexOf("/.", ++hiddenIndex);
                 }
             }
         }
@@ -545,11 +567,10 @@ namespace OpenTap.Package
                 using var zip = new ZipArchive(fileStream, ZipArchiveMode.Read);
                 foreach (var part in zip.Entries)
                 {
-                    if (part.Name == "[Content_Types].xml" || part.Name == ".rels" || part.FullName.StartsWith("package/services/metadata/core-properties"))
-                        continue; // skip strange extra files that are created by System.IO.Packaging.Package (TAP 7.x)
+                    if (ZipExclude(part.FullName))
+                        continue;
 
-                    string path = Uri.UnescapeDataString(part.FullName);
-                    if (path == relativeFilePath)
+                    if (part.FullName == relativeFilePath)
                     {
                         part.Open().CopyTo(destination);
                         return true;

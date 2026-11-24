@@ -158,13 +158,12 @@ namespace OpenTap.Package
                 image.Deploy(Target, cancellationToken);
                 return 0;
             }
-            catch (AggregateException e)
+            catch (ImageResolveException e)
             {
                 foreach (var innerException in e.InnerExceptions)
                     log.Error($"- {innerException.Message}");
-                throw new ExitCodeException((int)PackageExitCodes.PackageDependencyError, e.Message);
+                throw new ExitCodeException((int)ExitCodes.PackageResolutionError, e.Message);
             }
-
         }
 
         enum WipeInstallationResponse
