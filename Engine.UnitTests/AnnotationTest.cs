@@ -17,6 +17,33 @@ namespace OpenTap.UnitTests
 {
     public class AnnotationTest
     {
+        public class ClassWithEnabled
+        {
+            public Enabled<string> X { get; set; } = new Enabled<string>();
+        }
+
+        [Test]
+        public void TestEnabledAnnotation()
+        {
+            var obj = new ClassWithEnabled();
+            obj.X.Value = "123";
+            var a = AnnotationCollection.Annotate(obj);
+            var strAnnotation = a.GetMember(nameof(obj.X)).Get<IStringValueAnnotation>();
+            var str1 = strAnnotation.Value;
+            obj.X.IsEnabled = true;
+            a.Read();
+            var str2 = strAnnotation.Value;
+
+            strAnnotation.Value = str1;
+            Assert.IsTrue(obj.X.IsEnabled);
+            a.Write();
+            Assert.IsFalse(obj.X.IsEnabled);
+            strAnnotation.Value = str2;
+            a.Write();
+            Assert.IsTrue(obj.X.IsEnabled);
+
+        }
+        
         [Test]
         public void TestPlanReferenceNameTest()
         {
@@ -155,6 +182,7 @@ namespace OpenTap.UnitTests
                     var loadTestPlanMem = annotation.GetMember("LoadTestPlan");
                     var enabled = loadTestPlanMem.Get<IEnabledAnnotation>();
                     Assert.IsFalse(enabled.IsEnabled);
+                    
                     
                     var filePathMem = annotation.GetMember("Filepath");
                     var fpEnabled = filePathMem.Get<IEnabledAnnotation>();
