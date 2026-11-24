@@ -52,10 +52,12 @@ namespace OpenTap.Engine.UnitTests
             
             var prev = SessionLogs.MaxTotalSizeOfSessionLogFiles;
             var prevLogFileMaxSize = SessionLogs.LogFileMaxSize;
+            var prevMaxNumberOfFiles = SessionLogs.MaxNumberOfTraceFiles;
             try
             {
                 SessionLogs.MaxTotalSizeOfSessionLogFiles = 300_000;
                 SessionLogs.LogFileMaxSize = 10_000;
+                SessionLogs.MaxNumberOfTraceFiles = 20;
                 var guid = Guid.NewGuid();
                 SessionLogs.Rename($"TestLogs/{guid}-RolloverTest.txt", true);
                 // this should result in about 30 log files, but the number of files is limited to 20.
@@ -117,6 +119,7 @@ namespace OpenTap.Engine.UnitTests
             {
                 SessionLogs.MaxTotalSizeOfSessionLogFiles = prev;
                 SessionLogs.LogFileMaxSize = prevLogFileMaxSize;
+                SessionLogs.MaxNumberOfTraceFiles = prevMaxNumberOfFiles;
                 SessionLogs.Rename(currentName);
 
             }

@@ -10,7 +10,7 @@ using System.Text;
 namespace OpenTap.Diagnostic
 {
     /// <summary>
-    /// A simple log listener that writes events to a binary file.
+    /// A simple log listener that writes events to a text file.
     /// </summary>
     public class LogFile : ILogListener, IDisposable
     {
