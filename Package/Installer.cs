@@ -237,6 +237,7 @@ namespace OpenTap.Package
                 if (ex is OperationCanceledException)
                     return (int)ExitCodes.UserCancelled;
 
+                log.Error(ex.Message);
                 log.Debug(ex);
                 return (int)ExitCodes.GeneralException;
             }
