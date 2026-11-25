@@ -6,6 +6,7 @@
   </PropertyGroup>
   
   <ItemGroup>
+    <Compile Include="..\Engine.UnitTests\CodeGen.cs" Link="TestHelpers\CodeGen.cs" />
     <ProjectReference Include="..\BasicSteps\Tap.Plugins.BasicSteps.csproj" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />
     <ProjectReference Include="..\Engine.UnitTests\Tap.Engine.UnitTests.csproj" />
