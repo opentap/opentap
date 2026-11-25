@@ -14,6 +14,7 @@
     <Project Path="sdk/OpenTap.Sdk.MSBuild/OpenTap.Sdk.MSBuild.csproj"/>
     <Project Path="sdk/OpenTap.Sdk.New/OpenTap.Sdk.New.csproj"/>
   </Folder>
+  <Project Path="Runtime/OpenTap.Runtime.csproj"/>
   <Project Path="BasicSteps/Tap.Plugins.BasicSteps.csproj"/>
   <Project Path="Cli/Tap.Cli.csproj"/>
   <Project Path="Engine.UnitTests/Tap.Engine.UnitTests.csproj"/>

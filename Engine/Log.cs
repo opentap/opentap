@@ -379,6 +379,7 @@ namespace OpenTap
 
             rootLogContext.Async = true;
             rootLogContext.MessageBufferSize = 8 * 1024 * 1024;
+            ApplicationContext.Disposed += (_, __) => rootLogContext.Dispose();
         }
 
         // Performance: Reuse the string build each time to avoid generating GC pressure.

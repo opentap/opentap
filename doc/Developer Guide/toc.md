@@ -13,5 +13,6 @@
 - [Continuous Integration (CI/CD)](<Continuous Integration>)
 - [Attributes](Attributes)
 - [Migrating to .NET 9](<Migrating to .NET 9>)
+- [Hosting an Application](Application Hosting)
 - [Known Issues](<Known Issues>)
 - [Appendix: Macro Strings](Appendix)

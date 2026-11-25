@@ -134,7 +134,7 @@ namespace OpenTap
                     else
                     {
                         var _asm = AppDomain.CurrentDomain.GetAssemblies()
-                            .FirstOrDefault(asm => !asm.IsDynamic && !string.IsNullOrWhiteSpace(asm.Location) && PathUtils.AreEqual(asm.Location, this.Location));
+                            .FirstOrDefault(asm => AssemblyLoading.IsVisible(asm) && !asm.IsDynamic && !string.IsNullOrWhiteSpace(asm.Location) && PathUtils.AreEqual(asm.Location, this.Location));
                         assembly = _asm;
                     }
 
@@ -146,7 +146,7 @@ namespace OpenTap
                         }
                         else
                         {
-                            assembly = Assembly.LoadFrom(Path.GetFullPath(this.Location));
+                            assembly = AssemblyLoading.LoadSelectedPath(Path.GetFullPath(this.Location));
                         }
                     }
                      

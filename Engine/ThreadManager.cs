@@ -167,6 +167,9 @@ namespace OpenTap
         static readonly ThreadManager manager = new ThreadManager();
         
         static readonly SessionLocal<ThreadManager> sessionThreadManager = new SessionLocal<ThreadManager>(manager);
+
+        // Cancel every root entering this engine instance, without waiting for arbitrary plugin work.
+        internal static void Shutdown() => manager.RequestShutdown();
         Action action;
  
         CancellationTokenSource _abortTokenSource;
@@ -703,10 +706,12 @@ namespace OpenTap
             get => (_log ?? (_log = Log.CreateSource("thread")));
         }
 
+        internal void RequestShutdown() => cancelSrc.Cancel();
+
         /// <summary> Disposes the ThreadManager. This can optionally be done at program exit.</summary>
         public void Dispose()
         {
-            cancelSrc.Cancel();
+            RequestShutdown();
             while (threads > 0)
                 Thread.Sleep(10);
         }

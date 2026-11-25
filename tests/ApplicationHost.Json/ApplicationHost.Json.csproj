@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <OutputPath>$(MSBuildThisFileDirectory)../../bin/ApplicationHost.Json/</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="OpenTap"><HintPath>../../bin/Debug/OpenTap.dll</HintPath></Reference>
+    <Reference Include="OpenTap.Runtime"><HintPath>../../bin/Debug/OpenTap.Runtime.dll</HintPath></Reference>
+    <PackageReference Include="System.Text.Json" Version="10.0.0" />
+  </ItemGroup>
+</Project>

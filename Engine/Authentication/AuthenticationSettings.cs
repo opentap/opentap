@@ -142,7 +142,7 @@ namespace OpenTap.Authentication
                 }
                 else
                 {
-                    var asm = Assembly.GetEntryAssembly();
+                    var asm = OpenTap.ApplicationContext.GetEntryAssembly();
                     if (asm != null)
                     {
                         var assemblyData = PluginManager.GetSearcher().Assemblies.FirstOrDefault(ad => ad.Location == asm.Location);

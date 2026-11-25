@@ -289,19 +289,30 @@ namespace OpenTap
                     // if OpenTap.dll was loaded from memory/bytes instead of from a file, it does not have a location.
                     // This is the case if the process was launched through tap.exe. 
                     // In that case just use the location of tap.exe, it is the same
-                    tapEnginePath = Assembly.GetEntryAssembly().Location;
+                    tapEnginePath = OpenTap.ApplicationContext.GetEntryAssembly().Location;
                 }
                 DirectoriesToSearch = new List<string> { Path.GetDirectoryName(tapEnginePath) };
                 assemblyResolver = new TapAssemblyResolver(DirectoriesToSearch);
 
                 // Custom Assembly resolvers.
-                AppDomain.CurrentDomain.GetAssemblies().ToList().ForEach(assemblyResolver.AddAssembly);
-                AppDomain.CurrentDomain.AssemblyLoad += (s, args) => assemblyResolver.AddAssembly(args.LoadedAssembly);
-                AppDomain.CurrentDomain.AssemblyResolve += (s, args) => assemblyResolver.Resolve(args.Name, false);
-                AppDomain.CurrentDomain.ReflectionOnlyAssemblyResolve += (s, args) => assemblyResolver.Resolve(args.Name, true);
+                AppDomain.CurrentDomain.GetAssemblies().Where(AssemblyLoading.IsVisible).ToList().ForEach(assemblyResolver.AddAssembly);
+                AppDomain.CurrentDomain.AssemblyLoad += (s, args) =>
+                {
+                    if (AssemblyLoading.IsVisible(args.LoadedAssembly))
+                        assemblyResolver.AddAssembly(args.LoadedAssembly);
+                };
+                // Hosted instances resolve through their own context, not a
+                // process-wide fallback that could satisfy another instance's requests.
+                if (!AssemblyLoading.IsHosted)
+                {
+                    AppDomain.CurrentDomain.AssemblyResolve += (s, args) => assemblyResolver.Resolve(args.Name, false);
+                    AppDomain.CurrentDomain.ReflectionOnlyAssemblyResolve += (s, args) => assemblyResolver.Resolve(args.Name, true);
+                }
             }
         }
         
+        internal static Assembly ResolveAssembly(string name) => assemblyResolver.Resolve(name, false);
+
         /// <summary> Calls PluginManager.Load </summary>
         static PluginManager()
         {
@@ -342,7 +353,7 @@ namespace OpenTap
                 {
                     assemblyResolver.AddAssembly(asm.Name, asm.Location);
                     
-                    if (asm.Location.Contains(AppDomain.CurrentDomain.BaseDirectory))
+                    if (asm.Location.Contains(ApplicationContext.BaseDirectory))
                         log.Debug("Found version {0,-16} of {1}", asm.SemanticVersion?.ToString() ?? asm.Version?.ToString(), Path.GetFileName(asm.Location));
                     else
                         // log full path of assembly if it was loaded with --search from another directory.
@@ -594,7 +605,7 @@ namespace OpenTap
                 {
                     try
                     {
-                        return Assembly.LoadFrom(loadFilename);
+                        return AssemblyLoading.LoadFromPath(loadFilename);
                     }
                     catch(Exception ex)
                     {
@@ -613,7 +624,8 @@ namespace OpenTap
                 var requestedStrongNameToken = requestedAsmName.GetPublicKeyToken();
                 var asmName = name.Split(',')[0];
 
-                var asmPaths = FileFinder.FindAssemblies(asmName);
+                var asmPaths = (FileFinder.FindAssemblies(asmName) ?? new string[0])
+                    .Concat(AssemblyLoading.AdditionalCandidates(asmName)).Distinct().ToArray();
                 
                 if (asmPaths != null && asmPaths.Length > 0)
                 {

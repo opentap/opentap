@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
+    <AssemblyName>OpenTap.Runtime</AssemblyName>
+    <GenerateDependencyFile>false</GenerateDependencyFile>
+    <EnableDefaultCompileItems>true</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Engine/Tap.Engine.csproj" />
+  </ItemGroup>
+</Project>
