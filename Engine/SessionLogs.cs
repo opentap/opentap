@@ -146,7 +146,18 @@ namespace OpenTap
 
                 AppDomain.CurrentDomain.ProcessExit += FlushOnExit;
                 AppDomain.CurrentDomain.UnhandledException += FlushOnExit;
-
+                ApplicationContext.Disposed += (_, __) =>
+                {
+                    AppDomain.CurrentDomain.ProcessExit -= FlushOnExit;
+                    AppDomain.CurrentDomain.UnhandledException -= FlushOnExit;
+                    Flush();
+                    if (traceListener != null)
+                    {
+                        Log.RemoveListener(traceListener);
+                        traceListener.Dispose();
+                        traceListener = null;
+                    }
+                };
             }
             else
             {

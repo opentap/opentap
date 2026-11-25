@@ -409,7 +409,7 @@ namespace OpenTap.Package
                 var changeId = new ChangeId(Path.GetDirectoryName(typeof(SharedState).Assembly.Location));
                 var id = changeId.GetChangeId();
                 while (changeId.GetChangeId() == id)
-                    Thread.Sleep(500);
+                    TapThread.Sleep(500);
             }
         }
 

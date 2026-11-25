@@ -186,10 +186,13 @@ namespace OpenTap.Diagnostic
             return Flush((int)timeout.TotalMilliseconds);
         }
 
-        bool isDisposed;
+        volatile bool isDisposed;
         public void Dispose()
         {
+            if (isDisposed) return;
             Flush();
+            // Late logging from non-cooperative work must not queue behind a stopped processor.
+            Async = false;
             isDisposed = true;
             newEventOccured.Set();
             flushBarrier.Set();

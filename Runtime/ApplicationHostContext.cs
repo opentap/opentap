@@ -30,7 +30,8 @@ namespace OpenTap
         }
 
         /// <summary>
-        /// Releases adapter references and requests unloading.
+        /// Notifies the hosted instance, requests cooperative cancellation of its TapThreads,
+        /// releases engine logging resources and adapter references, and requests unloading.
         /// Plugin resource cleanup and completion of non-cooperative work remain the application's responsibility.
         /// This operation is idempotent and does not guarantee context unloading or collection.
         /// </summary>

@@ -26,6 +26,9 @@ public static class ApplicationHost
         try
         {
             var engine = context.LoadFromAssemblyPath(Path.GetFullPath(enginePath));
+            lifetime.shutdown = engine.GetType("OpenTap.ApplicationContext", true)
+                .GetMethod("DisposeInstance", BindingFlags.NonPublic | BindingFlags.Static)
+                .CreateDelegate<Action>();
             var application = string.Equals(enginePath, applicationPath, StringComparison.Ordinal)
                 ? engine : context.LoadFromAssemblyPath(Path.GetFullPath(applicationPath));
             engine.GetType("OpenTap.ApplicationContext", true)
@@ -59,13 +62,23 @@ public static class ApplicationHost
     sealed class Lifetime : IDisposable
     {
         OpenTapLoadContext context;
+        internal Action shutdown;
         internal Lifetime(OpenTapLoadContext context) { this.context = context; }
         public void Dispose()
         {
             var unloading = Interlocked.Exchange(ref context, null);
             if (unloading == null) return;
-            unloading.ReleaseEngine();
-            unloading.Unload();
+            var notify = Interlocked.Exchange(ref shutdown, null);
+            try
+            {
+                using (unloading.EnterContextualReflection())
+                    notify?.Invoke();
+            }
+            finally
+            {
+                unloading.ReleaseEngine();
+                unloading.Unload();
+            }
             // Non-cooperative work and escaped objects may still prevent collection.
         }
     }
