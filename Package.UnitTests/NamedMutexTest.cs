@@ -57,6 +57,29 @@ namespace OpenTap.Package.UnitTests
         }
 
         [Test]
+        [Platform("Win")]
+        public void DisposeReleasesWindowsMutexWithoutAbandoningIt()
+        {
+            var name = Path.Combine(Path.GetTempPath(), "DisposeLock-" + Guid.NewGuid().ToString("N"));
+            using var owner = FileLock.Create(name);
+            using var waiter = FileLock.Create(name);
+            Assert.IsTrue(owner.WaitOne(0));
+            using var attempted = new ManualResetEventSlim();
+            var acquisition = Task.Run(() =>
+            {
+                Assert.IsFalse(waiter.WaitOne(0));
+                attempted.Set();
+                // An abandoned mutex throws instead of returning true.
+                Assert.IsTrue(waiter.WaitOne(TimeSpan.FromSeconds(5), CancellationToken.None));
+                waiter.Release();
+            });
+            Assert.IsTrue(attempted.Wait(5000));
+            owner.Dispose();
+            Assert.IsTrue(acquisition.Wait(10000), "Disposal left the mutex owned by the original thread.");
+            owner.Dispose();
+        }
+
+        [Test]
         public void TestExclusiveAccess()
         {
             var outerEvent = new ManualResetEventSlim(false);
