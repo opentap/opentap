@@ -24,7 +24,8 @@ internal class TapEntry
         return false;
     }
     
-    public static void Go()
+    /// <summary>ApplicationHost entry point for the CLI. Arguments are read from the process command line.</summary>
+    public static object Go(object _)
     {
         var args = Environment.GetCommandLineArgs();
 
@@ -42,7 +43,7 @@ internal class TapEntry
             // for compatibility reasons. OpenTAP no longer starts isolated child
             // processes since it is no longer necessary, but older versions of
             // e.g. PackageManager will not work correctly when this is not set.
-            Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.ParentProcessExeDir, Path.GetDirectoryName(Assembly.GetEntryAssembly().Location));
+            Environment.SetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.ParentProcessExeDir, OpenTap.ApplicationContext.BaseDirectory);
         }
 
         ConsoleTraceListener.SetStartupTime(DateTime.Now);
@@ -57,5 +58,6 @@ internal class TapEntry
         PluginManager.Search();
         DebuggerAttacher.TryAttach();
         CliActionExecutor.Execute();
+        return null;
     }
 }

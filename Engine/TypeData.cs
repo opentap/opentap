@@ -417,7 +417,7 @@ namespace OpenTap
                     return null;
                 }
 
-                type = asm.GetType(this.Name, true);
+                type = AssemblyLoading.ResolveType(asm, this.Name);
                 typeCode = Type.GetTypeCode(type);
                 typeToTypeDataCache.GetValue(type, t => this);
             }

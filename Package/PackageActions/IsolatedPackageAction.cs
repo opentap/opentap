@@ -117,7 +117,7 @@ namespace OpenTap.Package
         internal static void RunIsolated(string application = null, string target = null, IsolatedPackageAction action = null)
         {
             // public static bool IsExecutorMode => Environment.GetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.TpmInteropPipeName) != null;
-            var cmd = application ?? Assembly.GetEntryAssembly().Location;
+            var cmd = application ?? OpenTap.ApplicationContext.GetEntryAssembly().Location;
             if (cmd.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
 
             {  //.netcore wierdness.

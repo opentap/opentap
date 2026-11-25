@@ -5,8 +5,7 @@
 using System;
 using System.Globalization;
 using System.IO;
-using System.Reflection;
-using System.Runtime.CompilerServices;
+using OpenTap;
 
 namespace tap;
 
@@ -16,43 +15,32 @@ class Program
     {
         CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-        
-        // OPENTAP_INIT_DIRECTORY: Executing assembly is null when running with 'dotnet tap.dll' hence the following environment variable can be used.
         Environment.SetEnvironmentVariable("OPENTAP_INIT_DIRECTORY", Path.GetDirectoryName(typeof(Program).Assembly.Location));
-        
-        try
-        {
-            string appDir = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
 
-            Assembly load(string file)
-            {
-                file = Path.Combine(appDir, file);
-                if (File.Exists(file) == false)
-                    return null;
-                return Assembly.LoadFrom(file);
-            }
-
-            var asm = load("Packages/OpenTAP/OpenTap.Cli.dll") ?? load("OpenTap.Cli.dll");
-            if (asm == null)
-            {
-                Console.WriteLine("Missing OpenTAP CLI. Please try reinstalling OpenTAP.");
-                Environment.ExitCode = 8;
-                return;
-            }
-        }
-        catch
-        {
-            Console.WriteLine("Error finding OpenTAP CLI. Please try reinstalling OpenTAP.");
-            Environment.ExitCode = 7;
-            return;
-        }
-
-        Go();
+        var directory = Path.GetDirectoryName(typeof(Program).Assembly.Location);
+        var runtimePath = Path.Combine(directory, "OpenTap.Runtime.dll");
+        if (!File.Exists(runtimePath))
+            runtimePath = Path.Combine(directory, "Packages", "OpenTAP", "OpenTap.Runtime.dll");
+        System.Reflection.Assembly.LoadFrom(runtimePath);
+        Run(args);
     }
-    
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    static void Go()
+
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    static void Run(string[] args)
     {
-        OpenTap.Cli.TapEntry.Go();
+        // Main only performs the handoff. No engine services or application logic
+        // should be initialized in the process/default copy of these assemblies.
+        var directory = Path.GetDirectoryName(typeof(Program).Assembly.Location);
+        // MSBuild outputs keep the freshly built CLI beside the launcher;
+        // packaged installations keep it under Packages/OpenTAP.
+        var cliPath = Path.Combine(directory, "OpenTap.Cli.dll");
+        if (!File.Exists(cliPath))
+            cliPath = Path.Combine(directory, "Packages", "OpenTAP", "OpenTap.Cli.dll");
+        using (var context = OpenTap.Hosting.ApplicationHost.Run(new ApplicationHostOptions.Builder()
+            .WithEntryPoint(cliPath, "OpenTap.Cli.TapEntry", "Go")
+            .WithArgument(args)
+            .Build()))
+        {
+        }
     }
 }

@@ -42,6 +42,10 @@ namespace OpenTap
         {
             get
             {
+                // A hosted installation is explicit and must not inherit another
+                // instance's process-wide OPENTAP_INIT_DIRECTORY/parent override.
+                if (ApplicationContext.GetEntryAssembly() != System.Reflection.Assembly.GetEntryAssembly())
+                    return ApplicationContext.BaseDirectory;
                 if (IsRunningIsolated)
                     return Environment.GetEnvironmentVariable(ExecutorSubProcess.EnvVarNames.ParentProcessExeDir);
                 else

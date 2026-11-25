@@ -6,6 +6,9 @@
     <ApplicationIcon>../Installer/Assets/opentap.ico</ApplicationIcon>
     <TargetFramework>$(OpenTapAppTargetFramework)</TargetFramework>
     <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
+    <!-- We don't ship tap.deps.json, so we also should not generate it in our debug builds.
+        This should make debug resolver behavior more closely match deployment behavior. -->
+    <GenerateDependencyFile>false</GenerateDependencyFile>
     <!-- .net9 introduces CET compatibility by default. This adds hardware stack protection.
     Howver, this causes issues with some plugins using native code.
     Hence we disable it for now-->
@@ -54,6 +57,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Runtime\OpenTap.Runtime.csproj" />
     <ProjectReference Include="..\Cli\Tap.Cli.csproj" />
     <ProjectReference Include="..\Package\Tap.Package.csproj" />
     <ProjectReference Include="..\Engine\Tap.Engine.csproj" />

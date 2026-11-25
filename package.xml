@@ -20,6 +20,9 @@
         <File Path="tap.dll">
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
+        <File Path="Packages/OpenTAP/OpenTap.Runtime.dll" SourcePath="OpenTap.Runtime.dll">
+            <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
+        </File>
         <File Path="OpenTap.dll">
             <Sign Certificate="Keysight Technologies, Inc" Condition="$(Sign)==true"/>
         </File>
@@ -37,6 +40,8 @@
     <Files Condition="$(Debug) == true">
         <File Path="tap.dll"/>
         <File Path="tap.pdb"/>  
+        <File Path="Packages/OpenTAP/OpenTap.Runtime.dll" SourcePath="OpenTap.Runtime.dll"/>
+        <File Path="Packages/OpenTAP/OpenTap.Runtime.pdb" SourcePath="OpenTap.Runtime.pdb"/>
         <File Path="OpenTap.dll"/>
         <File Path="OpenTap.pdb"/>
         <File Path="OpenTap.Package.dll"/>

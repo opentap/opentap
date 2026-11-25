@@ -96,9 +96,9 @@ namespace OpenTap
             // Path example: <TapDir>/SessionLogs/SessionLog <timestamp>.txt
             string pathEnding = $"SessionLog {timestamp}";
 
-            if (Assembly.GetEntryAssembly() != null && !String.IsNullOrWhiteSpace(Assembly.GetEntryAssembly().Location))
+            if (OpenTap.ApplicationContext.GetEntryAssembly() != null && !String.IsNullOrWhiteSpace(OpenTap.ApplicationContext.GetEntryAssembly().Location))
             {
-                string exeName = Path.GetFileNameWithoutExtension(Assembly.GetEntryAssembly().Location);
+                string exeName = Path.GetFileNameWithoutExtension(OpenTap.ApplicationContext.GetEntryAssembly().Location);
                 // Path example: <TapDir>/SessionLogs/tap/tap <timestamp>.txt
                 pathEnding = $"{exeName} {timestamp}";
             }
@@ -146,6 +146,7 @@ namespace OpenTap
 
                 AppDomain.CurrentDomain.ProcessExit += FlushOnExit;
                 AppDomain.CurrentDomain.UnhandledException += FlushOnExit;
+
             }
             else
             {
