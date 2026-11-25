@@ -152,16 +152,17 @@ namespace OpenTap
         {
             try
             {
-                if (_mutex?.WaitOne(0) == true)
-                    _mutex?.ReleaseMutex();
+                _mutex?.ReleaseMutex();
             }
-            catch (AbandonedMutexException)
+            catch (ApplicationException)
             {
-                // this is fine
+                // The current thread does not own the mutex (not acquired or already released).
             }
-
-            _mutex?.Dispose();
-            _mutex = null;
+            finally
+            {
+                _mutex?.Dispose();
+                _mutex = null;
+            }
         }
 
         public bool WaitOne() => _mutex.WaitOne();

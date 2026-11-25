@@ -34,6 +34,12 @@
   </ItemGroup>
   
   <ItemGroup>
+    <!-- Git version calculation runs without loading the OpenTAP runtime. -->
+    <Compile Include="../../tools/GitVersionCalculator/GitRepository.cs" />
+    <Compile Include="../../tools/GitVersionCalculator/VersionCalculator.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\Engine\Tap.Engine.csproj" />
     <ProjectReference Include="..\..\Package\Tap.Package.csproj" />
   </ItemGroup>

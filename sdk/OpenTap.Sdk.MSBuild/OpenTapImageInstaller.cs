@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -92,25 +91,37 @@ namespace Keysight.OpenTap.Sdk.MSBuild
         /// <param name="packagesToInstall"></param>
         /// <param name="repositories"></param>
         /// <returns></returns>
-        public bool InstallImage(ITaskItem[] packagesToInstall, List<string> repositories)
+        // The SDK runtime has already been loaded by OpenTapContext. Reuse the package
+        // action's installation lock across reading, resolving and deploying the image.
+        sealed class InstallImageAction : IsolatedPackageAction
         {
-            bool success = false;
-            var mutexName = Path.GetFullPath(TapDir) + ".image.lock";
-            using var filelock = FileLock.Create(mutexName);
-            var sw = Stopwatch.StartNew();
-            int count = 0;
-            while (!filelock.WaitOne(TimeSpan.FromSeconds(5)))
+            readonly Func<bool> install;
+            internal InstallImageAction(string target, Func<bool> install)
             {
-                if (sw.Elapsed > TimeSpan.FromMinutes(10))
-                {
-                    LogMessage($"Image installer timed out waiting for mutex.", (int)LogEventType.Error, null);
-                    return false;
-                }
-
-                count++;
-                LogMessage($"Image Installer waiting for mutex... ({count})", (int)LogEventType.Warning, null);
+                Target = target;
+                this.install = install;
             }
 
+            protected override int LockedExecute(CancellationToken cancellationToken) => install() ? 0 : 1;
+        }
+
+        public bool InstallImage(ITaskItem[] packagesToInstall, List<string> repositories)
+        {
+            try
+            {
+                var action = new InstallImageAction(TapDir, () => InstallImageLocked(packagesToInstall, repositories));
+                return action.Execute(CancellationToken) == 0;
+            }
+            catch (Exception ex)
+            {
+                LogMessage(ex.Message, (int)LogEventType.Error, null);
+                return false;
+            }
+        }
+
+        private bool InstallImageLocked(ITaskItem[] packagesToInstall, List<string> repositories)
+        {
+            bool success = false;
             try
             {
                 // This installation is happening during a C# compilation context. The user will not be able to respond to any user input requests.
@@ -155,7 +166,6 @@ namespace Keysight.OpenTap.Sdk.MSBuild
             }
             finally
             {
-                filelock.Release();
                 if (success == false)
                 {
                     LogMessage($"Failed to install packages.", (int)LogEventType.Error, null);
