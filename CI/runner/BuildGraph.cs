@@ -577,11 +577,18 @@ internal sealed class BuildDisplay : IDisposable
         nameWidth = rows.Count == 0 ? 0 : rows.Keys.Max(name => name.Length);
         Interactive = interactive && !Console.IsOutputRedirected &&
             Environment.GetEnvironmentVariable("TERM") != "dumb";
+        timer = new Timer(_ => Refresh(), null, Timeout.Infinite, 120);
         if (Interactive)
+        {
+            // Ctrl+C terminates the process without guaranteeing using/finally
+            // cleanup. Restore the terminal before allowing default termination.
+            Console.CancelKeyPress += OnCancelKeyPress;
+            AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
             Console.Out.Write("\u001b[?25l"); // Hide the cursor while animating.
+            timer.Change(0, 120);
+        }
         else
             Console.Out.WriteLine($"Build   {ArtifactCount} artifacts");
-        timer = new Timer(_ => Refresh(), null, Interactive ? 0 : Timeout.Infinite, 120);
     }
 
     public void Write(TextWriter writer, string message)
@@ -724,6 +731,29 @@ internal sealed class BuildDisplay : IDisposable
         return $"  {icon} {name.PadRight(nameWidth)} {row.State,-9} {detail}";
     }
 
+    private void OnCancelKeyPress(object? sender, ConsoleCancelEventArgs args) => RestoreTerminal();
+    private void OnProcessExit(object? sender, EventArgs args) => RestoreTerminal();
+
+    private void RestoreTerminal()
+    {
+        lock (gate)
+        {
+            if (disposed) return;
+            disposed = true; // Prevent timer callbacks from redrawing during exit.
+            timer.Dispose();
+            if (!Interactive) return;
+            Console.CancelKeyPress -= OnCancelKeyPress;
+            AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
+            try
+            {
+                Console.Out.Write("\u001b[0m\u001b[?25h");
+                Console.Out.Flush();
+            }
+            catch (IOException) { } // Terminal may already be closed during exit.
+            catch (ObjectDisposedException) { }
+        }
+    }
+
     public void Dispose()
     {
         lock (gate)
@@ -739,8 +769,7 @@ internal sealed class BuildDisplay : IDisposable
             }
             finally
             {
-                if (Interactive) Console.Out.Write("\u001b[?25h");
-                disposed = true;
+                RestoreTerminal();
             }
         }
     }
