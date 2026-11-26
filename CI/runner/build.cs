@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Net.Http.Headers;
 using System.Text;
+using System.Xml.Linq;
 
 // Experimental smartinstaller with some minor fixes needed for this script.
 // https://github.com/opentap/smartinstaller/pull/385
@@ -544,11 +545,39 @@ async Task PackageNuGetAsync()
         var runtime = target.Rid.Replace("osx-", "macos-", StringComparison.Ordinal);
         var package = Path.Combine(artifactsDir,
             $"OpenTAP.{gitVersion}.{target.Platform}.{target.Architecture}.TapPackage");
-        ExtractZip(package, Path.Combine(nugetDir, "build", "runtimes", runtime));
+        var runtimeDir = Path.Combine(nugetDir, "build", "runtimes", runtime);
+        ExtractZip(package, runtimeDir);
+        // Use the archive's exact payload, including package metadata and hidden
+        // installation markers, rather than enumerating a mutable installation.
+        using var archive = ZipFile.OpenRead(package);
+        WritePayloadManifest(runtimeDir, "OpenTapRuntimeFile",
+            archive.Entries.Where(entry => !string.IsNullOrEmpty(entry.Name)).Select(entry => entry.FullName));
     }
+
+    // These XML documentation files are added by NuGet packaging, separately
+    // from the runtime TapPackages. List the same three files explicitly.
+    WritePayloadManifest(docs, "OpenTapDocumentationFile",
+        ["OpenTap.Package.xml", "OpenTap.xml", "Packages/OpenTAP/OpenTap.Plugins.BasicSteps.xml"]);
 
     await RunAsync("dotnet", ["pack", Path.Combine(nugetDir, "OpenTAP.Pack.csproj"), "--configuration", "Release", "--output", artifactsDir],
         repoRoot);
+}
+
+void WritePayloadManifest(string directory, string itemName, IEnumerable<string> files)
+{
+    XNamespace ns = "http://schemas.microsoft.com/developer/msbuild/2003";
+    var items = files.Select(file => file.Replace('\\', '/'))
+        .Distinct(StringComparer.Ordinal).OrderBy(file => file, StringComparer.Ordinal).Select(file =>
+        {
+            if (Path.IsPathRooted(file) || file.Split('/').Any(part => part is ".." or ".") ||
+                file.IndexOfAny(['*', '?', ';', '$', '%']) >= 0 || file == "payload.props")
+                throw new BuildFailure($"Invalid payload manifest path: {file}");
+            return new XElement(ns + itemName,
+                new XAttribute("Include", "$(MSBuildThisFileDirectory)" + file),
+                new XElement(ns + "TargetPath", file));
+        });
+    new XDocument(new XElement(ns + "Project", new XElement(ns + "ItemGroup", items)))
+        .Save(Path.Combine(directory, "payload.props"));
 }
 
 async Task RunTapAsync(string[] arguments, string workingDirectory,
