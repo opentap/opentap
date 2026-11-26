@@ -548,6 +548,7 @@ internal sealed class BuildDisplay : IDisposable
     private sealed class Row
     {
         public string State = "waiting";
+        public string[] Dependencies = [];
         public readonly Stopwatch Time = new();
     }
 
@@ -565,7 +566,10 @@ internal sealed class BuildDisplay : IDisposable
     public BuildDisplay(IEnumerable<BuildJob> jobs, bool interactive)
     {
         var selected = jobs.ToArray();
-        rows = selected.ToDictionary(job => job.Name, _ => new Row());
+        rows = selected.ToDictionary(job => job.Name, job => new Row
+        {
+            Dependencies = job.Dependencies.Select(dependency => dependency.Name).ToArray()
+        });
         intermediates = selected.Where(job => !job.IsArtifact).Select(job => job.Name).ToHashSet();
         nameWidth = rows.Count == 0 ? 0 : rows.Keys.Max(name => name.Length);
         Interactive = interactive && !Console.IsOutputRedirected &&
@@ -706,7 +710,15 @@ internal sealed class BuildDisplay : IDisposable
             "retrying" => "~", "done" => "+", "failed" => "!",
             "canceled" => "!", "skipped" => "-", _ => "."
         };
-        return $"  {icon} {name.PadRight(nameWidth)} {row.State,-9} {(row.Time.Elapsed.TotalSeconds > 0 ? row.Time.Elapsed.ToString(@"mm\:ss") : "")}";
+        var detail = row.Time.Elapsed.TotalSeconds > 0 ? row.Time.Elapsed.ToString(@"mm\:ss") : "";
+        if (row.State == "waiting")
+        {
+            var pending = row.Dependencies.Where(dependency =>
+                rows.TryGetValue(dependency, out var prerequisite) && prerequisite.State != "done").ToArray();
+            if (pending.Length > 0)
+                detail = "for: " + string.Join(", ", pending);
+        }
+        return $"  {icon} {name.PadRight(nameWidth)} {row.State,-9} {detail}";
     }
 
     public void Dispose()
