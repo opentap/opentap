@@ -593,7 +593,10 @@ internal sealed class BuildDisplay : IDisposable
             timer.Change(0, 120);
         }
         else
+        {
             Console.Out.WriteLine($"Build   {ArtifactCount} artifacts");
+            timer.Change(TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
+        }
     }
 
     public void Write(TextWriter writer, string message)
@@ -606,10 +609,10 @@ internal sealed class BuildDisplay : IDisposable
                 if (lifecycle)
                 {
                     var name = message.Substring(message.IndexOf(']') + 1).TrimStart().Split(':', 2)[0];
-                    // Redirected logs cannot erase rows. Log intermediate starts
-                    // and retries, but omit their completed summary rows.
-                    if (!intermediates.Contains(name) || IsActive(rows[name]))
-                        writer.WriteLine(FormatRow(name, rows[name], animated: false));
+                    // Plain logs are chronological events, not a retained panel.
+                    // Include intermediate completion so starts do not look like
+                    // jobs that remain running indefinitely.
+                    writer.WriteLine(FormatRow(name, rows[name], animated: false));
                     if (message.StartsWith("[FAILED]") || message.StartsWith("[RETRY WARNING]"))
                         writer.WriteLine("    " + message);
                 }
@@ -667,8 +670,18 @@ internal sealed class BuildDisplay : IDisposable
     {
         lock (gate)
         {
-            if (disposed || !Interactive) return;
-            Draw();
+            if (disposed) return;
+            if (Interactive)
+                Draw();
+            else
+            {
+                var active = rows.Where(pair => IsActive(pair.Value)).ToArray();
+                if (active.Length == 0) return;
+                Console.Out.WriteLine($"Build   {CompletedArtifactCount}/{ArtifactCount} artifacts complete   {elapsed.Elapsed:mm\\:ss} elapsed   {active.Length} active jobs");
+                foreach (var pair in active)
+                    Console.Out.WriteLine(FormatRow(pair.Key, pair.Value, animated: false));
+                Console.Out.Flush();
+            }
         }
     }
 
