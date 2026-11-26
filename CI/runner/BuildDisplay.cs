@@ -17,6 +17,7 @@ internal sealed class BuildDisplay : IDisposable
 
     private readonly object gate = new();
     private readonly Dictionary<string, Row> rows;
+    private readonly int nameWidth;
     private readonly Stopwatch elapsed = Stopwatch.StartNew();
     private readonly Timer timer;
     private int drawnLines;
@@ -27,6 +28,7 @@ internal sealed class BuildDisplay : IDisposable
     public BuildDisplay(IEnumerable<string> names, bool interactive)
     {
         rows = names.ToDictionary(name => name, _ => new Row());
+        nameWidth = rows.Count == 0 ? 0 : rows.Keys.Max(name => name.Length);
         Interactive = interactive && !Console.IsOutputRedirected &&
             Environment.GetEnvironmentVariable("TERM") != "dumb";
         if (Interactive)
@@ -151,7 +153,7 @@ internal sealed class BuildDisplay : IDisposable
             "retrying" => "~", "done" => "+", "failed" => "!",
             "canceled" => "!", "skipped" => "-", _ => "."
         };
-        return $"  {icon} {name,-24} {row.State,-9} {(row.Time.Elapsed.TotalSeconds > 0 ? row.Time.Elapsed.ToString(@"mm\:ss") : "")}";
+        return $"  {icon} {name.PadRight(nameWidth)} {row.State,-9} {(row.Time.Elapsed.TotalSeconds > 0 ? row.Time.Elapsed.ToString(@"mm\:ss") : "")}";
     }
 
     public void Dispose()
