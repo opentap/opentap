@@ -153,7 +153,7 @@ try
 
     // Preflight errors should be printed normally, without creating a live panel.
     graph.Validate(selectedJobs);
-    using var status = new BuildDisplay(selectedJobs, !Verbose());
+    using var status = new BuildDisplay(selectedJobs, !Verbose(), targets);
     display = status;
     try
     {

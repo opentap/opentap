@@ -566,14 +566,19 @@ internal sealed class BuildDisplay : IDisposable
     private bool disposed;
     public bool Interactive { get; }
 
-    public BuildDisplay(IEnumerable<BuildJob> jobs, bool interactive)
+    public BuildDisplay(IEnumerable<BuildJob> jobs, bool interactive, IEnumerable<string>? requestedTargets = null)
     {
         var selected = jobs.ToArray();
+        var requested = requestedTargets?.ToHashSet(StringComparer.Ordinal) ?? new HashSet<string>(StringComparer.Ordinal);
         rows = selected.ToDictionary(job => job.Name, job => new Row
         {
             Dependencies = job.Dependencies.Select(dependency => dependency.Name).ToArray()
         });
-        intermediates = selected.Where(job => !job.IsArtifact).Select(job => job.Name).ToHashSet();
+        // Explicit targets are outputs of this invocation from the user's
+        // perspective. Keep their rows and count them in the summary without
+        // changing graph metadata or exposing intermediate dependencies in help.
+        intermediates = selected.Where(job => !job.IsArtifact && !requested.Contains(job.Name))
+            .Select(job => job.Name).ToHashSet();
         nameWidth = rows.Count == 0 ? 0 : rows.Keys.Max(name => name.Length);
         Interactive = interactive && !Console.IsOutputRedirected &&
             Environment.GetEnvironmentVariable("TERM") != "dumb";
