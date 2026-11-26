@@ -232,7 +232,7 @@ internal sealed class BuildGraph
             if (tasks.TryGetValue(job, out var task))
                 return task;
             var prerequisites = job.Dependencies.Select(Schedule).ToArray();
-            task = Task.Run(() => ExecuteAsync(job, prerequisites));
+            task = ExecuteAsync(job, prerequisites);
             tasks.Add(job, task);
             return task;
         }
@@ -260,7 +260,10 @@ internal sealed class BuildGraph
             {
                 if (job.RetryWindow > TimeSpan.Zero)
                     log($"[ATTEMPT {attempt}] {job.Name}: elapsed {timer.Elapsed.TotalSeconds:F0}s, retry window {job.RetryWindow.TotalMinutes:g} min");
-                await job.Action().ConfigureAwait(false);
+                // Queue the action after its prerequisites complete. Queueing
+                // the prerequisite wait instead lets sibling continuations run
+                // synchronous action work inline, one after another.
+                await Task.Run(job.Action).ConfigureAwait(false);
                 if (attempt > 1)
                     log($"[RECOVERED] {job.Name}: succeeded on attempt {attempt} after {timer.Elapsed.TotalSeconds:F0}s");
                 log($"[DONE] {job.Name}");
