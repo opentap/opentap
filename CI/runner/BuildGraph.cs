@@ -689,7 +689,7 @@ internal sealed class BuildDisplay : IDisposable
             $"Build   {CompletedArtifactCount}/{ArtifactCount} artifacts complete   {elapsed.Elapsed:mm\\:ss} elapsed"
         };
         var candidates = rows.Where(pair => !intermediates.Contains(pair.Key) || IsActive(pair.Value))
-            .OrderBy(pair => IsActive(pair.Value) ? 0 : 1).ToArray();
+            .OrderBy(pair => IsActive(pair.Value) ? 0 : pair.Value.State == "done" ? 2 : 1).ToArray();
         var visible = candidates.Take(Math.Max(1, height - 4));
         foreach (var pair in visible)
             lines.Add(FormatRow(pair.Key, pair.Value, animated: true));
