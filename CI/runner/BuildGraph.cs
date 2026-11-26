@@ -1,9 +1,13 @@
 using System;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
+// Copy this file into a build runner to reuse the graph, CLI help, and status display.
 // Dependencies are job handles; unique names also identify CLI targets.
 internal sealed class BuildGraph
 {
@@ -25,6 +29,8 @@ internal sealed class BuildGraph
         var name = argument.Name;
         if (started)
             throw new InvalidOperationException("Cannot declare arguments after the graph has started.");
+        if (name is "help" or "h")
+            throw new ArgumentException("Help options are built in and cannot be redeclared.");
         if (string.IsNullOrWhiteSpace(name) || name.StartsWith('-') || name.Any(char.IsWhiteSpace))
             throw new ArgumentException("Argument names must be non-empty option names without leading dashes.");
         if (arguments.TryGetValue(name, out var existing))
@@ -41,11 +47,17 @@ internal sealed class BuildGraph
     }
 
     // Return positional targets; the caller supplies its project-specific default.
-    public string[] ParseArguments(string[] args, string? defaultTarget = null)
+    // Help returns no targets, so callers can exit before preflight or execution.
+    public string[] ParseArguments(string[] args, string? defaultTarget = null, string command = "build")
     {
         if (started)
             throw new InvalidOperationException("Cannot parse arguments after the graph has started.");
         ArgumentNullException.ThrowIfNull(args);
+        if (args.Any(arg => arg is "--help" or "-h"))
+        {
+            PrintHelp(Console.Out, defaultTarget, command);
+            return [];
+        }
         var targets = new List<string>();
         for (var index = 0; index < args.Length; index++)
         {
@@ -72,6 +84,52 @@ internal sealed class BuildGraph
         return targets.Count == 0 && defaultTarget is not null ? [defaultTarget] : targets.ToArray();
     }
 
+    public void PrintHelp(System.IO.TextWriter writer, string? defaultTarget = null, string command = "build")
+    {
+        writer.WriteLine($"Usage: {command} [options] [target ...]");
+        writer.WriteLine("Builds the named targets and their prerequisites, once each.");
+        if (defaultTarget is not null)
+            writer.WriteLine($"With no targets, builds {defaultTarget}.");
+        writer.WriteLine("Missing requirements are checked before any build job starts.");
+        writer.WriteLine("\nOptions:\n  -h, --help  Show this help and exit without building.");
+
+        // Describe argument/secret usage in terms of public artifacts, including
+        // requirements inherited from intermediates. Never evaluate predicates here.
+        var artifacts = Artifacts.ToArray();
+        var prerequisites = artifacts.ToDictionary(job => job,
+            job => SelectTargets([job.Name]));
+        foreach (var argument in Arguments)
+        {
+            var valueHint = argument.IsFlag ? "" : " VALUE";
+            writer.WriteLine($"  --{argument.Name}{valueHint} ({argument.ValueType.Name}, default: {argument.DefaultText})");
+            if (!string.IsNullOrWhiteSpace(argument.Description))
+                writer.WriteLine($"    {argument.Description}");
+            var users = artifacts.Where(artifact => prerequisites[artifact].Any(job => job.Arguments.Contains(argument)));
+            writer.WriteLine($"    Used by: {string.Join(", ", users.Select(job => job.Name))}.");
+        }
+
+        writer.WriteLine("\nEnvironment (requirements may be conditional on options):");
+        var secrets = jobs.SelectMany(job => job.SecretRequirements)
+            .GroupBy(secret => secret.Name, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal);
+        foreach (var group in secrets)
+        {
+            var description = group.Select(secret => secret.Description)
+                .FirstOrDefault(text => !string.IsNullOrWhiteSpace(text));
+            writer.WriteLine($"  {group.Key}  {description}".TrimEnd());
+            var users = artifacts.Where(artifact => prerequisites[artifact]
+                .Any(job => job.SecretRequirements.Any(secret => secret.Name == group.Key)));
+            writer.WriteLine($"    Required by: {string.Join(", ", users.Select(job => job.Name))}.");
+        }
+
+        writer.WriteLine("\nTargets:");
+        var nameWidth = artifacts.Length == 0 ? 0 : artifacts.Max(job => job.Name.Length);
+        foreach (var job in artifacts)
+            writer.WriteLine(string.IsNullOrWhiteSpace(job.Description)
+                ? $"  {job.Name}"
+                : $"  {job.Name.PadRight(nameWidth)}  {job.Description}");
+    }
+
     public bool HasArgument(string name) => arguments.ContainsKey(name);
     public bool IsFlag(string name) => arguments[name].IsFlag;
     public void SetArgument(string name, string value)
@@ -89,6 +147,25 @@ internal sealed class BuildGraph
 
     public IEnumerable<string> JobNames => jobs.Select(job => job.Name);
     public IReadOnlyList<BuildJob> Jobs => jobs.AsReadOnly();
+    public IEnumerable<BuildJob> Artifacts => jobs.Where(job => job.IsArtifact);
+
+    // Artifacts are public outputs (including aggregate and publishing targets).
+    // They execute and participate in dependencies just like intermediate jobs.
+    public BuildJob Artifact(string name, string? description = null) =>
+        Artifact(name, () => Task.CompletedTask, description);
+
+    public BuildJob Artifact(string name, Action action, string? description = null)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        return Artifact(name, () =>
+        {
+            action();
+            return Task.CompletedTask;
+        }, description);
+    }
+
+    public BuildJob Artifact(string name, Func<Task> action, string? description = null) =>
+        AddJob(name, action, description, isArtifact: true);
 
     // An actionless node completes when all its dependencies succeed.
     public BuildJob Node(string name, string? description = null) => Job(name, () => Task.CompletedTask, description);
@@ -103,14 +180,17 @@ internal sealed class BuildGraph
         }, description);
     }
 
-    public BuildJob Job(string name, Func<Task> action, string? description = null)
+    public BuildJob Job(string name, Func<Task> action, string? description = null) =>
+        AddJob(name, action, description, isArtifact: false);
+
+    private BuildJob AddJob(string name, Func<Task> action, string? description, bool isArtifact)
     {
         if (started)
             throw new InvalidOperationException("Cannot add jobs after the graph has started.");
         ArgumentNullException.ThrowIfNull(action);
         if (string.IsNullOrWhiteSpace(name) || jobs.Any(job => job.Name == name))
             throw new ArgumentException("Job names must be non-empty and unique.", nameof(name));
-        var job = new BuildJob(this, name, action, description);
+        var job = new BuildJob(this, name, action, description, isArtifact);
         jobs.Add(job);
         return job;
     }
@@ -326,6 +406,7 @@ internal sealed class BuildJob
 {
     public string Name { get; }
     public string? Description { get; }
+    public bool IsArtifact { get; }
     internal Func<Task> Action { get; }
     private readonly List<BuildJob> dependencies = new();
     private readonly BuildGraph graph;
@@ -451,11 +532,199 @@ internal sealed class BuildJob
 
     internal void Freeze() => frozen = true;
 
-    internal BuildJob(BuildGraph graph, string name, Func<Task> action, string? description)
+    internal BuildJob(BuildGraph graph, string name, Func<Task> action, string? description, bool isArtifact)
     {
         Name = name;
         Description = description;
+        IsArtifact = isArtifact;
         Action = action;
         this.graph = graph;
+    }
+}
+
+// ANSI redraws are confined to interactive terminals; redirected logs stay plain.
+internal sealed class BuildDisplay : IDisposable
+{
+    private sealed class Row
+    {
+        public string State = "waiting";
+        public readonly Stopwatch Time = new();
+    }
+
+    private readonly object gate = new();
+    private readonly Dictionary<string, Row> rows;
+    private readonly HashSet<string> intermediates;
+    private readonly int nameWidth;
+    private readonly Stopwatch elapsed = Stopwatch.StartNew();
+    private readonly Timer timer;
+    private int drawnLines;
+    private int frame;
+    private bool disposed;
+    public bool Interactive { get; }
+
+    public BuildDisplay(IEnumerable<BuildJob> jobs, bool interactive)
+    {
+        var selected = jobs.ToArray();
+        rows = selected.Where(job => job.IsArtifact).ToDictionary(job => job.Name, _ => new Row());
+        intermediates = selected.Where(job => !job.IsArtifact).Select(job => job.Name).ToHashSet();
+        nameWidth = rows.Count == 0 ? 0 : rows.Keys.Max(name => name.Length);
+        Interactive = interactive && !Console.IsOutputRedirected &&
+            Environment.GetEnvironmentVariable("TERM") != "dumb";
+        if (Interactive)
+            Console.Out.Write("\u001b[?25l"); // Hide the cursor while animating.
+        else
+            Console.Out.WriteLine($"Build   {rows.Count} artifacts");
+        timer = new Timer(_ => Refresh(), null, Interactive ? 0 : Timeout.Infinite, 120);
+    }
+
+    public void Write(TextWriter writer, string message)
+    {
+        lock (gate)
+        {
+            // Hide intermediate progress, but retain their failure/retry diagnostics
+            // and all subprocess output so failed prerequisites remain debuggable.
+            int close = message.IndexOf(']');
+            if (message.StartsWith('[') && close > 0)
+            {
+                var label = message.Substring(1, close - 1);
+                var name = message.Substring(close + 1).TrimStart().Split(':', 2)[0];
+                if (intermediates.Contains(name) &&
+                    (label is "START" or "DONE" or "RECOVERED" ||
+                     label.StartsWith("ATTEMPT ") && label != "ATTEMPT FAILED"))
+                    return;
+            }
+            bool lifecycle = Update(message);
+            if (!Interactive || disposed)
+            {
+                if (lifecycle)
+                {
+                    var name = message.Substring(message.IndexOf(']') + 1).TrimStart().Split(':', 2)[0];
+                    writer.WriteLine(FormatRow(name, rows[name], animated: false));
+                    if (message.StartsWith("[FAILED]") || message.StartsWith("[RETRY WARNING]"))
+                        writer.WriteLine("    " + message);
+                }
+                else
+                    writer.WriteLine(message);
+                return;
+            }
+            // Only clear when inserting permanent output, not on animation frames.
+            if (!lifecycle || message.StartsWith("[FAILED]") || message.StartsWith("[RETRY WARNING]"))
+            {
+                Clear();
+                writer.WriteLine(message);
+            }
+            Draw();
+        }
+    }
+
+    private bool Update(string message)
+    {
+        int close = message.IndexOf(']');
+        if (!message.StartsWith("[") || close < 0)
+            return false;
+        var label = message.Substring(1, close - 1);
+        var name = message.Substring(close + 1).TrimStart().Split(':', 2)[0];
+        if (!rows.TryGetValue(name, out var row))
+            return false;
+        switch (label)
+        {
+            case "START": row.State = "running"; row.Time.Start(); break;
+            case "DONE": row.State = "done"; row.Time.Stop(); break;
+            case "FAILED": row.State = "failed"; row.Time.Stop(); break;
+            case "SKIPPED": row.State = "skipped"; row.Time.Stop(); break;
+            case "CANCELED": row.State = "canceled"; row.Time.Stop(); break;
+            case "RETRY WARNING": row.State = "retrying"; break;
+            default:
+                if (label.StartsWith("ATTEMPT ") && label != "ATTEMPT FAILED")
+                    row.State = "running";
+                else return false;
+                break;
+        }
+        return true;
+    }
+
+    private void Refresh()
+    {
+        lock (gate)
+        {
+            if (disposed || !Interactive) return;
+            Draw();
+        }
+    }
+
+    private void Clear()
+    {
+        if (drawnLines == 0) return;
+        Console.Out.Write($"\u001b[{drawnLines}A\r\u001b[J");
+        drawnLines = 0;
+    }
+
+    private void Draw()
+    {
+        int width = 90, height = 24;
+        try { width = Math.Max(20, Console.WindowWidth - 1); height = Math.Max(4, Console.WindowHeight); }
+        catch (IOException) { }
+        var lines = new List<string>
+        {
+            $"Build   {rows.Values.Count(row => row.State == "done")}/{rows.Count} artifacts complete   {elapsed.Elapsed:mm\\:ss} elapsed"
+        };
+        var visible = rows.OrderBy(pair => pair.Value.State is "running" or "retrying" ? 0 : 1)
+            .Take(Math.Max(1, height - 4));
+        foreach (var pair in visible)
+            lines.Add(FormatRow(pair.Key, pair.Value, animated: true));
+        if (lines.Count - 1 < rows.Count)
+            lines.Add($"  ... {rows.Count - lines.Count + 1} other artifacts");
+        // Overwrite in place, writing the new content BEFORE erasing each line's
+        // tail. A single buffered write avoids exposing a blank panel on Windows.
+        var output = new StringBuilder();
+        if (drawnLines > 0)
+            output.Append($"\u001b[{drawnLines}A");
+        foreach (var line in lines)
+        {
+            output.Append('\r');
+            output.Append(line.Length > width ? line.Substring(0, width) : line);
+            output.Append("\u001b[K\r\n");
+        }
+        // Clear obsolete rows if a terminal resize reduced the visible panel.
+        var obsoleteRows = Math.Max(0, drawnLines - lines.Count);
+        for (var index = 0; index < obsoleteRows; index++)
+            output.Append("\r\u001b[K\r\n");
+        if (obsoleteRows > 0)
+            output.Append($"\u001b[{obsoleteRows}A");
+        Console.Out.Write(output.ToString());
+        drawnLines = lines.Count;
+        frame++;
+    }
+
+    private string FormatRow(string name, Row row, bool animated)
+    {
+        string icon = row.State switch
+        {
+            "running" => animated ? "|/-\\"[frame % 4].ToString() : ">",
+            "retrying" => "~", "done" => "+", "failed" => "!",
+            "canceled" => "!", "skipped" => "-", _ => "."
+        };
+        return $"  {icon} {name.PadRight(nameWidth)} {row.State,-9} {(row.Time.Elapsed.TotalSeconds > 0 ? row.Time.Elapsed.ToString(@"mm\:ss") : "")}";
+    }
+
+    public void Dispose()
+    {
+        lock (gate)
+        {
+            if (disposed) return;
+            timer.Dispose();
+            try
+            {
+                if (Interactive)
+                    Draw();
+                else
+                    Console.Out.WriteLine($"Build   {rows.Values.Count(row => row.State == "done")}/{rows.Count} artifacts complete   {elapsed.Elapsed:mm\\:ss} elapsed");
+            }
+            finally
+            {
+                if (Interactive) Console.Out.Write("\u001b[?25h");
+                disposed = true;
+            }
+        }
     }
 }
