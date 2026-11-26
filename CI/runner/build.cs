@@ -190,7 +190,6 @@ void PrepareWorkspace()
     Directory.CreateDirectory(artifactsDir);
     // Rebuilding locally fails if .OpenTapIgnore exists in bin/Release.
     DeletePath(Path.Combine(repoRoot, "bin", "Release", ".OpenTapIgnore"));
-    Info($"Detected host: {hostPlatform} {hostArch}");
 }
 
 async Task CalculateVersionAsync()
@@ -274,7 +273,6 @@ async Task BuildInstallerAsync(string targetOs, string packagePlatform,
     await RunAsync(tap, [.. arguments], installerDir);
     if (!File.Exists(output) || new FileInfo(output).Length == 0)
         throw new BuildFailure($"{packagePlatform} installer was not created: {output}");
-    Info($"Created {packagePlatform} installer: {output}");
 }
 
 string RequireSecret(string name)
