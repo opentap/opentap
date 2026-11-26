@@ -565,7 +565,7 @@ internal sealed class BuildDisplay : IDisposable
     public BuildDisplay(IEnumerable<BuildJob> jobs, bool interactive)
     {
         var selected = jobs.ToArray();
-        rows = selected.Where(job => job.IsArtifact).ToDictionary(job => job.Name, _ => new Row());
+        rows = selected.ToDictionary(job => job.Name, _ => new Row());
         intermediates = selected.Where(job => !job.IsArtifact).Select(job => job.Name).ToHashSet();
         nameWidth = rows.Count == 0 ? 0 : rows.Keys.Max(name => name.Length);
         Interactive = interactive && !Console.IsOutputRedirected &&
@@ -573,7 +573,7 @@ internal sealed class BuildDisplay : IDisposable
         if (Interactive)
             Console.Out.Write("\u001b[?25l"); // Hide the cursor while animating.
         else
-            Console.Out.WriteLine($"Build   {rows.Count} artifacts");
+            Console.Out.WriteLine($"Build   {ArtifactCount} artifacts");
         timer = new Timer(_ => Refresh(), null, Interactive ? 0 : Timeout.Infinite, 120);
     }
 
@@ -581,33 +581,26 @@ internal sealed class BuildDisplay : IDisposable
     {
         lock (gate)
         {
-            // Hide intermediate progress, but retain their failure/retry diagnostics
-            // and all subprocess output so failed prerequisites remain debuggable.
-            int close = message.IndexOf(']');
-            if (message.StartsWith('[') && close > 0)
-            {
-                var label = message.Substring(1, close - 1);
-                var name = message.Substring(close + 1).TrimStart().Split(':', 2)[0];
-                if (intermediates.Contains(name) &&
-                    (label is "START" or "DONE" or "RECOVERED" ||
-                     label.StartsWith("ATTEMPT ") && label != "ATTEMPT FAILED"))
-                    return;
-            }
             bool lifecycle = Update(message);
             if (!Interactive || disposed)
             {
                 if (lifecycle)
                 {
                     var name = message.Substring(message.IndexOf(']') + 1).TrimStart().Split(':', 2)[0];
-                    writer.WriteLine(FormatRow(name, rows[name], animated: false));
+                    // Redirected logs cannot erase rows. Log intermediate starts
+                    // and retries, but omit their completed summary rows.
+                    if (!intermediates.Contains(name) || IsActive(rows[name]))
+                        writer.WriteLine(FormatRow(name, rows[name], animated: false));
                     if (message.StartsWith("[FAILED]") || message.StartsWith("[RETRY WARNING]"))
                         writer.WriteLine("    " + message);
                 }
-                else
+                else if (!IsIntermediateRecovery(message))
                     writer.WriteLine(message);
                 return;
             }
             // Only clear when inserting permanent output, not on animation frames.
+            if (IsIntermediateRecovery(message))
+                return;
             if (!lifecycle || message.StartsWith("[FAILED]") || message.StartsWith("[RETRY WARNING]"))
             {
                 Clear();
@@ -643,6 +636,14 @@ internal sealed class BuildDisplay : IDisposable
         return true;
     }
 
+    private int ArtifactCount => rows.Count - intermediates.Count;
+    private int CompletedArtifactCount => rows.Count(pair =>
+        !intermediates.Contains(pair.Key) && pair.Value.State == "done");
+    private static bool IsActive(Row row) => row.State is "running" or "retrying";
+
+    private bool IsIntermediateRecovery(string message) => message.StartsWith("[RECOVERED]") &&
+        intermediates.Contains(message.Substring(message.IndexOf(']') + 1).TrimStart().Split(':', 2)[0]);
+
     private void Refresh()
     {
         lock (gate)
@@ -666,14 +667,15 @@ internal sealed class BuildDisplay : IDisposable
         catch (IOException) { }
         var lines = new List<string>
         {
-            $"Build   {rows.Values.Count(row => row.State == "done")}/{rows.Count} artifacts complete   {elapsed.Elapsed:mm\\:ss} elapsed"
+            $"Build   {CompletedArtifactCount}/{ArtifactCount} artifacts complete   {elapsed.Elapsed:mm\\:ss} elapsed"
         };
-        var visible = rows.OrderBy(pair => pair.Value.State is "running" or "retrying" ? 0 : 1)
-            .Take(Math.Max(1, height - 4));
+        var candidates = rows.Where(pair => !intermediates.Contains(pair.Key) || IsActive(pair.Value))
+            .OrderBy(pair => IsActive(pair.Value) ? 0 : 1).ToArray();
+        var visible = candidates.Take(Math.Max(1, height - 4));
         foreach (var pair in visible)
             lines.Add(FormatRow(pair.Key, pair.Value, animated: true));
-        if (lines.Count - 1 < rows.Count)
-            lines.Add($"  ... {rows.Count - lines.Count + 1} other artifacts");
+        if (lines.Count - 1 < candidates.Length)
+            lines.Add($"  ... {candidates.Length - lines.Count + 1} other jobs");
         // Overwrite in place, writing the new content BEFORE erasing each line's
         // tail. A single buffered write avoids exposing a blank panel on Windows.
         var output = new StringBuilder();
@@ -718,7 +720,7 @@ internal sealed class BuildDisplay : IDisposable
                 if (Interactive)
                     Draw();
                 else
-                    Console.Out.WriteLine($"Build   {rows.Values.Count(row => row.State == "done")}/{rows.Count} artifacts complete   {elapsed.Elapsed:mm\\:ss} elapsed");
+                    Console.Out.WriteLine($"Build   {CompletedArtifactCount}/{ArtifactCount} artifacts complete   {elapsed.Elapsed:mm\\:ss} elapsed");
             }
             finally
             {
