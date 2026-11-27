@@ -12,11 +12,16 @@ string RepositoryClientVersion = "1.0.3-beta.9+15a03b2b";
 string DocumentationGenerationVersion = "1.0.2";
 BuildJob setupOptions = null!;
 bool Verbose() => setupOptions.GetOption("verbose");
+bool AutoCleanup() => setupOptions.GetOption("auto-cleanup");
 BuildDisplay? display = null;
 BuildJob sdkOptions = null!;
 BuildJob signingOptions = null!;
 bool SkipSign() => signingOptions.GetOption("skip-sign");
 string repoRoot = "";
+// Root for everything a run generates: a fresh CI/build-<id> directory per run.
+string workDir = "";
+// Compiled output of every project, below workDir (see CI/build-output.props).
+string binRoot = "";
 string ciDir = "";
 string artifactsDir = "";
 string hostPlatform = "";
@@ -62,6 +67,7 @@ signing.RequiresSecret("KS8500_REPO_TOKEN", when: SigningRequested)
 
 var setup = graph.Node("setup", "Prepare the build environment.")
     .Option("verbose", "Show captured subprocess output.")
+    .Option("auto-cleanup", "Delete this run's CI/build-<id> directory before exiting (for CI, after uploads).")
     .DependsOn(
         graph.Job("workspace", PrepareWorkspace, "Prepare output directories."),
         graph.Job("version", CalculateVersionAsync, "Determine the build version."),
@@ -158,7 +164,7 @@ ConfigurePublishingRetry(publishInstallers);
 var githubTools = graph.Job("github-artifact-client", () =>
 {
     int retention = int.TryParse(Environment.GetEnvironmentVariable("ARTIFACT_RETENTION_DAYS"), out var days) ? days : 14;
-    githubUploader = new GitHubArtifactUploader(Path.Combine(ciDir, "github-upload-temp"), retention);
+    githubUploader = new GitHubArtifactUploader(Path.Combine(workDir, "github-upload-temp"), retention);
 }, "Create the native GitHub artifact client.")
     .RequiresSecret("ACTIONS_RUNTIME_TOKEN", "Runner-issued artifact-service token.")
     .RequiresSecret("ACTIONS_RESULTS_URL", "GitHub artifact-service endpoint.");
@@ -185,10 +191,16 @@ try
     DetectHost();
     repoRoot = FindRepoRoot(Environment.CurrentDirectory);
     ciDir = Path.Combine(repoRoot, "CI");
-    artifactsDir = Path.Combine(ciDir, "artifacts");
 
     // Preflight errors should be printed normally, without creating a live panel.
     graph.Validate(selectedJobs);
+    // Every build is clean: all generated files, including each project's obj/ and bin/,
+    // go below a directory created for this run, so nothing from earlier builds is reused.
+    // Outputs stay in the git tree (ignored); git clean removes old ones.
+    workDir = Path.Combine(ciDir, "build-" + Guid.NewGuid().ToString("N")[..12]);
+    binRoot = Path.Combine(workDir, "bin");
+    artifactsDir = Path.Combine(workDir, "artifacts");
+    Info($"Build directory: {Path.GetRelativePath(repoRoot, workDir)}");
     using var status = new BuildDisplay(selectedJobs, !Verbose(), targets);
     display = status;
     try
@@ -201,6 +213,16 @@ try
         display = null;
         githubUploader?.Dispose();
         PrintArtifactSummary();
+        // Safe: this run created the directory, and the summary (and any uploads) are done.
+        if (AutoCleanup())
+        {
+            try
+            {
+                DeletePath(workDir);
+                Info($"Removed build directory {Path.GetRelativePath(repoRoot, workDir)}");
+            }
+            catch (Exception ex) { Warn($"Could not remove build directory {workDir}: {ex.Message}"); }
+        }
     }
     return 0;
 }
@@ -227,7 +249,7 @@ void PrepareWorkspace()
 {
     Directory.CreateDirectory(artifactsDir);
     // Rebuilding locally fails if .OpenTapIgnore exists in bin/Release.
-    DeletePath(Path.Combine(repoRoot, "bin", "Release", ".OpenTapIgnore"));
+    DeletePath(Path.Combine(binRoot, "Release", ".OpenTapIgnore"));
 }
 
 async Task CalculateVersionAsync()
@@ -252,8 +274,18 @@ async Task CalculateVersionAsync()
     }
 }
 
-Task CrossBuildAsync() => RunAsync("dotnet",
-    ["build", Path.Combine(ciDir, "multi-target.slnx"), "--configuration", "Release"], repoRoot);
+Task CrossBuildAsync()
+{
+    return RunAsync("dotnet", ["build", Path.Combine(ciDir, "multi-target.slnx"), "--configuration", "Release",
+        .. BuildOutputProperties()], repoRoot);
+}
+
+// Relocate every project's obj/ and bin/ to this run's directory (see CI/build-output.props),
+// so restore and compilation start from nothing without touching the in-tree folders.
+// Pass these to every dotnet build/pack this script runs.
+string[] BuildOutputProperties() =>
+    [$"-p:OpenTapBuildRoot={workDir.Replace('\\', '/')}/",
+     $"-p:CustomAfterDirectoryBuildProps={Path.Combine(ciDir, "build-output.props")}"];
 
 void PrepareInstallation()
 {
@@ -262,7 +294,7 @@ void PrepareInstallation()
     // allowing package installs into the host RID directory (including SDK's
     // OpenTAP install). This is needed even when signing tools are skipped.
     // Write it after cross-build; PrepareWorkspace removes it before rebuilding.
-    File.WriteAllText(Path.Combine(repoRoot, "bin", "Release", ".OpenTapIgnore"), "");
+    File.WriteAllText(Path.Combine(binRoot, "Release", ".OpenTapIgnore"), "");
 }
 
 async Task InstallBuildToolsAsync()
@@ -277,7 +309,7 @@ async Task InstallBuildToolsAsync()
 async Task BuildInstallerAsync(BuildContext context, string artifactName, string targetOs, string packagePlatform,
     string configuration, string outputName)
 {
-    var installerDir = Path.Combine(ciDir, "installers", targetOs);
+    var installerDir = Path.Combine(workDir, "installers", targetOs);
     DeletePath(installerDir);
     CopyDirectory(Path.Combine(repoRoot, "Installer", "Assets"), installerDir);
     File.Copy(Path.Combine(artifactsDir, $"OpenTAP.{gitVersion}.{packagePlatform}.x64.TapPackage"),
@@ -288,7 +320,7 @@ async Task BuildInstallerAsync(BuildContext context, string artifactName, string
     // SmartInstaller writes Bundle/ beside tap. Isolate the entire host installation
     // for each target, rather than only giving it a separate working directory.
     var toolsDir = Path.Combine(installerDir, "tools");
-    CopyDirectory(Path.Combine(repoRoot, "bin", "Release", $"{hostPlatform}-{hostArch}"), toolsDir);
+    CopyDirectory(Path.Combine(binRoot, "Release", $"{hostPlatform}-{hostArch}"), toolsDir);
     var tap = Path.Combine(toolsDir, ExecutableName("tap"));
     MakeExecutable(tap);
     // Only installer targets need SmartInstaller. Install it in their private
@@ -327,9 +359,9 @@ async Task PublishPackagesAsync()
     Info("Publishing OpenTAP and SDK packages");
     // Publishing may now overlap installer creation. Install the upload plugin
     // in a private copy rather than mutating the shared host installation.
-    var toolsDir = Path.Combine(ciDir, "publish-tools");
+    var toolsDir = Path.Combine(workDir, "publish-tools");
     DeletePath(toolsDir);
-    CopyDirectory(Path.Combine(repoRoot, "bin", "Release", $"{hostPlatform}-{hostArch}"), toolsDir);
+    CopyDirectory(Path.Combine(binRoot, "Release", $"{hostPlatform}-{hostArch}"), toolsDir);
     var tap = Path.Combine(toolsDir, ExecutableName("tap"));
     MakeExecutable(tap);
     await RunAsync(tap, ["package", "install", "Repository Client", "--version",
@@ -537,7 +569,7 @@ void SetVersionEnvironment(string shortVersion, string fullVersion)
 void PrepareDocumentation()
 {
     /* delete files that should not be shipped in the package doc folder. */
-    var destination = Path.Combine(ciDir, "doc");
+    var destination = Path.Combine(workDir, "doc");
     if (!Directory.Exists(destination))
         CopyDirectory(Path.Combine(repoRoot, "doc"), destination);
 
@@ -552,10 +584,10 @@ void PrepareDocumentation()
 async Task PackageOpenTapAsync(BuildContext context,
     (string Rid, string Platform, string Architecture) target)
 {
-    var binDir = Path.Combine(repoRoot, "bin", "Release", target.Rid);
+    var binDir = Path.Combine(binRoot, "Release", target.Rid);
     var docsDestination = Path.Combine(binDir, "Packages", "OpenTAP", "doc");
     Directory.CreateDirectory(Path.GetDirectoryName(docsDestination)!);
-    CopyDirectory(Path.Combine(ciDir, "doc"), docsDestination, overwrite: true);
+    CopyDirectory(Path.Combine(workDir, "doc"), docsDestination, overwrite: true);
 
     var package = Path.Combine(artifactsDir, $"OpenTAP.{gitVersion}.{target.Platform}.{target.Architecture}.TapPackage");
     await RunTapAsync(["package", "create", "-v", "-c", Path.Combine(repoRoot, "package.xml"), "-o", package],
@@ -578,10 +610,10 @@ async Task InstallOpenTapAsPackageAsync()
 
 async Task PackageTemplatesAsync(BuildContext context)
 {
-    var destination = Path.Combine(ciDir, "templates");
+    var destination = Path.Combine(workDir, "templates");
     DeletePath(destination);
     CopyDirectory(Path.Combine(repoRoot, "templates"), destination);
-    File.Copy(Path.Combine(repoRoot, "LICENSE.txt"), Path.Combine(ciDir, "LICENSE.txt"), true);
+    File.Copy(Path.Combine(repoRoot, "LICENSE.txt"), Path.Combine(workDir, "LICENSE.txt"), true);
 
     ReplaceInFiles("$(GitVersion)", gitVersion,
     [
@@ -592,9 +624,9 @@ async Task PackageTemplatesAsync(BuildContext context)
     ]);
 
     // Select only this invocation's output, not packages left in artifacts by older builds.
-    var outputDir = Path.Combine(ciDir, "template-package");
+    var outputDir = Path.Combine(workDir, "template-package");
     DeletePath(outputDir);
-    await RunAsync("dotnet", ["pack", "--configuration", "Release", "--output", outputDir], destination);
+    await RunAsync("dotnet", ["pack", "--configuration", "Release", "--output", outputDir, .. BuildOutputProperties()], destination);
     var package = Directory.GetFiles(outputDir, "OpenTap.Templates.*.nupkg").Single();
     var templatePackage = Path.Combine(artifactsDir, Path.GetFileName(package));
     File.Copy(package, templatePackage, true);
@@ -605,7 +637,7 @@ async Task PackageSdkAsync(BuildContext context)
 {
     var templatePackage = context.OutputsOf<BuildArtifact>(templates).Single().Files.Single();
     await InstallOpenTapAsPackageAsync();
-    var binDir = Path.Combine(repoRoot, "bin", "Release", $"{hostPlatform}-{hostArch}");
+    var binDir = Path.Combine(binRoot, "Release", $"{hostPlatform}-{hostArch}");
     var sdkDir = Path.Combine(binDir, "Packages", "SDK");
     Directory.CreateDirectory(sdkDir);
 
@@ -634,9 +666,9 @@ async Task PackageSdkAsync(BuildContext context)
             binDir);
     }
 
-    File.Copy(Path.Combine(repoRoot, "bin", "Release", "Keysight.OpenTap.Sdk.MSBuild.dll"),
+    File.Copy(Path.Combine(binRoot, "Release", "Keysight.OpenTap.Sdk.MSBuild.dll"),
         Path.Combine(binDir, "Keysight.OpenTap.Sdk.MSBuild.dll"), true);
-    File.Copy(Path.Combine(repoRoot, "bin", "Release", "OpenTap.Sdk.New.dll"),
+    File.Copy(Path.Combine(binRoot, "Release", "OpenTap.Sdk.New.dll"),
         Path.Combine(binDir, "OpenTap.Sdk.New.dll"), true);
 
     var sdkPackage = Path.Combine(artifactsDir, "SDK.TapPackage");
@@ -646,8 +678,8 @@ async Task PackageSdkAsync(BuildContext context)
 
 async Task PackageNuGetAsync(BuildContext context)
 {
-    var buildDir = Path.Combine(repoRoot, "bin", "Release");
-    var nugetDir = Path.Combine(ciDir, "nuget");
+    var buildDir = Path.Combine(binRoot, "Release");
+    var nugetDir = Path.Combine(workDir, "nuget");
     DeletePath(nugetDir);
     CopyDirectory(Path.Combine(repoRoot, "nuget"), nugetDir);
     ReplaceInFiles("$(GitVersion)", gitVersion, [Path.Combine(nugetDir, "OpenTAP.nuspec")]);
@@ -684,10 +716,10 @@ async Task PackageNuGetAsync(BuildContext context)
 
     // Pack into a private directory so the output is exactly this build's package,
     // not whatever else sits in the artifacts directory.
-    var outputDir = Path.Combine(ciDir, "nuget-package");
+    var outputDir = Path.Combine(workDir, "nuget-package");
     DeletePath(outputDir);
-    await RunAsync("dotnet", ["pack", Path.Combine(nugetDir, "OpenTAP.Pack.csproj"), "--configuration", "Release", "--output", outputDir],
-        repoRoot);
+    await RunAsync("dotnet", ["pack", Path.Combine(nugetDir, "OpenTAP.Pack.csproj"), "--configuration", "Release", "--output", outputDir,
+        .. BuildOutputProperties()], repoRoot);
     var nupkg = Directory.GetFiles(outputDir, "*.nupkg").Single();
     var published = Path.Combine(artifactsDir, Path.GetFileName(nupkg));
     File.Copy(nupkg, published, true);
@@ -714,7 +746,7 @@ void WritePayloadManifest(string directory, string itemName, IEnumerable<string>
 async Task RunTapAsync(string[] arguments, string workingDirectory,
     Dictionary<string, string>? environment = null)
 {
-    var tap = Path.Combine(repoRoot, "bin", "Release", $"{hostPlatform}-{hostArch}", ExecutableName("tap"));
+    var tap = Path.Combine(binRoot, "Release", $"{hostPlatform}-{hostArch}", ExecutableName("tap"));
     MakeExecutable(tap);
     await RunAsync(tap, arguments, workingDirectory, environment);
 }
