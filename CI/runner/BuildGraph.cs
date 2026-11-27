@@ -151,39 +151,61 @@ internal sealed class BuildGraph
 
     // Artifacts are public outputs (including aggregate and publishing targets).
     // They execute and participate in dependencies just like intermediate jobs.
+    // Actions may take a BuildContext to read prerequisite outputs and publish their own.
     public BuildJob Artifact(string name, string? description = null) =>
         Artifact(name, () => Task.CompletedTask, description);
 
-    public BuildJob Artifact(string name, Action action, string? description = null)
-    {
-        ArgumentNullException.ThrowIfNull(action);
-        return Artifact(name, () =>
-        {
-            action();
-            return Task.CompletedTask;
-        }, description);
-    }
+    public BuildJob Artifact(string name, Action action, string? description = null) =>
+        AddJob(name, Wrap(action), description, isArtifact: true);
 
     public BuildJob Artifact(string name, Func<Task> action, string? description = null) =>
+        AddJob(name, Wrap(action), description, isArtifact: true);
+
+    public BuildJob Artifact(string name, Action<BuildContext> action, string? description = null) =>
+        AddJob(name, Wrap(action), description, isArtifact: true);
+
+    public BuildJob Artifact(string name, Func<BuildContext, Task> action, string? description = null) =>
         AddJob(name, action, description, isArtifact: true);
 
     // An actionless node completes when all its dependencies succeed.
     public BuildJob Node(string name, string? description = null) => Job(name, () => Task.CompletedTask, description);
 
-    public BuildJob Job(string name, Action action, string? description = null)
-    {
-        ArgumentNullException.ThrowIfNull(action);
-        return Job(name, () =>
-        {
-            action();
-            return Task.CompletedTask;
-        }, description);
-    }
+    public BuildJob Job(string name, Action action, string? description = null) =>
+        AddJob(name, Wrap(action), description, isArtifact: false);
 
     public BuildJob Job(string name, Func<Task> action, string? description = null) =>
+        AddJob(name, Wrap(action), description, isArtifact: false);
+
+    public BuildJob Job(string name, Action<BuildContext> action, string? description = null) =>
+        AddJob(name, Wrap(action), description, isArtifact: false);
+
+    public BuildJob Job(string name, Func<BuildContext, Task> action, string? description = null) =>
         AddJob(name, action, description, isArtifact: false);
 
-    private BuildJob AddJob(string name, Func<Task> action, string? description, bool isArtifact)
+    private static Func<BuildContext, Task> Wrap(Action action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        return _ => { action(); return Task.CompletedTask; };
+    }
+
+    private static Func<BuildContext, Task> Wrap(Func<Task> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        return _ => action();
+    }
+
+    private static Func<BuildContext, Task> Wrap(Action<BuildContext> action)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        return context => { action(context); return Task.CompletedTask; };
+    }
+
+    // Outputs published by successfully completed jobs, in graph declaration order.
+    // This is the graph-driven view for summaries; read it after the run.
+    public IEnumerable<(BuildJob Job, T Output)> Outputs<T>() =>
+        jobs.SelectMany(job => job.OutputsOf<T>().Select(output => (job, output)));
+
+    private BuildJob AddJob(string name, Func<BuildContext, Task> action, string? description, bool isArtifact)
     {
         if (started)
             throw new InvalidOperationException("Cannot add jobs after the graph has started.");
@@ -263,7 +285,10 @@ internal sealed class BuildGraph
                 // Queue the action after its prerequisites complete. Queueing
                 // the prerequisite wait instead lets sibling continuations run
                 // synchronous action work inline, one after another.
-                await Task.Run(job.Action).ConfigureAwait(false);
+                // Outputs from failed attempts are discarded; only the successful one is kept.
+                var context = new BuildContext(job);
+                await Task.Run(() => job.Action(context)).ConfigureAwait(false);
+                job.Complete(context);
                 if (attempt > 1)
                     log($"[RECOVERED] {job.Name}: succeeded on attempt {attempt} after {timer.Elapsed.TotalSeconds:F0}s");
                 log($"[DONE] {job.Name}");
@@ -405,12 +430,55 @@ internal sealed class BuildOption(string name, string? description)
 // Documentation is metadata only; never store environment values here.
 internal sealed record BuildSecret(string Name, string? Description = null, Func<bool>? When = null);
 
+// A named set of files a job produced. Files are resolved when the job runs
+// (versions and paths are not known at graph construction); the name is declared
+// up front with BuildJob.Produces. RootDirectory is the base for relative paths.
+internal sealed record BuildArtifact(string Name, string[] Files, string RootDirectory);
+
+// Handle passed to a running job. It reads prerequisite outputs and publishes
+// this job's own; published values become visible to dependents and to
+// BuildGraph.Outputs only when the job succeeds, so partial results never leak.
+internal sealed class BuildContext
+{
+    private readonly List<object> published = new();
+    public BuildJob Job { get; }
+    internal BuildContext(BuildJob job) => Job = job;
+    internal IReadOnlyList<object> Published => published.ToArray();
+
+    // Publish an arbitrary result for dependents and summaries. BuildArtifact values
+    // must have been declared with BuildJob.Produces.
+    public void Output(object output)
+    {
+        ArgumentNullException.ThrowIfNull(output);
+        if (output is BuildArtifact artifact)
+        {
+            if (!Job.ProducedArtifacts.Contains(artifact.Name))
+                throw new InvalidOperationException($"{Job.Name} did not declare artifact {artifact.Name} with Produces().");
+            if (published.OfType<BuildArtifact>().Any(other => other.Name == artifact.Name))
+                throw new InvalidOperationException($"{Job.Name} already published artifact {artifact.Name}.");
+        }
+        published.Add(output);
+    }
+
+    public void Artifact(string name, string rootDirectory, params string[] files) =>
+        Output(new BuildArtifact(name, files, rootDirectory));
+
+    // Only direct dependencies are readable, keeping data flow visible in the graph.
+    public IReadOnlyList<T> OutputsOf<T>(BuildJob dependency)
+    {
+        ArgumentNullException.ThrowIfNull(dependency);
+        if (!Job.DependsDirectlyOn(dependency))
+            throw new InvalidOperationException($"{Job.Name} cannot read outputs of {dependency.Name}: not a direct dependency.");
+        return dependency.OutputsOf<T>().ToArray();
+    }
+}
+
 internal sealed class BuildJob
 {
     public string Name { get; }
     public string? Description { get; }
     public bool IsArtifact { get; }
-    internal Func<Task> Action { get; }
+    internal Func<BuildContext, Task> Action { get; }
     private readonly List<BuildJob> dependencies = new();
     private readonly BuildGraph graph;
     internal IReadOnlyList<BuildJob> Dependencies => dependencies;
@@ -535,7 +603,41 @@ internal sealed class BuildJob
 
     internal void Freeze() => frozen = true;
 
-    internal BuildJob(BuildGraph graph, string name, Func<Task> action, string? description, bool isArtifact)
+    private readonly List<string> declaredArtifacts = new();
+    private IReadOnlyList<object> outputs = [];
+
+    // Names of the artifacts this job promises to publish through its BuildContext.
+    // Declared up front so dependents (and help output) can be built before the job runs.
+    public IReadOnlyList<string> ProducedArtifacts => declaredArtifacts.AsReadOnly();
+
+    public BuildJob Produces(string artifactName)
+    {
+        if (frozen)
+            throw new InvalidOperationException("Cannot declare artifacts after the graph has started.");
+        if (string.IsNullOrWhiteSpace(artifactName))
+            throw new ArgumentException("Artifact names must be non-empty.", nameof(artifactName));
+        if (declaredArtifacts.Contains(artifactName))
+            throw new ArgumentException($"{Name} already declares artifact {artifactName}.", nameof(artifactName));
+        declaredArtifacts.Add(artifactName);
+        return this;
+    }
+
+    // Everything the job published on its successful attempt; empty if it has not (or never) succeeded.
+    public IEnumerable<T> OutputsOf<T>() => Volatile.Read(ref outputs).OfType<T>();
+
+    internal bool DependsDirectlyOn(BuildJob other) => dependencies.Contains(other);
+
+    internal void Complete(BuildContext context)
+    {
+        var published = context.Published;
+        var missing = declaredArtifacts.Where(name =>
+            !published.OfType<BuildArtifact>().Any(artifact => artifact.Name == name)).ToArray();
+        if (missing.Length > 0)
+            throw new InvalidOperationException($"{Name} did not publish declared artifact(s): {string.Join(", ", missing)}.");
+        Volatile.Write(ref outputs, published);
+    }
+
+    internal BuildJob(BuildGraph graph, string name, Func<BuildContext, Task> action, string? description, bool isArtifact)
     {
         Name = name;
         Description = description;
