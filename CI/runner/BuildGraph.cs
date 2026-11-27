@@ -778,9 +778,12 @@ internal sealed class BuildDisplay : IDisposable
             else
             {
                 var active = rows.Where(pair => IsActive(pair.Value)).ToArray();
-                if (active.Length == 0) return;
-                Console.Out.WriteLine($"Build   {CompletedArtifactCount}/{ArtifactCount} artifacts complete   {elapsed.Elapsed:mm\\:ss} elapsed   {active.Length} active jobs");
-                foreach (var pair in active)
+                // Same rows as the interactive panel: pending artifacts, with the
+                // unfinished prerequisites they wait for (intermediates appear there).
+                var pending = rows.Where(pair => pair.Value.State == "waiting" && !intermediates.Contains(pair.Key)).ToArray();
+                if (active.Length == 0 && pending.Length == 0) return;
+                Console.Out.WriteLine($"Build   {CompletedArtifactCount}/{ArtifactCount} artifacts complete   {elapsed.Elapsed:mm\\:ss} elapsed   {active.Length} active jobs   {pending.Length} pending");
+                foreach (var pair in active.Concat(pending))
                     Console.Out.WriteLine(FormatRow(pair.Key, pair.Value, animated: false));
                 Console.Out.Flush();
             }
