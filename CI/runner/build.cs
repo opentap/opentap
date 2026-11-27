@@ -24,6 +24,8 @@ string hostTapPlatform = "";
 string hostArch = "";
 string gitVersion = "";
 string templatePackagePath = "";
+GitHubArtifactUploader? githubUploader = null;
+var githubUploadResults = new System.Collections.Concurrent.ConcurrentBag<GitHubArtifactResult>();
 Lazy<string> RepoToken = new(() =>
     Environment.GetEnvironmentVariable("KS8500_REPO_TOKEN") ??
     throw new BuildFailure("KS8500_REPO_TOKEN is not configured."));
@@ -141,6 +143,37 @@ var publishInstallers = graph.Artifact("publish-installers", PublishInstallersAs
 
 ConfigurePublishingRetry(publishInstallers);
 
+// GitHub artifact uploads depend only on their own producer, so each starts as
+// soon as its output is complete. Credentials are validated during preflight.
+var githubTools = graph.Job("github-artifact-client", () =>
+{
+    int retention = int.TryParse(Environment.GetEnvironmentVariable("ARTIFACT_RETENTION_DAYS"), out var days) ? days : 14;
+    githubUploader = new GitHubArtifactUploader(Path.Combine(ciDir, "github-upload-temp"), retention);
+}, "Create the native GitHub artifact client.")
+    .RequiresSecret("ACTIONS_RUNTIME_TOKEN", "Runner-issued artifact-service token.")
+    .RequiresSecret("ACTIONS_RESULTS_URL", "GitHub artifact-service endpoint.");
+// Names are the contract with downstream workflow jobs (download-artifact).
+// Files are resolved when the upload runs, since the version is not known earlier.
+(BuildJob Producer, string Name, Func<string[]> Files)[] githubArtifacts =
+[
+    (packagesComplete, "opentap-packages", () => Glob("OpenTAP.*.TapPackage")),
+    (sdk, "sdk-package", () => [Path.Combine(artifactsDir, "SDK.TapPackage")]),
+    (nuget, "nuget-package", () => Glob("OpenTAP.*.nupkg", exclude: "OpenTap.Templates.")),
+    (templates, "template-package", () => Glob("OpenTap.Templates.*.nupkg")),
+    (windowsInstaller, "installer-windows", () => Glob("OpenTAP.*.exe")),
+    (linuxInstaller, "installer-linux", () => [Path.Combine(artifactsDir, "OpenTAP")]),
+];
+var githubUploads = githubArtifacts.Select(item =>
+    graph.Artifact($"upload-{item.Name}-github-artifact", async () =>
+    {
+        var files = item.Files();
+        if (files.Length == 0) throw new BuildFailure($"No files found for GitHub artifact {item.Name}.");
+        foreach (var file in files) RequireArtifact(file);
+        githubUploadResults.Add(await githubUploader!.UploadAsync(new GitHubArtifact(item.Name, files, artifactsDir)));
+    }).DependsOn(item.Producer, githubTools)).ToArray();
+graph.Artifact("upload-github-artifacts", "Upload packages and installers as GitHub artifacts.")
+    .DependsOn(githubUploads);
+
 try
 {
     var targets = graph.ParseArguments(args, defaultTarget: "all", command: "./CI/build.sh");
@@ -164,6 +197,8 @@ try
     {
         status.Dispose();
         display = null;
+        githubUploader?.Dispose();
+        PrintGitHubUploadSummary();
     }
     return 0;
 }
@@ -308,6 +343,26 @@ async Task PublishPackagesAsync()
     };
     arguments.AddRange(packages);
     await RunAsync(tap, [.. arguments], toolsDir);
+}
+
+string[] Glob(string pattern, string? exclude = null) =>
+    Directory.GetFiles(artifactsDir, pattern, SearchOption.TopDirectoryOnly)
+        .Where(file => exclude == null || !Path.GetFileName(file).StartsWith(exclude, StringComparison.Ordinal))
+        .OrderBy(file => file, StringComparer.Ordinal).ToArray();
+
+void PrintGitHubUploadSummary()
+{
+    var results = githubUploadResults.OrderBy(result => result.Name, StringComparer.Ordinal).ToArray();
+    if (results.Length == 0) return;
+    var width = results.Max(result => result.Name.Length);
+    Info("");
+    Info("GitHub artifacts uploaded");
+    foreach (var result in results)
+    {
+        var size = (result.Size / (1024d * 1024d)).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
+        Info($"  {result.Name.PadRight(width)}  {size,8} MiB  ID: {result.Id}");
+        Info($"    SHA256: {result.Digest}");
+    }
 }
 
 void RequireArtifact(string path)
@@ -698,7 +753,7 @@ void Write(TextWriter w, string message)
 {
     // Redact credentials without resolving lazy secrets, so preflight errors remain loggable.
     foreach (var name in new[] { "KS8500_REPO_TOKEN", "PUBLIC_REPO_TOKEN",
-        "INSTALLER_PUBLISH_KEY", "INSTALLER_PUBLISH_KEY_ARCHIVE", "TAP_SIGN_AUTH", "NUGET_KEY" })
+        "INSTALLER_PUBLISH_KEY", "INSTALLER_PUBLISH_KEY_ARCHIVE", "TAP_SIGN_AUTH", "NUGET_KEY", "ACTIONS_RUNTIME_TOKEN" })
     {
         var secret = Environment.GetEnvironmentVariable(name);
         if (string.IsNullOrEmpty(secret))
