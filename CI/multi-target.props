@@ -6,6 +6,9 @@
     <SkipInstallOpenTapAsPackage>true</SkipInstallOpenTapAsPackage>
     <!-- OpenTAP resolves its own dependencies; avoid generating an unused shared tap.deps.json. -->
     <GenerateDependencyFile>false</GenerateDependencyFile>
+    <!-- CI/build.sh relocates all output below OpenTapBuildRoot (see build-output.props). -->
+    <OpenTapBinRoot Condition="'$(OpenTapBuildRoot)' != ''">$(OpenTapBuildRoot)bin/</OpenTapBinRoot>
+    <OpenTapBinRoot Condition="'$(OpenTapBuildRoot)' == ''">../bin/</OpenTapBinRoot>
   </PropertyGroup>
 
   <ItemGroup>
@@ -16,7 +19,7 @@
 
   <PropertyGroup>
     <AppendRuntimeIdentifierToOutputPath>true</AppendRuntimeIdentifierToOutputPath>
-    <OutDir>../bin/$(Configuration)/$(RuntimeIdentifier)/</OutDir>
+    <OutDir>$(OpenTapBinRoot)$(Configuration)/$(RuntimeIdentifier)/</OutDir>
   </PropertyGroup>
 
   <!-- Building these explicitly makes the generated XML available even on a clean
@@ -32,9 +35,9 @@
           AfterTargets="Build"
           DependsOnTargets="BuildDocumentationFiles">
     <ItemGroup>
-      <DocumentationFile Include="../bin/$(Configuration)/OpenTap.xml" />
-      <DocumentationFile Include="../bin/$(Configuration)/OpenTap.Package.xml" />
-      <DocumentationFile Include="../bin/$(Configuration)/OpenTap.Plugins.BasicSteps.xml" />
+      <DocumentationFile Include="$(OpenTapBinRoot)$(Configuration)/OpenTap.xml" />
+      <DocumentationFile Include="$(OpenTapBinRoot)$(Configuration)/OpenTap.Package.xml" />
+      <DocumentationFile Include="$(OpenTapBinRoot)$(Configuration)/OpenTap.Plugins.BasicSteps.xml" />
     </ItemGroup>
     <Copy SourceFiles="@(DocumentationFile)"
           DestinationFolder="$(OutDir)"

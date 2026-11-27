@@ -1,0 +1,15 @@
+<Project>
+  <!-- Imported by every dotnet build/pack that CI/build.sh runs, through the global property
+       CustomAfterDirectoryBuildProps (right after Directory.Build.props, before the SDK
+       picks its obj/ defaults). OpenTapBuildRoot is that run's CI/build-<id>/ directory.
+       Every project then restores, compiles and outputs there, so nothing from earlier
+       builds (including restore results) is reused. -->
+  <PropertyGroup>
+    <BaseIntermediateOutputPath>$(OpenTapBuildRoot)obj/$(MSBuildProjectName)/</BaseIntermediateOutputPath>
+    <MSBuildProjectExtensionsPath>$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
+    <OutputPath>$(OpenTapBuildRoot)bin/$(Configuration)/</OutputPath>
+    <!-- The in-tree obj/ and bin/ are no longer the SDK's output folders, so keep stale
+         generated sources there out of the default compile items. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+  </PropertyGroup>
+</Project>

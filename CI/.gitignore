@@ -1,9 +1,2 @@
-*.txt
-doc/
-templates/
-template-package/
-LICENSE.txt
-artifacts/
-nuget/
-publish-tools/
-installers/
+# Per-run build output from CI/build.sh (artifacts, intermediates, obj/ and bin/).
+build-*/

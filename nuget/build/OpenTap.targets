@@ -42,22 +42,20 @@
            Text="$(OpenTapRuntime) builds are not supported."/>
   </Target>
 
-  <!-- Runtime payload -->
-  <ItemGroup Condition="Exists($(OpenTapRuntimeDir))">
-    <PackagePayloadFiles Include="$(OpenTapRuntimeDir)\**\*"/>
-  </ItemGroup>
-
-  <!-- Documentation payload -->
+  <!-- Package-generated literal file lists are authoritative. Files created by
+       running the installation later cannot enter the copy/clean payload. -->
+  <Import Project="$(OpenTapRuntimeDir)/payload.props" />
+  <Import Project="$(OpenTapDocsDir)/payload.props" />
   <ItemGroup>
-    <PackagePayloadFiles Include="$(OpenTapDocsDir)\**\*"/>
+    <PackagePayloadFiles Include="@(OpenTapRuntimeFile);@(OpenTapDocumentationFile)" />
   </ItemGroup>
 
   <Target Name="CopyOpenTapPayloadFiles"
           Inputs="@(PackagePayloadFiles)"
-          Outputs="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
+          Outputs="@(PackagePayloadFiles -> '$(OutDir)%(TargetPath)')"
           BeforeTargets="Build;PostBuildEvent">
     <Copy SourceFiles="@(PackagePayloadFiles)"
-          DestinationFiles="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"/>
+          DestinationFiles="@(PackagePayloadFiles -> '$(OutDir)%(TargetPath)')"/>
   </Target>
 
     <!-- This is a workaround for a cosmetic issue caused by dotnet overwriting OpenTap.dll with the shared lib/netstandard2.0/OpenTap.dll variant during build, causing 'tap package verify' to fail.
@@ -75,7 +73,7 @@
           BeforeTargets="Clean" 
           DependsOnTargets="ProcessOpenTapPackageList">
     <ItemGroup>
-      <PackagePayloadFilesToClean Include="@(PackagePayloadFiles -> '$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"/>
+      <PackagePayloadFilesToClean Include="@(PackagePayloadFiles -> '$(OutDir)%(TargetPath)')"/>
     </ItemGroup>
     <Delete Files="@(PackagePayloadFilesToClean);@(InstallMarkerFiles)"/>
   </Target>

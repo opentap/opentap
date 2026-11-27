@@ -219,63 +219,28 @@ jobs:
       - name: Write Sign Cert
         if: ${{ env.SIGN_SERVER_CERT != '' }}
         run: printf '%s' "$SIGN_SERVER_CERT" > "$TAP_SIGN_CERT"
+      # JavaScript actions receive runtime credentials which shell steps do not.
+      # This bridge only exports credentials; all upload logic is native C#.
+      - name: Expose GitHub artifact runtime
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            for (const name of ['ACTIONS_RUNTIME_TOKEN', 'ACTIONS_RESULTS_URL']) {
+              const value = process.env[name];
+              if (!value) throw new Error(`Missing ${name}`);
+              core.setSecret(value);
+              core.exportVariable(name, value);
+            }
       - name: Build
         id: build
         shell: bash
         run: |
-          args=(all)
+          # Outputs live in a per-run directory; uploads are done before cleanup.
+          args=(all upload-github-artifacts --auto-cleanup)
           if [[ "$PUBLISH_ARTIFACTS" == "true" ]]; then
             args+=(publish-packages publish-installers)
           fi
           ./CI/build.sh "${args[@]}"
-      - name: Upload OpenTAP packages
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: opentap-packages
-          compression-level: 0
-          retention-days: 14
-          path: CI/artifacts/OpenTAP.*.TapPackage
-          if-no-files-found: error
-      - name: Upload SDK package
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: sdk-package
-          compression-level: 0
-          retention-days: 14
-          path: CI/artifacts/SDK.TapPackage
-          if-no-files-found: error
-      - name: Upload NuGet package
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: nuget-package
-          compression-level: 0
-          retention-days: 14
-          path: CI/artifacts/OpenTAP.*.nupkg
-          if-no-files-found: error
-      - name: Upload template package
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: template-package
-          compression-level: 0
-          retention-days: 14
-          path: CI/artifacts/OpenTap.Templates.*.nupkg
-          if-no-files-found: error
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: installer-windows
-          compression-level: 0
-          retention-days: 14
-          path: CI/artifacts/OpenTAP.*.exe
-          if-no-files-found: error
-      - name: Upload Linux installer
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: installer-linux
-          compression-level: 0
-          retention-days: 14
-          path: CI/artifacts/OpenTAP
-          if-no-files-found: error
 
   Package-Diff:
     runs-on:
