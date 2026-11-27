@@ -23,9 +23,7 @@ string hostPlatform = "";
 string hostTapPlatform = "";
 string hostArch = "";
 string gitVersion = "";
-string templatePackagePath = "";
 GitHubArtifactUploader? githubUploader = null;
-var githubUploadResults = new System.Collections.Concurrent.ConcurrentBag<GitHubArtifactResult>();
 Lazy<string> RepoToken = new(() =>
     Environment.GetEnvironmentVariable("KS8500_REPO_TOKEN") ??
     throw new BuildFailure("KS8500_REPO_TOKEN is not configured."));
@@ -70,6 +68,7 @@ var setup = graph.Node("setup", "Prepare the build environment.")
         signing);
 setupOptions = setup;
 var templates = graph.Artifact("template-package", PackageTemplatesAsync)
+    .Produces("template-package")
     .DependsOn(setup);
 var crossBuild = graph.Job("cross-build", CrossBuildAsync, "Compile binaries for all configured platforms.")
     .DependsOn(setup);
@@ -83,9 +82,16 @@ var tools = graph.Job("build-tools", InstallBuildToolsAsync, "Install signing to
     .RequiresSecret("KS8500_REPO_TOKEN", "Internal build-tools repository token.", when: SigningRequested);
 
 var packages = Targets.ToDictionary(target => target.Rid, target =>
-    graph.Artifact($"opentap-{target.Rid}", () => PackageOpenTapAsync(target))
+    graph.Artifact($"opentap-{target.Rid}", context => PackageOpenTapAsync(context, target))
         .DependsOn(crossBuild, documentation, tools));
-var packagesComplete = graph.Artifact("opentap-packages", "Build OpenTAP packages for all configured platforms.")
+// The aggregate publishes one artifact holding every platform's package.
+var packagesComplete = graph.Artifact("opentap-packages", context =>
+    {
+        var files = packages.Values.SelectMany(job => context.OutputsOf<PackageFile>(job))
+            .Select(package => package.Path).OrderBy(path => path, StringComparer.Ordinal).ToArray();
+        context.Artifact("opentap-packages", artifactsDir, files);
+    }, "Build OpenTAP packages for all configured platforms.")
+    .Produces("opentap-packages")
     .DependsOn([.. packages.Values]);
 
 // SDK packaging installs the host OpenTAP package and embeds the templates.
@@ -101,6 +107,7 @@ var packageHostPlatform = OperatingSystem.IsWindows() ? "win" :
 var hostRid = $"{packageHostPlatform}-{RuntimeInformation.OSArchitecture.ToString().ToLowerInvariant()}";
 var hostPackages = packages.Where(entry => entry.Key == hostRid).Select(entry => entry.Value).ToArray();
 var sdk = graph.Artifact("sdk-package", PackageSdkAsync)
+    .Produces("sdk-package")
     .Option("dummy-devguide", "Include an empty developer guide instead of generating the PDF.")
     .DependsOn(templates)
     .DependsOn(hostPackages)
@@ -110,15 +117,18 @@ sdk.RequiresSecret("KS8500_REPO_TOKEN", when: () => !sdk.GetOption("dummy-devgui
 sdk.Requires(() => sdk.GetOption("dummy-devguide") || !OperatingSystem.IsMacOS(),
     "Cannot generate developer guide PDF on macOS. Use --dummy-devguide.");
 var nuget = graph.Artifact("nuget-package", PackageNuGetAsync)
+    .Produces("nuget-package")
     .DependsOn(packagesComplete);
 
-var windowsInstaller = graph.Artifact("installer-windows", () => BuildInstallerAsync(
+var windowsInstaller = graph.Artifact("installer-windows", context => BuildInstallerAsync(context, "installer-windows",
     "win", "Windows", "opentap.installer.xml", $"OpenTAP.{gitVersion}.exe"))
+    .Produces("installer-windows")
     .DependsOn(sdk, packages["win-x64"])
     .RequiresSecret("KS8500_REPO_TOKEN");
 // Each installer gets a private tooling copy, so both can run concurrently.
-var linuxInstaller = graph.Artifact("installer-linux", () => BuildInstallerAsync(
+var linuxInstaller = graph.Artifact("installer-linux", context => BuildInstallerAsync(context, "installer-linux",
     "linux", "Linux", "opentap.installer.linux.xml", "OpenTAP"))
+    .Produces("installer-linux")
     .DependsOn(sdk, packages["linux-x64"])
     .RequiresSecret("KS8500_REPO_TOKEN");
 
@@ -152,25 +162,17 @@ var githubTools = graph.Job("github-artifact-client", () =>
 }, "Create the native GitHub artifact client.")
     .RequiresSecret("ACTIONS_RUNTIME_TOKEN", "Runner-issued artifact-service token.")
     .RequiresSecret("ACTIONS_RESULTS_URL", "GitHub artifact-service endpoint.");
-// Names are the contract with downstream workflow jobs (download-artifact).
-// Files are resolved when the upload runs, since the version is not known earlier.
-(BuildJob Producer, string Name, Func<string[]> Files)[] githubArtifacts =
-[
-    (packagesComplete, "opentap-packages", () => Glob("OpenTAP.*.TapPackage")),
-    (sdk, "sdk-package", () => [Path.Combine(artifactsDir, "SDK.TapPackage")]),
-    (nuget, "nuget-package", () => Glob("OpenTAP.*.nupkg", exclude: "OpenTap.Templates.")),
-    (templates, "template-package", () => Glob("OpenTap.Templates.*.nupkg")),
-    (windowsInstaller, "installer-windows", () => Glob("OpenTAP.*.exe")),
-    (linuxInstaller, "installer-linux", () => [Path.Combine(artifactsDir, "OpenTAP")]),
-];
-var githubUploads = githubArtifacts.Select(item =>
-    graph.Artifact($"upload-{item.Name}-github-artifact", async () =>
+// Only the artifacts of the jobs listed here go to GitHub; producing an artifact does
+// not imply uploading it. Artifact names are the contract with downstream workflow jobs
+// (download-artifact). The producers publish the files at runtime, so paths live there.
+BuildJob[] githubArtifactJobs = [packagesComplete, sdk, nuget, templates, windowsInstaller, linuxInstaller];
+var githubUploads = githubArtifactJobs.SelectMany(producer => producer.ProducedArtifacts.Select(name =>
+    graph.Artifact($"upload-{name}-github-artifact", async context =>
     {
-        var files = item.Files();
-        if (files.Length == 0) throw new BuildFailure($"No files found for GitHub artifact {item.Name}.");
-        foreach (var file in files) RequireArtifact(file);
-        githubUploadResults.Add(await githubUploader!.UploadAsync(new GitHubArtifact(item.Name, files, artifactsDir)));
-    }).DependsOn(item.Producer, githubTools)).ToArray();
+        var artifact = context.OutputsOf<BuildArtifact>(producer).Single(item => item.Name == name);
+        foreach (var file in artifact.Files) RequireArtifact(file);
+        context.Output(await githubUploader!.UploadAsync(new GitHubArtifact(artifact.Name, artifact.Files, artifact.RootDirectory)));
+    }).DependsOn(producer, githubTools))).ToArray();
 graph.Artifact("upload-github-artifacts", "Upload packages and installers as GitHub artifacts.")
     .DependsOn(githubUploads);
 
@@ -198,7 +200,7 @@ try
         status.Dispose();
         display = null;
         githubUploader?.Dispose();
-        PrintGitHubUploadSummary();
+        PrintArtifactSummary();
     }
     return 0;
 }
@@ -272,7 +274,7 @@ async Task InstallBuildToolsAsync()
     }
 }
 
-async Task BuildInstallerAsync(string targetOs, string packagePlatform,
+async Task BuildInstallerAsync(BuildContext context, string artifactName, string targetOs, string packagePlatform,
     string configuration, string outputName)
 {
     var installerDir = Path.Combine(ciDir, "installers", targetOs);
@@ -309,6 +311,7 @@ async Task BuildInstallerAsync(string targetOs, string packagePlatform,
     await RunAsync(tap, [.. arguments], installerDir);
     if (!File.Exists(output) || new FileInfo(output).Length == 0)
         throw new BuildFailure($"{packagePlatform} installer was not created: {output}");
+    context.Artifact(artifactName, artifactsDir, output);
 }
 
 string RequireSecret(string name)
@@ -345,24 +348,85 @@ async Task PublishPackagesAsync()
     await RunAsync(tap, [.. arguments], toolsDir);
 }
 
-string[] Glob(string pattern, string? exclude = null) =>
-    Directory.GetFiles(artifactsDir, pattern, SearchOption.TopDirectoryOnly)
-        .Where(file => exclude == null || !Path.GetFileName(file).StartsWith(exclude, StringComparison.Ordinal))
-        .OrderBy(file => file, StringComparer.Ordinal).ToArray();
-
-void PrintGitHubUploadSummary()
+// Lists what this run actually produced, as published by the jobs themselves.
+// Failed jobs publish nothing, so only completed artifacts appear.
+void PrintArtifactSummary()
 {
-    var results = githubUploadResults.OrderBy(result => result.Name, StringComparer.Ordinal).ToArray();
-    if (results.Length == 0) return;
-    var width = results.Max(result => result.Name.Length);
-    Info("");
-    Info("GitHub artifacts uploaded");
-    foreach (var result in results)
+    var artifacts = graph.Outputs<BuildArtifact>().Select(entry => entry.Output)
+        .OrderBy(artifact => artifact.Name, StringComparer.Ordinal)
+        .Select(artifact => (artifact.Name, Files: artifact.Files.OrderBy(file => file, StringComparer.Ordinal).Select(file =>
+        {
+            var relative = Path.GetRelativePath(repoRoot, file);
+            if (!File.Exists(file)) return (Path: relative, Size: -1L, Hash: "");
+            using var stream = File.OpenRead(file);
+            return (Path: relative, Size: stream.Length,
+                Hash: Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(stream)).ToLowerInvariant());
+        }).ToArray())).ToArray();
+    var uploads = graph.Outputs<GitHubArtifactResult>().Select(entry => entry.Output)
+        .OrderBy(result => result.Name, StringComparer.Ordinal).ToArray();
+    if (artifacts.Length > 0)
     {
-        var size = (result.Size / (1024d * 1024d)).ToString("F1", System.Globalization.CultureInfo.InvariantCulture);
-        Info($"  {result.Name.PadRight(width)}  {size,8} MiB  ID: {result.Id}");
-        Info($"    SHA256: {result.Digest}");
+        Info("");
+        Info("Artifacts generated");
+        foreach (var artifact in artifacts)
+        {
+            Info($"  {artifact.Name}");
+            foreach (var file in artifact.Files)
+            {
+                if (file.Size < 0) { Info($"    {file.Path}  (missing)"); continue; }
+                Info($"    {file.Path}  {FormatSize(file.Size)}");
+                Info($"      SHA256: {file.Hash}");
+            }
+        }
     }
+    if (uploads.Length > 0)
+    {
+        Info("");
+        Info("GitHub artifacts uploaded");
+        var width = uploads.Max(result => result.Name.Length);
+        foreach (var result in uploads)
+        {
+            Info($"  {result.Name.PadRight(width)}  {FormatSize(result.Size),10}  ID: {result.Id}");
+            Info($"    SHA256: {result.Digest}");
+        }
+    }
+
+    // Mirror the same information into the GitHub job summary when running in Actions.
+    var summaryFile = Environment.GetEnvironmentVariable("GITHUB_STEP_SUMMARY");
+    if (string.IsNullOrWhiteSpace(summaryFile) || (artifacts.Length == 0 && uploads.Length == 0)) return;
+    var md = new StringBuilder();
+    if (artifacts.Length > 0)
+    {
+        md.AppendLine("### Artifacts generated\n\n| Artifact | File | Size | SHA256 |\n| --- | --- | ---: | --- |");
+        foreach (var artifact in artifacts)
+            foreach (var file in artifact.Files)
+                md.AppendLine($"| {artifact.Name} | `{file.Path}` | {(file.Size < 0 ? "missing" : FormatSize(file.Size))} | `{file.Hash}` |");
+        md.AppendLine();
+    }
+    if (uploads.Length > 0)
+    {
+        var server = Environment.GetEnvironmentVariable("GITHUB_SERVER_URL")?.TrimEnd('/');
+        var repository = Environment.GetEnvironmentVariable("GITHUB_REPOSITORY");
+        var run = Environment.GetEnvironmentVariable("GITHUB_RUN_ID");
+        md.AppendLine("### GitHub artifacts uploaded\n\n| Artifact | Size | ID | SHA256 (ZIP) |\n| --- | ---: | --- | --- |");
+        foreach (var result in uploads)
+        {
+            var id = string.IsNullOrWhiteSpace(server) || string.IsNullOrWhiteSpace(repository) || string.IsNullOrWhiteSpace(run)
+                ? result.Id : $"[{result.Id}]({server}/{repository}/actions/runs/{run}/artifacts/{result.Id})";
+            md.AppendLine($"| {result.Name} | {FormatSize(result.Size)} | {id} | `{result.Digest}` |");
+        }
+    }
+    try { File.AppendAllText(summaryFile, md.ToString()); }
+    catch (Exception ex) { Warn($"Could not write GitHub job summary: {ex.Message}"); }
+}
+
+string FormatSize(long bytes)
+{
+    string[] units = ["B", "KiB", "MiB", "GiB"];
+    var value = (double)bytes;
+    var unit = 0;
+    while (value >= 1024 && unit < units.Length - 1) { value /= 1024; unit++; }
+    return unit == 0 ? $"{bytes} B" : $"{value.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)} {units[unit]}";
 }
 
 void RequireArtifact(string path)
@@ -485,7 +549,7 @@ void PrepareDocumentation()
         DeletePath(Path.Combine(destination, relativePath));
 }
 
-async Task PackageOpenTapAsync(
+async Task PackageOpenTapAsync(BuildContext context,
     (string Rid, string Platform, string Architecture) target)
 {
     var binDir = Path.Combine(repoRoot, "bin", "Release", target.Rid);
@@ -493,8 +557,8 @@ async Task PackageOpenTapAsync(
     Directory.CreateDirectory(Path.GetDirectoryName(docsDestination)!);
     CopyDirectory(Path.Combine(ciDir, "doc"), docsDestination, overwrite: true);
 
-    await RunTapAsync(["package", "create", "-v", "-c", Path.Combine(repoRoot, "package.xml"), "-o",
-         Path.Combine(artifactsDir, $"OpenTAP.{gitVersion}.{target.Platform}.{target.Architecture}.TapPackage")],
+    var package = Path.Combine(artifactsDir, $"OpenTAP.{gitVersion}.{target.Platform}.{target.Architecture}.TapPackage");
+    await RunTapAsync(["package", "create", "-v", "-c", Path.Combine(repoRoot, "package.xml"), "-o", package],
         binDir,
         new()
         {
@@ -502,6 +566,7 @@ async Task PackageOpenTapAsync(
             ["Sign"] = SigningEnabled.Value ? "true" : "false",
             ["Architecture"] = target.Architecture
         });
+    context.Output(new PackageFile(package));
 }
 
 async Task InstallOpenTapAsPackageAsync()
@@ -511,7 +576,7 @@ async Task InstallOpenTapAsPackageAsync()
         repoRoot);
 }
 
-async Task PackageTemplatesAsync()
+async Task PackageTemplatesAsync(BuildContext context)
 {
     var destination = Path.Combine(ciDir, "templates");
     DeletePath(destination);
@@ -531,12 +596,14 @@ async Task PackageTemplatesAsync()
     DeletePath(outputDir);
     await RunAsync("dotnet", ["pack", "--configuration", "Release", "--output", outputDir], destination);
     var package = Directory.GetFiles(outputDir, "OpenTap.Templates.*.nupkg").Single();
-    templatePackagePath = Path.Combine(artifactsDir, Path.GetFileName(package));
-    File.Copy(package, templatePackagePath, true);
+    var templatePackage = Path.Combine(artifactsDir, Path.GetFileName(package));
+    File.Copy(package, templatePackage, true);
+    context.Artifact("template-package", artifactsDir, templatePackage);
 }
 
-async Task PackageSdkAsync()
+async Task PackageSdkAsync(BuildContext context)
 {
+    var templatePackage = context.OutputsOf<BuildArtifact>(templates).Single().Files.Single();
     await InstallOpenTapAsPackageAsync();
     var binDir = Path.Combine(repoRoot, "bin", "Release", $"{hostPlatform}-{hostArch}");
     var sdkDir = Path.Combine(binDir, "Packages", "SDK");
@@ -547,7 +614,7 @@ async Task PackageSdkAsync()
     ReplaceInFiles("$(GitVersion)", gitVersion,
         [Path.Combine(sdkDir, "Examples", "Directory.Build.props")]);
 
-    File.Copy(templatePackagePath, Path.Combine(sdkDir, "OpenTap.Templates.nupkg"), true);
+    File.Copy(templatePackage, Path.Combine(sdkDir, "OpenTap.Templates.nupkg"), true);
 
     var guide = Path.Combine(sdkDir, "Examples", "OpenTAP Developer Guide.pdf");
     if (sdkOptions.GetOption("dummy-devguide"))
@@ -572,11 +639,12 @@ async Task PackageSdkAsync()
     File.Copy(Path.Combine(repoRoot, "bin", "Release", "OpenTap.Sdk.New.dll"),
         Path.Combine(binDir, "OpenTap.Sdk.New.dll"), true);
 
-    await RunTapAsync(["package", "create", "-v", "-c", Path.Combine(repoRoot, "sdk", "sdk.package.xml"), "-o",
-         Path.Combine(artifactsDir, "SDK.TapPackage")], binDir);
+    var sdkPackage = Path.Combine(artifactsDir, "SDK.TapPackage");
+    await RunTapAsync(["package", "create", "-v", "-c", Path.Combine(repoRoot, "sdk", "sdk.package.xml"), "-o", sdkPackage], binDir);
+    context.Artifact("sdk-package", artifactsDir, sdkPackage);
 }
 
-async Task PackageNuGetAsync()
+async Task PackageNuGetAsync(BuildContext context)
 {
     var buildDir = Path.Combine(repoRoot, "bin", "Release");
     var nugetDir = Path.Combine(ciDir, "nuget");
@@ -614,8 +682,16 @@ async Task PackageNuGetAsync()
     WritePayloadManifest(docs, "OpenTapDocumentationFile",
         ["OpenTap.Package.xml", "OpenTap.xml", "Packages/OpenTAP/OpenTap.Plugins.BasicSteps.xml"]);
 
-    await RunAsync("dotnet", ["pack", Path.Combine(nugetDir, "OpenTAP.Pack.csproj"), "--configuration", "Release", "--output", artifactsDir],
+    // Pack into a private directory so the output is exactly this build's package,
+    // not whatever else sits in the artifacts directory.
+    var outputDir = Path.Combine(ciDir, "nuget-package");
+    DeletePath(outputDir);
+    await RunAsync("dotnet", ["pack", Path.Combine(nugetDir, "OpenTAP.Pack.csproj"), "--configuration", "Release", "--output", outputDir],
         repoRoot);
+    var nupkg = Directory.GetFiles(outputDir, "*.nupkg").Single();
+    var published = Path.Combine(artifactsDir, Path.GetFileName(nupkg));
+    File.Copy(nupkg, published, true);
+    context.Artifact("nuget-package", artifactsDir, published);
 }
 
 void WritePayloadManifest(string directory, string itemName, IEnumerable<string> files)
@@ -770,6 +846,9 @@ void Info(string message) => Write(Console.Out, message);
 void Warn(string message) => Write(Console.Error, $"\e[1;33mWARN: {message}\e[0m");
 void Error(string message) => Write(Console.Error, $"\e[1;31mERROR: {message}\e[0m");
 
+
+// A package file produced by one platform job, collected by the opentap-packages aggregate.
+sealed record PackageFile(string Path);
 
 sealed record ProcessResult(int ExitCode, string StandardOutput, string StandardError)
 {

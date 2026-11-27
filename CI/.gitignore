@@ -8,3 +8,4 @@ nuget/
 publish-tools/
 installers/
 github-upload-temp/
+nuget-package/
